@@ -82,3 +82,64 @@ a {
 #toast.show {
 	opacity: 1;
 }
+
+.overlay {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(0, 0, 0, .6);
+	z-index: 10;
+}
+
+.overlay.hidden {
+	display: none;
+}
+
+.overlay .panel {
+	background: #101622;
+	border: 1px solid #273142;
+	border-radius: 12px;
+	padding: 16px 18px;
+	min-width: 320px;
+	color: #e7ecf3;
+}
+
+.overlay .panel h2 {
+	margin: 0 0 8px;
+}
+
+.overlay .panel .form {
+	margin-top: 12px;
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+
+.overlay .panel input {
+	background: #0b0e13;
+	color: #e7ecf3;
+	border: 1px solid #273142;
+	padding: 6px 8px;
+	border-radius: 6px;
+}
+
+.overlay .panel button {
+	background: #1e2a3a;
+	color: #e7ecf3;
+	border: 1px solid #2b3a50;
+	padding: 6px 10px;
+	border-radius: 6px;
+	cursor: pointer;
+}
+
+.overlay .panel button:hover {
+	background: #273548;
+}
+
+.overlay .panel .board {
+	margin-top: 12px;
+	font-size: 13px;
+	line-height: 1.5;
+}

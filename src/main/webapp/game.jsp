@@ -23,14 +23,26 @@
 				<b>壁設置</b>: <b>F</b><br /> セーブ: <b>P</b> ロード: <b>L</b> ポーズ: <b>Esc</b>
 			</div>
 		</div>
-		<div id="toast"></div>
-	</div>
-	<script>
+		<div id="overlay" class="overlay hidden">
+			<div class="panel">
+				<h2>Game Over</h2>
+				<div class="lines" id="result-lines"></div>
+				<div class="form">
+					<label>名前: <input type="text" id="player-name"
+						maxlength="32" placeholder="Player"></label>
+					<button id="btn-save-score">戦績を保存</button>
+					<button id="btn-cancel">閉じる</button>
+				</div>
+				<div class="board" id="score-board"></div>
+			</div>
+			<div id="toast"></div>
+		</div>
+		<script>
     // サーバ側のコンテキストパスをJSへ
     window.CTX = '<%=request.getContextPath()%>
 		';
 	</script>
-	<script type="module"
-		src="${pageContext.request.contextPath}/js/main.js"></script>
+		<script type="module"
+			src="${pageContext.request.contextPath}/js/main.js"></script>
 </body>
 </html>

@@ -69,7 +69,11 @@ export function updateAI(state, dt, bus/*, audio */) {
 
   for (let i = mobs.length - 1; i >= 0; i--) {
     const m = mobs[i];
-    if (m.hp <= 0) { mobs.splice(i, 1); continue; }
+	if (m.hp <= 0) {
+	  state.stats.kills = (state.stats.kills|0) + 1;
+	  mobs.splice(i, 1);
+	  continue;
+	}
 
     // 減衰・クールダウン
     m.vx *= Math.pow(0.02, dt);

@@ -18,6 +18,13 @@ export function createInitialState() {
 		flow: null,
 		timers: { elapsed: 0, spawn: 5, bfs: 0 },
 		shake: { t: 0, mag: 0 },
-		paused: false
+		paused: false,
+		stats: {
+			startWallMs: Date.now(),
+			timeMs: 0,
+			kills: 0,
+			name: '' // 入力されたら保存
+		},
+		gameOver: false,
 	};
 }

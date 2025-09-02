@@ -2,7 +2,8 @@ export function mountHUD(hud, toast, state, bus){
   function renderHUD(){
     const w=state.player.weapons[state.player.curW] || {name:'(none)',mag:0,magSize:0,id:'none'};
     const next=Math.max(0, state.timers.spawn).toFixed(1);
-    const magTxt = w.id==='beam' ? '∞' : `${w.mag}/${w.magSize}`;
+	const magTxt = (w.id==='beam' || w.infiniteMag) ? '∞' : `${w.mag}/${w.magSize}`;
+    
     hud.innerHTML =
       `HP: ${state.player.hp}　Sta: ${Math.round(state.player.sta)}%　Key: ${state.player.inv.key?'✓':'—'}　資材: ${state.player.inv.blocks}　Zombies: ${state.mobs.length}　NextSpawn: ${next}s<br>`+
       `武器: <b>${w.name}</b>　Mag: <b>${magTxt}</b>　Reserve: 9mm=${state.player.inv.ammo9} / 12g=${state.player.inv.ammo12} / BeamCell=${state.player.inv.ammoBeam} / Nade=${state.player.inv.ammoNade}<br>`+
