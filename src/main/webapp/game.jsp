@@ -38,11 +38,11 @@
 			<div id="toast"></div>
 		</div>
 		<script>
-    // サーバ側のコンテキストパスをJSへ
     window.CTX = '<%=request.getContextPath()%>
 		';
 	</script>
 		<script type="module"
-			src="${pageContext.request.contextPath}/js/main.js"></script>
+			src="${pageContext.request.contextPath}/js/main.js">
+	</script>
 </body>
 </html>

@@ -30,5 +30,5 @@ export function canPlaceAt(state, tx, ty) {
 export function updateTiles(state, dt, bus, audio) {
 	// ・崩落アニメ
 	// ・設置クールダウン
-	// ・フローフィールド再構築の節流し など
+	// ・フローフィールド再構築の節流し など、間に合わなかった！
 }

@@ -16,62 +16,49 @@ import javax.servlet.http.HttpSession;
 
 @WebServlet(urlPatterns = { "/api/score" })
 public class ApiScoreServlet extends HttpServlet {
-  private final ScoreDAO dao = DAOFactory.getScoreDAO();
+	private final ScoreDAO dao = DAOFactory.getScoreDAO();
+	private static final Pattern P_NAME = Pattern.compile("\"name\"\\s*:\\s*\"(.*?)\"");
+	private static final Pattern P_TIMEMS = Pattern.compile("\"timeMs\"\\s*:\\s*(\\d+)");
 
-  @Override
-  protected void doPost(HttpServletRequest req, HttpServletResponse resp)
-      throws ServletException, IOException {
-    HttpSession sess = req.getSession(false);
-    String uid = (sess != null) ? (String) sess.getAttribute("uid") : null;
-    if (uid == null) {
-      resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-      resp.setContentType("application/json; charset=UTF-8");
-      resp.getWriter().print("{\"ok\":false,\"error\":\"not_logged_in\"}");
-      return;
-    }
+	@Override
+	protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+		HttpSession sess = req.getSession(false);
+		String uid = sess != null ? (String) sess.getAttribute("uid") : null;
 
-    // 文字コードは EncodingFilter で UTF-8 済み
-    StringBuilder sb = new StringBuilder();
-    try (BufferedReader br = req.getReader()) {
-      String line;
-      while ((line = br.readLine()) != null) sb.append(line);
-    }
-    String body = sb.toString();
+		resp.setContentType("application/json; charset=UTF-8");
+		try (PrintWriter out = resp.getWriter()) {
+			if (uid == null) {
+				out.print("{\"ok\":false,\"error\":\"not_logged_in\"}");
+				return;
+			}
 
-    String name = matchString(body, "\"name\"\\s*:\\s*\"(.*?)\"", "Player");
-    long timeMs = matchLong(body, "\"timeMs\"\\s*:\\s*(\\d+)", 0L);
+			StringBuilder sb = new StringBuilder(1024);
+			try (BufferedReader br = req.getReader()) {
+				String line;
+				while ((line = br.readLine()) != null)
+					sb.append(line);
+			}
+			String body = sb.toString();
 
-    ScoreRecord rec = new ScoreRecord(uid, name, timeMs);
-    rec.setCreatedAt(Instant.now());
-    dao.save(rec);
+			String name = "Player";
+			long timeMs = 0L;
 
-    resp.setContentType("application/json; charset=UTF-8");
-    try (PrintWriter out = resp.getWriter()) {
-      out.print("{\"ok\":true}");
-    }
-  }
+			Matcher m1 = P_NAME.matcher(body);
+			if (m1.find())
+				name = m1.group(1);
+			Matcher m2 = P_TIMEMS.matcher(body);
+			if (m2.find()) {
+				try {
+					timeMs = Long.parseLong(m2.group(1));
+				} catch (NumberFormatException ignore) {
+				}
+			}
 
-  // ====== tiny helpers (依存ライブラリなし) ======
-  private static String matchString(String body, String regex, String def) {
-    Matcher m = Pattern.compile(regex, Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(body);
-    if (m.find()) return unescapeJsonString(m.group(1));
-    return def;
-  }
+			ScoreRecord rec = new ScoreRecord(uid, name, timeMs);
+			rec.setCreatedAt(Instant.now());
+			dao.save(rec);
 
-  private static long matchLong(String body, String regex, long def) {
-    Matcher m = Pattern.compile(regex, Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(body);
-    if (m.find()) {
-      try { return Long.parseLong(m.group(1)); } catch (Exception ignored) {}
-    }
-    return def;
-  }
-
-  private static String unescapeJsonString(String s) {
-    // 最低限定義（今回使う範囲）
-    return s.replace("\\\"", "\"")
-            .replace("\\\\", "\\")
-            .replace("\\n", "\n")
-            .replace("\\r", "\r")
-            .replace("\\t", "\t");
-  }
+			out.print("{\"ok\":true}");
+		}
+	}
 }

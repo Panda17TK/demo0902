@@ -46,14 +46,18 @@ function hasLineOfSight(state, x0, y0, x1, y1) {
     if (isSolid(state, cx, cy)) return false;
     const e2 = 2 * err;
     if (e2 > -ny) { err -= ny; cx += dx; }
-    if (e2 < nx)  { err += nx; cy += dy; }
+    if (e2 < nx) { err += nx; cy += dy; }
     if (++steps > 600) break;
   }
   return true;
 }
 function canMelee(m, p, dist) {
-  const meleeRange = (m.kind === 'spitter' ? 18 : 24);
+  // 元値: spitter=18, zombie=24 → 半分。ただし下限16を設定して“当たらなさすぎ”を防ぐ
+  const base = (m.kind === 'spitter' ? 18 : 24);
+  const meleeRange = Math.max(16, base * 0.5);
   if (dist >= meleeRange) return false;
+
+  // spitter は正面判定
   if (m.kind !== 'spitter') return true;
   const mv  = norm(m.faceX || 0, m.faceY || 0);
   const toP = norm(p.x - m.x, p.y - m.y);
@@ -69,11 +73,12 @@ export function updateAI(state, dt, bus/*, audio */) {
 
   for (let i = mobs.length - 1; i >= 0; i--) {
     const m = mobs[i];
-	if (m.hp <= 0) {
-	  state.stats.kills = (state.stats.kills|0) + 1;
-	  mobs.splice(i, 1);
-	  continue;
-	}
+    if (m.hp <= 0) {
+      // 戦績
+      state.stats.kills = (state.stats.kills | 0) + 1;
+      mobs.splice(i, 1);
+      continue;
+    }
 
     // 減衰・クールダウン
     m.vx *= Math.pow(0.02, dt);
@@ -89,7 +94,7 @@ export function updateAI(state, dt, bus/*, audio */) {
     const slow = (m.hp <= (m.maxhp || m.hp) * 0.5) ? 0.5 : 1;
     const eff  = (m.baseSpeed || 60) * slow;
 
-    // プレイヤーとの関係
+    // 対プレイヤー関係
     const dx = p.x - m.x, dy = p.y - m.y;
     const dist = Math.hypot(dx, dy);
     const seeRange = (m.kind === 'spitter' ? 320 : 240);
@@ -118,7 +123,7 @@ export function updateAI(state, dt, bus/*, audio */) {
     let moveX = 0, moveY = 0;
 
     if (m.kind === 'spitter' && see) {
-      // 射撃（低頻度）
+      // 射撃
       if (m.shootCD <= 0) {
         m.shootCD = 1.2 / slow;
         const d = norm(dx, dy); const sp = 220;
@@ -136,9 +141,9 @@ export function updateAI(state, dt, bus/*, audio */) {
       let here = Infinity;
       if (state.flow[ty] && typeof state.flow[ty][tx] !== 'undefined') here = state.flow[ty][tx];
 
-      const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+      const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
       let best = Infinity, dirx = 0, diry = 0;
-      for (let k=0;k<4;k++) {
+      for (let k = 0; k < 4; k++) {
         const nx = tx + dirs[k][0], ny = ty + dirs[k][1];
         if (nx < 0 || ny < 0 || nx >= state.dim.w || ny >= state.dim.h) continue;
         if (isSolid(state, nx, ny)) continue;
@@ -177,22 +182,22 @@ export function updateAI(state, dt, bus/*, audio */) {
 
     // 速度合成＋移動
     moveAndCollide(state, m, moveX + m.vx * dt, 0);
-    moveAndCollide(state, m, 0,        moveY + m.vy * dt);
+    moveAndCollide(state, m, 0, moveY + m.vy * dt);
 
     // 接触ノックバック
     if (rectInter(m, p) && (!m.bumpCD || m.bumpCD <= 0)) {
       const n = norm(p.x - m.x, p.y - m.y);
       if (p.isDashing) { m.vx -= n.x * 380; m.vy -= n.y * 380; }
-      else             { p.vx += n.x * 260; p.vy += n.y * 260; m.vx -= n.x * 220; m.vy -= n.y * 220; }
+      else { p.vx += n.x * 260; p.vy += n.y * 260; m.vx -= n.x * 220; m.vy -= n.y * 220; }
       m.bumpCD = 0.28;
     }
 
-    // 近接（★ここにエフェクトも統合）
+    // 近接（半径は canMelee で半減）＋エフェクト
     if (m.meleeCD <= 0 && canMelee(m, p, dist)) {
       const ang = Math.atan2(p.y - m.y, p.x - m.x);
-      spawnEnemySlashFX(state, m.x, m.y, ang); // 見た目
+      spawnEnemySlashFX(state, m.x, m.y, ang);
 
-      if (p.iTime <= 0) { // 当たり判定（無敵中は入らない）
+      if (p.iTime <= 0) {
         p.hp -= 10; p.iTime = 0.9;
         const n2 = norm(p.x - m.x, p.y - m.y);
         p.vx += n2.x * 240; p.vy += n2.y * 240;
