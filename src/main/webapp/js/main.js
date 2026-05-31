@@ -86,6 +86,8 @@ if (!canvas) {
         bus.emit('ui:toast', '武器: ' + (ws[state.player.curW].name || ''));
       },
       pause: () => { if (!state.gameOver) state.paused = !state.paused; },
+      isPaused: () => state.paused,
+      setPaused: (b) => { if (!state.gameOver) state.paused = !!b; },
     });
   }
 

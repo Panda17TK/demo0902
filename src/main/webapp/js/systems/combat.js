@@ -4,6 +4,18 @@ import { TILE } from '../core/constants.js';
 import { damageTile, canPlaceAt } from './tiles.js';
 import { spawnSlashFX, spawnBeamFX, spawnBlastFX, spawnSparksFX } from './fx.js';
 import { rebuildFlowField } from './flowfield.js';
+import { hasLineOfSight } from './los.js';
+
+// 自動射撃用：射程内かつ視線の通る最寄りの敵を返す
+function nearestVisibleMob(state, p, maxR) {
+  let best = null, bd = maxR * maxR;
+  for (const m of state.mobs) {
+    if (m.hp <= 0) continue;
+    const dx = m.x - p.x, dy = m.y - p.y, d2 = dx * dx + dy * dy;
+    if (d2 < bd && hasLineOfSight(state, p.x, p.y, m.x, m.y)) { bd = d2; best = m; }
+  }
+  return best;
+}
 
 // 扇形ヒット判定（近接の継続ヒット＆弾相殺用）
 function pointInFan(px, py, s) {
@@ -94,20 +106,40 @@ export function updateCombat(state, dt, bus, input, audio) {
   if (p.buffs.tSpeed > 0) { p.buffs.tSpeed -= dt; if (p.buffs.tSpeed <= 0) p.buffs.speed = 1; }
 
   // 入力 → 移動/ダッシュ/向き（★ 速度1.2倍）
-  const ax = (input.pressed('a') || input.pressed('arrowleft') ? -1 : 0) + (input.pressed('d') || input.pressed('arrowright') ? 1 : 0);
-  const ay = (input.pressed('w') || input.pressed('arrowup') ? -1 : 0) + (input.pressed('s') || input.pressed('arrowdown') ? 1 : 0);
-  const moving = !!(ax || ay);
+  // 移動ベクトル：タッチのアナログスティック(input.move)があれば倒し具合で速度可変、
+  // 無ければキーボード(WASD/矢印)の8方向（常に最大速度）。
+  let dirx = 0, diry = 0, speedScale = 0;
+  if (input.move && input.move.active && (input.move.x || input.move.y)) {
+    const mlen = Math.hypot(input.move.x, input.move.y);
+    speedScale = Math.min(1, mlen);
+    dirx = input.move.x / (mlen || 1);
+    diry = input.move.y / (mlen || 1);
+  } else {
+    const ax = (input.pressed('a') || input.pressed('arrowleft') ? -1 : 0) + (input.pressed('d') || input.pressed('arrowright') ? 1 : 0);
+    const ay = (input.pressed('w') || input.pressed('arrowup') ? -1 : 0) + (input.pressed('s') || input.pressed('arrowdown') ? 1 : 0);
+    if (ax || ay) { const l = Math.hypot(ax, ay) || 1; dirx = ax / l; diry = ay / l; speedScale = 1; }
+  }
+  const moving = speedScale > 0;
   const dash = input.pressed('shift') && moving && p.sta > 0;
   p.isDashing = dash;
 
   const spd = p.baseSpeed * 1.2 * p.buffs.speed * (dash ? 2 : 1); // ← ここで1.2倍
-  let len = Math.hypot(ax, ay) || 1;
-  let vx = (ax / len) * spd * dt, vy = (ay / len) * spd * dt;
-  if (moving) { p.facing.x = ax / len; p.facing.y = ay / len; }
-  // タッチの照準スティック等が有効なら、向きはそちらを優先（静止中も狙える）
-  if (input.aim && input.aim.active && (input.aim.x || input.aim.y)) {
+  let vx = dirx * spd * speedScale * dt, vy = diry * spd * speedScale * dt;
+  if (moving) { p.facing.x = dirx; p.facing.y = diry; }
+
+  // 照準の優先順位： 手動の右スティック ＞ 自動射撃のオート照準 ＞ 移動方向
+  let autoFiring = false;
+  const manualAim = !!(input.aim && input.aim.active && (input.aim.x || input.aim.y));
+  if (manualAim) {
     const al = Math.hypot(input.aim.x, input.aim.y) || 1;
     p.facing.x = input.aim.x / al; p.facing.y = input.aim.y / al;
+  } else if (input.autoFire) {
+    const target = nearestVisibleMob(state, p, 480);
+    if (target) {
+      const dx = target.x - p.x, dy = target.y - p.y, l = Math.hypot(dx, dy) || 1;
+      p.facing.x = dx / l; p.facing.y = dy / l;
+      autoFiring = true; // ターゲットがいる時だけ自動発射
+    }
   }
   p.sta = dash ? Math.max(0, p.sta - 35 * dt) : Math.min(p.staMax, p.sta + 22 * dt);
 
@@ -165,7 +197,8 @@ export function updateCombat(state, dt, bus, input, audio) {
   let shotThisFrame = false;
 
   const curWeapon = p.weapons[p.curW];
-  if (input.pressed('k') && p.shootCD <= 0 && curWeapon) {
+  const firing = input.pressed('k') || autoFiring;
+  if (firing && p.shootCD <= 0 && curWeapon) {
     const w = curWeapon;
 
     if (w.id === 'beam') {
