@@ -49,19 +49,9 @@ export function reload(state, bus) {
   const w = p.weapons[p.curW];
   if (!w) return;
 
-  // 無限マガジン
-  if (w.infiniteMag) {
-    if (w.magSize != null) {
-      w.mag = w.magSize;
-      if (bus && bus.emit) {
-        bus.emit('ui:toast', (w.name || 'Weapon') + ' リロード (' + w.mag + '/' + w.magSize + ')');
-        bus.emit('sfx', 'reload');
-      }
-    }
-    return;
-  }
-  if (w.id === 'beam') {
-    if (bus && bus.emit) bus.emit('ui:toast', 'Beamはリロード不要');
+  // ビームは弾倉を持たず ammoBeam を直接消費するためリロード不要
+  if (w.id === 'beam' || w.magSize == null) {
+    if (bus && bus.emit) bus.emit('ui:toast', 'リロード不要');
     return;
   }
 
@@ -213,13 +203,12 @@ export function updateCombat(state, dt, bus, input, audio) {
     const w = curWeapon;
 
     if (w.id === 'beam') {
-      // ★ infiniteAmmo なら在庫を減らさない。false のときのみ ammoBeam を消費
-      const needsAmmo = !w.infiniteAmmo;
-      if (needsAmmo && (p.inv.ammoBeam || 0) <= 0) {
+      // ビームは ammoBeam セルを1発ずつ消費
+      if ((p.inv.ammoBeam || 0) <= 0) {
         bus.emit('ui:toast', 'Beam セル切れ');
       } else {
         p.shootCD = w.fireRate;
-        if (needsAmmo) p.inv.ammoBeam--;
+        p.inv.ammoBeam--;
         const dir = norm(p.facing.x, p.facing.y), step = 6, maxL = 700;
         let x = p.x, y = p.y, ex = x, ey = y;
         for (let t = 0; t < maxL; t += step) {
@@ -277,17 +266,10 @@ export function updateCombat(state, dt, bus, input, audio) {
       if (shotThisFrame || input.pressed('k')) {
         w._autoRT = 0; // 射撃中はリセット
       } else {
+        // 射撃を止めて2秒経過したら、予備弾から自動リロード
         w._autoRT = (w._autoRT || 0) + dt;
         if (w._autoRT >= 2.0) {
-          if (w.infiniteMag) {
-            w.mag = magSize;
-            if (bus && bus.emit) {
-              bus.emit('ui:toast', (w.name || 'Weapon') + ' 自動リロード (' + w.mag + '/' + magSize + ')');
-              bus.emit('sfx', 'reload');
-            }
-          } else {
-            reload(state, bus);
-          }
+          reload(state, bus);
           w._autoRT = 0;
         }
       }

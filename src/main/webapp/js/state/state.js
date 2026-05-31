@@ -25,14 +25,19 @@ export function createInitialState() {
 		shake: { t: 0, mag: 0 },   // 画面シェイク
 		hitstop: 0,                // ヒットストップ（被弾/爆発で一瞬スロー）
 
+		// ウェーブ管理（spawner が更新）。phase: spawning | fighting | intermission
+		wave: { num: 1, phase: 'spawning', toSpawn: 0, spawnCD: 0.3, choices: null, started: false },
+
 		player: {
 			x: 0, y: 0, w: 22, h: 22,
 			vx: 0, vy: 0,
-			hp: 100, iTime: 0,
+			hp: 100, hpMax: 100, iTime: 0,
 			baseSpeed: 110,
 			facing: { x: 1, y: 0 },
 			staMax: 100, sta: 100,
 			buffs: { range: 1, dmg: 1, speed: 1, tRange: 0, tDmg: 0, tSpeed: 0 },
+			// ラン中に恒久強化される倍率など（強化選択で更新）
+			mods: { gunMul: 1, meleeMul: 1, fireMul: 1, moveMul: 1, healOnKill: 0, magnet: 0 },
 			// 弾薬は有限。リロードはこの在庫から補充する（敵ドロップ/クレートで補給）
 			inv: { blocks: 2, key: false, ammo9: 96, ammo12: 24, ammoBeam: 6, ammoNade: 3 },
 
