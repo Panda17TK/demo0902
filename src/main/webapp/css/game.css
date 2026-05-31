@@ -84,6 +84,7 @@ canvas {
 }
 .hud-line { font-size: 13px; }
 .hud-buff { color: #ffd166; font-size: 12px; }
+.hud-wave { color: #9ad0ff; font-weight: 700; }
 
 #help {
 	position: absolute;
@@ -191,6 +192,44 @@ a {
 	margin-top: 12px;
 	font-size: 13px;
 	line-height: 1.5;
+}
+
+/* ===== 強化カード（ウェーブ間） ===== */
+.upgrade-cards {
+	display: flex;
+	gap: 12px;
+	margin-top: 12px;
+	flex-wrap: wrap;
+	justify-content: center;
+}
+.upgrade-card {
+	flex: 1 1 160px;
+	max-width: 200px;
+	min-height: 96px;
+	text-align: left;
+	background: #15202e;
+	border: 1px solid #2b3a50;
+	border-radius: 10px;
+	padding: 12px 14px;
+	color: #e7ecf3;
+	cursor: pointer;
+	transition: transform .08s ease, border-color .08s ease, background .08s ease;
+}
+.upgrade-card:hover {
+	transform: translateY(-3px);
+	border-color: #7ab0ff;
+	background: #1b2a3c;
+}
+.upgrade-card .uc-name {
+	font-size: 15px;
+	font-weight: 700;
+	margin-bottom: 6px;
+	color: #ffd166;
+}
+.upgrade-card .uc-desc {
+	font-size: 13px;
+	line-height: 1.4;
+	opacity: .9;
 }
 
 /* ===== タッチ操作（スマホ/タブレット） ===== */

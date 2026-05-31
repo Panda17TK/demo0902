@@ -33,19 +33,22 @@ export function mountHUD(hud, toast, state, bus) {
 
     const elapsed = state.gameOver ? (state.stats.timeMs || 0)
                                    : (performance.now() - (state.runStart || performance.now()));
-    const next = Math.max(0, state.timers.spawn).toFixed(1);
     const inv = p.inv;
     const magTxt = (w.magSize == null) ? '∞' : (w.mag + '/' + w.magSize);
+    const wave = state.wave || { num: 1, phase: 'active' };
+    const waveTxt = (wave.phase === 'intermission')
+      ? 'WAVE ' + wave.num + ' クリア'
+      : 'WAVE ' + wave.num + '（残 ' + ((wave.toSpawn | 0) + state.mobs.length) + '）';
 
     lineEl.innerHTML =
-      '武器: <b>' + (w.name || '') + '</b> <b>' + magTxt + '</b>' +
+      '<span class="hud-wave">' + waveTxt + '</span>' +
+      '　武器: <b>' + (w.name || '') + '</b> <b>' + magTxt + '</b>' +
       '　予備: 9mm ' + (inv.ammo9 | 0) + ' / 12g ' + (inv.ammo12 | 0) +
       ' / Beam ' + (inv.ammoBeam | 0) + ' / Nade ' + (inv.ammoNade | 0) +
       '<br>時間: <b>' + fmtTime(elapsed) + '</b>' +
       '　撃破: <b>' + (state.stats.kills | 0) + '</b>' +
       '　敵: ' + state.mobs.length +
       '　資材: ' + (inv.blocks | 0) +
-      '　次湧き: ' + next + 's' +
       buffText(p.buffs);
   }
 

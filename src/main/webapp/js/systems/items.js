@@ -10,7 +10,7 @@ export function updateItems(state, dt, bus, audio) {
 			if (it.type === 'ammo12') { const n = it.amt || 4; p.inv.ammo12 += n; bus.emit('ui:toast', `12g +${n}`); bus.emit('sfx', 'pickup'); }
 			if (it.type === 'ammoBeam') { const n = it.amt || 1; p.inv.ammoBeam += n; bus.emit('ui:toast', `Beamセル +${n}`); bus.emit('sfx', 'pickup'); }
 			if (it.type === 'ammoNade') { const n = it.amt || 1; p.inv.ammoNade += n; bus.emit('ui:toast', `Grenade +${n}`); bus.emit('sfx', 'pickup'); }
-			if (it.type === 'med') { const h = it.heal || 25; p.hp = clamp(p.hp + h, 0, 100); bus.emit('ui:toast', `体力 +${h}`); bus.emit('sfx', 'pickup'); }
+			if (it.type === 'med') { const h = it.heal || 25; p.hp = clamp(p.hp + h, 0, p.hpMax || 100); bus.emit('ui:toast', `体力 +${h}`); bus.emit('sfx', 'pickup'); }
 			if (it.type === 'buffRange') { p.buffs.range = 2; p.buffs.tRange = 15; bus.emit('ui:toast', '近接範囲 ×2（15s）'); bus.emit('sfx', 'pickup'); }
 			if (it.type === 'buffMelee') { p.buffs.dmg = 2; p.buffs.tDmg = 15; bus.emit('ui:toast', '近接火力 ×2（15s）'); bus.emit('sfx', 'pickup'); }
 			if (it.type === 'buffSpeed') { p.buffs.speed = 2; p.buffs.tSpeed = 12; bus.emit('ui:toast', '移動速度 ×2（12s）'); bus.emit('sfx', 'pickup'); }

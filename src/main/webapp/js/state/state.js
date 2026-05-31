@@ -18,15 +18,18 @@ export function createInitialState() {
 		paused: false,
 		runStart: 0,
 		gameOver: false,
-		stats: { kills: 0, timeMs: 0, name: '' },
+		stats: { kills: 0, timeMs: 0, name: '', wave: 1 },
+
+		// ウェーブ制（ローグライト）。spawner が更新する。
+		//   phase: 'active'（殲滅中） | 'intermission'（強化カード選択中）
+		//   toSpawn: この波で未出現の残数 / spawnCD: 次体出現までの間隔
+		//   choices: インターミッション中に提示中の強化カード配列
+		wave: { num: 1, phase: 'active', toSpawn: 0, spawnCD: 0.3, choices: null, interT: 0 },
 
 		// 演出用
 		cam: null,                 // スムーズ追従カメラ（loop で初期化）
 		shake: { t: 0, mag: 0 },   // 画面シェイク
 		hitstop: 0,                // ヒットストップ（被弾/爆発で一瞬スロー）
-
-		// ウェーブ管理（spawner が更新）。phase: spawning | fighting | intermission
-		wave: { num: 1, phase: 'spawning', toSpawn: 0, spawnCD: 0.3, choices: null, started: false },
 
 		player: {
 			x: 0, y: 0, w: 22, h: 22,
@@ -36,8 +39,8 @@ export function createInitialState() {
 			facing: { x: 1, y: 0 },
 			staMax: 100, sta: 100,
 			buffs: { range: 1, dmg: 1, speed: 1, tRange: 0, tDmg: 0, tSpeed: 0 },
-			// ラン中に恒久強化される倍率など（強化選択で更新）
-			mods: { gunMul: 1, meleeMul: 1, fireMul: 1, moveMul: 1, healOnKill: 0, magnet: 0 },
+			// ラン中に恒久強化される倍率など（強化カード選択で更新）
+			mods: { gunMul: 1, meleeMul: 1, fireMul: 1, moveMul: 1, healOnKill: 0, ammoMul: 1 },
 			// 弾薬は有限。リロードはこの在庫から補充する（敵ドロップ/クレートで補給）
 			inv: { blocks: 2, key: false, ammo9: 96, ammo12: 24, ammoBeam: 6, ammoNade: 3 },
 

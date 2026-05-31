@@ -35,6 +35,14 @@
 		<!-- トースト通知（オーバーレイの外に置く＝ゲーム中も表示される） -->
 		<div id="toast"></div>
 
+		<!-- ウェーブ間の強化カード選択 -->
+		<div id="upgrade-overlay" class="overlay hidden">
+			<div class="panel">
+				<h2 id="upgrade-title">強化を選択</h2>
+				<div id="upgrade-cards" class="upgrade-cards"></div>
+			</div>
+		</div>
+
 		<!-- ゲームオーバー用オーバーレイ -->
 		<div id="overlay" class="overlay hidden">
 			<div class="panel">

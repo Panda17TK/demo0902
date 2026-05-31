@@ -85,7 +85,8 @@ export function placeWallFront(state, bus) {
   const ty = Math.floor((p.y + p.facing.y * 18) / TILE);
   if (canPlaceAt(state, tx, ty)) {
     state.map[ty][tx] = '#';
-    state.tileHP[ty][tx] = state.tileMaxHP[ty][tx] = 70;
+    const wallHp = (p.mods && p.mods.wallHp) || 70; // 築城術アップグレードで頑丈に
+    state.tileHP[ty][tx] = state.tileMaxHP[ty][tx] = wallHp;
     p.inv.blocks--;
     rebuildFlowField(state); // 壁ができたら経路を即再計算
     bus.emit('ui:toast', '壁を設置');
@@ -97,6 +98,7 @@ export function placeWallFront(state, bus) {
 
 export function updateCombat(state, dt, bus, input, audio) {
   const p = state.player;
+  const mods = p.mods || { gunMul: 1, meleeMul: 1, fireMul: 1, moveMul: 1 };
 
   // 無敵時間の減衰（赤いままになるバグ防止）
   if (p.iTime > 0) { p.iTime -= dt; if (p.iTime < 0) p.iTime = 0; }
@@ -124,7 +126,7 @@ export function updateCombat(state, dt, bus, input, audio) {
   const dash = input.pressed('shift') && moving && p.sta > 0;
   p.isDashing = dash;
 
-  const spd = p.baseSpeed * 1.2 * p.buffs.speed * (dash ? 2 : 1); // ← ここで1.2倍
+  const spd = p.baseSpeed * 1.2 * p.buffs.speed * mods.moveMul * (dash ? 2 : 1);
   let vx = dirx * spd * speedScale * dt, vy = diry * spd * speedScale * dt;
   if (moving) { p.facing.x = dirx; p.facing.y = diry; }
 
@@ -161,7 +163,7 @@ export function updateCombat(state, dt, bus, input, audio) {
     spawnSlashFX(state, p.x, p.y, faceAng);
 
     // 即時ヒット（敵・壁）
-    const meleeDmg = Math.round(22 * p.buffs.dmg);
+    const meleeDmg = Math.round(22 * p.buffs.dmg * mods.meleeMul);
     for (const m of state.mobs) {
       if (m.hp <= 0) continue;
       const dx = m.x - p.x, dy = m.y - p.y; const d = Math.hypot(dx, dy);
@@ -189,7 +191,7 @@ export function updateCombat(state, dt, bus, input, audio) {
       x: p.x, y: p.y, ang: faceAng,
       t: 0, life: 0.30, reach: reach, arc: arc,
       tickInt: 0.07, tick: 0,
-      dmg: Math.round(8 * p.buffs.dmg)
+      dmg: Math.round(8 * p.buffs.dmg * mods.meleeMul)
     });
   }
 
@@ -207,8 +209,9 @@ export function updateCombat(state, dt, bus, input, audio) {
       if ((p.inv.ammoBeam || 0) <= 0) {
         bus.emit('ui:toast', 'Beam セル切れ');
       } else {
-        p.shootCD = w.fireRate;
+        p.shootCD = w.fireRate * mods.fireMul;
         p.inv.ammoBeam--;
+        const beamDmg = w.dmg * mods.gunMul;
         const dir = norm(p.facing.x, p.facing.y), step = 6, maxL = 700;
         let x = p.x, y = p.y, ex = x, ey = y;
         for (let t = 0; t < maxL; t += step) {
@@ -217,7 +220,7 @@ export function updateCombat(state, dt, bus, input, audio) {
           if (state.map[ty] && (state.map[ty][tx] === '#' || state.map[ty][tx] === 'D')) break;
           for (const m of state.mobs) {
             if (m.hp > 0 && Math.abs(m.x - x) < m.w / 2 && Math.abs(m.y - y) < m.h / 2) {
-              hurtMob(state, m, w.dmg, 0, 0, 0, { number: false, sparks: 2 }); // ビームは連続ヒットのため数字省略
+              hurtMob(state, m, beamDmg, 0, 0, 0, { number: false, sparks: 2 }); // ビームは連続ヒットのため数字省略
             }
           }
           ex = x; ey = y;
@@ -231,7 +234,7 @@ export function updateCombat(state, dt, bus, input, audio) {
       if (w.mag <= 0) {
         bus.emit('ui:toast', '弾切れ - Rでリロード');
       } else {
-        p.shootCD = w.fireRate; w.mag--;
+        p.shootCD = w.fireRate * mods.fireMul; w.mag--;
         const dir = norm(p.facing.x, p.facing.y), sp = 280;
         state.grenades.push({ x: p.x + dir.x * 14, y: p.y + dir.y * 14, vx: dir.x * sp, vy: dir.y * sp, fuse: 1.0 });
         shotThisFrame = true;
@@ -241,12 +244,13 @@ export function updateCombat(state, dt, bus, input, audio) {
       if (w.mag <= 0) {
         bus.emit('ui:toast', '弾切れ - Rでリロード');
       } else {
-        p.shootCD = w.fireRate; w.mag--;
+        p.shootCD = w.fireRate * mods.fireMul; w.mag--;
         const dir = norm(p.facing.x, p.facing.y), baseSpd = 360, shots = w.pellets || 1;
+        const bulletDmg = w.dmg * mods.gunMul;
         for (let i = 0; i < shots; i++) {
           const ang = Math.atan2(dir.y, dir.x) + (Math.random() - 0.5) * (w.spread || 0) * 2;
           const vx = Math.cos(ang) * baseSpd, vy = Math.sin(ang) * baseSpd;
-          state.bullets.push({ x: p.x + Math.cos(ang) * 14, y: p.y + Math.sin(ang) * 14, vx, vy, life: 0.9, dmg: w.dmg });
+          state.bullets.push({ x: p.x + Math.cos(ang) * 14, y: p.y + Math.sin(ang) * 14, vx, vy, life: 0.9, dmg: bulletDmg });
         }
         bus.emit('sfx', w.id === 'mg' ? 'mg' : 'shot');
         shotThisFrame = true;
@@ -364,7 +368,7 @@ export function updateCombat(state, dt, bus, input, audio) {
     if (s.t >= s.life) state.slashes.splice(i, 1);
   }
 
-  p.hp = clamp(p.hp, 0, 100);
+  p.hp = clamp(p.hp, 0, p.hpMax || 100);
 }
 
 function explode(state, x, y) {

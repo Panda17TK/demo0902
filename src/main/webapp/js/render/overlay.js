@@ -77,8 +77,9 @@ export function mountGameOver(overlayEl, bus, state) {
     overlayEl.classList.remove('hidden');
 
     var kills = state.stats.kills | 0;
+    var wave = state.stats.wave | 0;
     if (linesEl) {
-      linesEl.innerHTML = '生存時間: <b>' + fmt(timeMs) + '</b>　倒した数: <b>' + kills + '</b>';
+      linesEl.innerHTML = '到達WAVE: <b>' + wave + '</b>　生存時間: <b>' + fmt(timeMs) + '</b>　倒した数: <b>' + kills + '</b>';
     }
     if (nameInput) nameInput.value = state.stats.name || '';
 

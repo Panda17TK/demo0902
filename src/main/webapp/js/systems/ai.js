@@ -33,9 +33,10 @@ export function makeSpitter(x, y) {
 // 敵撃破時のドロップ（弾薬中心。たまに回復/バフ/補給クレート）
 function dropLoot(state, x, y) {
   const items = state.items;
+  const am = (state.player.mods && state.player.mods.ammoMul) || 1; // 弾薬調達アップグレード
   const r = Math.random();
-  if (r < 0.55) items.push({ type: 'ammo9',  x, y, amt: 10 + (Math.random() * 10 | 0) });
-  else if (r < 0.72) items.push({ type: 'ammo12', x, y, amt: 2 + (Math.random() * 3 | 0) });
+  if (r < 0.55) items.push({ type: 'ammo9',  x, y, amt: Math.round((10 + (Math.random() * 10 | 0)) * am) });
+  else if (r < 0.72) items.push({ type: 'ammo12', x, y, amt: Math.max(1, Math.round((2 + (Math.random() * 3 | 0)) * am)) });
   if (Math.random() < 0.10) items.push({ type: 'ammoBeam', x: x + 4, y, amt: 1 });
   if (Math.random() < 0.08) items.push({ type: 'ammoNade', x: x - 4, y, amt: 1 });
   if (Math.random() < 0.18) items.push({ type: 'med', x, y: y + 4, heal: 20 });
@@ -88,8 +89,10 @@ export function updateAI(state, dt, bus/*, audio */) {
   for (let i = mobs.length - 1; i >= 0; i--) {
     const m = mobs[i];
     if (m.hp <= 0) {
-      // 戦績＋ドロップ（弾薬中心、たまに回復/バフ/補給）
+      // 戦績＋ドロップ（弾薬中心、たまに回復/バフ/補給）＋吸血
       state.stats.kills = (state.stats.kills | 0) + 1;
+      const heal = (p.mods && p.mods.healOnKill) || 0;
+      if (heal) p.hp = Math.min(p.hpMax || 100, p.hp + heal);
       dropLoot(state, m.x, m.y);
       mobs.splice(i, 1);
       continue;

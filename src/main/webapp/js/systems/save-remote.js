@@ -29,10 +29,11 @@ function serialize(state) {
 	return {
 		schema: 1,
 		player: {
-			x: state.player.x, y: state.player.y, hp: state.player.hp,
+			x: state.player.x, y: state.player.y, hp: state.player.hp, hpMax: state.player.hpMax,
 			inv: state.player.inv, curW: state.player.curW,
-			weapons: weapons, buffs: state.player.buffs, sta: state.player.sta
+			weapons: weapons, buffs: state.player.buffs, mods: state.player.mods, sta: state.player.sta
 		},
+		wave: state.wave, stats: state.stats,
 		map: state.map, tileHP: state.tileHP, tileMaxHP: state.tileMaxHP, items: state.items,
 		mobs: mobs,
 		spawner: state.timers ? { elapsed: (state.timers.elapsed || 0), spawnTimer: (state.timers.spawn || 5) } : null,
@@ -77,13 +78,18 @@ function applyToState(state, d) {
 	reinitArraysToMatch(state, d);
 
 	var pp = d.player;
+	if (typeof pp.hpMax === 'number') state.player.hpMax = pp.hpMax;
 	state.player.x = (typeof pp.x === 'number') ? pp.x : state.player.x;
 	state.player.y = (typeof pp.y === 'number') ? pp.y : state.player.y;
-	state.player.hp = Math.max(0, Math.min(100, (typeof pp.hp === 'number') ? pp.hp : state.player.hp));
+	state.player.hp = Math.max(0, Math.min(state.player.hpMax || 100, (typeof pp.hp === 'number') ? pp.hp : state.player.hp));
 	state.player.inv = pp.inv || state.player.inv;
 	state.player.curW = Math.max(0, Math.min(state.player.weapons.length - 1, (pp.curW | 0)));
 	if (pp.buffs) state.player.buffs = pp.buffs;
+	if (pp.mods) state.player.mods = pp.mods;
 	if (typeof pp.sta === 'number') state.player.sta = pp.sta;
+	// ウェーブ／戦績の復元（無ければ現状維持）
+	if (d.wave) state.wave = d.wave;
+	if (d.stats) state.stats = d.stats;
 
 	// items
 	state.items.length = 0;

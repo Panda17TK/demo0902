@@ -10,13 +10,14 @@ import { rebuildFlowField } from './systems/flowfield.js';
 import { updateAI } from './systems/ai.js';
 import { updateTiles } from './systems/tiles.js';
 import { updateItems } from './systems/items.js';
-import { updateSpawner } from './systems/spawner.js';
+import { updateSpawner, startWave } from './systems/spawner.js';
 import { updateCombat, reload, placeWallFront } from './systems/combat.js';
 import { updateFX } from './systems/fx.js';
 import { isTouchDevice, createTouchControls } from './core/touch.js';
 import { renderFrame } from './render/renderer.js';
 import { mountGameOver } from './render/overlay.js';
 import { mountHUD } from './render/hud.js';
+import { mountUpgrades } from './render/upgrades.js';
 import { saveChooser, loadChooser } from './systems/save-remote.js';
 
 const canvas  = document.getElementById('game');
@@ -62,10 +63,12 @@ if (!canvas) {
 
   setupMap(state);
   rebuildFlowField(state);
+  startWave(state, 1);
 
   // --- HUD / Overlay ---
   mountHUD(hudEl, toastEl, state, bus);
   mountGameOver(document.getElementById('overlay'), bus, state);
+  mountUpgrades(document.getElementById('upgrade-overlay'), bus, state);
 
   // --- ホットキー（保存/読込） ---
   bindHotkeys(state, bus, input, {
@@ -120,6 +123,7 @@ if (!canvas) {
     resetState(state);
     setupMap(state);
     rebuildFlowField(state);
+    startWave(state, 1);
     state.runStart = performance.now();
     state.gameOver = false;
     state.paused   = false;
