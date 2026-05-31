@@ -1,0 +1,12 @@
+# Maven
+/target/
+
+# Cargo (Tomcat 自動ダウンロード先)
+/.cargo/
+
+# OS / editor
+.DS_Store
+*.swp
+
+# Eclipse WTP のコンパイル出力（自動生成）
+/build/
