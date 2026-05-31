@@ -11,6 +11,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="theme-color" content="#0b0e13" />
 <title>ARPG - サバイバル</title>
+<link rel="manifest"
+	href="${pageContext.request.contextPath}/manifest.webmanifest">
+<link rel="apple-touch-icon"
+	href="${pageContext.request.contextPath}/icons/icon-192.png">
 <link rel="stylesheet"
 	href="${pageContext.request.contextPath}/css/game.css">
 </head>
@@ -75,6 +79,15 @@
 
 	<!-- コンテキストパス注入（1行で完結させること：改行が混入すると fetch URL が壊れる） -->
 	<script>window.CTX = '<%=request.getContextPath()%>';</script>
+	<!-- PWA: Service Worker 登録（HTTPS or localhost のみ有効） -->
+	<script>
+	if ('serviceWorker' in navigator) {
+		window.addEventListener('load', function () {
+			navigator.serviceWorker.register(window.CTX + '/sw.js', { scope: window.CTX + '/' })
+				.catch(function (e) { try { console.warn('SW登録失敗', e); } catch (_) {} });
+		});
+	}
+	</script>
 	<script type="module"
 		src="${pageContext.request.contextPath}/js/main.js"></script>
 </body>

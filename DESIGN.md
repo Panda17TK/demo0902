@@ -175,5 +175,24 @@ UI:
 - **ウェーブ編成**: `midBossEvery`/`bossEvery` で中ボス・ボス波を自動編成。
 - セーブ復元は `makeMobFromKey` 経由でボスも正しく復元（`kind/waveNum` を保存）。
 
-### 今後（選択済みで未着手）
-- **永続化**（同梱MySQL or ファイル）＋テスト＋CI＋PWA。
+## 10. 技術的完成度（永続化・テスト・CI・PWA）
+
+永続化（ファイル/JSON、DB不要）:
+- `AppPaths` がデータroot を解決（`-Darpg.data.dir` / `ARPG_DATA_DIR` / `~/.arpg-demo0902`）。
+- `FileScoreDAO`: スコアを JSON Lines で追記保存（`scores.jsonl`）。
+- `FileGameSaveDAO`: 1スロット=1ファイル（`saves/<uid>__<slot>.save`）。ファイル名はサニタイズ。
+- `DAOFactory` が既定でファイル実装を使用。`-Darpg.persistence=memory` でインメモリへ切替（テスト用）。
+- Tomcat 再起動後もランキング/セーブが残る。
+
+テスト（JUnit 5 + Mockito）:
+- `FileScoreDAOTest` / `FileGameSaveDAOTest`: 保存・整列・再起動相当の永続・サニタイズ。
+- `ApiScoreServletTest`: 未ログイン拒否・正常保存・一覧反映（モック request/response）。
+- `mvn test` で 15 件実行。`mvn package` 時にも surefire が走る。
+
+CI（GitHub Actions `build.yml`）:
+- push/PR で `mvn test` → `mvn clean package`。WAR と surefire レポートを成果物化。
+
+PWA（インストール/オフライン）:
+- `manifest.webmanifest`（フルスクリーン・横向き・アイコン）、`icons/`。
+- `sw.js`: アプリシェル（JS/CSS/アイコン）を cache-first、`/api/*`・`/controller` はネットワーク優先。
+- `game.jsp` で manifest をリンクし Service Worker を登録（HTTPS/localhost で有効）。
