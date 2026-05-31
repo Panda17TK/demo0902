@@ -1,12 +1,6 @@
 import { TILE } from '../core/constants.js';
-
-// ★ 依存を断つ：ここに簡易ファクトリを置く
-function makeZombie(x, y){
-  return { kind:'zombie', x, y, w:22, h:22, hp:55, maxhp:55, baseSpeed:72, shootCD:0, vx:0, vy:0, meleeCD:0, bumpCD:0 };
-}
-function makeSpitter(x, y){
-  return { kind:'spitter', x, y, w:22, h:22, hp:65, maxhp:65, baseSpeed:35, shootCD:0, vx:0, vy:0, meleeCD:0, bumpCD:0 };
-}
+// mob ファクトリは ai.js を単一の出所にする（faceX/prevX 等の初期化も揃う）
+import { makeZombie, makeSpitter } from '../systems/ai.js';
 
 const RAW = [
   "##############################",

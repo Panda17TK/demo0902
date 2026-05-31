@@ -3,7 +3,7 @@ import { createEventBus } from './core/events.js';
 import { createInput } from './core/input.js';
 import { createAudio } from './services/audio.js';
 import { createStorage } from './services/storage.js';
-import { createInitialState } from './state/state.js';
+import { createInitialState, resetState } from './state/state.js';
 import { setupMap } from './state/map.js';
 import { bindHotkeys } from './state/binds.js';
 import { rebuildFlowField } from './systems/flowfield.js';
@@ -85,6 +85,17 @@ if (!canvas) {
   // 任意：ゲームオーバーイベント受信時にトースト
   bus.on('game:over', ({ reason, timeMs }) => {
     bus.emit('ui:toast', 'Game Over');
+  });
+
+  // リスタート：state をその場で初期化し、マップ／フローフィールドを作り直す
+  bus.on('game:restart', () => {
+    resetState(state);
+    setupMap(state);
+    rebuildFlowField(state);
+    state.runStart = performance.now();
+    state.gameOver = false;
+    state.paused   = false;
+    bus.emit('ui:toast', 'Restart');
   });
 
   // --- ループ ---

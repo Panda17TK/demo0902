@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>app</groupId>
+  <artifactId>demo0902</artifactId>
+  <version>1.0.0</version>
+  <packaging>war</packaging>
+  <name>arpg-survival</name>
+  <description>見下ろし型サバイバルARPG（Servlet/JSP + Canvas/JS）</description>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    <!-- .classpath が JavaSE-17 / Tomcat9 を指定しているため 17 をターゲットにする -->
+    <maven.compiler.release>17</maven.compiler.release>
+  </properties>
+
+  <dependencies>
+    <!-- Tomcat 9 = Servlet 4.0（javax 名前空間）。実行時は Tomcat が提供するので provided -->
+    <dependency>
+      <groupId>javax.servlet</groupId>
+      <artifactId>javax.servlet-api</artifactId>
+      <version>4.0.1</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- JSP の暗黙オブジェクト等のための JSP API（コンパイルには不要だが将来のため provided 任意） -->
+    <dependency>
+      <groupId>javax.servlet.jsp</groupId>
+      <artifactId>javax.servlet.jsp-api</artifactId>
+      <version>2.3.3</version>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <!-- 生成物を demo0902.war にし、Tomcat へ置くと /demo0902 で動く -->
+    <finalName>demo0902</finalName>
+
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-war-plugin</artifactId>
+        <version>3.4.0</version>
+        <configuration>
+          <!-- web.xml は存在するが、無くてもアノテーションで動くため false にしておく -->
+          <failOnMissingWebXml>false</failOnMissingWebXml>
+        </configuration>
+      </plugin>
+
+      <!--
+        CLI から Tomcat 9 を起動してデプロイするための Cargo プラグイン。
+        `mvn cargo:run` で Tomcat 9 を自動ダウンロード→起動し、
+        http://localhost:8080/demo0902/ で遊べる（初回はネットワークが必要）。
+      -->
+      <plugin>
+        <groupId>org.codehaus.cargo</groupId>
+        <artifactId>cargo-maven3-plugin</artifactId>
+        <version>1.10.20</version>
+        <configuration>
+          <container>
+            <containerId>tomcat9x</containerId>
+            <zipUrlInstaller>
+              <url>https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.95/bin/apache-tomcat-9.0.95.zip</url>
+            </zipUrlInstaller>
+          </container>
+          <deployables>
+            <deployable>
+              <groupId>app</groupId>
+              <artifactId>demo0902</artifactId>
+              <type>war</type>
+              <properties>
+                <context>/demo0902</context>
+              </properties>
+            </deployable>
+          </deployables>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

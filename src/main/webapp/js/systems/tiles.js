@@ -1,6 +1,6 @@
 import { TILE } from '../core/constants.js';
 import { rectInter } from './physics.js';
-//import { rebuildFlowField } from './flow.js'; 
+import { rebuildFlowField } from './flowfield.js';
 
 export function damageTile(state, tx, ty, dmg) {
 	if (tx < 0 || ty < 0 || tx >= state.dim.w || ty >= state.dim.h) return false;
@@ -10,7 +10,7 @@ export function damageTile(state, tx, ty, dmg) {
 	if (state.tileHP[ty][tx] <= 0) {
 		clearWall(state, tx, ty);
 		state.player.inv.blocks++;
-		if (typeof rebuildFlowField === 'function') rebuildFlowField(state);
+		rebuildFlowField(state); // 壁が消えたら経路を即再計算
 		return true;
 	}
 	return false;
