@@ -4,7 +4,12 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport"
+	content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="theme-color" content="#0b0e13" />
 <title>ARPG - サバイバル</title>
 <link rel="stylesheet"
 	href="${pageContext.request.contextPath}/css/game.css">
@@ -23,6 +28,9 @@
 				<b>壁設置</b>: <b>F</b><br /> セーブ: <b>P</b> ロード: <b>L</b> ポーズ: <b>Esc</b>
 			</div>
 		</div>
+
+		<!-- スマホ縦持ち時の横向き推奨ヒント（CSSで制御） -->
+		<div id="rotate-hint">📱 横向きにすると遊びやすいです</div>
 
 		<!-- トースト通知（オーバーレイの外に置く＝ゲーム中も表示される） -->
 		<div id="toast"></div>

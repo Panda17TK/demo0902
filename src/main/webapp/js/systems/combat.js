@@ -104,6 +104,11 @@ export function updateCombat(state, dt, bus, input, audio) {
   let len = Math.hypot(ax, ay) || 1;
   let vx = (ax / len) * spd * dt, vy = (ay / len) * spd * dt;
   if (moving) { p.facing.x = ax / len; p.facing.y = ay / len; }
+  // タッチの照準スティック等が有効なら、向きはそちらを優先（静止中も狙える）
+  if (input.aim && input.aim.active && (input.aim.x || input.aim.y)) {
+    const al = Math.hypot(input.aim.x, input.aim.y) || 1;
+    p.facing.x = input.aim.x / al; p.facing.y = input.aim.y / al;
+  }
   p.sta = dash ? Math.max(0, p.sta - 35 * dt) : Math.min(p.staMax, p.sta + 22 * dt);
 
   p.vx *= Math.pow(0.001, dt); p.vy *= Math.pow(0.001, dt);

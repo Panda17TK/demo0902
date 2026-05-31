@@ -11,8 +11,9 @@ import { updateAI } from './systems/ai.js';
 import { updateTiles } from './systems/tiles.js';
 import { updateItems } from './systems/items.js';
 import { updateSpawner } from './systems/spawner.js';
-import { updateCombat } from './systems/combat.js';
+import { updateCombat, reload, placeWallFront } from './systems/combat.js';
 import { updateFX } from './systems/fx.js';
+import { isTouchDevice, createTouchControls } from './core/touch.js';
 import { renderFrame } from './render/renderer.js';
 import { mountGameOver } from './render/overlay.js';
 import { mountHUD } from './render/hud.js';
@@ -71,6 +72,31 @@ if (!canvas) {
     save: () => saveChooser(state, null, bus),
     load: () => loadChooser(state, null, bus),
   });
+
+  // --- タッチ操作（スマホ/タブレット）---
+  if (isTouchDevice()) {
+    document.body.classList.add('touch');
+    createTouchControls(document.getElementById('wrap'), input, {
+      reload: () => reload(state, bus),
+      build:  () => placeWallFront(state, bus),
+      cycleWeapon: () => {
+        const ws = state.player.weapons;
+        if (!ws.length) return;
+        state.player.curW = (state.player.curW + 1) % ws.length;
+        bus.emit('ui:toast', '武器: ' + (ws[state.player.curW].name || ''));
+      },
+      pause: () => { if (!state.gameOver) state.paused = !state.paused; },
+    });
+  }
+
+  // --- 初回のユーザー操作で AudioContext を resume（モバイル対策）---
+  const resumeAudio = () => {
+    try { audio.resume && audio.resume(); } catch (_e) {}
+    window.removeEventListener('pointerdown', resumeAudio);
+    window.removeEventListener('keydown', resumeAudio);
+  };
+  window.addEventListener('pointerdown', resumeAudio);
+  window.addEventListener('keydown', resumeAudio);
 
   // --- エラーをトーストにも表示 ---
   addEventListener('error', (ev) => {

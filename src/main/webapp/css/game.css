@@ -8,6 +8,16 @@ body {
 	color: #e7ecf3;
 	font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto,
 		Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+	/* モバイルでのスクロール／引っ張り更新／ズームを抑止 */
+	overflow: hidden;
+	overscroll-behavior: none;
+	-webkit-user-select: none;
+	user-select: none;
+	-webkit-touch-callout: none;
+}
+
+#wrap, canvas {
+	touch-action: none;
 }
 
 #wrap {
@@ -142,4 +152,106 @@ a {
 	margin-top: 12px;
 	font-size: 13px;
 	line-height: 1.5;
+}
+
+/* ===== タッチ操作（スマホ/タブレット） ===== */
+.touch-controls {
+	position: absolute;
+	inset: 0;
+	z-index: 5; /* ゲームオーバー overlay(z:10) より下 */
+	pointer-events: none;
+}
+
+.tc-zone {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	width: 50%;
+	pointer-events: auto;
+	touch-action: none;
+}
+
+.tc-zone-move { left: 0; }
+.tc-zone-aim  { right: 0; }
+
+.tc-base {
+	position: absolute;
+	width: 120px;
+	height: 120px;
+	border-radius: 50%;
+	border: 2px solid rgba(255, 255, 255, .22);
+	background: rgba(255, 255, 255, .05);
+	transform: translate(-50%, -50%);
+	opacity: 0;
+	transition: opacity .1s ease;
+	pointer-events: none;
+}
+
+.tc-knob {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	width: 54px;
+	height: 54px;
+	border-radius: 50%;
+	background: rgba(180, 210, 255, .35);
+	border: 1px solid rgba(255, 255, 255, .4);
+	transform: translate(-50%, -50%);
+}
+
+.tc-btn {
+	position: absolute;
+	width: 64px;
+	height: 64px;
+	border-radius: 50%;
+	border: 1px solid rgba(255, 255, 255, .3);
+	background: rgba(20, 28, 40, .55);
+	color: #e7ecf3;
+	font-size: 13px;
+	font-weight: 600;
+	pointer-events: auto;
+	touch-action: none;
+	-webkit-user-select: none;
+	user-select: none;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	backdrop-filter: blur(2px);
+}
+
+.tc-btn.active {
+	background: rgba(90, 130, 200, .65);
+	border-color: rgba(180, 210, 255, .7);
+}
+
+/* 配置：右親指=近接/武器/リロード（射撃は右スティック）、左親指=ダッシュ/壁 */
+.tc-btn-melee  { right: 24px;  bottom: 150px; }
+.tc-btn-weapon { right: 102px; bottom: 150px; width: 54px; height: 54px; font-size: 12px; }
+.tc-btn-reload { right: 24px;  bottom: 224px; width: 54px; height: 54px; }
+.tc-btn-dash   { left: 24px;   bottom: 150px; }
+.tc-btn-build  { left: 102px;  bottom: 150px; width: 54px; height: 54px; }
+.tc-btn-pause  { right: 12px;  top: 12px; width: 44px; height: 44px; font-size: 12px; }
+
+/* タッチ端末ではキーボード操作ヘルプを隠す（誤タップ防止＆省スペース） */
+body.touch #help { display: none; }
+
+/* 縦持ち時は横向き推奨のヒントを表示 */
+#rotate-hint { display: none; }
+body.touch #rotate-hint {
+	position: absolute;
+	left: 50%;
+	top: 10px;
+	transform: translateX(-50%);
+	z-index: 6;
+	background: rgba(0, 0, 0, .55);
+	padding: 6px 12px;
+	border-radius: 999px;
+	font-size: 12px;
+	white-space: nowrap;
+}
+@media (orientation: landscape) {
+	body.touch #rotate-hint { display: none; }
+}
+@media (orientation: portrait) {
+	body.touch #rotate-hint { display: block; }
 }

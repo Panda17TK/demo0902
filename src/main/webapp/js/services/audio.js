@@ -23,5 +23,10 @@ export function createAudio() {
     g.gain.setValueAtTime(r.gain, t); g.gain.exponentialRampToValueAtTime(0.0001, t + r.dur);
     o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + Math.min(0.25, r.dur + 0.02));
   }
-  return { sfx };
+  // モバイル等では AudioContext が suspended で始まるため、ユーザー操作で resume する
+  function resume() {
+    try { if (AC && AC.state === 'suspended') return AC.resume(); } catch (_e) {}
+    return Promise.resolve();
+  }
+  return { sfx, resume };
 }
