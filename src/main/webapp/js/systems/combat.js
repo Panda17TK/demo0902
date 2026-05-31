@@ -2,9 +2,20 @@
 import { norm, clamp, moveAndCollide } from './physics.js';
 import { TILE } from '../core/constants.js';
 import { damageTile, canPlaceAt } from './tiles.js';
-import { spawnSlashFX, spawnBeamFX, spawnBlastFX, spawnSparksFX } from './fx.js';
+import { spawnSlashFX, spawnBeamFX, spawnBlastFX, spawnSparksFX, spawnDamageNumber, addShake, addHitstop } from './fx.js';
 import { rebuildFlowField } from './flowfield.js';
 import { hasLineOfSight } from './los.js';
+
+// 敵にダメージ＋ノックバック＋被弾フラッシュ＋（任意で）ダメージ数字
+// nx,ny: 与える側→敵への方向（正規化済み）。kb: ノックバック強度。opts.number: 数字表示。
+function hurtMob(state, m, dmg, nx, ny, kb, opts) {
+  opts = opts || {};
+  m.hp -= dmg;
+  if (kb) { m.vx += (nx || 0) * kb; m.vy += (ny || 0) * kb; }
+  m.hitFlash = 0.12;
+  spawnSparksFX(state, m.x, m.y, opts.sparks != null ? opts.sparks : 5);
+  if (opts.number !== false) spawnDamageNumber(state, m.x, m.y, dmg, { crit: !!opts.crit });
+}
 
 // 自動射撃用：射程内かつ視線の通る最寄りの敵を返す
 function nearestVisibleMob(state, p, maxR) {
@@ -216,7 +227,9 @@ export function updateCombat(state, dt, bus, input, audio) {
           const tx = Math.floor(x / TILE), ty = Math.floor(y / TILE);
           if (state.map[ty] && (state.map[ty][tx] === '#' || state.map[ty][tx] === 'D')) break;
           for (const m of state.mobs) {
-            if (m.hp > 0 && Math.abs(m.x - x) < m.w / 2 && Math.abs(m.y - y) < m.h / 2) m.hp -= w.dmg;
+            if (m.hp > 0 && Math.abs(m.x - x) < m.w / 2 && Math.abs(m.y - y) < m.h / 2) {
+              hurtMob(state, m, w.dmg, 0, 0, 0, { number: false, sparks: 2 }); // ビームは連続ヒットのため数字省略
+            }
           }
           ex = x; ey = y;
         }
@@ -296,8 +309,8 @@ export function updateCombat(state, dt, bus, input, audio) {
     let hit = false;
     for (const m of state.mobs) {
       if (m.hp > 0 && Math.abs(m.x - b.x) < m.w / 2 && Math.abs(m.y - b.y) < m.h / 2) {
-        m.hp -= b.dmg;
-        const n = norm(m.x - b.x, m.y - b.y); m.vx += n.x * 160; m.vy += n.y * 160;
+        const n = norm(m.x - b.x, m.y - b.y);
+        hurtMob(state, m, b.dmg, n.x, n.y, 160, { number: true });
         hit = true; break;
       }
     }
@@ -336,6 +349,7 @@ export function updateCombat(state, dt, bus, input, audio) {
           p.hp -= b.dmg; p.iTime = 0.8;
           const n = norm(p.x - b.x, p.y - b.y);
           p.vx += n.x * 180; p.vy += n.y * 180;
+          addShake(state, 0.18, 6);
         }
         state.ebullets.splice(i, 1);
         continue;
@@ -352,9 +366,8 @@ export function updateCombat(state, dt, bus, input, audio) {
       // 敵に追撃
       for (const m of state.mobs) {
         if (m.hp > 0 && pointInFan(m.x, m.y, s)) {
-          m.hp -= s.dmg;
           const n = norm(m.x - s.x, m.y - s.y);
-          m.vx += n.x * 140; m.vy += n.y * 140;
+          hurtMob(state, m, s.dmg, n.x, n.y, 140, { number: false, sparks: 2 }); // 継続ヒットは数字省略
         }
       }
       // 敵弾の相殺
@@ -379,11 +392,13 @@ function explode(state, x, y) {
     if (d < r + Math.max(m.w, m.h) / 2) {
       const fall = 1 - d / r; const dmg = Math.round(110 * fall);
       if (dmg > 0) {
-        m.hp -= dmg;
-        const n = norm(dx, dy); m.vx += n.x * 280 * fall; m.vy += n.y * 280 * fall;
+        const n = norm(dx, dy);
+        hurtMob(state, m, dmg, n.x, n.y, 280 * fall, { number: true, sparks: 8 });
       }
     }
   }
+  addShake(state, 0.25, 11);
+  addHitstop(state, 0.05);
   const dp = Math.hypot(state.player.x - x, state.player.y - y);
   if (dp < r * 0.7) {
     const fall = 1 - dp / (r * 0.7);

@@ -136,17 +136,21 @@ if (!canvas) {
       const dt = Math.min(MAX_DT, (t - last) / 1000);
       last = t;
 
+      // ヒットストップ：実時間で減らしつつ、シミュレーション dt を縮めて“タメ”を作る
+      let simDt = dt;
+      if (state.hitstop > 0) { state.hitstop -= dt; simDt = dt * 0.06; }
+
       if (!state.paused) {
         // 更新
-        updateCombat(state, dt, bus, input, audio);
-        updateTiles(state, dt, bus, audio);
-        updateSpawner(state, dt, bus, audio);
-        updateAI(state, dt, bus, audio);
-        updateItems(state, dt, bus, audio);
-        updateFX(state, dt, bus);
+        updateCombat(state, simDt, bus, input, audio);
+        updateTiles(state, simDt, bus, audio);
+        updateSpawner(state, simDt, bus, audio);
+        updateAI(state, simDt, bus, audio);
+        updateItems(state, simDt, bus, audio);
+        updateFX(state, simDt, bus);
 
         // フローフィールド定期再計算
-        flowTimer -= dt;
+        flowTimer -= simDt;
         if (flowTimer <= 0) {
           rebuildFlowField(state);
           flowTimer = 0.35;
@@ -160,6 +164,19 @@ if (!canvas) {
           state.stats.timeMs = timeMs;
           bus.emit('game:over', { reason: 'death', timeMs });
         }
+      }
+
+      // カメラ（スムーズ追従＋向きの先読み）と画面シェイクの更新（実時間）
+      const look = 36;
+      const tgX = state.player.x + state.player.facing.x * look;
+      const tgY = state.player.y + state.player.facing.y * look;
+      if (!state.cam) state.cam = { x: tgX, y: tgY };
+      const k = 1 - Math.pow(0.0001, dt);
+      state.cam.x += (tgX - state.cam.x) * k;
+      state.cam.y += (tgY - state.cam.y) * k;
+      if (state.shake && state.shake.t > 0) {
+        state.shake.t -= dt;
+        if (state.shake.t <= 0) { state.shake.t = 0; state.shake.mag = 0; }
       }
 
       // 描画

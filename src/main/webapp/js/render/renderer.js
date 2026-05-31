@@ -6,9 +6,18 @@ export function renderFrame(ctx, canvas, state) {
   const W = canvas.width, H = canvas.height;
   ctx.clearRect(0, 0, W, H);
 
-  const baseCamX = clamp(state.player.x - W / 2, 0, state.dim.w * TILE - W);
-  const baseCamY = clamp(state.player.y - H / 2, 0, state.dim.h * TILE - H);
-  const camX = baseCamX, camY = baseCamY;
+  // カメラ：スムーズ追従(state.cam)があれば使用、無ければプレイヤー中心
+  const cxw = state.cam ? state.cam.x : state.player.x;
+  const cyw = state.cam ? state.cam.y : state.player.y;
+  const baseCamX = clamp(cxw - W / 2, 0, state.dim.w * TILE - W);
+  const baseCamY = clamp(cyw - H / 2, 0, state.dim.h * TILE - H);
+  // 画面シェイク
+  let sx = 0, sy = 0;
+  if (state.shake && state.shake.t > 0) {
+    sx = (Math.random() * 2 - 1) * state.shake.mag;
+    sy = (Math.random() * 2 - 1) * state.shake.mag;
+  }
+  const camX = baseCamX + sx, camY = baseCamY + sy;
 
   ctx.save(); ctx.translate(-camX, -camY);
 
@@ -66,9 +75,19 @@ export function renderFrame(ctx, canvas, state) {
   // ===== 敵 =====
   for (const m of state.mobs) {
     ctx.save(); ctx.translate(m.x, m.y);
-    ctx.fillStyle = (m.kind === 'spitter') ? '#3aa06f' : '#b24a4a';
+    // 被弾フラッシュ
+    if (m.hitFlash > 0) ctx.fillStyle = '#ffffff';
+    else ctx.fillStyle = (m.kind === 'spitter') ? '#3aa06f' : '#b24a4a';
     roundedRect(ctx, -m.w / 2, -m.h / 2, m.w, m.h, 4); ctx.fill();
     ctx.fillStyle = '#fff'; ctx.fillRect(-4, -3, 3, 3); ctx.fillRect(1, -3, 3, 3);
+    // HPバー（ダメージを受けている時だけ）
+    const mh = m.maxhp || m.hp;
+    if (m.hp < mh) {
+      const bw = m.w, r = clamp(m.hp / mh, 0, 1);
+      ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(-bw / 2, -m.h / 2 - 7, bw, 3);
+      ctx.fillStyle = r > 0.5 ? '#7fe08a' : (r > 0.25 ? '#e0d27f' : '#e08a7f');
+      ctx.fillRect(-bw / 2, -m.h / 2 - 7, bw * r, 3);
+    }
     ctx.restore();
   }
 
@@ -149,18 +168,33 @@ export function renderFrame(ctx, canvas, state) {
       ctx.arc(f.x, f.y, r, 0, Math.PI * 2);
       ctx.fill();
     }
+    else if (f.type === 'dmg') {
+      ctx.font = 'bold 14px ui-sans-serif, system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+      ctx.fillStyle = f.crit ? '#ffd166' : '#ffffff';
+      ctx.strokeText(f.text, f.x, f.y);
+      ctx.fillText(f.text, f.x, f.y);
+    }
 
     // alpha 戻す（各FXごとに）
     ctx.globalAlpha = 1;
   }
 
-  // ===== ライティング（無効化中） =====
-  // ctx.globalCompositeOperation = 'multiply';
-  // const g = ctx.createRadialGradient(state.player.x, state.player.y, 24, state.player.x, state.player.y, 360);
-  // g.addColorStop(0, 'rgba(255,255,255,0.0)');
-  // g.addColorStop(1, 'rgba(0,0,0,0.90)');
-  // ctx.fillStyle = g; ctx.fillRect(camX, camY, W, H);
-  // ctx.globalCompositeOperation = 'source-over';
+  // ===== ライティング（ビネット）=====
+  // プレイヤー周辺を明るく残し、周囲をうっすら暗く（雰囲気＋視線誘導）
+  ctx.globalCompositeOperation = 'multiply';
+  const lg = ctx.createRadialGradient(
+    state.player.x, state.player.y, 60,
+    state.player.x, state.player.y, 420
+  );
+  lg.addColorStop(0, 'rgba(255,255,255,1)');
+  lg.addColorStop(1, 'rgba(0,0,0,0.55)');
+  ctx.fillStyle = lg;
+  ctx.fillRect(camX, camY, W, H);
+  ctx.globalCompositeOperation = 'source-over';
 
   ctx.restore();
 }

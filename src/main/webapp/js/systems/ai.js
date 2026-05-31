@@ -1,6 +1,6 @@
 import { TILE } from '../core/constants.js';
 import { norm, moveAndCollide, rectInter, clamp } from './physics.js';
-import { spawnEnemySlashFX } from './fx.js';
+import { spawnEnemySlashFX, addShake } from './fx.js';
 
 // ====== Mob factories ======
 export function makeZombie(x, y) {
@@ -86,6 +86,7 @@ export function updateAI(state, dt, bus/*, audio */) {
     if (m.meleeCD > 0) m.meleeCD -= dt;
     if (m.bumpCD  > 0) m.bumpCD  -= dt;
     if (m.shootCD > 0) m.shootCD -= dt;
+    if (m.hitFlash > 0) m.hitFlash -= dt; // 被弾フラッシュの減衰
 
     // スタック検出
     const moved = Math.hypot(m.x - (m.prevX || m.x), m.y - (m.prevY || m.y));
@@ -202,6 +203,7 @@ export function updateAI(state, dt, bus/*, audio */) {
         const n2 = norm(p.x - m.x, p.y - m.y);
         p.vx += n2.x * 240; p.vy += n2.y * 240;
         if (bus && bus.emit) bus.emit('sfx', 'hit');
+        addShake(state, 0.18, 6);
       }
       const baseCD = (m.kind === 'spitter' ? 3.0 : 0.9);
       m.meleeCD = baseCD / slow;

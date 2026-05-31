@@ -50,8 +50,8 @@ export function setupMap(state) {
         case 'T': state.mobs.push(makeSpitter(cx, cy));      state.map[y][x] = '.'; break;
 
         case 'K': state.items.push({ type:'key',      x:cx, y:cy });                          state.map[y][x]='.'; break;
-        case 'A': state.items.push({ type:'ammo9',    x:cx, y:cy, amt:18 });                  state.map[y][x]='.'; break;
-        case 'S': state.items.push({ type:'ammo12',   x:cx, y:cy, amt:5  });                  state.map[y][x]='.'; break;
+        case 'A': state.items.push({ type:'med',      x:cx, y:cy, heal:20 });                 state.map[y][x]='.'; break; // 旧ammo9→回復（弾は無限のため）
+        case 'S': state.items.push({ type:'buffSpeed',x:cx, y:cy });                           state.map[y][x]='.'; break; // 旧ammo12→速度バフ
         case 'M': state.items.push({ type:'med',      x:cx, y:cy, heal:25});                  state.map[y][x]='.'; break;
         case 'X': state.items.push({ type:'buffRange',x:cx, y:cy });                           state.map[y][x]='.'; break;
         case 'Y': state.items.push({ type:'buffMelee',x:cx, y:cy });                           state.map[y][x]='.'; break;

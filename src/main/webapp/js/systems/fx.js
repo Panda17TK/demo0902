@@ -2,6 +2,30 @@ export function spawnSlashFX(state, x, y, ang) {
 	state.fx.push({ type: 'slash', x, y, ang, t: 0, life: 0.30 });
 }
 
+// ダメージ数字ポップ
+export function spawnDamageNumber(state, x, y, dmg, opts) {
+	opts = opts || {};
+	state.fx.push({
+		type: 'dmg', x: x + (Math.random() * 10 - 5), y: y - 6,
+		vx: (Math.random() * 30 - 15), vy: -42,
+		t: 0, life: 0.7, text: String(Math.max(1, Math.round(dmg))),
+		crit: !!opts.crit,
+	});
+}
+
+// 画面シェイク（既存の値より強い時だけ更新）
+export function addShake(state, t, mag) {
+	if (!state.shake) state.shake = { t: 0, mag: 0 };
+	state.shake.t = Math.max(state.shake.t, t);
+	state.shake.mag = Math.max(state.shake.mag, mag);
+}
+
+// ヒットストップ（一瞬のスロー）
+export function addHitstop(state, t) {
+	state.hitstop = Math.max(state.hitstop || 0, t);
+}
+
+
 export function spawnSparksFX(state, x, y, n = 6) {
 	for (let i = 0; i < n; i++) {
 		const a = Math.random() * Math.PI * 2;

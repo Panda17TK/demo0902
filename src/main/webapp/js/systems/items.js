@@ -21,18 +21,11 @@ export function updateItems(state, dt, bus, audio) {
 }
 
 function onWeaponCrate(state, bus) {
-	const want = ['beam', 'mg', 'grenade'];
-	const owned = new Set(state.player.weapons.map(w => w.id));
-	const todo = want.filter(id => !owned.has(id));
-	if (todo.length) {
-		const pick = todo[Math.floor(Math.random() * todo.length)];
-		if (pick === 'beam') { state.player.weapons.push({ id: 'beam', name: 'Beam Rifle', dmg: 90, mag: Infinity, magSize: Infinity, spread: 0, fireRate: 2.0, ammoType: 'ammoBeam' }); state.player.inv.ammoBeam += 3; bus.emit('ui:toast', '新武器: Beam Rifle ＋セル+3'); }
-		else if (pick === 'mg') { state.player.weapons.push({ id: 'mg', name: 'Machine Gun', dmg: 12, pellets: 1, mag: 40, magSize: 40, spread: 0.18, fireRate: 0.08, ammoType: 'ammo9' }); state.player.inv.ammo9 += 60; bus.emit('ui:toast', '新武器: Machine Gun ＋9mm+60'); }
-		else { state.player.weapons.push({ id: 'grenade', name: 'Grenade', dmg: 120, mag: 1, magSize: 1, spread: 0, fireRate: 0.9, ammoType: 'ammoNade' }); state.player.inv.ammoNade += 3; bus.emit('ui:toast', '新武器: Grenade ＋弾×3'); }
-		bus.emit('sfx', 'pickup');
-	} else {
-		const w = state.player.weapons[Math.floor(Math.random() * state.player.weapons.length)];
-		state.player.inv[w.ammoType] = (state.player.inv[w.ammoType] || 0) + (w.magSize || 1);
-		bus.emit('ui:toast', `${w.name} の弾を1マガジン分補充`); bus.emit('sfx', 'pickup');
-	}
+	// 全武器所持＋無限弾の設計に統一したため、クレートはランダムな時限バフを付与する
+	const roll = Math.random();
+	const b = state.player.buffs;
+	if (roll < 0.34) { b.range = 2; b.tRange = 15; bus.emit('ui:toast', '近接範囲 ×2（15s）'); }
+	else if (roll < 0.67) { b.dmg = 2; b.tDmg = 15; bus.emit('ui:toast', '近接火力 ×2（15s）'); }
+	else { b.speed = 2; b.tSpeed = 12; bus.emit('ui:toast', '移動速度 ×2（12s）'); }
+	bus.emit('sfx', 'pickup');
 }

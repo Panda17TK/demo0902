@@ -20,6 +20,11 @@ export function createInitialState() {
 		gameOver: false,
 		stats: { kills: 0, timeMs: 0, name: '' },
 
+		// 演出用
+		cam: null,                 // スムーズ追従カメラ（loop で初期化）
+		shake: { t: 0, mag: 0 },   // 画面シェイク
+		hitstop: 0,                // ヒットストップ（被弾/爆発で一瞬スロー）
+
 		player: {
 			x: 0, y: 0, w: 22, h: 22,
 			vx: 0, vy: 0,
