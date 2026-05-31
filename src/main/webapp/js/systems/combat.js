@@ -3,6 +3,7 @@ import { norm, clamp, moveAndCollide } from './physics.js';
 import { TILE } from '../core/constants.js';
 import { damageTile, canPlaceAt } from './tiles.js';
 import { spawnSlashFX, spawnBeamFX, spawnBlastFX, spawnSparksFX } from './fx.js';
+import { rebuildFlowField } from './flowfield.js';
 
 // 扇形ヒット判定（近接の継続ヒット＆弾相殺用）
 function pointInFan(px, py, s) {
@@ -73,6 +74,7 @@ export function placeWallFront(state, bus) {
     state.map[ty][tx] = '#';
     state.tileHP[ty][tx] = state.tileMaxHP[ty][tx] = 70;
     p.inv.blocks--;
+    rebuildFlowField(state); // 壁ができたら経路を即再計算
     bus.emit('ui:toast', '壁を設置');
     bus.emit('sfx', 'build');
   } else {
@@ -157,8 +159,9 @@ export function updateCombat(state, dt, bus, input, audio) {
   if (p.shootCD > 0) p.shootCD -= dt;
   let shotThisFrame = false;
 
-  if (input.pressed('k') && p.shootCD <= 0) {
-    const w = p.weapons[p.curW]; if (!w) return;
+  const curWeapon = p.weapons[p.curW];
+  if (input.pressed('k') && p.shootCD <= 0 && curWeapon) {
+    const w = curWeapon;
 
     if (w.id === 'beam') {
       // ★ infiniteAmmo なら在庫を減らさない。false のときのみ ammoBeam を消費

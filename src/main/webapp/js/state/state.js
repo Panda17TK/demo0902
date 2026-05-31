@@ -54,3 +54,17 @@ export function createInitialState() {
 
 	return state;
 }
+
+/**
+ * 既存の state オブジェクトを「その場で」初期状態に戻す。
+ * HUD / overlay などが保持している state 参照を壊さないよう、
+ * 新オブジェクトに差し替えず各プロパティを上書きする。プレイヤー名だけ引き継ぐ。
+ * マップ構築・フローフィールド再計算は呼び出し側で行うこと。
+ */
+export function resetState(state) {
+	const fresh = createInitialState();
+	const keepName = (state.stats && typeof state.stats.name === 'string') ? state.stats.name : '';
+	Object.keys(fresh).forEach((k) => { state[k] = fresh[k]; });
+	state.stats.name = keepName;
+	return state;
+}

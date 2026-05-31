@@ -10,11 +10,11 @@ var CTX = (function(){
 export function mountGameOver(overlayEl, bus, state) {
   if (!overlayEl || !bus || !state) return;
 
-  var nameInput = overlayEl.querySelector('#player-name');
-  var saveBtn   = overlayEl.querySelector('#btn-save-score');
-  var cancelBtn = overlayEl.querySelector('#btn-cancel');
-  var linesEl   = overlayEl.querySelector('#result-lines');
-  var boardEl   = overlayEl.querySelector('#score-board');
+  var nameInput  = overlayEl.querySelector('#player-name');
+  var saveBtn    = overlayEl.querySelector('#btn-save-score');
+  var restartBtn = overlayEl.querySelector('#btn-restart');
+  var linesEl    = overlayEl.querySelector('#result-lines');
+  var boardEl    = overlayEl.querySelector('#score-board');
 
   function ensureStats() {
     if (!state.stats) state.stats = {};
@@ -115,10 +115,11 @@ export function mountGameOver(overlayEl, bus, state) {
     });
   }
 
-  // --- Cancel ボタン ---
-  if (cancelBtn) {
-    cancelBtn.addEventListener('click', function () {
+  // --- Restart ボタン ---
+  if (restartBtn) {
+    restartBtn.addEventListener('click', function () {
       overlayEl.classList.add('hidden');
+      bus.emit('game:restart');
     });
   }
 }

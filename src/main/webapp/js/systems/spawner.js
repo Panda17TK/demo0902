@@ -1,5 +1,6 @@
 import { SPAWN } from '../state/data.js';
 import { hasLineOfSight } from './los.js';
+import { makeZombie, makeSpitter } from './ai.js';
 
 export function updateSpawner(state, dt, bus, audio) {
 	state.timers.elapsed += dt; state.timers.spawn -= dt;
@@ -33,7 +34,7 @@ function spawnOne(state, bus) {
 		if (dx * dx + dy * dy < (32 * 10) * (32 * 10)) continue;
 		if (hasLineOfSight(state, state.player.x, state.player.y, cx, cy)) continue;
 		const type = Math.random() < 0.22 ? 'spitter' : 'zombie';
-		state.mobs.push(type === 'spitter' ? { kind: 'spitter', x: cx, y: cy, w: 22, h: 22, hp: 65, maxhp: 65, baseSpeed: 35, shootCD: 0, vx: 0, vy: 0, meleeCD: 0, bumpCD: 0 } : { kind: 'zombie', x: cx, y: cy, w: 22, h: 22, hp: 55, maxhp: 55, baseSpeed: 72, shootCD: 0, vx: 0, vy: 0, meleeCD: 0, bumpCD: 0 });
+		state.mobs.push(type === 'spitter' ? makeSpitter(cx, cy) : makeZombie(cx, cy));
 		bus.emit('sfx', 'spawn');
 		return true;
 	}
