@@ -21,11 +21,12 @@ export function updateItems(state, dt, bus, audio) {
 }
 
 function onWeaponCrate(state, bus) {
-	// 全武器所持＋無限弾の設計に統一したため、クレートはランダムな時限バフを付与する
-	const roll = Math.random();
-	const b = state.player.buffs;
-	if (roll < 0.34) { b.range = 2; b.tRange = 15; bus.emit('ui:toast', '近接範囲 ×2（15s）'); }
-	else if (roll < 0.67) { b.dmg = 2; b.tDmg = 15; bus.emit('ui:toast', '近接火力 ×2（15s）'); }
-	else { b.speed = 2; b.tSpeed = 12; bus.emit('ui:toast', '移動速度 ×2（12s）'); }
+	// 全武器所持のため、クレートは弾薬補給（リサプライ）にする
+	const inv = state.player.inv;
+	inv.ammo9   = (inv.ammo9   | 0) + 40;
+	inv.ammo12  = (inv.ammo12  | 0) + 8;
+	inv.ammoBeam = (inv.ammoBeam | 0) + 2;
+	inv.ammoNade = (inv.ammoNade | 0) + 1;
+	bus.emit('ui:toast', '弾薬補給（9mm+40 / 12g+8 / Beam+2 / Nade+1）');
 	bus.emit('sfx', 'pickup');
 }
