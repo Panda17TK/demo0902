@@ -1,6 +1,8 @@
 import { DPR, MAX_DT } from './core/constants.js';
+import { loadConfig, CONFIG } from './core/config.js';
 import { createEventBus } from './core/events.js';
 import { createInput } from './core/input.js';
+import { mountDevEditor } from './render/dev-editor.js';
 import { createAudio } from './services/audio.js';
 import { createStorage } from './services/storage.js';
 import { createInitialState, resetState } from './state/state.js';
@@ -55,9 +57,23 @@ if (!canvas) {
   // --- bus: SE ---
   bus.on('sfx', (name) => { try { audio.sfx(name); } catch (_e) {} });
 
+  // --- 設定（開発者モード）読み込み：他システムが参照する前に ---
+  loadConfig();
+
+  // CONFIG.player の値をプレイヤー初期値へ反映
+  function applyPlayerConfig(st) {
+    const pc = CONFIG.player;
+    st.player.baseSpeed = pc.baseSpeed;
+    st.player.hpMax = pc.hpMax;
+    st.player.hp = Math.min(st.player.hp, pc.hpMax);
+    st.player.staMax = pc.staMax;
+    st.player.sta = Math.min(st.player.sta, pc.staMax);
+  }
+
   // --- state 初期化 & マップ ---
   const state = createInitialState();
   if (!state.stats) state.stats = { kills: 0, timeMs: 0, name: '' };
+  applyPlayerConfig(state);
   state.runStart = performance.now();
   state.gameOver = false;
 
@@ -69,6 +85,9 @@ if (!canvas) {
   mountHUD(hudEl, toastEl, state, bus);
   mountGameOver(document.getElementById('overlay'), bus, state);
   mountUpgrades(document.getElementById('upgrade-overlay'), bus, state);
+  mountDevEditor(document.getElementById('dev-overlay'), bus, state);
+  const devBtn = document.getElementById('dev-btn');
+  if (devBtn) devBtn.addEventListener('click', () => bus.emit('dev:toggle'));
 
   // --- ホットキー（保存/読込） ---
   bindHotkeys(state, bus, input, {
@@ -121,6 +140,7 @@ if (!canvas) {
   // リスタート：state をその場で初期化し、マップ／フローフィールドを作り直す
   bus.on('game:restart', () => {
     resetState(state);
+    applyPlayerConfig(state);
     setupMap(state);
     rebuildFlowField(state);
     startWave(state, 1);

@@ -2,7 +2,7 @@
 // ウェーブ間の強化カード選択オーバーレイ。
 // 'wave:intermission' を受けてカード3枚を表示し、選択で 'wave:choose' を emit。
 
-import { applyUpgrade } from '../state/upgrades.js';
+import { applyUpgrade, upgradeDesc } from '../state/upgrades.js';
 import { startNextWave } from '../systems/spawner.js';
 
 export function mountUpgrades(overlayEl, bus, state) {
@@ -33,7 +33,7 @@ export function mountUpgrades(overlayEl, bus, state) {
         card.className = 'upgrade-card';
         card.innerHTML = '<div class="uc-name"></div><div class="uc-desc"></div>';
         card.querySelector('.uc-name').textContent = u.name;
-        card.querySelector('.uc-desc').textContent = u.desc;
+        card.querySelector('.uc-desc').textContent = upgradeDesc(u);
         card.addEventListener('click', () => choose(u.id));
         listEl.appendChild(card);
       });

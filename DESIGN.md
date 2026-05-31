@@ -159,6 +159,21 @@ UI:
 - **スコア**: 到達 WAVE を主指標化（生存時間・撃破数と併記）。HUD にも現在の WAVE と残数を表示。
 - セーブ/ロードは `mods/hpMax/wave/stats` も含めて永続化。
 
-### 今後（選択済みで未着手の大物）
-- **技術的完成度**: 永続化（同梱MySQL or ファイル）＋テスト＋CI＋PWA。
-- 敵バリエーション（突進/タンク/自爆）とボスウェーブ。
+## 9. 開発者モード（パラメータエディタ）＆データ駆動の敵
+
+- **設定の単一の出所**（`core/config.js`）: player/waves/drops/upgrades/enemies を 1 オブジェクト
+  `CONFIG` に集約。`localStorage` に永続化し、各システムは参照経由で読むため**ライブ反映**。
+- **開発者モード**（`render/dev-editor.js`、`` ` `` キー or DEV ボタン）:
+  数値パラメータのライブ編集、敵ロスター編集、保存/リセット/エクスポート/インポート、
+  デバッグ操作（ゴッドモード・WAVEジャンプ・敵スポーン・全敵消去）。エディタ表示中はポーズ。
+- **データ駆動の敵**（`systems/enemies.js`）: `CONFIG.enemies` の定義から mob を生成。
+  `tier` により攻撃数の上限を管理（**通常=2 / 中ボス=5 / ボス=10**）。中ボス/ボスは
+  組み込みテンプレート（ブルート/ウォーロック/オーバーロード）を提供。
+- **攻撃タイプ・システム**（`systems/attacks.js`）: `melee/shot/lunge/burst/nova/summon/slam/`
+  `charge/homing/heal/enrage/mine/barrage/guard` を登録。`CONFIG.enemies[*].attacks` を
+  AI が解釈して実行（個別クールダウン管理）。新攻撃は REGISTRY に足すだけ。
+- **ウェーブ編成**: `midBossEvery`/`bossEvery` で中ボス・ボス波を自動編成。
+- セーブ復元は `makeMobFromKey` 経由でボスも正しく復元（`kind/waveNum` を保存）。
+
+### 今後（選択済みで未着手）
+- **永続化**（同梱MySQL or ファイル）＋テスト＋CI＋PWA。

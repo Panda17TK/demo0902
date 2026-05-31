@@ -32,8 +32,22 @@
 		<!-- スマホ縦持ち時の横向き推奨ヒント（CSSで制御） -->
 		<div id="rotate-hint">📱 横向きにすると遊びやすいです</div>
 
+		<!-- 開発者モードを開くボタン（` キーでも開閉） -->
+		<button id="dev-btn" title="開発者モード（`キー）">DEV</button>
+
 		<!-- トースト通知（オーバーレイの外に置く＝ゲーム中も表示される） -->
 		<div id="toast"></div>
+
+		<!-- 開発者モード：パラメータエディタ -->
+		<div id="dev-overlay" class="dev-overlay hidden">
+			<div class="dev-panel">
+				<div class="dev-header">
+					<h2>開発者モード</h2>
+					<button class="dev-close">閉じる</button>
+				</div>
+				<div class="dev-body"></div>
+			</div>
+		</div>
 
 		<!-- ウェーブ間の強化カード選択 -->
 		<div id="upgrade-overlay" class="overlay hidden">

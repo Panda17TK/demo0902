@@ -1,47 +1,37 @@
 // webapp/js/state/upgrades.js
 // ウェーブ間に提示する恒久強化カード（ラン中ずっと持続）。
-// apply(state) で player.mods 等を更新する。
+// 効き幅は CONFIG.upgrades から読む（開発者モードで調整可能）。
+
+import { CONFIG } from '../core/config.js';
 
 export const UPGRADES = [
-  {
-    id: 'gun_dmg', name: '火力強化', desc: '射撃ダメージ +25%',
-    apply(s) { s.player.mods.gunMul *= 1.25; },
-  },
-  {
-    id: 'fire_rate', name: '連射強化', desc: '発射間隔 -15%',
-    apply(s) { s.player.mods.fireMul *= 0.85; },
-  },
-  {
-    id: 'melee', name: '近接強化', desc: '近接ダメージ +35%',
-    apply(s) { s.player.mods.meleeMul *= 1.35; },
-  },
-  {
-    id: 'max_hp', name: '頑強', desc: '最大HP +25・全回復',
-    apply(s) { s.player.hpMax += 25; s.player.hp = s.player.hpMax; },
-  },
-  {
-    id: 'speed', name: '俊足', desc: '移動速度 +12%',
-    apply(s) { s.player.mods.moveMul *= 1.12; },
-  },
-  {
-    id: 'ammo', name: '弾薬調達', desc: '弾薬ドロップ +50%・即時補給',
+  { id: 'gun_dmg',   name: '火力強化', desc: () => `射撃ダメージ ×${CONFIG.upgrades.gunMul}`,
+    apply(s) { s.player.mods.gunMul *= CONFIG.upgrades.gunMul; } },
+  { id: 'fire_rate', name: '連射強化', desc: () => `発射間隔 ×${CONFIG.upgrades.fireMul}`,
+    apply(s) { s.player.mods.fireMul *= CONFIG.upgrades.fireMul; } },
+  { id: 'melee',     name: '近接強化', desc: () => `近接ダメージ ×${CONFIG.upgrades.meleeMul}`,
+    apply(s) { s.player.mods.meleeMul *= CONFIG.upgrades.meleeMul; } },
+  { id: 'max_hp',    name: '頑強', desc: () => `最大HP +${CONFIG.upgrades.maxHpAdd}・全回復`,
+    apply(s) { s.player.hpMax += CONFIG.upgrades.maxHpAdd; s.player.hp = s.player.hpMax; } },
+  { id: 'speed',     name: '俊足', desc: () => `移動速度 ×${CONFIG.upgrades.moveMul}`,
+    apply(s) { s.player.mods.moveMul *= CONFIG.upgrades.moveMul; } },
+  { id: 'ammo',      name: '弾薬調達', desc: () => `弾薬ドロップ ×${CONFIG.upgrades.ammoMul}・即時補給`,
     apply(s) {
-      s.player.mods.ammoMul *= 1.5;
+      s.player.mods.ammoMul *= CONFIG.upgrades.ammoMul;
       const inv = s.player.inv;
       inv.ammo9 += 40; inv.ammo12 += 8; inv.ammoBeam += 2; inv.ammoNade += 1;
-    },
-  },
-  {
-    id: 'lifesteal', name: '吸血', desc: '撃破ごとに HP +2',
-    apply(s) { s.player.mods.healOnKill += 2; },
-  },
-  {
-    id: 'engineer', name: '築城術', desc: '資材 +4・壁が頑丈に',
-    apply(s) { s.player.inv.blocks += 4; s.player.mods.wallHp = (s.player.mods.wallHp || 70) + 40; },
-  },
+    } },
+  { id: 'lifesteal', name: '吸血', desc: () => `撃破ごとに HP +${CONFIG.upgrades.lifestealAdd}`,
+    apply(s) { s.player.mods.healOnKill += CONFIG.upgrades.lifestealAdd; } },
+  { id: 'engineer',  name: '築城術', desc: () => `資材 +${CONFIG.upgrades.blocksAdd}・壁が頑丈に`,
+    apply(s) { s.player.inv.blocks += CONFIG.upgrades.blocksAdd; s.player.mods.wallHp = (s.player.mods.wallHp || 70) + CONFIG.upgrades.wallHpAdd; } },
 ];
 
-// ランダムに n 枚（重複なし）選んで返す
+// 説明文（関数 or 文字列の両対応）
+export function upgradeDesc(u) {
+  return (typeof u.desc === 'function') ? u.desc() : u.desc;
+}
+
 export function pickUpgradeChoices(n) {
   const pool = UPGRADES.slice();
   const out = [];

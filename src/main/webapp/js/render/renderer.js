@@ -75,18 +75,25 @@ export function renderFrame(ctx, canvas, state) {
   // ===== 敵 =====
   for (const m of state.mobs) {
     ctx.save(); ctx.translate(m.x, m.y);
+    const isElite = (m.tier === 'midboss' || m.tier === 'boss');
     // 被弾フラッシュ
-    if (m.hitFlash > 0) ctx.fillStyle = '#ffffff';
-    else ctx.fillStyle = (m.kind === 'spitter') ? '#3aa06f' : '#b24a4a';
-    roundedRect(ctx, -m.w / 2, -m.h / 2, m.w, m.h, 4); ctx.fill();
+    ctx.fillStyle = (m.hitFlash > 0) ? '#ffffff' : (m.color || '#b24a4a');
+    roundedRect(ctx, -m.w / 2, -m.h / 2, m.w, m.h, isElite ? 6 : 4); ctx.fill();
+    // エリートは縁取り＋狂乱中グロー
+    if (isElite) {
+      ctx.lineWidth = m.tier === 'boss' ? 3 : 2;
+      ctx.strokeStyle = (m.enrageT > 0) ? '#ff5a5a' : '#ffe08a';
+      roundedRect(ctx, -m.w / 2, -m.h / 2, m.w, m.h, 6); ctx.stroke();
+      ctx.lineWidth = 1;
+    }
     ctx.fillStyle = '#fff'; ctx.fillRect(-4, -3, 3, 3); ctx.fillRect(1, -3, 3, 3);
-    // HPバー（ダメージを受けている時だけ）
+    // HPバー：エリートは常時、通常はダメージ時のみ
     const mh = m.maxhp || m.hp;
-    if (m.hp < mh) {
-      const bw = m.w, r = clamp(m.hp / mh, 0, 1);
-      ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(-bw / 2, -m.h / 2 - 7, bw, 3);
+    if (isElite || m.hp < mh) {
+      const bw = Math.max(m.w, isElite ? 40 : m.w), r = clamp(m.hp / mh, 0, 1);
+      ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(-bw / 2, -m.h / 2 - 7, bw, isElite ? 4 : 3);
       ctx.fillStyle = r > 0.5 ? '#7fe08a' : (r > 0.25 ? '#e0d27f' : '#e08a7f');
-      ctx.fillRect(-bw / 2, -m.h / 2 - 7, bw * r, 3);
+      ctx.fillRect(-bw / 2, -m.h / 2 - 7, bw * r, isElite ? 4 : 3);
     }
     ctx.restore();
   }

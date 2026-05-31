@@ -1,105 +1,116 @@
+import { CONFIG } from '../core/config.js';
 import { hasLineOfSight } from './los.js';
-import { makeZombie, makeSpitter } from './ai.js';
 import { pickUpgradeChoices } from '../state/upgrades.js';
+import { makeMobFromKey, normalKeys, midbossKeys, bossKeys } from './enemies.js';
 
-// ウェーブ制スポナー
-//   active: その波の規定数を出し切り、敵を全滅させると intermission へ
-//   intermission: 強化カードを提示（main 側のオーバーレイが選択を処理）→ 次の波
-
-const FIRST_WAVE_DELAY = 3.0; // 開始直後の猶予
-const INTERMISSION = 4.0;     // 波間の休止（カード未選択ならこの後自動継続）
-
-// 波ごとの敵数とスピッター比率
-function waveQuota(n) { return Math.min(40, 6 + (n - 1) * 3); }
-function spitterRatio(n) { return Math.min(0.45, 0.15 + n * 0.03); }
-// 波が進むほど敵を強化（HP・速度）
-function hpScale(n) { return 1 + (n - 1) * 0.12; }
-function speedScale(n) { return 1 + (n - 1) * 0.04; }
+// ウェーブ制スポナー（パラメータは CONFIG.waves を参照）
 
 export function updateSpawner(state, dt, bus, audio) {
   const w = state.wave;
+  const C = CONFIG.waves;
   state.timers.elapsed += dt;
 
   if (w.phase === 'active') {
-    // 出現
     if (w.toSpawn > 0) {
       w.spawnCD -= dt;
       if (w.spawnCD <= 0 && countAlive(state) < liveCap(w.num)) {
-        if (spawnOne(state, bus, w.num)) { w.toSpawn--; w.spawnCD = spawnInterval(w.num); }
+        if (spawnNormal(state, bus, w.num)) { w.toSpawn--; w.spawnCD = spawnInterval(w.num); }
         else w.spawnCD = 0.2;
       }
     }
-    // 殲滅判定：未出現0かつ生存0 → インターミッションへ
-    if (w.toSpawn <= 0 && countAlive(state) === 0 && state.timers.elapsed > FIRST_WAVE_DELAY) {
+    if (w.toSpawn <= 0 && countAlive(state) === 0 && state.timers.elapsed > C.firstWaveDelay) {
       enterIntermission(state, bus);
     }
   } else if (w.phase === 'intermission') {
     w.interT -= dt;
-    // カードが選ばれなくても一定時間で次の波へ（選択時は main 側が startNextWave を呼ぶ）
     if (w.interT <= 0) startNextWave(state, bus);
   }
 }
 
 export function startWave(state, n) {
   const w = state.wave;
+  const C = CONFIG.waves;
   w.num = n;
   w.phase = 'active';
-  w.toSpawn = waveQuota(n);
+  w.toSpawn = Math.min(C.maxQuota, C.baseQuota + (n - 1) * C.quotaPerWave);
   w.spawnCD = 0.4;
   w.choices = null;
   state.stats.wave = n;
+
+  // 中ボス／ボスを即時投入（数 = 波数 / 周期 の整数部、最低1体）
+  if (C.bossEvery > 0 && n % C.bossEvery === 0) {
+    spawnElite(state, bossKeys(), n);
+  } else if (C.midBossEvery > 0 && n % C.midBossEvery === 0) {
+    spawnElite(state, midbossKeys(), n);
+  }
 }
 
 export function startNextWave(state, bus) {
   startWave(state, state.wave.num + 1);
-  if (bus && bus.emit) bus.emit('ui:toast', 'WAVE ' + state.wave.num);
+  if (bus && bus.emit) {
+    const C = CONFIG.waves;
+    const isBoss = C.bossEvery > 0 && state.wave.num % C.bossEvery === 0;
+    const isMid = !isBoss && C.midBossEvery > 0 && state.wave.num % C.midBossEvery === 0;
+    bus.emit('ui:toast', 'WAVE ' + state.wave.num + (isBoss ? ' ‼ BOSS' : isMid ? ' ★ MIDBOSS' : ''));
+  }
 }
 
 function enterIntermission(state, bus) {
   const w = state.wave;
   w.phase = 'intermission';
-  w.interT = INTERMISSION;
+  w.interT = CONFIG.waves.intermission;
   w.choices = pickUpgradeChoices(3);
   if (bus && bus.emit) bus.emit('wave:intermission', { wave: w.num, choices: w.choices });
 }
 
-function countAlive(state) {
-  let n = 0;
-  for (const m of state.mobs) if (m.hp > 0) n++;
-  return n;
-}
+function countAlive(state) { let n = 0; for (const m of state.mobs) if (m.hp > 0) n++; return n; }
+function liveCap(n) { const C = CONFIG.waves; return Math.min(C.maxLiveCap, C.liveCapBase + n * C.liveCapPerWave); }
+function spawnInterval(n) { const C = CONFIG.waves; return Math.max(C.minSpawnInterval, C.spawnIntervalBase - n * C.spawnIntervalPerWave); }
 
-// 画面上の同時存在数の上限（波が進むほど増える）
-function liveCap(n) { return Math.min(28, 8 + n * 2); }
-function spawnInterval(n) { return Math.max(0.25, 0.9 - n * 0.04); }
-
-function tileFree(state, tx, ty) {
+function tileFree(state, tx, ty, size) {
   if (tx < 0 || ty < 0 || tx >= state.dim.w || ty >= state.dim.h) return false;
   if (state.map[ty][tx] !== '.') return false;
-  const cx = (tx + 0.5) * 32, cy = (ty + 0.5) * 32; const box = { x: cx, y: cy, w: 32 * 0.9, h: 32 * 0.9 };
+  const cx = (tx + 0.5) * 32, cy = (ty + 0.5) * 32; const box = { x: cx, y: cy, w: size || 32, h: size || 32 };
   if (Math.abs(box.x - state.player.x) < (box.w / 2 + state.player.w / 2) && Math.abs(box.y - state.player.y) < (box.h / 2 + state.player.h / 2)) return false;
   for (const m of state.mobs) { if (Math.abs(box.x - m.x) < (box.w / 2 + m.w / 2) && Math.abs(box.y - m.y) < (box.h / 2 + m.h / 2)) return false; }
   return true;
 }
 
-function spawnOne(state, bus, waveNum) {
-  for (let tries = 0; tries < 160; tries++) {
+function pickTile(state, minDist) {
+  for (let tries = 0; tries < 200; tries++) {
     const tx = 1 + Math.floor(Math.random() * (state.dim.w - 2));
     const ty = 1 + Math.floor(Math.random() * (state.dim.h - 2));
-    if (!tileFree(state, tx, ty)) continue;
+    if (!tileFree(state, tx, ty, 40)) continue;
     const cx = (tx + 0.5) * 32, cy = (ty + 0.5) * 32;
     const dx = cx - state.player.x, dy = cy - state.player.y;
-    if (dx * dx + dy * dy < (32 * 8) * (32 * 8)) continue;
+    if (dx * dx + dy * dy < minDist * minDist) continue;
     if (hasLineOfSight(state, state.player.x, state.player.y, cx, cy)) continue;
-    const isSpitter = Math.random() < spitterRatio(waveNum);
-    const mob = isSpitter ? makeSpitter(cx, cy) : makeZombie(cx, cy);
-    // 波スケールを適用
-    const hs = hpScale(waveNum);
-    mob.hp = mob.maxhp = Math.round(mob.maxhp * hs);
-    mob.baseSpeed = Math.round(mob.baseSpeed * speedScale(waveNum));
-    state.mobs.push(mob);
-    if (bus && bus.emit) bus.emit('sfx', 'spawn');
-    return true;
+    return { cx, cy };
   }
-  return false;
+  return null;
+}
+
+function spawnNormal(state, bus, waveNum) {
+  const keys = normalKeys();
+  if (!keys.length) return false;
+  const t = pickTile(state, 32 * 8);
+  if (!t) return false;
+  // スピッター比率は CONFIG（互換）。複数通常敵なら均等＋スピッター寄せ
+  const key = keys[Math.floor(Math.random() * keys.length)];
+  const mob = makeMobFromKey(state, key, t.cx, t.cy, waveNum);
+  if (!mob) return false;
+  state.mobs.push(mob);
+  if (bus && bus.emit) bus.emit('sfx', 'spawn');
+  return true;
+}
+
+function spawnElite(state, keys, waveNum) {
+  if (!keys || !keys.length) return false;
+  const t = pickTile(state, 32 * 6);
+  const key = keys[Math.floor(Math.random() * keys.length)];
+  const cx = t ? t.cx : state.player.x + 200;
+  const cy = t ? t.cy : state.player.y;
+  const mob = makeMobFromKey(state, key, cx, cy, waveNum);
+  if (mob) state.mobs.push(mob);
+  return !!mob;
 }

@@ -1,4 +1,4 @@
-import { makeZombie, makeSpitter } from './ai.js';
+import { makeMobFromKey, makeZombie, makeSpitter } from './enemies.js';
 import { rebuildFlowField } from './flowfield.js';
 
 // CTX(コンテキストパス)を安全に決定
@@ -24,7 +24,7 @@ function nowStr(ts) { try { return new Date(ts).toLocaleString(); } catch (_) { 
 function serialize(state) {
 	var weapons = state.player.weapons.map(function(w) { return { id: w.id, mag: w.mag }; });
 	var mobs = state.mobs.map(function(m) {
-		return { kind: m.kind, x: m.x, y: m.y, hp: m.hp, maxhp: m.maxhp };
+		return { kind: m.kind, x: m.x, y: m.y, hp: m.hp, maxhp: m.maxhp, waveNum: m.waveNum };
 	});
 	return {
 		schema: 1,
@@ -101,7 +101,9 @@ function applyToState(state, d) {
 	var mobs = Array.isArray(d.mobs) ? d.mobs : [];
 	for (var j = 0; j < mobs.length; j++) {
 		var m = mobs[j];
-		var obj = (m.kind === 'spitter') ? makeSpitter(m.x, m.y) : makeZombie(m.x, m.y);
+		// kind（zombie/spitter/boss等）からデータ駆動で復元。未知kindはzombie扱い。
+		var obj = makeMobFromKey(state, m.kind, m.x, m.y, m.waveNum || state.wave && state.wave.num || 1)
+			|| makeZombie(m.x, m.y);
 		if (typeof m.hp === 'number') obj.hp = m.hp;
 		if (typeof m.maxhp === 'number') obj.maxhp = m.maxhp;
 		state.mobs.push(obj);

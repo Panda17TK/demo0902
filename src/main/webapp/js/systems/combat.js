@@ -1,6 +1,7 @@
 // webapp/js/systems/combat.js
 import { norm, clamp, moveAndCollide } from './physics.js';
 import { TILE } from '../core/constants.js';
+import { CONFIG } from '../core/config.js';
 import { damageTile, canPlaceAt } from './tiles.js';
 import { spawnSlashFX, spawnBeamFX, spawnBlastFX, spawnSparksFX, spawnDamageNumber, addShake, addHitstop } from './fx.js';
 import { rebuildFlowField } from './flowfield.js';
@@ -126,7 +127,7 @@ export function updateCombat(state, dt, bus, input, audio) {
   const dash = input.pressed('shift') && moving && p.sta > 0;
   p.isDashing = dash;
 
-  const spd = p.baseSpeed * 1.2 * p.buffs.speed * mods.moveMul * (dash ? 2 : 1);
+  const spd = p.baseSpeed * 1.2 * p.buffs.speed * mods.moveMul * (dash ? CONFIG.player.dashMul : 1);
   let vx = dirx * spd * speedScale * dt, vy = diry * spd * speedScale * dt;
   if (moving) { p.facing.x = dirx; p.facing.y = diry; }
 
@@ -155,15 +156,14 @@ export function updateCombat(state, dt, bus, input, audio) {
   if (p.meleeCD > 0) p.meleeCD -= dt;
   if (input.pressed('j') && p.meleeCD <= 0) {
     p.meleeCD = 0.32;
-    const baseReach = 34 * 1.5; // ← 1.5倍
-    const reach = baseReach * p.buffs.range;
+    const reach = CONFIG.player.meleeReach * p.buffs.range;
     const arc = Math.PI;
     const faceAng = Math.atan2(p.facing.y, p.facing.x);
     bus.emit('sfx', 'melee');
     spawnSlashFX(state, p.x, p.y, faceAng);
 
     // 即時ヒット（敵・壁）
-    const meleeDmg = Math.round(22 * p.buffs.dmg * mods.meleeMul);
+    const meleeDmg = Math.round(CONFIG.player.meleeDmg * p.buffs.dmg * mods.meleeMul);
     for (const m of state.mobs) {
       if (m.hp <= 0) continue;
       const dx = m.x - p.x, dy = m.y - p.y; const d = Math.hypot(dx, dy);
@@ -318,13 +318,26 @@ export function updateCombat(state, dt, bus, input, audio) {
   // 敵弾
   for (let i = state.ebullets.length - 1; i >= 0; i--) {
     const b = state.ebullets[i];
-    b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
+    // ホーミング弾：プレイヤー方向へ少しずつ旋回
+    if (b.homing) {
+      const want = Math.atan2(p.y - b.y, p.x - b.x);
+      const cur = Math.atan2(b.vy, b.vx);
+      let diff = ((want - cur + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+      const turn = Math.max(-b.homing * dt, Math.min(b.homing * dt, diff));
+      const sp = Math.hypot(b.vx, b.vy) || 1;
+      const na = cur + turn;
+      b.vx = Math.cos(na) * sp; b.vy = Math.sin(na) * sp;
+    }
+    // 地雷：静止して起爆を待つ（移動なし）
+    if (!b.mine) { b.x += b.vx * dt; b.y += b.vy * dt; }
+    b.life -= dt;
     const tx = Math.floor(b.x / TILE), ty = Math.floor(b.y / TILE);
-    if ((state.map[ty] && (state.map[ty][tx] === '#' || state.map[ty][tx] === 'D')) || b.life <= 0) {
+    if ((!b.mine && state.map[ty] && (state.map[ty][tx] === '#' || state.map[ty][tx] === 'D')) || b.life <= 0) {
       state.ebullets.splice(i, 1);
       continue;
     }
-    const hitP = (Math.abs(state.player.x - b.x) < state.player.w / 2 + 3) && (Math.abs(state.player.y - b.y) < state.player.h / 2 + 3);
+    const hitR = b.mine ? 14 : 3;
+    const hitP = (Math.abs(state.player.x - b.x) < state.player.w / 2 + hitR) && (Math.abs(state.player.y - b.y) < state.player.h / 2 + hitR);
     if (hitP) {
       if (p.isDashing) {
         const n = norm(b.x - p.x, b.y - p.y);
@@ -332,7 +345,7 @@ export function updateCombat(state, dt, bus, input, audio) {
         continue;
       } else {
         if (p.iTime <= 0) {
-          p.hp -= b.dmg; p.iTime = 0.8;
+          p.hp -= b.dmg; p.iTime = CONFIG.player.iFrameBullet;
           const n = norm(p.x - b.x, p.y - b.y);
           p.vx += n.x * 180; p.vy += n.y * 180;
           addShake(state, 0.18, 6);
@@ -368,6 +381,8 @@ export function updateCombat(state, dt, bus, input, audio) {
     if (s.t >= s.life) state.slashes.splice(i, 1);
   }
 
+  // 開発者モードのゴッドモード：HPを満タンに固定
+  if (state.devGod) p.hp = p.hpMax || 100;
   p.hp = clamp(p.hp, 0, p.hpMax || 100);
 }
 
