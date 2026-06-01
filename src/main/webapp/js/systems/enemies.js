@@ -11,20 +11,21 @@ export const BUILTIN_BOSSES = {
     name: 'ブルート(中ボス)', tier: 'midboss', color: '#d08a3a',
     hp: 420, speed: 58, w: 34, h: 34, seeRange: 320, contactKB: 320,
     attacks: [
-      { type: 'melee',  cd: 0.8, dmg: 16, range: 22, arc: 360 },
-      { type: 'lunge',  cd: 3.0, range: 120, power: 520 },
-      { type: 'slam',   cd: 4.0, dmg: 18, range: 80, power: 360 },
-      { type: 'burst',  cd: 2.5, dmg: 8, count: 5, spread: 40, speed: 240 },
-      { type: 'summon', cd: 8.0, minion: 'zombie', count: 2 },
+      { type: 'melee',        cd: 0.8, dmg: 16, range: 22, arc: 360 },
+      { type: 'charge_melee', cd: 3.2, range: 60, reach: 40, windup: 0.8, dmg: 30, kb: 480 },
+      { type: 'slam',         cd: 4.0, dmg: 18, range: 80, power: 360 },
+      { type: 'burst',        cd: 2.5, dmg: 8, count: 5, spread: 40, speed: 240 },
+      { type: 'summon',       cd: 8.0, minion: 'zombie', count: 2 },
     ],
   },
   warlock: {
     name: 'ウォーロック(中ボス)', tier: 'midboss', color: '#7a5ad0',
     hp: 360, speed: 48, w: 30, h: 30, seeRange: 360, contactKB: 240,
+    dodge: { chance: 0.25, duration: 0.15, cd: 1.6 }, // 賢く回避する
     attacks: [
       { type: 'shot',    cd: 1.0, dmg: 12, speed: 240 },
       { type: 'nova',    cd: 5.0, dmg: 8, count: 14, speed: 180 },
-      { type: 'homing',  cd: 3.0, dmg: 10, speed: 150, turn: 1.5, life: 3 },
+      { type: 'blink',   cd: 4.0, maxTiles: 5, dur: 0.1, minDist: 80, standoff: 120 }, // 距離を取る縮地
       { type: 'summon',  cd: 7.0, minion: 'spitter', count: 2 },
       { type: 'heal',    cd: 9.0, amount: 40 },
     ],
@@ -32,6 +33,7 @@ export const BUILTIN_BOSSES = {
   overlord: {
     name: 'オーバーロード(ボス)', tier: 'boss', color: '#d04a6a',
     hp: 1200, speed: 52, w: 46, h: 46, seeRange: 480, contactKB: 360,
+    dodge: { chance: 0.12, duration: 0.12, cd: 2.5 }, // ボスもごく稀に回避
     attacks: [
       { type: 'melee',   cd: 0.7, dmg: 20, range: 30, arc: 360 },
       { type: 'slam',    cd: 3.5, dmg: 22, range: 100, power: 420 },
@@ -89,6 +91,7 @@ export function makeMobFromKey(state, key, x, y, waveNum) {
     faceX: 1, faceY: 0,
     prevX: x, prevY: y, stuckT: 0,
     hitFlash: 0, enrageT: 0, guardT: 0,
+    dodgeT: 0, dodgeCDLeft: 0, _charge: null, _blink: null,
     waveNum,
   };
 }

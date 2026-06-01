@@ -84,6 +84,16 @@ export const DEFAULT_CONFIG = {
         { type: 'shot', cd: 1.2, dmg: 12, speed: 220, kite: true },
       ],
     },
+    // ストーカー：縮地で間合いを詰め、溜め近接で刺す。たまに回避する。
+    stalker: {
+      name: 'ストーカー', tier: 'normal', color: '#9a6ad0',
+      hp: 60, speed: 64, w: 22, h: 22, seeRange: 340, contactKB: 200,
+      dodge: { chance: 0.18, duration: 0.15, cd: 2.0 }, // 回避：18%・0.15s無敵・CD2s
+      attacks: [
+        { type: 'blink', cd: 3.0, maxTiles: 5, dur: 0.1, minDist: 70, standoff: 28 },
+        { type: 'charge_melee', cd: 2.4, range: 40, reach: 30, windup: 0.6, dmg: 18, kb: 320 },
+      ],
+    },
   },
 };
 

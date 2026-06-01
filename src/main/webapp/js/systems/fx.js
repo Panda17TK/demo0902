@@ -25,6 +25,16 @@ export function addHitstop(state, t) {
 	state.hitstop = Math.max(state.hitstop || 0, t);
 }
 
+// 残像（縮地などの高速移動の軌跡）
+export function spawnAfterimageFX(state, x, y, w, h, color) {
+	state.fx.push({ type: 'afterimage', x, y, w, h, color: color || '#cfe5ff', t: 0, life: 0.25 });
+}
+
+// 回避成功の白フラッシュ＋リング
+export function spawnDodgeFX(state, x, y) {
+	state.fx.push({ type: 'dodge', x, y, t: 0, life: 0.22 });
+}
+
 
 export function spawnSparksFX(state, x, y, n = 6) {
 	for (let i = 0; i < n; i++) {

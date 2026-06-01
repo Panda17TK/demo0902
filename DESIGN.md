@@ -170,10 +170,18 @@ UI:
   `tier` により攻撃数の上限を管理（**通常=2 / 中ボス=5 / ボス=10**）。中ボス/ボスは
   組み込みテンプレート（ブルート/ウォーロック/オーバーロード）を提供。
 - **攻撃タイプ・システム**（`systems/attacks.js`）: `melee/shot/lunge/burst/nova/summon/slam/`
-  `charge/homing/heal/enrage/mine/barrage/guard` を登録。`CONFIG.enemies[*].attacks` を
-  AI が解釈して実行（個別クールダウン管理）。新攻撃は REGISTRY に足すだけ。
+  `charge/homing/heal/enrage/mine/barrage/guard` ＋ `charge_melee/blink` を登録。
+  `CONFIG.enemies[*].attacks` を AI が解釈して実行（個別クールダウン管理）。
+  新攻撃は REGISTRY に足すだけ。複数フレームにまたがる行動は `updateMobActions` で進める。
 - **ウェーブ編成**: `midBossEvery`/`bossEvery` で中ボス・ボス波を自動編成。
 - セーブ復元は `makeMobFromKey` 経由でボスも正しく復元（`kind/waveNum` を保存）。
+
+### 敵の高度な行動（追加）
+- **溜め近接 `charge_melee`**: `windup` 秒のテレグラフ（収縮リング）後に強ダメージの薙ぎ払い。
+- **縮地 `blink`**: `dur`(≈0.1s) で最大 `maxTiles`(=5) マスを残像付きで瞬間移動。壁で停止。
+- **回避 `dodge`**（敵定義のパッシブ、攻撃枠を消費しない）: 被弾の瞬間に低確率発動。
+  発動中は白点滅＋当たり判定消失で一撃を無効化（`hurtMob` が単一チョークポイントで判定）。
+- 新通常敵 **ストーカー**（縮地＋溜め近接＋回避）、ブルートに溜め近接、ウォーロック/オーバーロードに回避を付与。
 
 ## 10. 技術的完成度（永続化・テスト・CI・PWA）
 

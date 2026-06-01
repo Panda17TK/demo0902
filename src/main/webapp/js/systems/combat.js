@@ -3,7 +3,7 @@ import { norm, clamp, moveAndCollide } from './physics.js';
 import { TILE } from '../core/constants.js';
 import { CONFIG } from '../core/config.js';
 import { damageTile, canPlaceAt } from './tiles.js';
-import { spawnSlashFX, spawnBeamFX, spawnBlastFX, spawnSparksFX, spawnDamageNumber, addShake, addHitstop } from './fx.js';
+import { spawnSlashFX, spawnBeamFX, spawnBlastFX, spawnSparksFX, spawnDamageNumber, spawnDodgeFX, addShake, addHitstop } from './fx.js';
 import { rebuildFlowField } from './flowfield.js';
 import { hasLineOfSight } from './los.js';
 
@@ -11,6 +11,17 @@ import { hasLineOfSight } from './los.js';
 // nx,ny: 与える側→敵への方向（正規化済み）。kb: ノックバック強度。opts.number: 数字表示。
 function hurtMob(state, m, dmg, nx, ny, kb, opts) {
   opts = opts || {};
+  // 回避（dodge）：被弾の瞬間にごく低確率で発動。発動中は当たり判定が消え、白く点滅。
+  if (m.dodgeT > 0) { spawnDodgeFX(state, m.x, m.y); return; }
+  const dg = m.def && m.def.dodge;
+  if (dg && dg.chance > 0 && (m.dodgeCDLeft || 0) <= 0 && Math.random() < dg.chance) {
+    m.dodgeT = dg.duration || 0.15;
+    m.dodgeCDLeft = dg.cd || 1.5;
+    spawnDodgeFX(state, m.x, m.y);
+    return; // この一撃を回避（無効化）
+  }
+  // ガード態勢：被ダメージ軽減（guard 攻撃が m.guardMul を立てる）
+  if (m.guardT > 0 && m.guardMul) dmg *= m.guardMul;
   m.hp -= dmg;
   if (kb) { m.vx += (nx || 0) * kb; m.vy += (ny || 0) * kb; }
   m.hitFlash = 0.12;

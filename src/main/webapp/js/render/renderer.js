@@ -76,9 +76,21 @@ export function renderFrame(ctx, canvas, state) {
   for (const m of state.mobs) {
     ctx.save(); ctx.translate(m.x, m.y);
     const isElite = (m.tier === 'midboss' || m.tier === 'boss');
-    // 被弾フラッシュ
-    ctx.fillStyle = (m.hitFlash > 0) ? '#ffffff' : (m.color || '#b24a4a');
+    // 回避中は白点滅、被弾フラッシュも白
+    const blink = m.dodgeT > 0 && (Math.floor(m.dodgeT * 40) % 2 === 0);
+    ctx.fillStyle = (m.hitFlash > 0 || blink) ? '#ffffff' : (m.color || '#b24a4a');
+    if (m.dodgeT > 0) ctx.globalAlpha = 0.55; // 回避中は半透明（当たり判定なしを示唆）
     roundedRect(ctx, -m.w / 2, -m.h / 2, m.w, m.h, isElite ? 6 : 4); ctx.fill();
+    ctx.globalAlpha = 1;
+    // 溜め近接のテレグラフ（黄→赤のリングが収縮）
+    if (m._charge) {
+      const cm = (m.def && m.def.attacks) ? m.def.attacks.find(x => x.type === 'charge_melee') : null;
+      const prog = 1 - Math.max(0, m._charge.t) / ((cm && cm.windup) || 0.7);
+      ctx.strokeStyle = `rgba(255,${Math.round(180 - 120 * prog)},80,0.9)`;
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(0, 0, m.w * (1.4 - 0.5 * prog), 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = 1;
+    }
     // エリートは縁取り＋狂乱中グロー
     if (isElite) {
       ctx.lineWidth = m.tier === 'boss' ? 3 : 2;
@@ -184,6 +196,19 @@ export function renderFrame(ctx, canvas, state) {
       ctx.fillStyle = f.crit ? '#ffd166' : '#ffffff';
       ctx.strokeText(f.text, f.x, f.y);
       ctx.fillText(f.text, f.x, f.y);
+    }
+    else if (f.type === 'afterimage') {
+      // 縮地の残像（半透明の矩形）
+      ctx.globalAlpha = a * 0.5;
+      ctx.fillStyle = f.color || '#cfe5ff';
+      roundedRect(ctx, f.x - f.w / 2, f.y - f.h / 2, f.w, f.h, 4); ctx.fill();
+    }
+    else if (f.type === 'dodge') {
+      // 回避成功：白いリング
+      ctx.strokeStyle = `rgba(255,255,255,${a})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(f.x, f.y, 10 + (1 - a) * 18, 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = 1;
     }
 
     // alpha 戻す（各FXごとに）

@@ -4,9 +4,10 @@
 //
 // 攻撃の追加は REGISTRY にエントリを足すだけ。エディタは type 一覧をここから取得する。
 
-import { norm, rectInter, clamp } from './physics.js';
-import { spawnEnemySlashFX, addShake } from './fx.js';
+import { norm, rectInter, clamp, moveAndCollide } from './physics.js';
+import { spawnEnemySlashFX, addShake, spawnAfterimageFX, spawnSparksFX } from './fx.js';
 import { makeMobFromKey } from './enemies.js';
+import { TILE } from '../core/constants.js';
 
 // 敵→プレイヤーへの被弾処理（無敵時間・ノックバック・SE・シェイク）
 function hitPlayer(state, m, dmg, kb, bus, cfg) {
@@ -62,6 +63,33 @@ const REGISTRY = {
     if (!see || dist > (a.range || 90)) return false;
     m.vx += toP.x * (a.power || 360);
     m.vy += toP.y * (a.power || 360);
+    return true;
+  },
+
+  // 溜め近接：windup(s) かけてテレグラフ → 実際の薙ぎ払いで強ダメージ。
+  // 2フェーズを m._charge に持たせ、runAttacks のCDとは独立に進める。
+  charge_melee(ctx) {
+    const { state, m, a, dist, toP, see, bus, cfg } = ctx;
+    // 溜め開始：射程に入って見えていれば
+    if (!m._charge) {
+      if (!see || dist > (a.range || 40)) return false;
+      m._charge = { t: a.windup || 0.7, dir: { x: toP.x, y: toP.y } };
+      if (bus && bus.emit) bus.emit('sfx', 'build'); // 溜め音
+      return true; // CD 開始（連打防止）
+    }
+    return false;
+  },
+
+  // 縮地（ブリンク）：0.1s で最大 maxTiles マス、残像を残して瞬間移動。
+  // 着地はプレイヤーの少し手前を狙う。移動は moveAndCollide で壁止まり。
+  blink(ctx) {
+    const { state, m, a, dist, toP, see } = ctx;
+    if (!see) return false;
+    if (dist < (a.minDist != null ? a.minDist : 60)) return false; // 近すぎる時は不要
+    const maxTiles = a.maxTiles || 5;
+    const stand = a.standoff != null ? a.standoff : 28; // 着地時にプレイヤーから取る距離
+    const want = Math.max(0, Math.min(maxTiles * TILE, dist - stand));
+    m._blink = { t: a.dur || 0.1, total: a.dur || 0.1, dx: toP.x * want, dy: toP.y * want, trail: 0 };
     return true;
   },
 
@@ -208,4 +236,49 @@ export function runAttacks(state, m, dt, bus, cfg) {
       m._cd[i] = (a.cd || 1.0) * cdScale;
     }
   }
+}
+
+// 溜め近接・縮地など「複数フレームにまたがる行動」を毎フレーム進める。
+// ai.js から各 mob について runAttacks の後に呼ぶ。
+export function updateMobActions(state, m, dt, bus, cfg) {
+  // --- 溜め近接 ---
+  if (m._charge) {
+    m._charge.t -= dt;
+    if (m._charge.t <= 0) {
+      // 薙ぎ払い発動：定義から該当攻撃のダメージ/範囲を引く
+      const def = (m.def && m.def.attacks) || [];
+      const a = def.find((x) => x.type === 'charge_melee') || {};
+      const p = state.player;
+      const d = Math.hypot(p.x - m.x, p.y - m.y);
+      const reach = (a.reach || a.range || 40) + Math.max(p.w, p.h) / 2;
+      spawnEnemySlashFX(state, m.x, m.y, Math.atan2(p.y - m.y, p.x - m.x));
+      addShake(state, 0.12, 5);
+      if (d < reach && p.iTime <= 0) {
+        p.hp -= (a.dmg || 28);
+        p.iTime = (cfg && cfg.player && cfg.player.iFrameMelee) || 0.9;
+        const n = norm(p.x - m.x, p.y - m.y);
+        p.vx += n.x * (a.kb || 360); p.vy += n.y * (a.kb || 360);
+        if (bus && bus.emit) bus.emit('sfx', 'hit');
+      }
+      m._charge = null;
+    }
+  }
+
+  // --- 縮地（ブリンク）---
+  if (m._blink) {
+    const b = m._blink;
+    const step = Math.min(dt, b.t);
+    const frac = step / b.total;
+    // 残像を一定間隔で
+    b.trail -= step;
+    if (b.trail <= 0) { spawnAfterimageFX(state, m.x, m.y, m.w, m.h, m.color); b.trail = 0.02; }
+    moveAndCollide(state, m, b.dx * (frac / 1), 0);
+    moveAndCollide(state, m, 0, b.dy * (frac / 1));
+    b.t -= step;
+    if (b.t <= 0) { spawnSparksFX(state, m.x, m.y, 4); m._blink = null; }
+  }
+
+  // --- 回避クールダウン ---
+  if (m.dodgeT > 0) m.dodgeT -= dt;
+  if (m.dodgeCDLeft > 0) m.dodgeCDLeft -= dt;
 }

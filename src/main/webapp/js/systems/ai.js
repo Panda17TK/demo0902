@@ -2,7 +2,7 @@ import { TILE } from '../core/constants.js';
 import { CONFIG } from '../core/config.js';
 import { norm, moveAndCollide, rectInter } from './physics.js';
 import { addShake } from './fx.js';
-import { runAttacks } from './attacks.js';
+import { runAttacks, updateMobActions } from './attacks.js';
 // mob 生成はデータ駆動の enemies.js に一本化。後方互換のため re-export。
 import { makeMobFromKey, makeZombie, makeSpitter } from './enemies.js';
 export { makeMobFromKey, makeZombie, makeSpitter };
@@ -93,6 +93,13 @@ export function updateAI(state, dt, bus/*, audio */) {
     const see = dist < (m.seeRange || 240) && hasLineOfSight(state, m.x, m.y, p.x, p.y);
     m._see = see;
 
+    // 溜め中／縮地中は通常移動・分離を止める（行動を最優先）
+    if (m._charge || m._blink) {
+      updateMobActions(state, m, dt, bus, CONFIG);
+      m.prevX = m.x; m.prevY = m.y;
+      continue;
+    }
+
     // ===== 分離 =====
     let sepX = 0, sepY = 0, sepN = 0;
     const sepRadius = 24;
@@ -162,6 +169,8 @@ export function updateAI(state, dt, bus/*, audio */) {
 
     // ===== データ駆動の攻撃 =====
     runAttacks(state, m, dt, bus, CONFIG);
+    // 溜め近接・縮地・回避クールダウンなど、複数フレーム行動を進める
+    updateMobActions(state, m, dt, bus, CONFIG);
 
     m.prevX = m.x; m.prevY = m.y;
   }
