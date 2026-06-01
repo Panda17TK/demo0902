@@ -5,7 +5,7 @@
 // 攻撃の追加は REGISTRY にエントリを足すだけ。エディタは type 一覧をここから取得する。
 
 import { norm, rectInter, clamp, moveAndCollide } from './physics.js';
-import { spawnEnemySlashFX, addShake, spawnAfterimageFX, spawnSparksFX, spawnMuzzleFX } from './fx.js';
+import { spawnEnemySlashFX, addShake, spawnAfterimageFX, spawnSparksFX, spawnMuzzleFX, recordPlayerHit } from './fx.js';
 import { makeMobFromKey } from './enemies.js';
 import { TILE } from '../core/constants.js';
 
@@ -19,6 +19,7 @@ function hitPlayer(state, m, dmg, kb, bus, cfg) {
   p.vx += n.x * (kb || 240); p.vy += n.y * (kb || 240);
   if (bus && bus.emit) bus.emit('sfx', 'hit');
   addShake(state, 0.18, 6);
+  recordPlayerHit(state, m.x, m.y);
   return true;
 }
 
@@ -261,6 +262,7 @@ export function updateMobActions(state, m, dt, bus, cfg) {
         const n = norm(p.x - m.x, p.y - m.y);
         p.vx += n.x * (a.kb || 360); p.vy += n.y * (a.kb || 360);
         if (bus && bus.emit) bus.emit('sfx', 'hit');
+        recordPlayerHit(state, m.x, m.y);
       }
       m._charge = null;
     }

@@ -11,6 +11,37 @@ function hexToRgba(hex, alpha) {
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
 }
 
+// 背景パララックス：奥行きの異なる2層の塵をカメラに対しゆっくり逆スクロール。
+// 決定論的に配置するのでチラつかない。スクリーン空間に描画。
+function drawParallax(ctx, W, H, camX, camY) {
+  // ベースの暗いグラデ（縦方向）
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#0a0d12');
+  bg.addColorStop(1, '#0d1119');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+
+  const layers = [
+    { factor: 0.15, count: 40, size: 1, alpha: 0.18, span: 900 },
+    { factor: 0.35, count: 28, size: 2, alpha: 0.12, span: 700 },
+  ];
+  for (const L of layers) {
+    const ox = -camX * L.factor, oy = -camY * L.factor;
+    ctx.fillStyle = `rgba(160,190,230,${L.alpha})`;
+    for (let i = 0; i < L.count; i++) {
+      // 決定論的な疑似乱数で点を配置
+      const hx = (i * 2654435761) >>> 0, hy = (i * 40503 + 12345) >>> 0;
+      let xx = ((hx % L.span) + ox) % L.span; if (xx < 0) xx += L.span;
+      let yy = ((hy % L.span) + oy) % L.span; if (yy < 0) yy += L.span;
+      // span を画面サイズに折り返してタイル状に敷く
+      for (let tx = -L.span; tx < W + L.span; tx += L.span) {
+        for (let ty = -L.span; ty < H + L.span; ty += L.span) {
+          ctx.fillRect(tx + xx, ty + yy, L.size, L.size);
+        }
+      }
+    }
+  }
+}
+
 export function renderFrame(ctx, canvas, state) {
   const W = canvas.width, H = canvas.height;
   ctx.clearRect(0, 0, W, H);
@@ -27,6 +58,9 @@ export function renderFrame(ctx, canvas, state) {
     sy = (Math.random() * 2 - 1) * state.shake.mag;
   }
   const camX = baseCamX + sx, camY = baseCamY + sy;
+
+  // ===== 背景パララックス（スクリーン空間・カメラに対しゆっくり逆移動）=====
+  drawParallax(ctx, W, H, camX, camY);
 
   ctx.save(); ctx.translate(-camX, -camY);
 
@@ -53,9 +87,29 @@ export function renderFrame(ctx, canvas, state) {
         ctx.fillStyle = '#3b2a1a'; ctx.fillRect(px, py, TILE, TILE);
         ctx.strokeStyle = '#6b4c2b'; ctx.strokeRect(px + 6, py + 4, TILE - 12, TILE - 8);
       } else {
-        ctx.fillStyle = '#131922'; ctx.fillRect(px, py, TILE, TILE);
-        ctx.fillStyle = 'rgba(255,255,255,0.03)';
-        ctx.fillRect(px + ((x + y) % 2), py + ((x * 7 + y * 13) % 3), 1, 1);
+        // 床：市松の濃淡＋目地＋決定論的な汚れ／ひび
+        const checker = ((x + y) & 1) === 0;
+        ctx.fillStyle = checker ? '#141b25' : '#121823';
+        ctx.fillRect(px, py, TILE, TILE);
+        // 目地（タイル境界の陰影）
+        ctx.fillStyle = 'rgba(0,0,0,0.22)';
+        ctx.fillRect(px, py, TILE, 1);
+        ctx.fillRect(px, py, 1, TILE);
+        ctx.fillStyle = 'rgba(255,255,255,0.02)';
+        ctx.fillRect(px + 1, py + TILE - 1, TILE - 1, 1);
+        // 決定論的ハッシュで斑点／ひびを散らす（毎フレーム同じ＝チラつかない）
+        const h = (x * 73856093 ^ y * 19349663) >>> 0;
+        if (h % 7 === 0) {
+          ctx.fillStyle = 'rgba(255,255,255,0.04)';
+          ctx.fillRect(px + (h % TILE), py + ((h >> 3) % TILE), 2, 2);
+        }
+        if (h % 23 === 0) {
+          ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(px + (h % (TILE - 8)) + 2, py + 6);
+          ctx.lineTo(px + (h % (TILE - 8)) + 9, py + TILE - 6);
+          ctx.stroke();
+        }
       }
     }
   }
@@ -371,4 +425,61 @@ export function renderFrame(ctx, canvas, state) {
   ctx.globalCompositeOperation = 'source-over';
 
   ctx.restore();
+
+  // ===== スクリーン空間オーバーレイ =====
+  // 被弾方向インジケータ：画面中央から見たダメージ源の方向に赤い弧を出す
+  if (state.dmgMarks && state.dmgMarks.length) {
+    const cx = W / 2, cy = H / 2;
+    const rad = Math.min(W, H) * 0.34;
+    for (const dm of state.dmgMarks) {
+      const a = 1 - dm.t / dm.life;
+      if (a <= 0) continue;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(dm.ang);
+      ctx.globalAlpha = a * 0.8;
+      // 弧（方向を示す扇）
+      const grd = ctx.createRadialGradient(rad, 0, 0, rad, 0, 60);
+      grd.addColorStop(0, 'rgba(255,60,60,0.9)');
+      grd.addColorStop(1, 'rgba(255,60,60,0)');
+      ctx.fillStyle = grd;
+      ctx.beginPath();
+      ctx.arc(0, 0, rad + 18, -0.35, 0.35);
+      ctx.arc(0, 0, rad - 14, 0.35, -0.35, true);
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // 低HP時の赤いビネット（パルス）
+  const pl2 = state.player;
+  const hpr = (pl2.hp) / (pl2.hpMax || 100);
+  if (hpr > 0 && hpr < 0.3 && !state.gameOver) {
+    const pulse = 0.25 + 0.2 * Math.sin(performance.now() / 220);
+    const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.62);
+    vg.addColorStop(0, 'rgba(180,0,0,0)');
+    vg.addColorStop(1, `rgba(180,0,0,${pulse * (1 - hpr / 0.3)})`);
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  }
+
+  // ボス撃破キルカム：レターボックス＋テキスト
+  if (state.killCam) {
+    const ph = state.killCam.t / state.killCam.life; // 0→1
+    const ease = Math.sin(Math.min(1, ph) * Math.PI);  // 出てから引っ込む
+    const bar = Math.round(H * 0.12 * ease);
+    if (bar > 0) {
+      ctx.fillStyle = 'rgba(0,0,0,0.8)';
+      ctx.fillRect(0, 0, W, bar);
+      ctx.fillRect(0, H - bar, W, bar);
+    }
+    if (state.killCam.boss && ease > 0.2) {
+      ctx.globalAlpha = ease;
+      ctx.fillStyle = '#ffd166';
+      ctx.font = 'bold 34px ui-sans-serif, system-ui, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('BOSS DOWN', W / 2, H / 2);
+      ctx.globalAlpha = 1;
+    }
+  }
 }

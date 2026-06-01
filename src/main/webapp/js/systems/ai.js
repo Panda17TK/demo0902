@@ -1,7 +1,7 @@
 import { TILE } from '../core/constants.js';
 import { CONFIG } from '../core/config.js';
 import { norm, moveAndCollide, rectInter } from './physics.js';
-import { addShake, spawnDeathFX } from './fx.js';
+import { addShake, spawnDeathFX, addSlowmo } from './fx.js';
 import { runAttacks, updateMobActions } from './attacks.js';
 // mob 生成はデータ駆動の enemies.js に一本化。後方互換のため re-export。
 import { makeMobFromKey, makeZombie, makeSpitter } from './enemies.js';
@@ -68,7 +68,12 @@ export function updateAI(state, dt, bus/*, audio */) {
       const isElite = (m.tier === 'midboss' || m.tier === 'boss');
       // 死亡演出：破片飛散＋汚れ＋フラッシュ（エリートは派手に＋画面揺れ）
       spawnDeathFX(state, m.x, m.y, m.color, isElite);
-      if (isElite) addShake(state, 0.25, 8);
+      if (isElite) {
+        addShake(state, 0.25, 8);
+        // ボスは長め＆強めのスロー、中ボスは控えめ
+        addSlowmo(state, m.tier === 'boss' ? 1.1 : 0.6, m.tier === 'boss' ? 0.18 : 0.3);
+        state.killCam = { x: m.x, y: m.y, t: 0, life: m.tier === 'boss' ? 1.1 : 0.6, boss: m.tier === 'boss' };
+      }
       if (bus && bus.emit) bus.emit('sfx', isElite ? 'boom' : 'break');
       dropLoot(state, m.x, m.y, isElite);
       mobs.splice(i, 1);

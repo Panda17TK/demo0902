@@ -30,6 +30,9 @@ export function createInitialState() {
 		cam: null,                 // スムーズ追従カメラ（loop で初期化）
 		shake: { t: 0, mag: 0 },   // 画面シェイク
 		hitstop: 0,                // ヒットストップ（被弾/爆発で一瞬スロー）
+		slowmo: { t: 0, factor: 0.25 }, // スローモーション（ボス撃破）
+		killCam: null,             // ボス撃破キルカム演出
+		dmgMarks: [],              // 被弾方向インジケータ
 
 		player: {
 			x: 0, y: 0, w: 22, h: 22,

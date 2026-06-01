@@ -35,6 +35,21 @@ export function spawnDodgeFX(state, x, y) {
 	state.fx.push({ type: 'dodge', x, y, t: 0, life: 0.22 });
 }
 
+// 被弾方向インジケータ：ダメージ源の方向を記録（画面端に矢印表示）
+export function recordPlayerHit(state, srcX, srcY) {
+	const p = state.player;
+	const ang = Math.atan2(srcY - p.y, srcX - p.x);
+	if (!state.dmgMarks) state.dmgMarks = [];
+	state.dmgMarks.push({ ang, t: 0, life: 1.1 });
+	if (state.dmgMarks.length > 8) state.dmgMarks.shift();
+}
+
+// ボス撃破などのスローモーション発動
+export function addSlowmo(state, duration, factor) {
+	if (!state.slowmo) state.slowmo = { t: 0, factor: 0.25 };
+	if (duration > state.slowmo.t) { state.slowmo.t = duration; state.slowmo.factor = factor || 0.25; }
+}
+
 // 発射のマズルフラッシュ（向き ang・色 color）
 export function spawnMuzzleFX(state, x, y, ang, color) {
 	state.fx.push({ type: 'muzzle', x, y, ang, color: color || '#fff1c0', t: 0, life: 0.09 });
@@ -94,6 +109,13 @@ export function spawnBlastFX(state, x, y, r) {
 }
 
 export function updateFX(state, dt/*, bus */) {
+	// 被弾方向マーカーの寿命
+	if (state.dmgMarks) {
+		for (let i = state.dmgMarks.length - 1; i >= 0; i--) {
+			state.dmgMarks[i].t += dt;
+			if (state.dmgMarks[i].t >= state.dmgMarks[i].life) state.dmgMarks.splice(i, 1);
+		}
+	}
 	const arr = state.fx;
 	for (let i = arr.length - 1; i >= 0; i--) {
 		const f = arr[i];

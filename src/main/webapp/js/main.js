@@ -163,6 +163,14 @@ if (!canvas) {
       // ヒットストップ：実時間で減らしつつ、シミュレーション dt を縮めて“タメ”を作る
       let simDt = dt;
       if (state.hitstop > 0) { state.hitstop -= dt; simDt = dt * 0.06; }
+      // スローモーション（ボス撃破演出）：実時間で減衰しつつ sim を遅くする
+      if (state.slowmo && state.slowmo.t > 0) {
+        state.slowmo.t -= dt;
+        simDt *= state.slowmo.factor;
+        if (state.slowmo.t <= 0) state.slowmo.t = 0;
+      }
+      // キルカム演出タイマ（描画用・実時間）
+      if (state.killCam) { state.killCam.t += dt; if (state.killCam.t >= state.killCam.life) state.killCam = null; }
 
       if (!state.paused) {
         // 更新
@@ -192,8 +200,15 @@ if (!canvas) {
 
       // カメラ（スムーズ追従＋向きの先読み）と画面シェイクの更新（実時間）
       const look = 36;
-      const tgX = state.player.x + state.player.facing.x * look;
-      const tgY = state.player.y + state.player.facing.y * look;
+      let tgX = state.player.x + state.player.facing.x * look;
+      let tgY = state.player.y + state.player.facing.y * look;
+      // ボス撃破中はカメラを撃破地点へ寄せる（シネマティック）
+      if (state.killCam) {
+        const ph = 1 - state.killCam.t / state.killCam.life; // 1→0
+        const w = Math.min(0.6, ph * 0.6);
+        tgX = tgX * (1 - w) + state.killCam.x * w;
+        tgY = tgY * (1 - w) + state.killCam.y * w;
+      }
       if (!state.cam) state.cam = { x: tgX, y: tgY };
       const k = 1 - Math.pow(0.0001, dt);
       state.cam.x += (tgX - state.cam.x) * k;

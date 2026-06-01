@@ -3,7 +3,7 @@ import { norm, clamp, moveAndCollide } from './physics.js';
 import { TILE } from '../core/constants.js';
 import { CONFIG } from '../core/config.js';
 import { damageTile, canPlaceAt } from './tiles.js';
-import { spawnSlashFX, spawnBeamFX, spawnBlastFX, spawnSparksFX, spawnDamageNumber, spawnDodgeFX, spawnMuzzleFX, addShake, addHitstop } from './fx.js';
+import { spawnSlashFX, spawnBeamFX, spawnBlastFX, spawnSparksFX, spawnDamageNumber, spawnDodgeFX, spawnMuzzleFX, recordPlayerHit, addShake, addHitstop } from './fx.js';
 import { rebuildFlowField } from './flowfield.js';
 import { hasLineOfSight } from './los.js';
 
@@ -367,6 +367,7 @@ export function updateCombat(state, dt, bus, input, audio) {
           const n = norm(p.x - b.x, p.y - b.y);
           p.vx += n.x * 180; p.vy += n.y * 180;
           addShake(state, 0.18, 6);
+          recordPlayerHit(state, b.x, b.y);
         }
         state.ebullets.splice(i, 1);
         continue;
@@ -422,6 +423,7 @@ function explode(state, x, y) {
   if (dp < r * 0.7) {
     const fall = 1 - dp / (r * 0.7);
     state.player.hp -= Math.round(25 * fall);
+    recordPlayerHit(state, x, y);
     const n = norm(state.player.x - x, state.player.y - y);
     state.player.vx += n.x * 200 * fall; state.player.vy += n.y * 200 * fall;
   }
