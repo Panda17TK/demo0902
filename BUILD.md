@@ -31,11 +31,15 @@ mvn -B -ntp clean package cargo:run
 mvn -B -ntp compile
 ```
 
-### テスト実行（JUnit 5）
+### テスト実行
 ```bash
+# Java（JUnit 5）：DAO・サーブレット・JSON ユーティリティ
 mvn -B -ntp test
+
+# JS（Node 組み込みテストランナー）：physics / spatial / los / flowfield 等の純粋関数
+node --test "src/test/js/*.test.mjs"
 ```
-→ DAO（ファイル永続化）とサーブレットの単体テストが走ります。
+CI（GitHub Actions）では JS→Java の順で両方を実行します。
 
 ## 永続化（ファイル/JSON）
 

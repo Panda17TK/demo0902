@@ -181,3 +181,20 @@ JUnit 15件は価値があるが、**JS のゲームロジック（physics/los/f
 > 総評: ゲームとしては機能し拡張も進んでいるが、(a) 衝突のスケーラビリティ、
 > (b) サーバの JSON/入力堅牢性、(c) combat/renderer の肥大化 が、今後の規模拡大で
 > 最初にボトルネック化する三大要因。まずこの3点に投資するのが費用対効果が高い。
+
+---
+
+## 対応状況（このブランチで実施）
+
+| # | 項目 | 状態 | 概要 |
+|---|---|---|---|
+| 1 | 衝突の空間分割＋平方距離化 | ✅ | `systems/spatial.js`（一様グリッド）。ai 分離・弾/近接/ビーム/斬撃/爆発を近傍探索に。`dist2` 追加 |
+| 2 | サーバ JSON 堅牢化＋入力検証/サイズ上限 | ✅ | `HttpJson`（上限付き読取・エスケープ復元）。名前長/timeMs範囲/本文サイズ/スロット名を検証、適切な 4xx |
+| 3 | combat/renderer 分割＋FXレジストリ | ◑ | FX を `render/fx-draw.js` のレジストリ化（renderer の16分岐撤去）。combat/renderer の全面分割は段階対応（今回は近接ヒット統一・FX分離まで） |
+| 4 | 武器の CONFIG 化＋バランス定数集約 | ✅ | `CONFIG.weapons`/`CONFIG.player`/`CONFIG.ai` に集約。state は CONFIG からコピー |
+| 5 | セーブのスキーマ検証＋一時状態隔離 | ✅ | `SCHEMA_VERSION`＋`migrate`＋範囲クランプ。mob は `makeMobFromKey` で一時状態を作り直し（持ち越さない） |
+| 5b| 固定タイムステップ | ✅ | `FIXED_DT`＋アキュムレータ。ヒットストップ/スローは timeScale 化。トンネリング抑止 |
+| 6 | JS ロジックの単体テストを CI に追加 | ✅ | `src/test/js/`（physics/spatial/los/flowfield、計13）。CI で `node --test` |
+
+> 残課題（次段）: combat.js / renderer.js の関数分割の継続、アイテムのデータ駆動化、
+> マップの複数面化、認証の本実装、グラデーション等の描画キャッシュ。

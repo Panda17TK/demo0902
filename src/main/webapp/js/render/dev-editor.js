@@ -129,6 +129,20 @@ export function mountDevEditor(overlayEl, bus, state) {
     return box;
   }
 
+  function weaponEditor() {
+    const box = el('div', 'dev-section', '<h3>武器</h3>');
+    CONFIG.weapons.forEach((w) => {
+      const wrap = el('div', 'dev-enemy');
+      wrap.appendChild(el('div', 'dev-enemy-name', w.name || w.id));
+      ['dmg', 'fireRate', 'magSize', 'spread', 'pellets'].forEach((k) => {
+        if (typeof w[k] === 'number') wrap.appendChild(numRow(w, k, k));
+      });
+      box.appendChild(wrap);
+    });
+    box.appendChild(el('div', 'dev-sub', '※ 変更は次のリスタートから反映'));
+    return box;
+  }
+
   function debugTools() {
     const box = el('div', 'dev-section', '<h3>デバッグ</h3>');
     // ゴッドモード
@@ -184,9 +198,11 @@ export function mountDevEditor(overlayEl, bus, state) {
     if (!body) return;
     body.innerHTML = '';
     body.appendChild(section('プレイヤー', CONFIG.player));
+    body.appendChild(section('AI', CONFIG.ai));
     body.appendChild(section('ウェーブ', CONFIG.waves));
     body.appendChild(section('ドロップ', CONFIG.drops));
     body.appendChild(section('強化倍率', CONFIG.upgrades));
+    body.appendChild(weaponEditor());
     body.appendChild(enemyEditor());
     body.appendChild(debugTools());
     body.appendChild(ioTools());
