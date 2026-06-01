@@ -23,10 +23,11 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Run JS unit tests
-        run: node --test "src/test/js/*.test.mjs"
+        # クォートなし＝シェル展開。Node のバージョン差（内蔵glob は 21+）に依存しない。
+        run: node --test src/test/js/*.test.mjs
 
       - name: Run Java unit tests
         run: mvn -B -ntp test
