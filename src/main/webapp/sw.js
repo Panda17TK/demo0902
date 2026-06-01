@@ -2,7 +2,7 @@
  * アプリシェル（JS/CSS/アイコン）をキャッシュしてオフライン起動を可能にする。
  * API（/api/*, /controller）はキャッシュせず常にネットワークへ（スコア等は鮮度優先）。
  */
-const CACHE = 'arpg-v1';
+const CACHE = 'arpg-v2';
 
 // 自身の URL からスコープ（コンテキストパス）を導出。例: /demo0902/sw.js → /demo0902/
 const SCOPE = self.registration ? new URL(self.registration.scope).pathname
@@ -26,6 +26,7 @@ const ASSETS = [
   'js/systems/attacks.js', 'js/systems/enemies.js', 'js/systems/save-remote.js',
   'js/render/renderer.js', 'js/render/hud.js', 'js/render/overlay.js',
   'js/render/upgrades.js', 'js/render/dev-editor.js', 'js/render/glyphs.js',
+  'js/render/enemy-sprites.js',
 ].map((p) => SCOPE + p);
 
 self.addEventListener('install', (e) => {

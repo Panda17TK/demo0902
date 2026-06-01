@@ -1,6 +1,7 @@
 import { clamp } from '../systems/physics.js';
 import { TILE } from '../core/constants.js';
 import { roundedRect, keyGlyph, boxGlyph, medGlyph, ringGlyph, swordGlyph, boltGlyph, crateGlyph } from './glyphs.js';
+import { drawEnemyBody } from './enemy-sprites.js';
 
 export function renderFrame(ctx, canvas, state) {
   const W = canvas.width, H = canvas.height;
@@ -73,15 +74,26 @@ export function renderFrame(ctx, canvas, state) {
   ctx.fillStyle = '#ffcf99'; for (const g of state.grenades) { ctx.beginPath(); ctx.arc(g.x, g.y, 4, 0, Math.PI * 2); ctx.fill(); }
 
   // ===== 敵 =====
+  const tEnemy = (performance.now() / 1000);
   for (const m of state.mobs) {
     ctx.save(); ctx.translate(m.x, m.y);
     const isElite = (m.tier === 'midboss' || m.tier === 'boss');
-    // 回避中は白点滅、被弾フラッシュも白
+
+    // 接地影（立体感）
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.beginPath();
+    ctx.ellipse(0, m.h / 2 - 1, m.w * 0.46, m.h * 0.18, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 基調色：被弾フラッシュ／回避点滅は白
     const blink = m.dodgeT > 0 && (Math.floor(m.dodgeT * 40) % 2 === 0);
-    ctx.fillStyle = (m.hitFlash > 0 || blink) ? '#ffffff' : (m.color || '#b24a4a');
+    const base = (m.hitFlash > 0 || blink) ? '#ffffff' : (m.color || '#b24a4a');
     if (m.dodgeT > 0) ctx.globalAlpha = 0.55; // 回避中は半透明（当たり判定なしを示唆）
-    roundedRect(ctx, -m.w / 2, -m.h / 2, m.w, m.h, isElite ? 6 : 4); ctx.fill();
+
+    // 本体（種類別の凝ったスプライト）
+    drawEnemyBody(ctx, m, tEnemy, base);
     ctx.globalAlpha = 1;
+
     // 溜め近接のテレグラフ（黄→赤のリングが収縮）
     if (m._charge) {
       const cm = (m.def && m.def.attacks) ? m.def.attacks.find(x => x.type === 'charge_melee') : null;
@@ -91,21 +103,22 @@ export function renderFrame(ctx, canvas, state) {
       ctx.beginPath(); ctx.arc(0, 0, m.w * (1.4 - 0.5 * prog), 0, Math.PI * 2); ctx.stroke();
       ctx.lineWidth = 1;
     }
-    // エリートは縁取り＋狂乱中グロー
-    if (isElite) {
-      ctx.lineWidth = m.tier === 'boss' ? 3 : 2;
-      ctx.strokeStyle = (m.enrageT > 0) ? '#ff5a5a' : '#ffe08a';
-      roundedRect(ctx, -m.w / 2, -m.h / 2, m.w, m.h, 6); ctx.stroke();
-      ctx.lineWidth = 1;
-    }
-    ctx.fillStyle = '#fff'; ctx.fillRect(-4, -3, 3, 3); ctx.fillRect(1, -3, 3, 3);
+
     // HPバー：エリートは常時、通常はダメージ時のみ
     const mh = m.maxhp || m.hp;
     if (isElite || m.hp < mh) {
       const bw = Math.max(m.w, isElite ? 40 : m.w), r = clamp(m.hp / mh, 0, 1);
-      ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(-bw / 2, -m.h / 2 - 7, bw, isElite ? 4 : 3);
+      const by = -m.h / 2 - (isElite ? 12 : 8);
+      ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(-bw / 2, by, bw, isElite ? 4 : 3);
       ctx.fillStyle = r > 0.5 ? '#7fe08a' : (r > 0.25 ? '#e0d27f' : '#e08a7f');
-      ctx.fillRect(-bw / 2, -m.h / 2 - 7, bw * r, isElite ? 4 : 3);
+      ctx.fillRect(-bw / 2, by, bw * r, isElite ? 4 : 3);
+      // エリート名ラベル
+      if (isElite && m.def && m.def.name) {
+        ctx.fillStyle = '#e7ecf3';
+        ctx.font = 'bold 10px ui-sans-serif, system-ui, sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+        ctx.fillText(m.def.name, 0, by - 2);
+      }
     }
     ctx.restore();
   }

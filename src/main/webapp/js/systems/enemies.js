@@ -92,6 +92,7 @@ export function makeMobFromKey(state, key, x, y, waveNum) {
     prevX: x, prevY: y, stuckT: 0,
     hitFlash: 0, enrageT: 0, guardT: 0,
     dodgeT: 0, dodgeCDLeft: 0, _charge: null, _blink: null,
+    animSeed: Math.random() * Math.PI * 2, // 個体ごとに動きの位相をずらす
     waveNum,
   };
 }
