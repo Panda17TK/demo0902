@@ -1,4 +1,3 @@
-import { WEAPONS } from './data.js';
 /** @returns {import('./types.js').State} */
 export function createInitialState() {
 	const state = {
