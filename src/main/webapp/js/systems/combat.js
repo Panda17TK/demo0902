@@ -1,7 +1,8 @@
 // webapp/js/systems/combat.js
-import { norm, clamp, moveAndCollide } from './physics.js';
+import { norm, clamp, moveAndCollide, dist2 } from './physics.js';
 import { TILE } from '../core/constants.js';
 import { CONFIG } from '../core/config.js';
+import { forNearby, findNearby } from './spatial.js';
 import { damageTile, canPlaceAt } from './tiles.js';
 import { spawnSlashFX, spawnBeamFX, spawnBlastFX, spawnSparksFX, spawnDamageNumber, spawnDodgeFX, spawnMuzzleFX, recordPlayerHit, addShake, addHitstop } from './fx.js';
 import { rebuildFlowField } from './flowfield.js';
@@ -141,7 +142,7 @@ export function updateCombat(state, dt, bus, input, audio) {
   const dash = input.pressed('shift') && moving && p.sta > 0;
   p.isDashing = dash;
 
-  const spd = p.baseSpeed * 1.2 * p.buffs.speed * mods.moveMul * (dash ? CONFIG.player.dashMul : 1);
+  const spd = p.baseSpeed * CONFIG.player.speedMul * p.buffs.speed * mods.moveMul * (dash ? CONFIG.player.dashMul : 1);
   let vx = dirx * spd * speedScale * dt, vy = diry * spd * speedScale * dt;
   if (moving) { p.facing.x = dirx; p.facing.y = diry; }
 
@@ -159,7 +160,7 @@ export function updateCombat(state, dt, bus, input, audio) {
       autoFiring = true; // ターゲットがいる時だけ自動発射
     }
   }
-  p.sta = dash ? Math.max(0, p.sta - 35 * dt) : Math.min(p.staMax, p.sta + 22 * dt);
+  p.sta = dash ? Math.max(0, p.sta - CONFIG.player.staDrain * dt) : Math.min(p.staMax, p.sta + CONFIG.player.staRegen * dt);
 
   p.vx *= Math.pow(0.001, dt); p.vy *= Math.pow(0.001, dt);
   vx += p.vx * dt; vy += p.vy * dt;
@@ -169,27 +170,31 @@ export function updateCombat(state, dt, bus, input, audio) {
   // 近接（J）★ 射程1.5倍
   if (p.meleeCD > 0) p.meleeCD -= dt;
   if (input.pressed('j') && p.meleeCD <= 0) {
-    p.meleeCD = 0.32;
+    p.meleeCD = CONFIG.player.meleeCD;
     const reach = CONFIG.player.meleeReach * p.buffs.range;
     const arc = Math.PI;
     const faceAng = Math.atan2(p.facing.y, p.facing.x);
     bus.emit('sfx', 'melee');
     spawnSlashFX(state, p.x, p.y, faceAng);
 
-    // 即時ヒット（敵・壁）
+    // 即時ヒット（敵・壁）。近傍グリッドで対象を絞り、hurtMob で一元処理（回避/ガード反映）。
     const meleeDmg = Math.round(CONFIG.player.meleeDmg * p.buffs.dmg * mods.meleeMul);
-    for (const m of state.mobs) {
-      if (m.hp <= 0) continue;
+    const maxReach = reach + 24; // 最大敵半径ぶんの余裕
+    const grid = state.mobGrid;
+    const meleeHit = (m) => {
+      if (m.hp <= 0) return;
       const dx = m.x - p.x, dy = m.y - p.y; const d = Math.hypot(dx, dy);
       if (d < reach + Math.max(m.w, m.h) / 2) {
         const ang = Math.atan2(dy, dx) - faceAng;
         const a = Math.abs((ang + Math.PI * 3) % (Math.PI * 2) - Math.PI);
         if (a <= arc / 2) {
-          m.hp -= meleeDmg;
-          const n = norm(dx, dy); m.vx += n.x * 240; m.vy += n.y * 240;
+          const n = norm(dx, dy);
+          hurtMob(state, m, meleeDmg, n.x, n.y, CONFIG.player.meleeKB, { sparks: 4 });
         }
       }
-    }
+    };
+    if (grid) forNearby(grid, p.x, p.y, maxReach, meleeHit);
+    else for (const m of state.mobs) meleeHit(m);
     const ftx = Math.floor((p.x + p.facing.x * 22) / TILE);
     const fty = Math.floor((p.y + p.facing.y * 22) / TILE);
     for (let oy = -1; oy <= 1; oy++) {
@@ -205,7 +210,7 @@ export function updateCombat(state, dt, bus, input, audio) {
       x: p.x, y: p.y, ang: faceAng,
       t: 0, life: 0.30, reach: reach, arc: arc,
       tickInt: 0.07, tick: 0,
-      dmg: Math.round(8 * p.buffs.dmg * mods.meleeMul)
+      dmg: Math.round(CONFIG.player.meleeSlashDmg * p.buffs.dmg * mods.meleeMul)
     });
   }
 
@@ -228,14 +233,18 @@ export function updateCombat(state, dt, bus, input, audio) {
         const beamDmg = w.dmg * mods.gunMul;
         const dir = norm(p.facing.x, p.facing.y), step = 6, maxL = 700;
         let x = p.x, y = p.y, ex = x, ey = y;
+        // 元の挙動（ビームが敵の体を貫く間 step ごとに連続ヒット）を維持しつつ、
+        // 全敵走査ではなく近傍グリッドで対象を絞る。
         for (let t = 0; t < maxL; t += step) {
           x += dir.x * step; y += dir.y * step;
           const tx = Math.floor(x / TILE), ty = Math.floor(y / TILE);
           if (state.map[ty] && (state.map[ty][tx] === '#' || state.map[ty][tx] === 'D')) break;
-          for (const m of state.mobs) {
-            if (m.hp > 0 && Math.abs(m.x - x) < m.w / 2 && Math.abs(m.y - y) < m.h / 2) {
-              hurtMob(state, m, beamDmg, 0, 0, 0, { number: false, sparks: 2 }); // ビームは連続ヒットのため数字省略
-            }
+          if (state.mobGrid) {
+            forNearby(state.mobGrid, x, y, 24, (m) => {
+              if (m.hp > 0 && Math.abs(m.x - x) < m.w / 2 && Math.abs(m.y - y) < m.h / 2) {
+                hurtMob(state, m, beamDmg, 0, 0, 0, { number: false, sparks: 2 });
+              }
+            });
           }
           ex = x; ey = y;
         }
@@ -249,8 +258,8 @@ export function updateCombat(state, dt, bus, input, audio) {
         bus.emit('ui:toast', '弾切れ - Rでリロード');
       } else {
         p.shootCD = w.fireRate * mods.fireMul; w.mag--;
-        const dir = norm(p.facing.x, p.facing.y), sp = 280;
-        state.grenades.push({ x: p.x + dir.x * 14, y: p.y + dir.y * 14, vx: dir.x * sp, vy: dir.y * sp, fuse: 1.0 });
+        const dir = norm(p.facing.x, p.facing.y), sp = CONFIG.player.grenadeSpeed;
+        state.grenades.push({ x: p.x + dir.x * 14, y: p.y + dir.y * 14, vx: dir.x * sp, vy: dir.y * sp, fuse: CONFIG.player.grenadeFuse });
         shotThisFrame = true;
       }
 
@@ -259,7 +268,7 @@ export function updateCombat(state, dt, bus, input, audio) {
         bus.emit('ui:toast', '弾切れ - Rでリロード');
       } else {
         p.shootCD = w.fireRate * mods.fireMul; w.mag--;
-        const dir = norm(p.facing.x, p.facing.y), baseSpd = 360, shots = w.pellets || 1;
+        const dir = norm(p.facing.x, p.facing.y), baseSpd = CONFIG.player.bulletSpeed, shots = w.pellets || 1;
         const bulletDmg = w.dmg * mods.gunMul;
         const aimAng = Math.atan2(dir.y, dir.x);
         for (let i = 0; i < shots; i++) {
@@ -310,12 +319,15 @@ export function updateCombat(state, dt, bus, input, audio) {
       state.bullets.splice(i, 1);
       continue;
     }
+    // 近傍グリッドで最初に当たる敵だけを判定
     let hit = false;
-    for (const m of state.mobs) {
-      if (m.hp > 0 && Math.abs(m.x - b.x) < m.w / 2 && Math.abs(m.y - b.y) < m.h / 2) {
+    if (state.mobGrid) {
+      const m = findNearby(state.mobGrid, b.x, b.y, 24, (mm) =>
+        mm.hp > 0 && Math.abs(mm.x - b.x) < mm.w / 2 && Math.abs(mm.y - b.y) < mm.h / 2);
+      if (m) {
         const n = norm(m.x - b.x, m.y - b.y);
         hurtMob(state, m, b.dmg, n.x, n.y, 160, { number: true });
-        hit = true; break;
+        hit = true;
       }
     }
     if (hit || b.life <= 0) state.bullets.splice(i, 1);
@@ -381,13 +393,15 @@ export function updateCombat(state, dt, bus, input, audio) {
     s.t += dt; s.tick -= dt;
     if (s.tick <= 0) {
       s.tick = s.tickInt;
-      // 敵に追撃
-      for (const m of state.mobs) {
+      // 敵に追撃（近傍グリッドで対象を絞る）
+      const slashHit = (m) => {
         if (m.hp > 0 && pointInFan(m.x, m.y, s)) {
           const n = norm(m.x - s.x, m.y - s.y);
-          hurtMob(state, m, s.dmg, n.x, n.y, 140, { number: false, sparks: 2 }); // 継続ヒットは数字省略
+          hurtMob(state, m, s.dmg, n.x, n.y, 140, { number: false, sparks: 2 });
         }
-      }
+      };
+      if (state.mobGrid) forNearby(state.mobGrid, s.x, s.y, s.reach + 24, slashHit);
+      else for (const m of state.mobs) slashHit(m);
       // 敵弾の相殺
       for (let j = state.ebullets.length - 1; j >= 0; j--) {
         const b = state.ebullets[j];
@@ -406,23 +420,26 @@ export function updateCombat(state, dt, bus, input, audio) {
 }
 
 function explode(state, x, y) {
-  const r = 70;
-  for (const m of state.mobs) {
+  const r = CONFIG.player.explodeRadius;
+  const maxDmg = CONFIG.player.explodeDmg;
+  const blastHit = (m) => {
     const dx = m.x - x, dy = m.y - y; const d = Math.hypot(dx, dy);
     if (d < r + Math.max(m.w, m.h) / 2) {
-      const fall = 1 - d / r; const dmg = Math.round(110 * fall);
+      const fall = 1 - d / r; const dmg = Math.round(maxDmg * fall);
       if (dmg > 0) {
         const n = norm(dx, dy);
         hurtMob(state, m, dmg, n.x, n.y, 280 * fall, { number: true, sparks: 8 });
       }
     }
-  }
+  };
+  if (state.mobGrid) forNearby(state.mobGrid, x, y, r + 24, blastHit);
+  else for (const m of state.mobs) blastHit(m);
   addShake(state, 0.25, 11);
   addHitstop(state, 0.05);
   const dp = Math.hypot(state.player.x - x, state.player.y - y);
   if (dp < r * 0.7) {
     const fall = 1 - dp / (r * 0.7);
-    state.player.hp -= Math.round(25 * fall);
+    state.player.hp -= Math.round(CONFIG.player.explodeSelfDmg * fall);
     recordPlayerHit(state, x, y);
     const n = norm(state.player.x - x, state.player.y - y);
     state.player.vx += n.x * 200 * fall; state.player.vy += n.y * 200 * fall;

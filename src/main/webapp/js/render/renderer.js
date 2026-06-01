@@ -2,6 +2,7 @@ import { clamp } from '../systems/physics.js';
 import { TILE } from '../core/constants.js';
 import { roundedRect, keyGlyph, boxGlyph, medGlyph, ringGlyph, swordGlyph, boltGlyph, crateGlyph } from './glyphs.js';
 import { drawEnemyBody } from './enemy-sprites.js';
+import { FX_DRAW } from './fx-draw.js';
 
 // #rrggbb / #rgb → rgba(r,g,b,alpha)
 function hexToRgba(hex, alpha) {
@@ -283,132 +284,14 @@ export function renderFrame(ctx, canvas, state) {
     ctx.restore();
   }
 
-  // ===== FX =====
+  // ===== FX（レジストリで type → 描画関数を引く）=====
   for (const f of state.fx) {
     const a = 1 - f.t / f.life;
     if (a <= 0) continue;
     ctx.globalAlpha = a;
-
-    if (f.type === 'slash') {
-      ctx.save();
-      ctx.translate(f.x, f.y);
-      ctx.rotate(f.ang);
-      const r0 = 10, r1 = 46;
-      const grd = ctx.createRadialGradient(0, 0, r0, 0, 0, r1);
-      grd.addColorStop(0, 'rgba(200,230,255,0.6)');
-      grd.addColorStop(1, 'rgba(200,230,255,0.0)');
-      ctx.fillStyle = grd;
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.arc(0, 0, r1, -Math.PI / 2, Math.PI / 2);
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
-    }
-    else if (f.type === 'eslash') {
-      ctx.save();
-      ctx.translate(f.x, f.y);
-      ctx.rotate(f.ang);
-      const r0 = 10, r1 = 44;
-      const grd = ctx.createRadialGradient(0, 0, r0, 0, 0, r1);
-      grd.addColorStop(0, 'rgba(255,150,150,0.70)');
-      grd.addColorStop(1, 'rgba(255,120,120,0.00)');
-      ctx.fillStyle = grd;
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.arc(0, 0, r1, -Math.PI / 2.4, Math.PI / 2.4);
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
-    }
-    else if (f.type === 'spark') {
-      ctx.fillStyle = '#e6f3ff';
-      ctx.fillRect(f.x - 1, f.y - 1, 2, 2);
-    }
-    else if (f.type === 'dust') {
-      ctx.fillStyle = 'rgba(200,200,220,0.25)';
-      const r = 2 + f.t * 10;
-      ctx.beginPath();
-      ctx.arc(f.x, f.y, r, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    else if (f.type === 'beam') {
-      ctx.strokeStyle = 'rgba(220,240,255,0.9)';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(f.sx, f.sy);
-      ctx.lineTo(f.ex, f.ey);
-      ctx.stroke();
-      ctx.lineWidth = 1;
-    }
-    else if (f.type === 'blast') {
-      const r = f.r * (0.6 + 0.4 * a);
-      const grd = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, r);
-      grd.addColorStop(0, 'rgba(255,230,150,0.6)');
-      grd.addColorStop(1, 'rgba(255,120,80,0.0)');
-      ctx.fillStyle = grd;
-      ctx.beginPath();
-      ctx.arc(f.x, f.y, r, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    else if (f.type === 'dmg') {
-      ctx.font = 'bold 14px ui-sans-serif, system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = 'rgba(0,0,0,0.8)';
-      ctx.fillStyle = f.crit ? '#ffd166' : '#ffffff';
-      ctx.strokeText(f.text, f.x, f.y);
-      ctx.fillText(f.text, f.x, f.y);
-    }
-    else if (f.type === 'afterimage') {
-      // 縮地の残像（半透明の矩形）
-      ctx.globalAlpha = a * 0.5;
-      ctx.fillStyle = f.color || '#cfe5ff';
-      roundedRect(ctx, f.x - f.w / 2, f.y - f.h / 2, f.w, f.h, 4); ctx.fill();
-    }
-    else if (f.type === 'dodge') {
-      // 回避成功：白いリング
-      ctx.strokeStyle = `rgba(255,255,255,${a})`;
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(f.x, f.y, 10 + (1 - a) * 18, 0, Math.PI * 2); ctx.stroke();
-      ctx.lineWidth = 1;
-    }
-    else if (f.type === 'muzzle') {
-      // マズルフラッシュ：向きに沿った星形＋コア
-      ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.ang || 0);
-      ctx.fillStyle = f.color || '#fff1c0';
-      ctx.beginPath();
-      ctx.moveTo(14, 0); ctx.lineTo(3, 4); ctx.lineTo(5, 0); ctx.lineTo(3, -4);
-      ctx.closePath(); ctx.fill();
-      ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
-    }
-    else if (f.type === 'gib') {
-      // 破片：回転する小片
-      ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.t * 14 + (f.s || 0));
-      ctx.fillStyle = f.color || '#b24a4a';
-      const s = f.s || 3;
-      ctx.fillRect(-s / 2, -s / 2, s, s);
-      ctx.restore();
-    }
-    else if (f.type === 'splat') {
-      // 着弾痕（広がってフェード）
-      ctx.fillStyle = f.color || '#b24a4a';
-      ctx.globalAlpha = a * 0.4;
-      ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (0.5 + (1 - a) * 0.5), 0, Math.PI * 2); ctx.fill();
-    }
-    else if (f.type === 'deathflash') {
-      const r = f.r * (0.4 + (1 - a) * 0.6);
-      const grd = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, r);
-      grd.addColorStop(0, `rgba(255,255,255,${a})`);
-      grd.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.fillStyle = grd;
-      ctx.beginPath(); ctx.arc(f.x, f.y, r, 0, Math.PI * 2); ctx.fill();
-    }
-
-    // alpha 戻す（各FXごとに）
-    ctx.globalAlpha = 1;
+    const draw = FX_DRAW[f.type];
+    if (draw) draw(ctx, f, a);
+    ctx.globalAlpha = 1; // 各FXごとに戻す
   }
 
   // ===== ライティング（ビネット）=====

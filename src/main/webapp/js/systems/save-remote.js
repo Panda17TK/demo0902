@@ -1,6 +1,24 @@
 import { makeMobFromKey, makeZombie, makeSpitter } from './enemies.js';
 import { rebuildFlowField } from './flowfield.js';
 
+// セーブフォーマットのバージョン。互換を壊す変更時にインクリメントし、
+// migrate() で旧→新へ移行する。
+var SCHEMA_VERSION = 2;
+
+// 旧スキーマを現行に移行する（将来の変更に備えた拡張点）
+function migrate(d) {
+	var v = (d && typeof d.schema === 'number') ? d.schema : 1;
+	// v1 → v2: weapons/mods/wave/stats を持たない可能性 → 既定で補完（applyToState 側で吸収）
+	if (v < 2) { d.schema = 2; }
+	return d;
+}
+
+// 数値を範囲にクランプして返す（NaN/型不正は既定値）
+function clampNum(v, lo, hi, def) {
+	if (typeof v !== 'number' || !isFinite(v)) return def;
+	return Math.max(lo, Math.min(hi, v));
+}
+
 // CTX(コンテキストパス)を安全に決定
 var CTX = (function() {
 	try {
@@ -27,7 +45,7 @@ function serialize(state) {
 		return { kind: m.kind, x: m.x, y: m.y, hp: m.hp, maxhp: m.maxhp, waveNum: m.waveNum };
 	});
 	return {
-		schema: 1,
+		schema: SCHEMA_VERSION,
 		player: {
 			x: state.player.x, y: state.player.y, hp: state.player.hp, hpMax: state.player.hpMax,
 			inv: state.player.inv, curW: state.player.curW,
@@ -75,21 +93,29 @@ function reinitArraysToMatch(state, d) {
 function applyToState(state, d) {
 	if (!d || !d.player || !d.map || !d.tileHP || !d.tileMaxHP) throw new Error('invalid save shape');
 
+	// スキーマ移行（未知の新しいバージョンは拒否）
+	migrate(d);
+	if (d.schema > SCHEMA_VERSION) throw new Error('save schema too new: ' + d.schema);
+
 	reinitArraysToMatch(state, d);
 
 	var pp = d.player;
-	if (typeof pp.hpMax === 'number') state.player.hpMax = pp.hpMax;
-	state.player.x = (typeof pp.x === 'number') ? pp.x : state.player.x;
-	state.player.y = (typeof pp.y === 'number') ? pp.y : state.player.y;
-	state.player.hp = Math.max(0, Math.min(state.player.hpMax || 100, (typeof pp.hp === 'number') ? pp.hp : state.player.hp));
-	state.player.inv = pp.inv || state.player.inv;
+	// 値は範囲検証してから反映（改変/破損データへの耐性）
+	state.player.hpMax = clampNum(pp.hpMax, 1, 100000, state.player.hpMax);
+	state.player.x = clampNum(pp.x, -1e6, 1e6, state.player.x);
+	state.player.y = clampNum(pp.y, -1e6, 1e6, state.player.y);
+	state.player.hp = clampNum(pp.hp, 0, state.player.hpMax, state.player.hp);
+	state.player.inv = (pp.inv && typeof pp.inv === 'object') ? pp.inv : state.player.inv;
 	state.player.curW = Math.max(0, Math.min(state.player.weapons.length - 1, (pp.curW | 0)));
-	if (pp.buffs) state.player.buffs = pp.buffs;
-	if (pp.mods) state.player.mods = pp.mods;
-	if (typeof pp.sta === 'number') state.player.sta = pp.sta;
-	// ウェーブ／戦績の復元（無ければ現状維持）
-	if (d.wave) state.wave = d.wave;
-	if (d.stats) state.stats = d.stats;
+	if (pp.buffs && typeof pp.buffs === 'object') state.player.buffs = pp.buffs;
+	if (pp.mods && typeof pp.mods === 'object') state.player.mods = pp.mods;
+	state.player.sta = clampNum(pp.sta, 0, state.player.staMax || 100, state.player.sta);
+	// ウェーブ／戦績の復元（型と範囲を検証）
+	if (d.wave && typeof d.wave === 'object') {
+		state.wave = d.wave;
+		state.wave.num = clampNum(d.wave.num, 1, 100000, 1) | 0;
+	}
+	if (d.stats && typeof d.stats === 'object') state.stats = d.stats;
 
 	// items
 	state.items.length = 0;

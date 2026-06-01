@@ -1,4 +1,4 @@
-import { DPR, MAX_DT } from './core/constants.js';
+import { DPR, MAX_DT, FIXED_DT } from './core/constants.js';
 import { loadConfig, CONFIG } from './core/config.js';
 import { createEventBus } from './core/events.js';
 import { createInput } from './core/input.js';
@@ -9,6 +9,7 @@ import { createInitialState, resetState } from './state/state.js';
 import { setupMap } from './state/map.js';
 import { bindHotkeys } from './state/binds.js';
 import { rebuildFlowField } from './systems/flowfield.js';
+import { buildMobGrid } from './systems/spatial.js';
 import { updateAI } from './systems/ai.js';
 import { updateTiles } from './systems/tiles.js';
 import { updateItems } from './systems/items.js';
@@ -153,6 +154,33 @@ if (!canvas) {
   // --- ループ ---
   let last = performance.now();
   let flowTimer = 0.0; // 団子対策の再計算タイマ
+  let accumulator = 0; // 固定タイムステップの蓄積
+  const MAX_STEPS = 5; // 1フレームでの最大ステップ数（スパイラル防止）
+
+  // 固定ステップ1回ぶんのシミュレーション更新
+  function stepSimulation(h) {
+    // 近傍探索グリッドをステップ先頭で構築し、全システムで共有
+    state.mobGrid = buildMobGrid(state);
+    updateCombat(state, h, bus, input, audio);
+    updateTiles(state, h, bus, audio);
+    updateSpawner(state, h, bus, audio);
+    updateAI(state, h, bus, audio);
+    updateItems(state, h, bus, audio);
+    updateFX(state, h, bus);
+
+    // フローフィールド定期再計算
+    flowTimer -= h;
+    if (flowTimer <= 0) { rebuildFlowField(state); flowTimer = 0.35; }
+
+    // HP=0 → 一度だけゲームオーバー
+    if (!state.gameOver && state.player.hp <= 0) {
+      state.gameOver = true;
+      state.paused = true;
+      const timeMs = Math.max(0, performance.now() - state.runStart);
+      state.stats.timeMs = timeMs;
+      bus.emit('game:over', { reason: 'death', timeMs });
+    }
+  }
 
   function loop(t) {
     try {
@@ -160,42 +188,30 @@ if (!canvas) {
       const dt = Math.min(MAX_DT, (t - last) / 1000);
       last = t;
 
-      // ヒットストップ：実時間で減らしつつ、シミュレーション dt を縮めて“タメ”を作る
-      let simDt = dt;
-      if (state.hitstop > 0) { state.hitstop -= dt; simDt = dt * 0.06; }
-      // スローモーション（ボス撃破演出）：実時間で減衰しつつ sim を遅くする
+      // 時間スケール（演出）：ヒットストップとスローモーションを掛け合わせる。
+      // タイマ自体は実時間で減衰させ、演出が間延びしないようにする。
+      let timeScale = 1;
+      if (state.hitstop > 0) { state.hitstop -= dt; timeScale *= 0.06; }
       if (state.slowmo && state.slowmo.t > 0) {
         state.slowmo.t -= dt;
-        simDt *= state.slowmo.factor;
+        timeScale *= state.slowmo.factor;
         if (state.slowmo.t <= 0) state.slowmo.t = 0;
       }
       // キルカム演出タイマ（描画用・実時間）
       if (state.killCam) { state.killCam.t += dt; if (state.killCam.t >= state.killCam.life) state.killCam = null; }
 
       if (!state.paused) {
-        // 更新
-        updateCombat(state, simDt, bus, input, audio);
-        updateTiles(state, simDt, bus, audio);
-        updateSpawner(state, simDt, bus, audio);
-        updateAI(state, simDt, bus, audio);
-        updateItems(state, simDt, bus, audio);
-        updateFX(state, simDt, bus);
-
-        // フローフィールド定期再計算
-        flowTimer -= simDt;
-        if (flowTimer <= 0) {
-          rebuildFlowField(state);
-          flowTimer = 0.35;
+        // ===== 固定タイムステップ蓄積（決定論・トンネリング抑止）=====
+        accumulator += dt * timeScale;
+        let steps = 0;
+        while (accumulator >= FIXED_DT && steps < MAX_STEPS) {
+          stepSimulation(FIXED_DT);
+          accumulator -= FIXED_DT;
+          steps++;
+          if (state.gameOver) { accumulator = 0; break; }
         }
-
-        // ★ HP=0 → 一度だけゲームオーバー
-        if (!state.gameOver && state.player.hp <= 0) {
-          state.gameOver = true;
-          state.paused   = true;
-          const timeMs = Math.max(0, performance.now() - state.runStart);
-          state.stats.timeMs = timeMs;
-          bus.emit('game:over', { reason: 'death', timeMs });
-        }
+        // 過負荷時（steps 上限到達）は余剰を捨ててスパイラルを防ぐ
+        if (steps >= MAX_STEPS) accumulator = 0;
       }
 
       // カメラ（スムーズ追従＋向きの先読み）と画面シェイクの更新（実時間）

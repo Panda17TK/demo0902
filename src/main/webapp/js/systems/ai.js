@@ -1,6 +1,7 @@
 import { TILE } from '../core/constants.js';
 import { CONFIG } from '../core/config.js';
-import { norm, moveAndCollide, rectInter } from './physics.js';
+import { norm, moveAndCollide, rectInter, dist2 } from './physics.js';
+import { buildMobGrid, forNearby } from './spatial.js';
 import { addShake, spawnDeathFX, addSlowmo } from './fx.js';
 import { runAttacks, updateMobActions } from './attacks.js';
 // mob 生成はデータ駆動の enemies.js に一本化。後方互換のため re-export。
@@ -59,6 +60,9 @@ export function updateAI(state, dt, bus/*, audio */) {
   const p = state.player;
   const mobs = state.mobs;
 
+  // 近傍探索用グリッド（main.js が各フレーム先頭で構築）。未構築なら保険で作る。
+  if (!state.mobGrid) state.mobGrid = buildMobGrid(state);
+
   for (let i = mobs.length - 1; i >= 0; i--) {
     const m = mobs[i];
     if (m.hp <= 0) {
@@ -94,7 +98,7 @@ export function updateAI(state, dt, bus/*, audio */) {
     if (moved < 0.2) m.stuckT = (m.stuckT || 0) + dt; else m.stuckT = 0;
 
     // 速度：HP半減で減速、狂乱で加速。ボスは減速しない。
-    const slow = (m.tier === 'normal' && m.hp <= (m.maxhp || m.hp) * 0.5) ? 0.5 : 1;
+    const slow = (m.tier === 'normal' && m.hp <= (m.maxhp || m.hp) * 0.5) ? CONFIG.ai.hpSlowMul : 1;
     const enr = (m.enrageT > 0) ? (m.enrageMul || 1.6) : 1;
     const eff = (m.baseSpeed || 60) * slow * enr;
 
@@ -110,19 +114,19 @@ export function updateAI(state, dt, bus/*, audio */) {
       continue;
     }
 
-    // ===== 分離 =====
+    // ===== 分離（近傍グリッド＋平方距離）=====
     let sepX = 0, sepY = 0, sepN = 0;
-    const sepRadius = 24;
-    for (const o of mobs) {
-      if (o === m) continue;
-      const dx2 = m.x - o.x, dy2 = m.y - o.y;
-      const d2 = Math.hypot(dx2, dy2);
-      if (d2 > 0 && d2 < sepRadius) {
-        const n = norm(dx2, dy2);
-        const w = (sepRadius - d2) / sepRadius;
-        sepX += n.x * w; sepY += n.y * w; sepN++;
+    const sepRadius = CONFIG.ai.sepRadius;
+    const sepR2 = sepRadius * sepRadius;
+    forNearby(state.mobGrid, m.x, m.y, sepRadius, (o) => {
+      if (o === m || o.hp <= 0) return;
+      const d2 = dist2(m.x, m.y, o.x, o.y);
+      if (d2 > 0 && d2 < sepR2) {
+        const d = Math.sqrt(d2);
+        const w = (sepRadius - d) / sepRadius;
+        sepX += ((m.x - o.x) / d) * w; sepY += ((m.y - o.y) / d) * w; sepN++;
       }
-    }
+    });
     if (sepN) { const v = norm(sepX, sepY); m.vx += v.x * eff * 0.5; m.vy += v.y * eff * 0.5; }
 
     // ===== 移動 =====
@@ -156,7 +160,7 @@ export function updateAI(state, dt, bus/*, audio */) {
         if (v.x || v.y) { m.faceX = v.x; m.faceY = v.y; }
       } else {
         const a = Math.random() * Math.PI * 2;
-        const walk = m.stuckT > 0.7 ? 0.6 : 0.25;
+        const walk = m.stuckT > 0.7 ? CONFIG.ai.wanderStuck : CONFIG.ai.wanderSlow;
         moveX += Math.cos(a) * eff * walk * dt; moveY += Math.sin(a) * eff * walk * dt;
       }
     }

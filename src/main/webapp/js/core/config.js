@@ -11,14 +11,44 @@ const STORAGE_KEY = 'arpg_config_v1';
 export const DEFAULT_CONFIG = {
   player: {
     baseSpeed: 110,
+    speedMul: 1.2,       // 全体の移動速度倍率（旧 combat.js のハードコード 1.2）
     hpMax: 100,
     staMax: 100,
+    staDrain: 35,        // ダッシュ中のスタミナ消費/s
+    staRegen: 22,        // 非ダッシュ時のスタミナ回復/s
     meleeDmg: 22,        // 近接の基礎ダメージ（mods.meleeMul と乗算）
     meleeReach: 51,      // 近接の射程(px)。元 34*1.5
+    meleeCD: 0.32,       // 近接クールダウン(s)
+    meleeKB: 240,        // 近接ノックバック
+    meleeSlashDmg: 8,    // 近接の継続ヒット（残像扇）ダメージ
     dashMul: 2,          // ダッシュ時の速度倍率
     iFrameMelee: 0.9,    // 被弾後の無敵時間(s)：近接
     iFrameBullet: 0.8,   // 被弾後の無敵時間(s)：弾
+    bulletSpeed: 360,    // 通常弾の初速
+    grenadeSpeed: 280,   // グレネード初速
+    grenadeFuse: 1.0,    // グレネード信管(s)
+    explodeRadius: 70,   // 爆発半径
+    explodeDmg: 110,     // 爆発の最大ダメージ
+    explodeSelfDmg: 25,  // 自爆ダメージ（近距離）
   },
+
+  // AI 挙動の調整値
+  ai: {
+    sepRadius: 24,       // 分離の半径
+    hpSlowMul: 0.5,      // 通常敵が瀕死(HP半減)で減速する倍率
+    wanderSlow: 0.25,    // 非視認時の徘徊速度倍率
+    wanderStuck: 0.6,    // スタック時の徘徊速度倍率
+  },
+
+  // プレイヤー武器（データ駆動）。dev-editor から編集可能。
+  // 並び順がホットキー 1..5 / curW のインデックスに対応する。
+  weapons: [
+    { id: 'pistol',  name: 'Pistol',  dmg: 24, fireRate: 0.22, magSize: 12, mag: 12, spread: 0.05, pellets: 1, ammoType: 'ammo9'  },
+    { id: 'shotgun', name: 'Shotgun', dmg: 16, fireRate: 0.60, magSize: 6,  mag: 6,  spread: 0.25, pellets: 6, ammoType: 'ammo12' },
+    { id: 'mg',      name: 'MG',      dmg: 12, fireRate: 0.08, magSize: 40, mag: 40, spread: 0.12, pellets: 1, ammoType: 'ammo9'  },
+    { id: 'beam',    name: 'Beam',    dmg: 80, fireRate: 0.60, magSize: null, mag: 0, spread: 0, pellets: 1, ammoType: 'ammoBeam' },
+    { id: 'grenade', name: 'Grenade', dmg: 0,  fireRate: 0.90, magSize: 1,  mag: 1,  spread: 0,    pellets: 1, ammoType: 'ammoNade' },
+  ],
 
   waves: {
     firstWaveDelay: 3.0,    // 開始直後の猶予(s)
