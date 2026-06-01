@@ -60,11 +60,19 @@ function spriteZombie(ctx, m, time, base) {
   // 腹のハイライト
   ctx.fillStyle = shade(m.color, 18);
   roundedRect(ctx, -w / 2 + 3, -h / 2 + 3, w - 6, h * 0.5, 4); ctx.fill();
-  // 揺れる腕（前のめり）
-  const sway = Math.sin(time * 9 + (m.animSeed || 0)) * 2;
+  // 腕：通常は前後に揺れ、溜め中は両腕を振り上げる（予備動作）
   ctx.fillStyle = shade(m.color, -22);
-  ctx.fillRect(-w / 2 - 2, -2 + sway, 4, 9);
-  ctx.fillRect(w / 2 - 2, -2 - sway, 4, 9);
+  if (m._charge) {
+    const cm = (m.def && m.def.attacks) ? m.def.attacks.find((x) => x.type === 'charge_melee') : null;
+    const prog = 1 - Math.max(0, m._charge.t) / ((cm && cm.windup) || 0.7);
+    const raise = -6 - prog * 6; // 振り上げ
+    ctx.fillRect(-w / 2 - 2, raise, 4, 10);
+    ctx.fillRect(w / 2 - 2, raise, 4, 10);
+  } else {
+    const sway = Math.sin(time * 9 + (m.animSeed || 0)) * 2;
+    ctx.fillRect(-w / 2 - 2, -2 + sway, 4, 9);
+    ctx.fillRect(w / 2 - 2, -2 - sway, 4, 9);
+  }
   // 目（落ちくぼんだ赤目）
   drawEyes(ctx, m, 4, -2, { r: 2.2, pupil: '#ff5a5a' });
   // 口（ジグザグ）
@@ -89,10 +97,18 @@ function spriteSpitter(ctx, m, time, base) {
     ctx.beginPath(); ctx.arc(Math.cos(a) * 4, Math.sin(a) * 3, 1.4, 0, Math.PI * 2); ctx.fill();
   }
   ctx.restore();
-  // 口（前方の発射口）：向きに合わせて配置
+  // 口（前方の発射口）：向きに合わせて配置。発射直後は光る。
   const e = eyeShift(m);
+  const mx = e.x * 2.4, my = e.y * 2.4 + 1;
+  if (m.fireFlash > 0) {
+    const gr = ctx.createRadialGradient(mx, my, 0, mx, my, 9);
+    gr.addColorStop(0, 'rgba(190,255,150,0.95)');
+    gr.addColorStop(1, 'rgba(120,220,90,0)');
+    ctx.fillStyle = gr;
+    ctx.beginPath(); ctx.arc(mx, my, 9, 0, Math.PI * 2); ctx.fill();
+  }
   ctx.fillStyle = shade(m.color, -34);
-  ctx.beginPath(); ctx.arc(e.x * 2.2, e.y * 2.2 + 1, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(mx, my, 3, 0, Math.PI * 2); ctx.fill();
   // 一つ目
   drawEyes(ctx, m, 0, -3, { r: 3, pupil: '#0a0f14', noWhite: false });
 }
@@ -141,6 +157,15 @@ function spriteElite(ctx, m, time, base) {
     ctx.lineTo(sx * (w / 2 + 6), -h / 2 - 2);
     ctx.lineTo(sx * (w / 2 - 2), -h / 2 + 12);
     ctx.closePath(); ctx.fill();
+  }
+  // 発射時の砲門グロー（向きの先）
+  if (m.fireFlash > 0) {
+    const ex2 = eyeShift(m), mx = ex2.x * 3, my = ex2.y * 3;
+    const gr = ctx.createRadialGradient(mx, my, 0, mx, my, 14);
+    gr.addColorStop(0, 'rgba(255,220,140,0.9)');
+    gr.addColorStop(1, 'rgba(255,160,80,0)');
+    ctx.fillStyle = gr;
+    ctx.beginPath(); ctx.arc(mx, my, 14, 0, Math.PI * 2); ctx.fill();
   }
   // 複眼（4つの光る目）
   const e = eyeShift(m);

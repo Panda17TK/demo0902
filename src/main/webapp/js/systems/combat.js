@@ -3,7 +3,7 @@ import { norm, clamp, moveAndCollide } from './physics.js';
 import { TILE } from '../core/constants.js';
 import { CONFIG } from '../core/config.js';
 import { damageTile, canPlaceAt } from './tiles.js';
-import { spawnSlashFX, spawnBeamFX, spawnBlastFX, spawnSparksFX, spawnDamageNumber, spawnDodgeFX, addShake, addHitstop } from './fx.js';
+import { spawnSlashFX, spawnBeamFX, spawnBlastFX, spawnSparksFX, spawnDamageNumber, spawnDodgeFX, spawnMuzzleFX, addShake, addHitstop } from './fx.js';
 import { rebuildFlowField } from './flowfield.js';
 import { hasLineOfSight } from './los.js';
 
@@ -114,6 +114,9 @@ export function updateCombat(state, dt, bus, input, audio) {
 
   // 無敵時間の減衰（赤いままになるバグ防止）
   if (p.iTime > 0) { p.iTime -= dt; if (p.iTime < 0) p.iTime = 0; }
+  // マズル/反動の減衰（描画用）
+  if (p.muzzleT > 0) { p.muzzleT -= dt; if (p.muzzleT < 0) p.muzzleT = 0; }
+  if (p.recoil > 0) { p.recoil -= dt * 28; if (p.recoil < 0) p.recoil = 0; }
 
   // バフ時間
   if (p.buffs.tRange > 0) { p.buffs.tRange -= dt; if (p.buffs.tRange <= 0) p.buffs.range = 1; }
@@ -258,11 +261,15 @@ export function updateCombat(state, dt, bus, input, audio) {
         p.shootCD = w.fireRate * mods.fireMul; w.mag--;
         const dir = norm(p.facing.x, p.facing.y), baseSpd = 360, shots = w.pellets || 1;
         const bulletDmg = w.dmg * mods.gunMul;
+        const aimAng = Math.atan2(dir.y, dir.x);
         for (let i = 0; i < shots; i++) {
-          const ang = Math.atan2(dir.y, dir.x) + (Math.random() - 0.5) * (w.spread || 0) * 2;
+          const ang = aimAng + (Math.random() - 0.5) * (w.spread || 0) * 2;
           const vx = Math.cos(ang) * baseSpd, vy = Math.sin(ang) * baseSpd;
           state.bullets.push({ x: p.x + Math.cos(ang) * 14, y: p.y + Math.sin(ang) * 14, vx, vy, life: 0.9, dmg: bulletDmg });
         }
+        // マズルフラッシュ＋反動（描画用）。銃口位置は向きの先。
+        spawnMuzzleFX(state, p.x + dir.x * 16, p.y + dir.y * 16, aimAng, w.id === 'shotgun' ? '#ffd08a' : '#fff1c0');
+        p.muzzleT = 0.07; p.recoil = (w.id === 'shotgun') ? 4 : 2.5;
         bus.emit('sfx', w.id === 'mg' ? 'mg' : 'shot');
         shotThisFrame = true;
       }

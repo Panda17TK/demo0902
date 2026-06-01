@@ -3,6 +3,14 @@ import { TILE } from '../core/constants.js';
 import { roundedRect, keyGlyph, boxGlyph, medGlyph, ringGlyph, swordGlyph, boltGlyph, crateGlyph } from './glyphs.js';
 import { drawEnemyBody } from './enemy-sprites.js';
 
+// #rrggbb / #rgb → rgba(r,g,b,alpha)
+function hexToRgba(hex, alpha) {
+  let c = String(hex).replace('#', '');
+  if (c.length === 3) c = c.split('').map((x) => x + x).join('');
+  const n = parseInt(c, 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+}
+
 export function renderFrame(ctx, canvas, state) {
   const W = canvas.width, H = canvas.height;
   ctx.clearRect(0, 0, W, H);
@@ -53,8 +61,28 @@ export function renderFrame(ctx, canvas, state) {
   }
 
   // ===== アイテム =====
+  const tItem = performance.now() / 1000;
+  // タイプごとの淡いグロー色
+  const ITEM_GLOW = {
+    key: '#ffd16b', med: '#8fffc1', crate: '#d8b483',
+    buffRange: '#9ecbff', buffMelee: '#ff9aa2', buffSpeed: '#ffe08a',
+    ammo9: '#9ad0ff', ammo12: '#c9a56b', ammoBeam: '#a8ceff', ammoNade: '#ffa8a8',
+  };
   for (const it of state.items) {
-    ctx.save(); ctx.translate(it.x, it.y);
+    const phase = (it.x + it.y) * 0.05;
+    const bobY = Math.sin(tItem * 2.5 + phase) * 2;            // ふわふわ上下
+    const pulse = 0.5 + 0.5 * Math.sin(tItem * 3 + phase);
+    // 接地影
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath(); ctx.ellipse(it.x, it.y + 8, 7, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+    // グロー
+    const gc = ITEM_GLOW[it.type] || '#ffffff';
+    const grd = ctx.createRadialGradient(it.x, it.y + bobY, 0, it.x, it.y + bobY, 16);
+    grd.addColorStop(0, hexToRgba(gc, 0.18 + 0.18 * pulse));
+    grd.addColorStop(1, hexToRgba(gc, 0));
+    ctx.fillStyle = grd; ctx.beginPath(); ctx.arc(it.x, it.y + bobY, 16, 0, Math.PI * 2); ctx.fill();
+
+    ctx.save(); ctx.translate(it.x, it.y + bobY);
     if (it.type === 'key')       { ctx.fillStyle = '#ffd16b'; keyGlyph(ctx); }
     if (it.type === 'ammo9')     { ctx.fillStyle = '#9ad0ff'; boxGlyph(ctx, '9'); }
     if (it.type === 'ammo12')    { ctx.fillStyle = '#c9a56b'; boxGlyph(ctx, '12'); }
@@ -69,9 +97,34 @@ export function renderFrame(ctx, canvas, state) {
   }
 
   // ===== 弾体 =====
-  ctx.fillStyle = '#d1e7ff'; for (const b of state.bullets)  { ctx.fillRect(b.x - 2, b.y - 2, 4, 4); }
-  ctx.fillStyle = '#ffb3b3'; for (const b of state.ebullets) { ctx.fillRect(b.x - 2, b.y - 2, 4, 4); }
-  ctx.fillStyle = '#ffcf99'; for (const g of state.grenades) { ctx.beginPath(); ctx.arc(g.x, g.y, 4, 0, Math.PI * 2); ctx.fill(); }
+  // プレイヤー弾：進行方向へ伸びるトレイル＋白コア
+  ctx.lineCap = 'round';
+  for (const b of state.bullets) {
+    const sp = Math.hypot(b.vx, b.vy) || 1;
+    const tx = (b.vx / sp) * 8, ty = (b.vy / sp) * 8;
+    ctx.strokeStyle = 'rgba(160,210,255,0.5)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(b.x - tx, b.y - ty); ctx.lineTo(b.x, b.y); ctx.stroke();
+    ctx.fillStyle = '#eaf4ff'; ctx.beginPath(); ctx.arc(b.x, b.y, 2, 0, Math.PI * 2); ctx.fill();
+  }
+  // 敵弾：脈動する赤いグロー（mine は点滅）
+  for (const b of state.ebullets) {
+    const pulse = b.mine ? (0.5 + 0.5 * Math.sin(performance.now() / 80)) : 1;
+    const r = b.mine ? 6 : 4;
+    const grd = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, r + 2);
+    grd.addColorStop(0, `rgba(255,170,170,${0.9 * pulse})`);
+    grd.addColorStop(1, 'rgba(255,80,80,0)');
+    ctx.fillStyle = grd; ctx.beginPath(); ctx.arc(b.x, b.y, r + 2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = b.mine ? '#ff6b6b' : '#ffd0d0';
+    ctx.beginPath(); ctx.arc(b.x, b.y, 2, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.lineWidth = 1;
+  // グレネード：点滅する信管ランプ付き
+  for (const g of state.grenades) {
+    ctx.fillStyle = '#5b6b3a'; ctx.beginPath(); ctx.arc(g.x, g.y, 4, 0, Math.PI * 2); ctx.fill();
+    const blink = (Math.floor(performance.now() / 120) % 2 === 0);
+    ctx.fillStyle = blink ? '#ff5a3a' : '#7a2a1a';
+    ctx.beginPath(); ctx.arc(g.x, g.y - 1, 1.6, 0, Math.PI * 2); ctx.fill();
+  }
 
   // ===== 敵 =====
   const tEnemy = (performance.now() / 1000);
@@ -124,13 +177,57 @@ export function renderFrame(ctx, canvas, state) {
   }
 
   // ===== プレイヤー =====
-  ctx.save(); ctx.translate(state.player.x, state.player.y);
-  const hitFlash = state.player.iTime > 0 && (Math.floor(state.player.iTime * 20) % 2 === 0);
-  ctx.fillStyle = hitFlash ? '#ff9aa2' : '#7ab0ff';
-  roundedRect(ctx, -state.player.w / 2, -state.player.h / 2, state.player.w, state.player.h, 5); ctx.fill();
-  ctx.strokeStyle = '#cfe5ff';
-  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(state.player.facing.x * 14, state.player.facing.y * 14); ctx.stroke();
-  ctx.restore();
+  {
+    const pl = state.player;
+    const ang = Math.atan2(pl.facing.y, pl.facing.x);
+    const recoil = pl.recoil || 0;
+    // 反動で本体を後方へわずかにずらす
+    const px = pl.x - Math.cos(ang) * recoil, py = pl.y - Math.sin(ang) * recoil;
+
+    // 接地影
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath(); ctx.ellipse(pl.x, pl.y + pl.h / 2 - 1, pl.w * 0.46, pl.h * 0.18, 0, 0, Math.PI * 2); ctx.fill();
+
+    // ダッシュ中の残像
+    if (pl.isDashing) {
+      ctx.globalAlpha = 0.25; ctx.fillStyle = '#7ab0ff';
+      roundedRect(ctx, px - pl.facing.x * 8 - pl.w / 2, py - pl.facing.y * 8 - pl.h / 2, pl.w, pl.h, 5); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.save(); ctx.translate(px, py);
+    // 銃身（向きの先・反動で前後）
+    ctx.save(); ctx.rotate(ang);
+    ctx.fillStyle = '#2b3a50';
+    ctx.fillRect(6 - recoil, -2.5, 12, 5);
+    ctx.fillStyle = '#1a2738';
+    ctx.fillRect(15 - recoil, -1.5, 3, 3);
+    // マズルフラッシュ（発射直後）
+    if (pl.muzzleT > 0) {
+      ctx.fillStyle = '#fff1c0';
+      ctx.beginPath();
+      ctx.moveTo(24 - recoil, 0); ctx.lineTo(17 - recoil, 3.5); ctx.lineTo(19 - recoil, 0); ctx.lineTo(17 - recoil, -3.5);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+
+    // 本体
+    const hitFlash = pl.iTime > 0 && (Math.floor(pl.iTime * 20) % 2 === 0);
+    ctx.fillStyle = hitFlash ? '#ff9aa2' : '#7ab0ff';
+    roundedRect(ctx, -pl.w / 2, -pl.h / 2, pl.w, pl.h, 6); ctx.fill();
+    // 腹のハイライト
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    roundedRect(ctx, -pl.w / 2 + 3, -pl.h / 2 + 3, pl.w - 6, pl.h * 0.45, 4); ctx.fill();
+    // 目（向きに追従）
+    const ex = pl.facing.x * 3, ey = pl.facing.y * 2;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(-4, -2, 2.6, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(4, -2, 2.6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#16202e';
+    ctx.beginPath(); ctx.arc(-4 + ex, -2 + ey, 1.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(4 + ex, -2 + ey, 1.5, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
 
   // ===== FX =====
   for (const f of state.fx) {
@@ -222,6 +319,38 @@ export function renderFrame(ctx, canvas, state) {
       ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(f.x, f.y, 10 + (1 - a) * 18, 0, Math.PI * 2); ctx.stroke();
       ctx.lineWidth = 1;
+    }
+    else if (f.type === 'muzzle') {
+      // マズルフラッシュ：向きに沿った星形＋コア
+      ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.ang || 0);
+      ctx.fillStyle = f.color || '#fff1c0';
+      ctx.beginPath();
+      ctx.moveTo(14, 0); ctx.lineTo(3, 4); ctx.lineTo(5, 0); ctx.lineTo(3, -4);
+      ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+    else if (f.type === 'gib') {
+      // 破片：回転する小片
+      ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.t * 14 + (f.s || 0));
+      ctx.fillStyle = f.color || '#b24a4a';
+      const s = f.s || 3;
+      ctx.fillRect(-s / 2, -s / 2, s, s);
+      ctx.restore();
+    }
+    else if (f.type === 'splat') {
+      // 着弾痕（広がってフェード）
+      ctx.fillStyle = f.color || '#b24a4a';
+      ctx.globalAlpha = a * 0.4;
+      ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (0.5 + (1 - a) * 0.5), 0, Math.PI * 2); ctx.fill();
+    }
+    else if (f.type === 'deathflash') {
+      const r = f.r * (0.4 + (1 - a) * 0.6);
+      const grd = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, r);
+      grd.addColorStop(0, `rgba(255,255,255,${a})`);
+      grd.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = grd;
+      ctx.beginPath(); ctx.arc(f.x, f.y, r, 0, Math.PI * 2); ctx.fill();
     }
 
     // alpha 戻す（各FXごとに）

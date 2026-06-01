@@ -1,7 +1,7 @@
 import { TILE } from '../core/constants.js';
 import { CONFIG } from '../core/config.js';
 import { norm, moveAndCollide, rectInter } from './physics.js';
-import { addShake } from './fx.js';
+import { addShake, spawnDeathFX } from './fx.js';
 import { runAttacks, updateMobActions } from './attacks.js';
 // mob 生成はデータ駆動の enemies.js に一本化。後方互換のため re-export。
 import { makeMobFromKey, makeZombie, makeSpitter } from './enemies.js';
@@ -66,6 +66,10 @@ export function updateAI(state, dt, bus/*, audio */) {
       const heal = (p.mods && p.mods.healOnKill) || 0;
       if (heal) p.hp = Math.min(p.hpMax || 100, p.hp + heal);
       const isElite = (m.tier === 'midboss' || m.tier === 'boss');
+      // 死亡演出：破片飛散＋汚れ＋フラッシュ（エリートは派手に＋画面揺れ）
+      spawnDeathFX(state, m.x, m.y, m.color, isElite);
+      if (isElite) addShake(state, 0.25, 8);
+      if (bus && bus.emit) bus.emit('sfx', isElite ? 'boom' : 'break');
       dropLoot(state, m.x, m.y, isElite);
       mobs.splice(i, 1);
       continue;
@@ -76,6 +80,7 @@ export function updateAI(state, dt, bus/*, audio */) {
     m.vy *= Math.pow(0.02, dt);
     if (m.bumpCD > 0) m.bumpCD -= dt;
     if (m.hitFlash > 0) m.hitFlash -= dt;
+    if (m.fireFlash > 0) m.fireFlash -= dt;
     if (m.enrageT > 0) m.enrageT -= dt;
     if (m.guardT > 0) m.guardT -= dt;
 

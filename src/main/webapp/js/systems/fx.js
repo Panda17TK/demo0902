@@ -35,6 +35,35 @@ export function spawnDodgeFX(state, x, y) {
 	state.fx.push({ type: 'dodge', x, y, t: 0, life: 0.22 });
 }
 
+// 発射のマズルフラッシュ（向き ang・色 color）
+export function spawnMuzzleFX(state, x, y, ang, color) {
+	state.fx.push({ type: 'muzzle', x, y, ang, color: color || '#fff1c0', t: 0, life: 0.09 });
+	// 火花を前方へ少し
+	for (let i = 0; i < 3; i++) {
+		const a = ang + (Math.random() - 0.5) * 0.5, sp = 120 + Math.random() * 120;
+		state.fx.push({ type: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, life: 0.18 });
+	}
+}
+
+// 死亡演出：破片（gib）を飛散させ、フェードするスプライト痕を残す
+export function spawnDeathFX(state, x, y, color, big) {
+	const n = big ? 22 : 12;
+	for (let i = 0; i < n; i++) {
+		const a = Math.random() * Math.PI * 2, sp = (big ? 120 : 80) + Math.random() * (big ? 200 : 140);
+		state.fx.push({
+			type: 'gib', x, y,
+			vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40,
+			s: 2 + Math.random() * (big ? 4 : 3),
+			color: color || '#b24a4a',
+			t: 0, life: 0.45 + Math.random() * 0.35,
+		});
+	}
+	// 血/汚れの広がり
+	state.fx.push({ type: 'splat', x, y, r: big ? 26 : 16, color: color || '#b24a4a', t: 0, life: 0.5 });
+	// 中心のフラッシュ
+	state.fx.push({ type: 'deathflash', x, y, r: big ? 40 : 24, t: 0, life: 0.22 });
+}
+
 
 export function spawnSparksFX(state, x, y, n = 6) {
 	for (let i = 0; i < n; i++) {
@@ -69,6 +98,11 @@ export function updateFX(state, dt/*, bus */) {
 	for (let i = arr.length - 1; i >= 0; i--) {
 		const f = arr[i];
 		f.t += dt;
+		// 破片は重力＋空気抵抗で弧を描いて落ちる
+		if (f.type === 'gib') {
+			f.vy = (f.vy || 0) + 320 * dt;
+			f.vx = (f.vx || 0) * Math.pow(0.12, dt);
+		}
 		if (typeof f.x === 'number') f.x += (f.vx || 0) * dt;
 		if (typeof f.y === 'number') f.y += (f.vy || 0) * dt;
 		if (f.t >= f.life) arr.splice(i, 1);

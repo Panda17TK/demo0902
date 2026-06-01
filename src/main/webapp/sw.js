@@ -2,7 +2,7 @@
  * アプリシェル（JS/CSS/アイコン）をキャッシュしてオフライン起動を可能にする。
  * API（/api/*, /controller）はキャッシュせず常にネットワークへ（スコア等は鮮度優先）。
  */
-const CACHE = 'arpg-v2';
+const CACHE = 'arpg-v3';
 
 // 自身の URL からスコープ（コンテキストパス）を導出。例: /demo0902/sw.js → /demo0902/
 const SCOPE = self.registration ? new URL(self.registration.scope).pathname

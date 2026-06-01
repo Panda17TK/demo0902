@@ -5,7 +5,7 @@
 // 攻撃の追加は REGISTRY にエントリを足すだけ。エディタは type 一覧をここから取得する。
 
 import { norm, rectInter, clamp, moveAndCollide } from './physics.js';
-import { spawnEnemySlashFX, addShake, spawnAfterimageFX, spawnSparksFX } from './fx.js';
+import { spawnEnemySlashFX, addShake, spawnAfterimageFX, spawnSparksFX, spawnMuzzleFX } from './fx.js';
 import { makeMobFromKey } from './enemies.js';
 import { TILE } from '../core/constants.js';
 
@@ -53,6 +53,8 @@ const REGISTRY = {
     if (!see) return false;
     const ang = Math.atan2(dy, dx);
     fireBullet(state, m, ang, a.speed || 220, a.dmg || 12, a.life);
+    m.fireFlash = 0.12; m.faceX = Math.cos(ang); m.faceY = Math.sin(ang);
+    spawnMuzzleFX(state, m.x + Math.cos(ang) * (m.w / 2), m.y + Math.sin(ang) * (m.h / 2), ang, '#b6ff9a');
     if (bus && bus.emit) bus.emit('sfx', 'shot');
     return true;
   },
