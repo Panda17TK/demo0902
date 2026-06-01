@@ -1,8 +1,20 @@
 import { clamp } from '../systems/physics.js';
 import { TILE } from '../core/constants.js';
+import { CONFIG } from '../core/config.js';
 import { roundedRect, keyGlyph, boxGlyph, medGlyph, ringGlyph, swordGlyph, boltGlyph, crateGlyph } from './glyphs.js';
 import { drawEnemyBody } from './enemy-sprites.js';
 import { FX_DRAW } from './fx-draw.js';
+
+// グリフ名 → 描画関数（CONFIG.items.glyph から引く）
+const GLYPH_DRAW = {
+  key:   (ctx, def) => { ctx.fillStyle = def.color; keyGlyph(ctx); },
+  box:   (ctx, def) => { ctx.fillStyle = def.color; boxGlyph(ctx, def.label || ''); },
+  med:   (ctx, def) => { ctx.fillStyle = def.color; medGlyph(ctx); },
+  ring:  (ctx) => ringGlyph(ctx),
+  sword: (ctx) => swordGlyph(ctx),
+  bolt:  (ctx) => boltGlyph(ctx),
+  crate: (ctx) => crateGlyph(ctx),
+};
 
 // #rrggbb / #rgb → rgba(r,g,b,alpha)
 function hexToRgba(hex, alpha) {
@@ -115,15 +127,11 @@ export function renderFrame(ctx, canvas, state) {
     }
   }
 
-  // ===== アイテム =====
+  // ===== アイテム（CONFIG.items から色/グリフを引く）=====
   const tItem = performance.now() / 1000;
-  // タイプごとの淡いグロー色
-  const ITEM_GLOW = {
-    key: '#ffd16b', med: '#8fffc1', crate: '#d8b483',
-    buffRange: '#9ecbff', buffMelee: '#ff9aa2', buffSpeed: '#ffe08a',
-    ammo9: '#9ad0ff', ammo12: '#c9a56b', ammoBeam: '#a8ceff', ammoNade: '#ffa8a8',
-  };
   for (const it of state.items) {
+    const def = CONFIG.items[it.type];
+    if (!def) continue;
     const phase = (it.x + it.y) * 0.05;
     const bobY = Math.sin(tItem * 2.5 + phase) * 2;            // ふわふわ上下
     const pulse = 0.5 + 0.5 * Math.sin(tItem * 3 + phase);
@@ -131,23 +139,15 @@ export function renderFrame(ctx, canvas, state) {
     ctx.fillStyle = 'rgba(0,0,0,0.25)';
     ctx.beginPath(); ctx.ellipse(it.x, it.y + 8, 7, 2.5, 0, 0, Math.PI * 2); ctx.fill();
     // グロー
-    const gc = ITEM_GLOW[it.type] || '#ffffff';
+    const gc = def.color || '#ffffff';
     const grd = ctx.createRadialGradient(it.x, it.y + bobY, 0, it.x, it.y + bobY, 16);
     grd.addColorStop(0, hexToRgba(gc, 0.18 + 0.18 * pulse));
     grd.addColorStop(1, hexToRgba(gc, 0));
     ctx.fillStyle = grd; ctx.beginPath(); ctx.arc(it.x, it.y + bobY, 16, 0, Math.PI * 2); ctx.fill();
 
     ctx.save(); ctx.translate(it.x, it.y + bobY);
-    if (it.type === 'key')       { ctx.fillStyle = '#ffd16b'; keyGlyph(ctx); }
-    if (it.type === 'ammo9')     { ctx.fillStyle = '#9ad0ff'; boxGlyph(ctx, '9'); }
-    if (it.type === 'ammo12')    { ctx.fillStyle = '#c9a56b'; boxGlyph(ctx, '12'); }
-    if (it.type === 'ammoBeam')  { ctx.fillStyle = '#a8ceff'; boxGlyph(ctx, 'B'); }
-    if (it.type === 'ammoNade')  { ctx.fillStyle = '#ffa8a8'; boxGlyph(ctx, 'G'); }
-    if (it.type === 'med')       { ctx.fillStyle = '#8fffc1'; medGlyph(ctx); }
-    if (it.type === 'buffRange') { ringGlyph(ctx); }
-    if (it.type === 'buffMelee') { swordGlyph(ctx); }
-    if (it.type === 'buffSpeed') { boltGlyph(ctx); }
-    if (it.type === 'crate')     { crateGlyph(ctx); }
+    const draw = GLYPH_DRAW[def.glyph];
+    if (draw) draw(ctx, def);
     ctx.restore();
   }
 

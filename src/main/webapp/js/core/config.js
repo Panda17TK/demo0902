@@ -82,6 +82,24 @@ export const DEFAULT_CONFIG = {
     bossCrateBonus: 3,
   },
 
+  // アイテム定義テーブル（取得効果・見た目）。新アイテムはここに足すだけ。
+  //   glyph: render/glyphs.js のキー、color: 描画色／グロー色
+  //   kind:  ammo|heal|key|buff|crate（items.js が解釈）
+  items: {
+    key:       { glyph: 'key',  color: '#ffd16b', kind: 'key' },
+    ammo9:     { glyph: 'box',  color: '#9ad0ff', label: '9',  kind: 'ammo', pool: 'ammo9',    defAmt: 12, name: '9mm' },
+    ammo12:    { glyph: 'box',  color: '#c9a56b', label: '12', kind: 'ammo', pool: 'ammo12',   defAmt: 4,  name: '12g' },
+    ammoBeam:  { glyph: 'box',  color: '#a8ceff', label: 'B',  kind: 'ammo', pool: 'ammoBeam', defAmt: 1,  name: 'Beamセル' },
+    ammoNade:  { glyph: 'box',  color: '#ffa8a8', label: 'G',  kind: 'ammo', pool: 'ammoNade', defAmt: 1,  name: 'Grenade' },
+    med:       { glyph: 'med',  color: '#8fffc1', kind: 'heal', defHeal: 25 },
+    buffRange: { glyph: 'ring', color: '#9ecbff', kind: 'buff', stat: 'range', mul: 2, dur: 15, label: '近接範囲' },
+    buffMelee: { glyph: 'sword',color: '#ff9aa2', kind: 'buff', stat: 'dmg',   mul: 2, dur: 15, label: '近接火力' },
+    buffSpeed: { glyph: 'bolt', color: '#ffe08a', kind: 'buff', stat: 'speed', mul: 2, dur: 12, label: '移動速度' },
+    crate:     { glyph: 'crate',color: '#d8b483', kind: 'crate' },
+  },
+  // 武器クレートの補給量
+  crateSupply: { ammo9: 40, ammo12: 8, ammoBeam: 2, ammoNade: 1 },
+
   // 恒久強化カードの効き幅（エディタで調整可能）
   upgrades: {
     gunMul: 1.25,    // 火力強化（乗算）

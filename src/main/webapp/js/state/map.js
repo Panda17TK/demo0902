@@ -1,76 +1,52 @@
 import { TILE } from '../core/constants.js';
-// mob ファクトリは ai.js を単一の出所にする（faceX/prevX 等の初期化も揃う）
-import { makeZombie, makeSpitter } from '../systems/ai.js';
-
-const RAW = [
-  "##############################",
-  "#..P...........#...........X.#",
-  "#............................#",
-  "#....######.....A......#####.#",
-  "#....#....#.............#....#",
-  "#....#....#....M........#....#",
-  "#....#....#.............#....#",
-  "#....######....#######..#....#",
-  "#.............W..............#",
-  "#..A.....#......Z.........V..#",
-  "#........#...................#",
-  "#....T...#....S..............#",
-  "#........#...................#",
-  "#........#....Y..............#",
-  "#........###########.........#",
-  "#........#.........#.........#",
-  "#........#....K....#....M....#",
-  "#........#.........#.....W...#",
-  "#..S.....#.............Z.....#",
-  "##############################",
-];
+// 初期スポーンも波中スポーンと同じデータ駆動経路（makeMobFromKey）に統一。
+import { makeMobFromKey } from '../systems/enemies.js';
+import { getMap } from './maps.js';
 
 export function setupMap(state) {
-  const H = RAW.length, W = RAW[0].length;
+  const def = getMap(state.mapId);
+  const rows = def.rows;
+  const H = rows.length, W = rows[0].length;
+  const legend = def.legend || {};
+  const wallHp = def.wallHp || 90;
 
-  // 基本配列
-  state.map      = RAW.map(r => r.split(''));
+  state.map      = rows.map(r => r.split(''));
   state.tileHP   = Array.from({ length: H }, () => Array(W).fill(Infinity));
   state.tileMaxHP= Array.from({ length: H }, () => Array(W).fill(Infinity));
   state.flow     = Array.from({ length: H }, () => Array(W).fill(Infinity));
   state.dim      = { w: W, h: H };
-
-  // 念のため初期化（呼び出し側で作っている想定でも安全に）
   state.items    = state.items || [];
   state.mobs     = state.mobs  || [];
 
-  for (let y = 0; y < H; y++){
-    for (let x = 0; x < W; x++){
-      const c  = state.map[y][x];
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const c = state.map[y][x];
+      if (c === '#' || c === 'D') continue;
       const cx = (x + 0.5) * TILE, cy = (y + 0.5) * TILE;
-
-      switch (c) {
-        case 'P': state.player.x = cx; state.player.y = cy; state.map[y][x] = '.'; break;
-        case 'Z': state.mobs.push(makeZombie(cx, cy));       state.map[y][x] = '.'; break;
-        case 'T': state.mobs.push(makeSpitter(cx, cy));      state.map[y][x] = '.'; break;
-
-        case 'K': state.items.push({ type:'key',      x:cx, y:cy });                          state.map[y][x]='.'; break;
-        case 'A': state.items.push({ type:'ammo9',    x:cx, y:cy, amt:18 });                  state.map[y][x]='.'; break;
-        case 'S': state.items.push({ type:'ammo12',   x:cx, y:cy, amt:5  });                  state.map[y][x]='.'; break;
-        case 'M': state.items.push({ type:'med',      x:cx, y:cy, heal:25});                  state.map[y][x]='.'; break;
-        case 'X': state.items.push({ type:'buffRange',x:cx, y:cy });                           state.map[y][x]='.'; break;
-        case 'Y': state.items.push({ type:'buffMelee',x:cx, y:cy });                           state.map[y][x]='.'; break;
-        case 'V': state.items.push({ type:'buffSpeed',x:cx, y:cy });                           state.map[y][x]='.'; break;
-        case 'W': state.items.push({ type:'crate',    x:cx, y:cy });                           state.map[y][x]='.'; break;
-
-        // '#', 'D' はそのまま、それ以外（未知文字）は通路 '.' にしておく
-        default:
-          if (c !== '#' && c !== 'D') state.map[y][x] = '.';
+      const mark = legend[c];
+      if (mark) {
+        if (mark.kind === 'player') { state.player.x = cx; state.player.y = cy; }
+        else if (mark.kind === 'enemy') {
+          const mob = makeMobFromKey(state, mark.enemy, cx, cy, 1);
+          if (mob) state.mobs.push(mob);
+        } else if (mark.kind === 'item') {
+          const it = { type: mark.item, x: cx, y: cy };
+          if (mark.amt != null) it.amt = mark.amt;
+          if (mark.heal != null) it.heal = mark.heal;
+          state.items.push(it);
+        }
       }
+      // マーカー/未知文字は床にする
+      state.map[y][x] = '.';
     }
   }
 
-  // 壁HP 初期化
+  // 壁HP 初期化（境界は不壊、内部の '#' は破壊可能）
   const isBorder = (tx, ty) => tx === 0 || ty === 0 || tx === W - 1 || ty === H - 1;
-  for (let y = 0; y < H; y++){
-    for (let x = 0; x < W; x++){
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
       if (state.map[y][x] === '#') {
-        const v = isBorder(x, y) ? Infinity : 90;
+        const v = isBorder(x, y) ? Infinity : wallHp;
         state.tileHP[y][x] = v;
         state.tileMaxHP[y][x] = v;
       }
