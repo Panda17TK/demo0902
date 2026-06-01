@@ -72,5 +72,6 @@ Maven として扱いたい場合は *Import → Existing Maven Projects* で `p
 ## メモ
 
 - 外部依存は `javax.servlet`（Servlet API, `provided`）のみ。実行時は Tomcat が提供します。
-- `WEB-INF/lib/mysql-connector-j-8.1.0.jar` は将来の DB 化用に同梱（現状 JDBC 未使用）。
+- DB は使用していない（永続化はファイル/JSON）。DB 化する場合は `DAOFactory` に
+  JDBC 実装を足し、コネクタ jar を `WEB-INF/lib/` に置く。
 - Java の `--release 17` 指定により、JDK 21 環境でも Tomcat 9(Java 17) 互換の bytecode を出力します。

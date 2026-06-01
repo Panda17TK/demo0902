@@ -5,6 +5,7 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -47,9 +48,19 @@ public class FileGameSaveDAO implements GameSaveDAO {
 	@Override
 	public void save(GameSave gs) {
 		synchronized (lock) {
+			Path target = fileFor(gs.getUid(), gs.getSlot());
+			// テンポラリへ書いてから原子的にリネーム（半端書き込み/競合読み取りを防ぐ）
+			Path tmp = target.resolveSibling(target.getFileName().toString() + ".tmp");
 			try {
-				Files.write(fileFor(gs.getUid(), gs.getSlot()), gs.getBlob());
+				Files.write(tmp, gs.getBlob());
+				try {
+					Files.move(tmp, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+				} catch (IOException atomicUnsupported) {
+					// 一部FSでATOMIC_MOVE非対応 → 通常moveにフォールバック
+					Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
+				}
 			} catch (IOException e) {
+				try { Files.deleteIfExists(tmp); } catch (IOException ignore) { }
 				throw new UncheckedIOException(e);
 			}
 		}

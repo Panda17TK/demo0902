@@ -45,6 +45,19 @@ class FileScoreDAOTest {
 	}
 
 	@Test
+	void cacheReflectsSavesWithoutReread(@TempDir Path tmp) {
+		FileScoreDAO dao = new FileScoreDAO(tmp.resolve("scores.jsonl"));
+		// listTop でキャッシュを温める
+		assertTrue(dao.listTop(10).isEmpty());
+		// 以降の save がキャッシュへ反映される（全再読みなしでも見える）
+		dao.save(new ScoreRecord("u", "A", 100));
+		dao.save(new ScoreRecord("u", "B", 300));
+		List<ScoreRecord> top = dao.listTop(10);
+		assertEquals(2, top.size());
+		assertEquals("B", top.get(0).getName());
+	}
+
+	@Test
 	void escapesQuotesInName(@TempDir Path tmp) {
 		FileScoreDAO dao = new FileScoreDAO(tmp.resolve("scores.jsonl"));
 		dao.save(new ScoreRecord("u", "a\"b\\c", 100));
