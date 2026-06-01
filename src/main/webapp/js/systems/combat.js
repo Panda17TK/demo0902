@@ -1,9 +1,44 @@
 // webapp/js/systems/combat.js
 import { norm, clamp, moveAndCollide } from './physics.js';
 import { TILE } from '../core/constants.js';
+import { CONFIG } from '../core/config.js';
 import { damageTile, canPlaceAt } from './tiles.js';
-import { spawnSlashFX, spawnBeamFX, spawnBlastFX, spawnSparksFX } from './fx.js';
+import { spawnSlashFX, spawnBeamFX, spawnBlastFX, spawnSparksFX, spawnDamageNumber, spawnDodgeFX, spawnMuzzleFX, recordPlayerHit, addShake, addHitstop } from './fx.js';
 import { rebuildFlowField } from './flowfield.js';
+import { hasLineOfSight } from './los.js';
+
+// 敵にダメージ＋ノックバック＋被弾フラッシュ＋（任意で）ダメージ数字
+// nx,ny: 与える側→敵への方向（正規化済み）。kb: ノックバック強度。opts.number: 数字表示。
+function hurtMob(state, m, dmg, nx, ny, kb, opts) {
+  opts = opts || {};
+  // 回避（dodge）：被弾の瞬間にごく低確率で発動。発動中は当たり判定が消え、白く点滅。
+  if (m.dodgeT > 0) { spawnDodgeFX(state, m.x, m.y); return; }
+  const dg = m.def && m.def.dodge;
+  if (dg && dg.chance > 0 && (m.dodgeCDLeft || 0) <= 0 && Math.random() < dg.chance) {
+    m.dodgeT = dg.duration || 0.15;
+    m.dodgeCDLeft = dg.cd || 1.5;
+    spawnDodgeFX(state, m.x, m.y);
+    return; // この一撃を回避（無効化）
+  }
+  // ガード態勢：被ダメージ軽減（guard 攻撃が m.guardMul を立てる）
+  if (m.guardT > 0 && m.guardMul) dmg *= m.guardMul;
+  m.hp -= dmg;
+  if (kb) { m.vx += (nx || 0) * kb; m.vy += (ny || 0) * kb; }
+  m.hitFlash = 0.12;
+  spawnSparksFX(state, m.x, m.y, opts.sparks != null ? opts.sparks : 5);
+  if (opts.number !== false) spawnDamageNumber(state, m.x, m.y, dmg, { crit: !!opts.crit });
+}
+
+// 自動射撃用：射程内かつ視線の通る最寄りの敵を返す
+function nearestVisibleMob(state, p, maxR) {
+  let best = null, bd = maxR * maxR;
+  for (const m of state.mobs) {
+    if (m.hp <= 0) continue;
+    const dx = m.x - p.x, dy = m.y - p.y, d2 = dx * dx + dy * dy;
+    if (d2 < bd && hasLineOfSight(state, p.x, p.y, m.x, m.y)) { bd = d2; best = m; }
+  }
+  return best;
+}
 
 // 扇形ヒット判定（近接の継続ヒット＆弾相殺用）
 function pointInFan(px, py, s) {
@@ -26,19 +61,9 @@ export function reload(state, bus) {
   const w = p.weapons[p.curW];
   if (!w) return;
 
-  // 無限マガジン
-  if (w.infiniteMag) {
-    if (w.magSize != null) {
-      w.mag = w.magSize;
-      if (bus && bus.emit) {
-        bus.emit('ui:toast', (w.name || 'Weapon') + ' リロード (' + w.mag + '/' + w.magSize + ')');
-        bus.emit('sfx', 'reload');
-      }
-    }
-    return;
-  }
-  if (w.id === 'beam') {
-    if (bus && bus.emit) bus.emit('ui:toast', 'Beamはリロード不要');
+  // ビームは弾倉を持たず ammoBeam を直接消費するためリロード不要
+  if (w.id === 'beam' || w.magSize == null) {
+    if (bus && bus.emit) bus.emit('ui:toast', 'リロード不要');
     return;
   }
 
@@ -72,7 +97,8 @@ export function placeWallFront(state, bus) {
   const ty = Math.floor((p.y + p.facing.y * 18) / TILE);
   if (canPlaceAt(state, tx, ty)) {
     state.map[ty][tx] = '#';
-    state.tileHP[ty][tx] = state.tileMaxHP[ty][tx] = 70;
+    const wallHp = (p.mods && p.mods.wallHp) || 70; // 築城術アップグレードで頑丈に
+    state.tileHP[ty][tx] = state.tileMaxHP[ty][tx] = wallHp;
     p.inv.blocks--;
     rebuildFlowField(state); // 壁ができたら経路を即再計算
     bus.emit('ui:toast', '壁を設置');
@@ -84,9 +110,13 @@ export function placeWallFront(state, bus) {
 
 export function updateCombat(state, dt, bus, input, audio) {
   const p = state.player;
+  const mods = p.mods || { gunMul: 1, meleeMul: 1, fireMul: 1, moveMul: 1 };
 
   // 無敵時間の減衰（赤いままになるバグ防止）
   if (p.iTime > 0) { p.iTime -= dt; if (p.iTime < 0) p.iTime = 0; }
+  // マズル/反動の減衰（描画用）
+  if (p.muzzleT > 0) { p.muzzleT -= dt; if (p.muzzleT < 0) p.muzzleT = 0; }
+  if (p.recoil > 0) { p.recoil -= dt * 28; if (p.recoil < 0) p.recoil = 0; }
 
   // バフ時間
   if (p.buffs.tRange > 0) { p.buffs.tRange -= dt; if (p.buffs.tRange <= 0) p.buffs.range = 1; }
@@ -94,16 +124,41 @@ export function updateCombat(state, dt, bus, input, audio) {
   if (p.buffs.tSpeed > 0) { p.buffs.tSpeed -= dt; if (p.buffs.tSpeed <= 0) p.buffs.speed = 1; }
 
   // 入力 → 移動/ダッシュ/向き（★ 速度1.2倍）
-  const ax = (input.pressed('a') || input.pressed('arrowleft') ? -1 : 0) + (input.pressed('d') || input.pressed('arrowright') ? 1 : 0);
-  const ay = (input.pressed('w') || input.pressed('arrowup') ? -1 : 0) + (input.pressed('s') || input.pressed('arrowdown') ? 1 : 0);
-  const moving = !!(ax || ay);
+  // 移動ベクトル：タッチのアナログスティック(input.move)があれば倒し具合で速度可変、
+  // 無ければキーボード(WASD/矢印)の8方向（常に最大速度）。
+  let dirx = 0, diry = 0, speedScale = 0;
+  if (input.move && input.move.active && (input.move.x || input.move.y)) {
+    const mlen = Math.hypot(input.move.x, input.move.y);
+    speedScale = Math.min(1, mlen);
+    dirx = input.move.x / (mlen || 1);
+    diry = input.move.y / (mlen || 1);
+  } else {
+    const ax = (input.pressed('a') || input.pressed('arrowleft') ? -1 : 0) + (input.pressed('d') || input.pressed('arrowright') ? 1 : 0);
+    const ay = (input.pressed('w') || input.pressed('arrowup') ? -1 : 0) + (input.pressed('s') || input.pressed('arrowdown') ? 1 : 0);
+    if (ax || ay) { const l = Math.hypot(ax, ay) || 1; dirx = ax / l; diry = ay / l; speedScale = 1; }
+  }
+  const moving = speedScale > 0;
   const dash = input.pressed('shift') && moving && p.sta > 0;
   p.isDashing = dash;
 
-  const spd = p.baseSpeed * 1.2 * p.buffs.speed * (dash ? 2 : 1); // ← ここで1.2倍
-  let len = Math.hypot(ax, ay) || 1;
-  let vx = (ax / len) * spd * dt, vy = (ay / len) * spd * dt;
-  if (moving) { p.facing.x = ax / len; p.facing.y = ay / len; }
+  const spd = p.baseSpeed * 1.2 * p.buffs.speed * mods.moveMul * (dash ? CONFIG.player.dashMul : 1);
+  let vx = dirx * spd * speedScale * dt, vy = diry * spd * speedScale * dt;
+  if (moving) { p.facing.x = dirx; p.facing.y = diry; }
+
+  // 照準の優先順位： 手動の右スティック ＞ 自動射撃のオート照準 ＞ 移動方向
+  let autoFiring = false;
+  const manualAim = !!(input.aim && input.aim.active && (input.aim.x || input.aim.y));
+  if (manualAim) {
+    const al = Math.hypot(input.aim.x, input.aim.y) || 1;
+    p.facing.x = input.aim.x / al; p.facing.y = input.aim.y / al;
+  } else if (input.autoFire) {
+    const target = nearestVisibleMob(state, p, 480);
+    if (target) {
+      const dx = target.x - p.x, dy = target.y - p.y, l = Math.hypot(dx, dy) || 1;
+      p.facing.x = dx / l; p.facing.y = dy / l;
+      autoFiring = true; // ターゲットがいる時だけ自動発射
+    }
+  }
   p.sta = dash ? Math.max(0, p.sta - 35 * dt) : Math.min(p.staMax, p.sta + 22 * dt);
 
   p.vx *= Math.pow(0.001, dt); p.vy *= Math.pow(0.001, dt);
@@ -115,15 +170,14 @@ export function updateCombat(state, dt, bus, input, audio) {
   if (p.meleeCD > 0) p.meleeCD -= dt;
   if (input.pressed('j') && p.meleeCD <= 0) {
     p.meleeCD = 0.32;
-    const baseReach = 34 * 1.5; // ← 1.5倍
-    const reach = baseReach * p.buffs.range;
+    const reach = CONFIG.player.meleeReach * p.buffs.range;
     const arc = Math.PI;
     const faceAng = Math.atan2(p.facing.y, p.facing.x);
     bus.emit('sfx', 'melee');
     spawnSlashFX(state, p.x, p.y, faceAng);
 
     // 即時ヒット（敵・壁）
-    const meleeDmg = Math.round(22 * p.buffs.dmg);
+    const meleeDmg = Math.round(CONFIG.player.meleeDmg * p.buffs.dmg * mods.meleeMul);
     for (const m of state.mobs) {
       if (m.hp <= 0) continue;
       const dx = m.x - p.x, dy = m.y - p.y; const d = Math.hypot(dx, dy);
@@ -151,7 +205,7 @@ export function updateCombat(state, dt, bus, input, audio) {
       x: p.x, y: p.y, ang: faceAng,
       t: 0, life: 0.30, reach: reach, arc: arc,
       tickInt: 0.07, tick: 0,
-      dmg: Math.round(8 * p.buffs.dmg)
+      dmg: Math.round(8 * p.buffs.dmg * mods.meleeMul)
     });
   }
 
@@ -160,17 +214,18 @@ export function updateCombat(state, dt, bus, input, audio) {
   let shotThisFrame = false;
 
   const curWeapon = p.weapons[p.curW];
-  if (input.pressed('k') && p.shootCD <= 0 && curWeapon) {
+  const firing = input.pressed('k') || autoFiring;
+  if (firing && p.shootCD <= 0 && curWeapon) {
     const w = curWeapon;
 
     if (w.id === 'beam') {
-      // ★ infiniteAmmo なら在庫を減らさない。false のときのみ ammoBeam を消費
-      const needsAmmo = !w.infiniteAmmo;
-      if (needsAmmo && (p.inv.ammoBeam || 0) <= 0) {
+      // ビームは ammoBeam セルを1発ずつ消費
+      if ((p.inv.ammoBeam || 0) <= 0) {
         bus.emit('ui:toast', 'Beam セル切れ');
       } else {
-        p.shootCD = w.fireRate;
-        if (needsAmmo) p.inv.ammoBeam--;
+        p.shootCD = w.fireRate * mods.fireMul;
+        p.inv.ammoBeam--;
+        const beamDmg = w.dmg * mods.gunMul;
         const dir = norm(p.facing.x, p.facing.y), step = 6, maxL = 700;
         let x = p.x, y = p.y, ex = x, ey = y;
         for (let t = 0; t < maxL; t += step) {
@@ -178,7 +233,9 @@ export function updateCombat(state, dt, bus, input, audio) {
           const tx = Math.floor(x / TILE), ty = Math.floor(y / TILE);
           if (state.map[ty] && (state.map[ty][tx] === '#' || state.map[ty][tx] === 'D')) break;
           for (const m of state.mobs) {
-            if (m.hp > 0 && Math.abs(m.x - x) < m.w / 2 && Math.abs(m.y - y) < m.h / 2) m.hp -= w.dmg;
+            if (m.hp > 0 && Math.abs(m.x - x) < m.w / 2 && Math.abs(m.y - y) < m.h / 2) {
+              hurtMob(state, m, beamDmg, 0, 0, 0, { number: false, sparks: 2 }); // ビームは連続ヒットのため数字省略
+            }
           }
           ex = x; ey = y;
         }
@@ -191,7 +248,7 @@ export function updateCombat(state, dt, bus, input, audio) {
       if (w.mag <= 0) {
         bus.emit('ui:toast', '弾切れ - Rでリロード');
       } else {
-        p.shootCD = w.fireRate; w.mag--;
+        p.shootCD = w.fireRate * mods.fireMul; w.mag--;
         const dir = norm(p.facing.x, p.facing.y), sp = 280;
         state.grenades.push({ x: p.x + dir.x * 14, y: p.y + dir.y * 14, vx: dir.x * sp, vy: dir.y * sp, fuse: 1.0 });
         shotThisFrame = true;
@@ -201,13 +258,18 @@ export function updateCombat(state, dt, bus, input, audio) {
       if (w.mag <= 0) {
         bus.emit('ui:toast', '弾切れ - Rでリロード');
       } else {
-        p.shootCD = w.fireRate; w.mag--;
+        p.shootCD = w.fireRate * mods.fireMul; w.mag--;
         const dir = norm(p.facing.x, p.facing.y), baseSpd = 360, shots = w.pellets || 1;
+        const bulletDmg = w.dmg * mods.gunMul;
+        const aimAng = Math.atan2(dir.y, dir.x);
         for (let i = 0; i < shots; i++) {
-          const ang = Math.atan2(dir.y, dir.x) + (Math.random() - 0.5) * (w.spread || 0) * 2;
+          const ang = aimAng + (Math.random() - 0.5) * (w.spread || 0) * 2;
           const vx = Math.cos(ang) * baseSpd, vy = Math.sin(ang) * baseSpd;
-          state.bullets.push({ x: p.x + Math.cos(ang) * 14, y: p.y + Math.sin(ang) * 14, vx, vy, life: 0.9, dmg: w.dmg });
+          state.bullets.push({ x: p.x + Math.cos(ang) * 14, y: p.y + Math.sin(ang) * 14, vx, vy, life: 0.9, dmg: bulletDmg });
         }
+        // マズルフラッシュ＋反動（描画用）。銃口位置は向きの先。
+        spawnMuzzleFX(state, p.x + dir.x * 16, p.y + dir.y * 16, aimAng, w.id === 'shotgun' ? '#ffd08a' : '#fff1c0');
+        p.muzzleT = 0.07; p.recoil = (w.id === 'shotgun') ? 4 : 2.5;
         bus.emit('sfx', w.id === 'mg' ? 'mg' : 'shot');
         shotThisFrame = true;
       }
@@ -226,17 +288,10 @@ export function updateCombat(state, dt, bus, input, audio) {
       if (shotThisFrame || input.pressed('k')) {
         w._autoRT = 0; // 射撃中はリセット
       } else {
+        // 射撃を止めて2秒経過したら、予備弾から自動リロード
         w._autoRT = (w._autoRT || 0) + dt;
         if (w._autoRT >= 2.0) {
-          if (w.infiniteMag) {
-            w.mag = magSize;
-            if (bus && bus.emit) {
-              bus.emit('ui:toast', (w.name || 'Weapon') + ' 自動リロード (' + w.mag + '/' + magSize + ')');
-              bus.emit('sfx', 'reload');
-            }
-          } else {
-            reload(state, bus);
-          }
+          reload(state, bus);
           w._autoRT = 0;
         }
       }
@@ -258,8 +313,8 @@ export function updateCombat(state, dt, bus, input, audio) {
     let hit = false;
     for (const m of state.mobs) {
       if (m.hp > 0 && Math.abs(m.x - b.x) < m.w / 2 && Math.abs(m.y - b.y) < m.h / 2) {
-        m.hp -= b.dmg;
-        const n = norm(m.x - b.x, m.y - b.y); m.vx += n.x * 160; m.vy += n.y * 160;
+        const n = norm(m.x - b.x, m.y - b.y);
+        hurtMob(state, m, b.dmg, n.x, n.y, 160, { number: true });
         hit = true; break;
       }
     }
@@ -281,13 +336,26 @@ export function updateCombat(state, dt, bus, input, audio) {
   // 敵弾
   for (let i = state.ebullets.length - 1; i >= 0; i--) {
     const b = state.ebullets[i];
-    b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
+    // ホーミング弾：プレイヤー方向へ少しずつ旋回
+    if (b.homing) {
+      const want = Math.atan2(p.y - b.y, p.x - b.x);
+      const cur = Math.atan2(b.vy, b.vx);
+      let diff = ((want - cur + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+      const turn = Math.max(-b.homing * dt, Math.min(b.homing * dt, diff));
+      const sp = Math.hypot(b.vx, b.vy) || 1;
+      const na = cur + turn;
+      b.vx = Math.cos(na) * sp; b.vy = Math.sin(na) * sp;
+    }
+    // 地雷：静止して起爆を待つ（移動なし）
+    if (!b.mine) { b.x += b.vx * dt; b.y += b.vy * dt; }
+    b.life -= dt;
     const tx = Math.floor(b.x / TILE), ty = Math.floor(b.y / TILE);
-    if ((state.map[ty] && (state.map[ty][tx] === '#' || state.map[ty][tx] === 'D')) || b.life <= 0) {
+    if ((!b.mine && state.map[ty] && (state.map[ty][tx] === '#' || state.map[ty][tx] === 'D')) || b.life <= 0) {
       state.ebullets.splice(i, 1);
       continue;
     }
-    const hitP = (Math.abs(state.player.x - b.x) < state.player.w / 2 + 3) && (Math.abs(state.player.y - b.y) < state.player.h / 2 + 3);
+    const hitR = b.mine ? 14 : 3;
+    const hitP = (Math.abs(state.player.x - b.x) < state.player.w / 2 + hitR) && (Math.abs(state.player.y - b.y) < state.player.h / 2 + hitR);
     if (hitP) {
       if (p.isDashing) {
         const n = norm(b.x - p.x, b.y - p.y);
@@ -295,9 +363,11 @@ export function updateCombat(state, dt, bus, input, audio) {
         continue;
       } else {
         if (p.iTime <= 0) {
-          p.hp -= b.dmg; p.iTime = 0.8;
+          p.hp -= b.dmg; p.iTime = CONFIG.player.iFrameBullet;
           const n = norm(p.x - b.x, p.y - b.y);
           p.vx += n.x * 180; p.vy += n.y * 180;
+          addShake(state, 0.18, 6);
+          recordPlayerHit(state, b.x, b.y);
         }
         state.ebullets.splice(i, 1);
         continue;
@@ -314,9 +384,8 @@ export function updateCombat(state, dt, bus, input, audio) {
       // 敵に追撃
       for (const m of state.mobs) {
         if (m.hp > 0 && pointInFan(m.x, m.y, s)) {
-          m.hp -= s.dmg;
           const n = norm(m.x - s.x, m.y - s.y);
-          m.vx += n.x * 140; m.vy += n.y * 140;
+          hurtMob(state, m, s.dmg, n.x, n.y, 140, { number: false, sparks: 2 }); // 継続ヒットは数字省略
         }
       }
       // 敵弾の相殺
@@ -331,7 +400,9 @@ export function updateCombat(state, dt, bus, input, audio) {
     if (s.t >= s.life) state.slashes.splice(i, 1);
   }
 
-  p.hp = clamp(p.hp, 0, 100);
+  // 開発者モードのゴッドモード：HPを満タンに固定
+  if (state.devGod) p.hp = p.hpMax || 100;
+  p.hp = clamp(p.hp, 0, p.hpMax || 100);
 }
 
 function explode(state, x, y) {
@@ -341,15 +412,18 @@ function explode(state, x, y) {
     if (d < r + Math.max(m.w, m.h) / 2) {
       const fall = 1 - d / r; const dmg = Math.round(110 * fall);
       if (dmg > 0) {
-        m.hp -= dmg;
-        const n = norm(dx, dy); m.vx += n.x * 280 * fall; m.vy += n.y * 280 * fall;
+        const n = norm(dx, dy);
+        hurtMob(state, m, dmg, n.x, n.y, 280 * fall, { number: true, sparks: 8 });
       }
     }
   }
+  addShake(state, 0.25, 11);
+  addHitstop(state, 0.05);
   const dp = Math.hypot(state.player.x - x, state.player.y - y);
   if (dp < r * 0.7) {
     const fall = 1 - dp / (r * 0.7);
     state.player.hp -= Math.round(25 * fall);
+    recordPlayerHit(state, x, y);
     const n = norm(state.player.x - x, state.player.y - y);
     state.player.vx += n.x * 200 * fall; state.player.vy += n.y * 200 * fall;
   }

@@ -30,13 +30,19 @@ export function mountGameOver(overlayEl, bus, state) {
     return m + ':' + String(r).padStart(2, '0');
   }
 
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
   function renderBoard(list) {
     if (!boardEl) return;
     var head = '<div><b>ランキング（上位10件）</b></div>';
     var body = (list || []).map(function (r, i) {
-      var nm = (r && r.name) ? r.name : '(no name)';
+      var nm = escapeHtml((r && r.name) ? r.name : '(no name)');
       var tm = (r && typeof r.timeMs === 'number') ? fmt(r.timeMs) : '0:00';
-      var dt = (r && r.createdAt) ? new Date(r.createdAt).toLocaleString() : '';
+      var dt = (r && r.createdAt) ? escapeHtml(new Date(r.createdAt).toLocaleString()) : '';
       return (i + 1) + '. ' + nm + ' - ' + tm + ' / ' + dt;
     }).join('<br>');
     boardEl.innerHTML = head + body;
@@ -71,8 +77,9 @@ export function mountGameOver(overlayEl, bus, state) {
     overlayEl.classList.remove('hidden');
 
     var kills = state.stats.kills | 0;
+    var wave = state.stats.wave | 0;
     if (linesEl) {
-      linesEl.innerHTML = '生存時間: <b>' + fmt(timeMs) + '</b>　倒した数: <b>' + kills + '</b>';
+      linesEl.innerHTML = '到達WAVE: <b>' + wave + '</b>　生存時間: <b>' + fmt(timeMs) + '</b>　倒した数: <b>' + kills + '</b>';
     }
     if (nameInput) nameInput.value = state.stats.name || '';
 

@@ -20,6 +20,9 @@ jobs:
           java-version: "17"
           cache: maven
 
+      - name: Run unit tests
+        run: mvn -B -ntp test
+
       - name: Build WAR
         run: mvn -B -ntp clean package
 
@@ -29,3 +32,11 @@ jobs:
           name: demo0902-war
           path: target/demo0902.war
           if-no-files-found: error
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: target/surefire-reports/**
+          if-no-files-found: ignore

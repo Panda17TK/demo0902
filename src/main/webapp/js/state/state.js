@@ -1,4 +1,3 @@
-import { WEAPONS } from './data.js';
 /** @returns {import('./types.js').State} */
 export function createInitialState() {
 	const state = {
@@ -18,31 +17,42 @@ export function createInitialState() {
 		paused: false,
 		runStart: 0,
 		gameOver: false,
-		stats: { kills: 0, timeMs: 0, name: '' },
+		stats: { kills: 0, timeMs: 0, name: '', wave: 1 },
+
+		// ウェーブ制（ローグライト）。spawner が更新する。
+		//   phase: 'active'（殲滅中） | 'intermission'（強化カード選択中）
+		//   toSpawn: この波で未出現の残数 / spawnCD: 次体出現までの間隔
+		//   choices: インターミッション中に提示中の強化カード配列
+		wave: { num: 1, phase: 'active', toSpawn: 0, spawnCD: 0.3, choices: null, interT: 0 },
+
+		// 演出用
+		cam: null,                 // スムーズ追従カメラ（loop で初期化）
+		shake: { t: 0, mag: 0 },   // 画面シェイク
+		hitstop: 0,                // ヒットストップ（被弾/爆発で一瞬スロー）
+		slowmo: { t: 0, factor: 0.25 }, // スローモーション（ボス撃破）
+		killCam: null,             // ボス撃破キルカム演出
+		dmgMarks: [],              // 被弾方向インジケータ
 
 		player: {
 			x: 0, y: 0, w: 22, h: 22,
 			vx: 0, vy: 0,
-			hp: 100, iTime: 0,
+			hp: 100, hpMax: 100, iTime: 0,
 			baseSpeed: 110,
 			facing: { x: 1, y: 0 },
 			staMax: 100, sta: 100,
 			buffs: { range: 1, dmg: 1, speed: 1, tRange: 0, tDmg: 0, tSpeed: 0 },
-			// いちおう在庫は置くけど、下の infiniteMag / infiniteAmmo により基本使わない
-			inv: { blocks: 0, ammo9: 999, ammo12: 999, ammoBeam: 999, ammoNade: 999 },
+			// ラン中に恒久強化される倍率など（強化カード選択で更新）
+			mods: { gunMul: 1, meleeMul: 1, fireMul: 1, moveMul: 1, healOnKill: 0, ammoMul: 1 },
+			// 弾薬は有限。リロードはこの在庫から補充する（敵ドロップ/クレートで補給）
+			inv: { blocks: 2, key: false, ammo9: 96, ammo12: 24, ammoBeam: 6, ammoNade: 3 },
 
-			// ★ 最初から全武器を所持
+			// 最初から全武器を所持（弾薬管理が攻略のカギ）
 			weapons: [
-				// ピストル（無限マガジン）
-				{ id: 'pistol', name: 'Pistol', dmg: 12, fireRate: 0.25, magSize: 12, mag: 12, spread: 0.05, pellets: 1, ammoType: 'ammo9', infiniteMag: true },
-				// ショットガン（無限マガジン）
-				{ id: 'shotgun', name: 'Shotgun', dmg: 7, fireRate: 0.60, magSize: 6, mag: 6, spread: 0.25, pellets: 6, ammoType: 'ammo12', infiniteMag: true },
-				// マシンガン（無限マガジン）
-				{ id: 'mg', name: 'MG', dmg: 7, fireRate: 0.08, magSize: 40, mag: 40, spread: 0.12, pellets: 1, ammoType: 'ammo9', infiniteMag: true },
-				// ビーム（弾消費なし＝infiniteAmmo）
-				{ id: 'beam', name: 'Beam', dmg: 6, fireRate: 0.05, magSize: null, mag: 0, spread: 0, pellets: 1, infiniteAmmo: true },
-				// グレネード（無限マガジン）
-				{ id: 'grenade', name: 'Grenade', dmg: 0, fireRate: 0.90, magSize: 3, mag: 3, spread: 0, pellets: 1, ammoType: 'ammoNade', infiniteMag: true },
+				{ id: 'pistol',  name: 'Pistol',  dmg: 24, fireRate: 0.22, magSize: 12, mag: 12, spread: 0.05, pellets: 1, ammoType: 'ammo9'  },
+				{ id: 'shotgun', name: 'Shotgun', dmg: 16, fireRate: 0.60, magSize: 6,  mag: 6,  spread: 0.25, pellets: 6, ammoType: 'ammo12' },
+				{ id: 'mg',      name: 'MG',      dmg: 12, fireRate: 0.08, magSize: 40, mag: 40, spread: 0.12, pellets: 1, ammoType: 'ammo9'  },
+				{ id: 'beam',    name: 'Beam',    dmg: 80, fireRate: 0.60, magSize: null, mag: 0, spread: 0, pellets: 1, ammoType: 'ammoBeam' },
+				{ id: 'grenade', name: 'Grenade', dmg: 0,  fireRate: 0.90, magSize: 1,  mag: 1,  spread: 0,    pellets: 1, ammoType: 'ammoNade' },
 			],
 			curW: 0,
 

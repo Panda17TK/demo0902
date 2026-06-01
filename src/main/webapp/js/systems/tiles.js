@@ -27,8 +27,7 @@ export function canPlaceAt(state, tx, ty) {
 	return true;
 }
 
+// タイル系の毎フレーム更新の拡張ポイント（崩落アニメ・設置クールダウン等を将来ここへ）。
+// 現状は damageTile/clearWall が即時にフローフィールドを再計算するため処理なし。
 export function updateTiles(state, dt, bus, audio) {
-	// ・崩落アニメ
-	// ・設置クールダウン
-	// ・フローフィールド再構築の節流し など、間に合わなかった！
 }

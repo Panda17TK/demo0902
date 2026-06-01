@@ -1,4 +1,4 @@
-import { makeZombie, makeSpitter } from './ai.js';
+import { makeMobFromKey, makeZombie, makeSpitter } from './enemies.js';
 import { rebuildFlowField } from './flowfield.js';
 
 // CTX(コンテキストパス)を安全に決定
@@ -24,15 +24,16 @@ function nowStr(ts) { try { return new Date(ts).toLocaleString(); } catch (_) { 
 function serialize(state) {
 	var weapons = state.player.weapons.map(function(w) { return { id: w.id, mag: w.mag }; });
 	var mobs = state.mobs.map(function(m) {
-		return { kind: m.kind, x: m.x, y: m.y, hp: m.hp, maxhp: m.maxhp };
+		return { kind: m.kind, x: m.x, y: m.y, hp: m.hp, maxhp: m.maxhp, waveNum: m.waveNum };
 	});
 	return {
 		schema: 1,
 		player: {
-			x: state.player.x, y: state.player.y, hp: state.player.hp,
+			x: state.player.x, y: state.player.y, hp: state.player.hp, hpMax: state.player.hpMax,
 			inv: state.player.inv, curW: state.player.curW,
-			weapons: weapons, buffs: state.player.buffs, sta: state.player.sta
+			weapons: weapons, buffs: state.player.buffs, mods: state.player.mods, sta: state.player.sta
 		},
+		wave: state.wave, stats: state.stats,
 		map: state.map, tileHP: state.tileHP, tileMaxHP: state.tileMaxHP, items: state.items,
 		mobs: mobs,
 		spawner: state.timers ? { elapsed: (state.timers.elapsed || 0), spawnTimer: (state.timers.spawn || 5) } : null,
@@ -77,13 +78,18 @@ function applyToState(state, d) {
 	reinitArraysToMatch(state, d);
 
 	var pp = d.player;
+	if (typeof pp.hpMax === 'number') state.player.hpMax = pp.hpMax;
 	state.player.x = (typeof pp.x === 'number') ? pp.x : state.player.x;
 	state.player.y = (typeof pp.y === 'number') ? pp.y : state.player.y;
-	state.player.hp = Math.max(0, Math.min(100, (typeof pp.hp === 'number') ? pp.hp : state.player.hp));
+	state.player.hp = Math.max(0, Math.min(state.player.hpMax || 100, (typeof pp.hp === 'number') ? pp.hp : state.player.hp));
 	state.player.inv = pp.inv || state.player.inv;
 	state.player.curW = Math.max(0, Math.min(state.player.weapons.length - 1, (pp.curW | 0)));
 	if (pp.buffs) state.player.buffs = pp.buffs;
+	if (pp.mods) state.player.mods = pp.mods;
 	if (typeof pp.sta === 'number') state.player.sta = pp.sta;
+	// ウェーブ／戦績の復元（無ければ現状維持）
+	if (d.wave) state.wave = d.wave;
+	if (d.stats) state.stats = d.stats;
 
 	// items
 	state.items.length = 0;
@@ -95,7 +101,9 @@ function applyToState(state, d) {
 	var mobs = Array.isArray(d.mobs) ? d.mobs : [];
 	for (var j = 0; j < mobs.length; j++) {
 		var m = mobs[j];
-		var obj = (m.kind === 'spitter') ? makeSpitter(m.x, m.y) : makeZombie(m.x, m.y);
+		// kind（zombie/spitter/boss等）からデータ駆動で復元。未知kindはzombie扱い。
+		var obj = makeMobFromKey(state, m.kind, m.x, m.y, m.waveNum || state.wave && state.wave.num || 1)
+			|| makeZombie(m.x, m.y);
 		if (typeof m.hp === 'number') obj.hp = m.hp;
 		if (typeof m.maxhp === 'number') obj.maxhp = m.maxhp;
 		state.mobs.push(obj);

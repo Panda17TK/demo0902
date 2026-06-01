@@ -31,6 +31,31 @@ mvn -B -ntp clean package cargo:run
 mvn -B -ntp compile
 ```
 
+### テスト実行（JUnit 5）
+```bash
+mvn -B -ntp test
+```
+→ DAO（ファイル永続化）とサーブレットの単体テストが走ります。
+
+## 永続化（ファイル/JSON）
+
+ランキングとセーブはファイルに保存され、Tomcat 再起動後も残ります（DB 不要）。
+
+- 保存先（優先順）: `-Darpg.data.dir=...` ＞ 環境変数 `ARPG_DATA_DIR` ＞ `~/.arpg-demo0902`
+- スコア: `scores.jsonl`（JSON Lines・追記） / セーブ: `saves/<uid>__<slot>.save`
+- インメモリに切替: `-Darpg.persistence=memory`（揮発・テスト向け）
+
+例（保存先を指定して起動）:
+```bash
+mvn -B -ntp clean package cargo:run -Darpg.data.dir=/var/tmp/arpg
+```
+
+## PWA（インストール／オフライン）
+
+`manifest.webmanifest` と `sw.js`（Service Worker）を同梱。HTTPS もしくは `localhost`
+でアクセスするとアプリシェルがキャッシュされ、オフライン起動やホーム画面への追加が可能です。
+（スコア等の API はネットワーク優先のため、オンライン時のみ更新されます。）
+
 ## Eclipse での利用
 
 `.project` / `.classpath` / `.settings` は従来どおり Eclipse(WTP) 用に残してあります。

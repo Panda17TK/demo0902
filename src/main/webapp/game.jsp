@@ -4,8 +4,17 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport"
+	content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="theme-color" content="#0b0e13" />
 <title>ARPG - サバイバル</title>
+<link rel="manifest"
+	href="${pageContext.request.contextPath}/manifest.webmanifest">
+<link rel="apple-touch-icon"
+	href="${pageContext.request.contextPath}/icons/icon-192.png">
 <link rel="stylesheet"
 	href="${pageContext.request.contextPath}/css/game.css">
 </head>
@@ -24,8 +33,33 @@
 			</div>
 		</div>
 
+		<!-- スマホ縦持ち時の横向き推奨ヒント（CSSで制御） -->
+		<div id="rotate-hint">📱 横向きにすると遊びやすいです</div>
+
+		<!-- 開発者モードを開くボタン（` キーでも開閉） -->
+		<button id="dev-btn" title="開発者モード（`キー）">DEV</button>
+
 		<!-- トースト通知（オーバーレイの外に置く＝ゲーム中も表示される） -->
 		<div id="toast"></div>
+
+		<!-- 開発者モード：パラメータエディタ -->
+		<div id="dev-overlay" class="dev-overlay hidden">
+			<div class="dev-panel">
+				<div class="dev-header">
+					<h2>開発者モード</h2>
+					<button class="dev-close">閉じる</button>
+				</div>
+				<div class="dev-body"></div>
+			</div>
+		</div>
+
+		<!-- ウェーブ間の強化カード選択 -->
+		<div id="upgrade-overlay" class="overlay hidden">
+			<div class="panel">
+				<h2 id="upgrade-title">強化を選択</h2>
+				<div id="upgrade-cards" class="upgrade-cards"></div>
+			</div>
+		</div>
 
 		<!-- ゲームオーバー用オーバーレイ -->
 		<div id="overlay" class="overlay hidden">
@@ -45,6 +79,15 @@
 
 	<!-- コンテキストパス注入（1行で完結させること：改行が混入すると fetch URL が壊れる） -->
 	<script>window.CTX = '<%=request.getContextPath()%>';</script>
+	<!-- PWA: Service Worker 登録（HTTPS or localhost のみ有効） -->
+	<script>
+	if ('serviceWorker' in navigator) {
+		window.addEventListener('load', function () {
+			navigator.serviceWorker.register(window.CTX + '/sw.js', { scope: window.CTX + '/' })
+				.catch(function (e) { try { console.warn('SW登録失敗', e); } catch (_) {} });
+		});
+	}
+	</script>
 	<script type="module"
 		src="${pageContext.request.contextPath}/js/main.js"></script>
 </body>

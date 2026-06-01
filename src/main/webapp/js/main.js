@@ -1,6 +1,8 @@
 import { DPR, MAX_DT } from './core/constants.js';
+import { loadConfig, CONFIG } from './core/config.js';
 import { createEventBus } from './core/events.js';
 import { createInput } from './core/input.js';
+import { mountDevEditor } from './render/dev-editor.js';
 import { createAudio } from './services/audio.js';
 import { createStorage } from './services/storage.js';
 import { createInitialState, resetState } from './state/state.js';
@@ -10,12 +12,14 @@ import { rebuildFlowField } from './systems/flowfield.js';
 import { updateAI } from './systems/ai.js';
 import { updateTiles } from './systems/tiles.js';
 import { updateItems } from './systems/items.js';
-import { updateSpawner } from './systems/spawner.js';
-import { updateCombat } from './systems/combat.js';
+import { updateSpawner, startWave } from './systems/spawner.js';
+import { updateCombat, reload, placeWallFront } from './systems/combat.js';
 import { updateFX } from './systems/fx.js';
+import { isTouchDevice, createTouchControls } from './core/touch.js';
 import { renderFrame } from './render/renderer.js';
 import { mountGameOver } from './render/overlay.js';
 import { mountHUD } from './render/hud.js';
+import { mountUpgrades } from './render/upgrades.js';
 import { saveChooser, loadChooser } from './systems/save-remote.js';
 
 const canvas  = document.getElementById('game');
@@ -53,24 +57,70 @@ if (!canvas) {
   // --- bus: SE ---
   bus.on('sfx', (name) => { try { audio.sfx(name); } catch (_e) {} });
 
+  // --- 設定（開発者モード）読み込み：他システムが参照する前に ---
+  loadConfig();
+
+  // CONFIG.player の値をプレイヤー初期値へ反映
+  function applyPlayerConfig(st) {
+    const pc = CONFIG.player;
+    st.player.baseSpeed = pc.baseSpeed;
+    st.player.hpMax = pc.hpMax;
+    st.player.hp = Math.min(st.player.hp, pc.hpMax);
+    st.player.staMax = pc.staMax;
+    st.player.sta = Math.min(st.player.sta, pc.staMax);
+  }
+
   // --- state 初期化 & マップ ---
   const state = createInitialState();
   if (!state.stats) state.stats = { kills: 0, timeMs: 0, name: '' };
+  applyPlayerConfig(state);
   state.runStart = performance.now();
   state.gameOver = false;
 
   setupMap(state);
   rebuildFlowField(state);
+  startWave(state, 1);
 
   // --- HUD / Overlay ---
   mountHUD(hudEl, toastEl, state, bus);
   mountGameOver(document.getElementById('overlay'), bus, state);
+  mountUpgrades(document.getElementById('upgrade-overlay'), bus, state);
+  mountDevEditor(document.getElementById('dev-overlay'), bus, state);
+  const devBtn = document.getElementById('dev-btn');
+  if (devBtn) devBtn.addEventListener('click', () => bus.emit('dev:toggle'));
 
   // --- ホットキー（保存/読込） ---
   bindHotkeys(state, bus, input, {
     save: () => saveChooser(state, null, bus),
     load: () => loadChooser(state, null, bus),
   });
+
+  // --- タッチ操作（スマホ/タブレット）---
+  if (isTouchDevice()) {
+    document.body.classList.add('touch');
+    createTouchControls(document.getElementById('wrap'), input, {
+      reload: () => reload(state, bus),
+      build:  () => placeWallFront(state, bus),
+      cycleWeapon: () => {
+        const ws = state.player.weapons;
+        if (!ws.length) return;
+        state.player.curW = (state.player.curW + 1) % ws.length;
+        bus.emit('ui:toast', '武器: ' + (ws[state.player.curW].name || ''));
+      },
+      pause: () => { if (!state.gameOver) state.paused = !state.paused; },
+      isPaused: () => state.paused,
+      setPaused: (b) => { if (!state.gameOver) state.paused = !!b; },
+    });
+  }
+
+  // --- 初回のユーザー操作で AudioContext を resume（モバイル対策）---
+  const resumeAudio = () => {
+    try { audio.resume && audio.resume(); } catch (_e) {}
+    window.removeEventListener('pointerdown', resumeAudio);
+    window.removeEventListener('keydown', resumeAudio);
+  };
+  window.addEventListener('pointerdown', resumeAudio);
+  window.addEventListener('keydown', resumeAudio);
 
   // --- エラーをトーストにも表示 ---
   addEventListener('error', (ev) => {
@@ -90,8 +140,10 @@ if (!canvas) {
   // リスタート：state をその場で初期化し、マップ／フローフィールドを作り直す
   bus.on('game:restart', () => {
     resetState(state);
+    applyPlayerConfig(state);
     setupMap(state);
     rebuildFlowField(state);
+    startWave(state, 1);
     state.runStart = performance.now();
     state.gameOver = false;
     state.paused   = false;
@@ -108,17 +160,29 @@ if (!canvas) {
       const dt = Math.min(MAX_DT, (t - last) / 1000);
       last = t;
 
+      // ヒットストップ：実時間で減らしつつ、シミュレーション dt を縮めて“タメ”を作る
+      let simDt = dt;
+      if (state.hitstop > 0) { state.hitstop -= dt; simDt = dt * 0.06; }
+      // スローモーション（ボス撃破演出）：実時間で減衰しつつ sim を遅くする
+      if (state.slowmo && state.slowmo.t > 0) {
+        state.slowmo.t -= dt;
+        simDt *= state.slowmo.factor;
+        if (state.slowmo.t <= 0) state.slowmo.t = 0;
+      }
+      // キルカム演出タイマ（描画用・実時間）
+      if (state.killCam) { state.killCam.t += dt; if (state.killCam.t >= state.killCam.life) state.killCam = null; }
+
       if (!state.paused) {
         // 更新
-        updateCombat(state, dt, bus, input, audio);
-        updateTiles(state, dt, bus, audio);
-        updateSpawner(state, dt, bus, audio);
-        updateAI(state, dt, bus, audio);
-        updateItems(state, dt, bus, audio);
-        updateFX(state, dt, bus);
+        updateCombat(state, simDt, bus, input, audio);
+        updateTiles(state, simDt, bus, audio);
+        updateSpawner(state, simDt, bus, audio);
+        updateAI(state, simDt, bus, audio);
+        updateItems(state, simDt, bus, audio);
+        updateFX(state, simDt, bus);
 
         // フローフィールド定期再計算
-        flowTimer -= dt;
+        flowTimer -= simDt;
         if (flowTimer <= 0) {
           rebuildFlowField(state);
           flowTimer = 0.35;
@@ -132,6 +196,26 @@ if (!canvas) {
           state.stats.timeMs = timeMs;
           bus.emit('game:over', { reason: 'death', timeMs });
         }
+      }
+
+      // カメラ（スムーズ追従＋向きの先読み）と画面シェイクの更新（実時間）
+      const look = 36;
+      let tgX = state.player.x + state.player.facing.x * look;
+      let tgY = state.player.y + state.player.facing.y * look;
+      // ボス撃破中はカメラを撃破地点へ寄せる（シネマティック）
+      if (state.killCam) {
+        const ph = 1 - state.killCam.t / state.killCam.life; // 1→0
+        const w = Math.min(0.6, ph * 0.6);
+        tgX = tgX * (1 - w) + state.killCam.x * w;
+        tgY = tgY * (1 - w) + state.killCam.y * w;
+      }
+      if (!state.cam) state.cam = { x: tgX, y: tgY };
+      const k = 1 - Math.pow(0.0001, dt);
+      state.cam.x += (tgX - state.cam.x) * k;
+      state.cam.y += (tgY - state.cam.y) * k;
+      if (state.shake && state.shake.t > 0) {
+        state.shake.t -= dt;
+        if (state.shake.t <= 0) { state.shake.t = 0; state.shake.mag = 0; }
       }
 
       // 描画
