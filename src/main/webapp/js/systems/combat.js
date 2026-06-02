@@ -1,33 +1,17 @@
 // webapp/js/systems/combat.js
+// プレイヤー側の戦闘オーケストレータ：タイマ/移動/照準/射撃トリガと、
+// 近接(melee.js)・飛翔体(projectiles.js)の更新呼び出しをまとめる。
 import { norm, clamp, moveAndCollide } from './physics.js';
 import { TILE } from '../core/constants.js';
 import { CONFIG } from '../core/config.js';
-import { damageTile, canPlaceAt } from './tiles.js';
-import { spawnSlashFX, spawnBeamFX, spawnBlastFX, spawnSparksFX, spawnDamageNumber, spawnDodgeFX, spawnMuzzleFX, recordPlayerHit, addShake, addHitstop } from './fx.js';
+import { forNearby } from './spatial.js';
+import { canPlaceAt } from './tiles.js';
+import { spawnBeamFX, spawnMuzzleFX } from './fx.js';
 import { rebuildFlowField } from './flowfield.js';
 import { hasLineOfSight } from './los.js';
-
-// 敵にダメージ＋ノックバック＋被弾フラッシュ＋（任意で）ダメージ数字
-// nx,ny: 与える側→敵への方向（正規化済み）。kb: ノックバック強度。opts.number: 数字表示。
-function hurtMob(state, m, dmg, nx, ny, kb, opts) {
-  opts = opts || {};
-  // 回避（dodge）：被弾の瞬間にごく低確率で発動。発動中は当たり判定が消え、白く点滅。
-  if (m.dodgeT > 0) { spawnDodgeFX(state, m.x, m.y); return; }
-  const dg = m.def && m.def.dodge;
-  if (dg && dg.chance > 0 && (m.dodgeCDLeft || 0) <= 0 && Math.random() < dg.chance) {
-    m.dodgeT = dg.duration || 0.15;
-    m.dodgeCDLeft = dg.cd || 1.5;
-    spawnDodgeFX(state, m.x, m.y);
-    return; // この一撃を回避（無効化）
-  }
-  // ガード態勢：被ダメージ軽減（guard 攻撃が m.guardMul を立てる）
-  if (m.guardT > 0 && m.guardMul) dmg *= m.guardMul;
-  m.hp -= dmg;
-  if (kb) { m.vx += (nx || 0) * kb; m.vy += (ny || 0) * kb; }
-  m.hitFlash = 0.12;
-  spawnSparksFX(state, m.x, m.y, opts.sparks != null ? opts.sparks : 5);
-  if (opts.number !== false) spawnDamageNumber(state, m.x, m.y, dmg, { crit: !!opts.crit });
-}
+import { hurtMob } from './combat-core.js';
+import { doMelee } from './melee.js';
+import { updateBullets, updateGrenades, updateEnemyBullets, updateSlashes } from './projectiles.js';
 
 // 自動射撃用：射程内かつ視線の通る最寄りの敵を返す
 function nearestVisibleMob(state, p, maxR) {
@@ -38,16 +22,6 @@ function nearestVisibleMob(state, p, maxR) {
     if (d2 < bd && hasLineOfSight(state, p.x, p.y, m.x, m.y)) { bd = d2; best = m; }
   }
   return best;
-}
-
-// 扇形ヒット判定（近接の継続ヒット＆弾相殺用）
-function pointInFan(px, py, s) {
-  const dx = px - s.x, dy = py - s.y;
-  const d = Math.hypot(dx, dy);
-  if (d > s.reach) return false;
-  const ang = Math.atan2(dy, dx);
-  const a = Math.abs(((ang - s.ang) + Math.PI * 3) % (Math.PI * 2) - Math.PI);
-  return a <= s.arc * 0.5;
 }
 
 export function switchWeapon(state, idx) {
@@ -141,7 +115,7 @@ export function updateCombat(state, dt, bus, input, audio) {
   const dash = input.pressed('shift') && moving && p.sta > 0;
   p.isDashing = dash;
 
-  const spd = p.baseSpeed * 1.2 * p.buffs.speed * mods.moveMul * (dash ? CONFIG.player.dashMul : 1);
+  const spd = p.baseSpeed * CONFIG.player.speedMul * p.buffs.speed * mods.moveMul * (dash ? CONFIG.player.dashMul : 1);
   let vx = dirx * spd * speedScale * dt, vy = diry * spd * speedScale * dt;
   if (moving) { p.facing.x = dirx; p.facing.y = diry; }
 
@@ -159,55 +133,16 @@ export function updateCombat(state, dt, bus, input, audio) {
       autoFiring = true; // ターゲットがいる時だけ自動発射
     }
   }
-  p.sta = dash ? Math.max(0, p.sta - 35 * dt) : Math.min(p.staMax, p.sta + 22 * dt);
+  p.sta = dash ? Math.max(0, p.sta - CONFIG.player.staDrain * dt) : Math.min(p.staMax, p.sta + CONFIG.player.staRegen * dt);
 
   p.vx *= Math.pow(0.001, dt); p.vy *= Math.pow(0.001, dt);
   vx += p.vx * dt; vy += p.vy * dt;
   moveAndCollide(state, p, vx, 0);
   moveAndCollide(state, p, 0, vy);
 
-  // 近接（J）★ 射程1.5倍
+  // 近接（J）
   if (p.meleeCD > 0) p.meleeCD -= dt;
-  if (input.pressed('j') && p.meleeCD <= 0) {
-    p.meleeCD = 0.32;
-    const reach = CONFIG.player.meleeReach * p.buffs.range;
-    const arc = Math.PI;
-    const faceAng = Math.atan2(p.facing.y, p.facing.x);
-    bus.emit('sfx', 'melee');
-    spawnSlashFX(state, p.x, p.y, faceAng);
-
-    // 即時ヒット（敵・壁）
-    const meleeDmg = Math.round(CONFIG.player.meleeDmg * p.buffs.dmg * mods.meleeMul);
-    for (const m of state.mobs) {
-      if (m.hp <= 0) continue;
-      const dx = m.x - p.x, dy = m.y - p.y; const d = Math.hypot(dx, dy);
-      if (d < reach + Math.max(m.w, m.h) / 2) {
-        const ang = Math.atan2(dy, dx) - faceAng;
-        const a = Math.abs((ang + Math.PI * 3) % (Math.PI * 2) - Math.PI);
-        if (a <= arc / 2) {
-          m.hp -= meleeDmg;
-          const n = norm(dx, dy); m.vx += n.x * 240; m.vy += n.y * 240;
-        }
-      }
-    }
-    const ftx = Math.floor((p.x + p.facing.x * 22) / TILE);
-    const fty = Math.floor((p.y + p.facing.y * 22) / TILE);
-    for (let oy = -1; oy <= 1; oy++) {
-      for (let ox = -1; ox <= 1; ox++) {
-        const tx = ftx + ox, ty = fty + oy;
-        if (tx < 0 || ty < 0 || tx >= state.dim.w || ty >= state.dim.h) continue;
-        if (state.map[ty][tx] === '#') damageTile(state, tx, ty, meleeDmg);
-      }
-    }
-
-    // 持続ヒット（弱）＆ 敵弾の相殺（reachは上の値を流用＝1.5倍）
-    state.slashes.push({
-      x: p.x, y: p.y, ang: faceAng,
-      t: 0, life: 0.30, reach: reach, arc: arc,
-      tickInt: 0.07, tick: 0,
-      dmg: Math.round(8 * p.buffs.dmg * mods.meleeMul)
-    });
-  }
+  if (input.pressed('j') && p.meleeCD <= 0) doMelee(state, bus);
 
   // 射撃（K）
   if (p.shootCD > 0) p.shootCD -= dt;
@@ -227,17 +162,30 @@ export function updateCombat(state, dt, bus, input, audio) {
         p.inv.ammoBeam--;
         const beamDmg = w.dmg * mods.gunMul;
         const dir = norm(p.facing.x, p.facing.y), step = 6, maxL = 700;
-        let x = p.x, y = p.y, ex = x, ey = y;
+        // まず壁までの到達点だけを ray-march で求める（タイル参照のみ・軽量）
+        let x = p.x, y = p.y, ex = x, ey = y, reach = maxL;
         for (let t = 0; t < maxL; t += step) {
           x += dir.x * step; y += dir.y * step;
           const tx = Math.floor(x / TILE), ty = Math.floor(y / TILE);
-          if (state.map[ty] && (state.map[ty][tx] === '#' || state.map[ty][tx] === 'D')) break;
-          for (const m of state.mobs) {
-            if (m.hp > 0 && Math.abs(m.x - x) < m.w / 2 && Math.abs(m.y - y) < m.h / 2) {
-              hurtMob(state, m, beamDmg, 0, 0, 0, { number: false, sparks: 2 }); // ビームは連続ヒットのため数字省略
-            }
-          }
+          if (state.map[ty] && (state.map[ty][tx] === '#' || state.map[ty][tx] === 'D')) { reach = t; break; }
           ex = x; ey = y;
+        }
+        // 候補敵を1回だけ収集（線分の近傍）。各候補について、線分が AABB 内に居る
+        // 区間長から「6px ステップ何回ぶん貫いたか」を解析的に求め、その回数だけ加害。
+        // → 旧来の多段ヒット挙動を維持しつつ、グリッド照会(117回)を排除。
+        for (const m of state.mobs) {
+          if (m.hp <= 0) continue;
+          // 線分 start..(reach) に対する mob 中心の射影 s と垂線距離
+          const rx = m.x - p.x, ry = m.y - p.y;
+          const s = rx * dir.x + ry * dir.y;            // 線分方向の位置
+          if (s < -m.w / 2 || s > reach + m.w / 2) continue;
+          const perp = Math.abs(rx * dir.y - ry * dir.x); // 線分からの垂線距離
+          const half = Math.min(m.w, m.h) / 2;            // 軸並行AABBを帯で近似
+          if (perp > half) continue;
+          // AABB を貫く s 区間の長さ → 6px ステップ何回ぶんかを多段ヒットとして適用
+          const enter = Math.max(0, s - half), exit = Math.min(reach, s + half);
+          const ticks = Math.max(1, Math.floor((exit - enter) / step) + 1);
+          for (let k = 0; k < ticks; k++) hurtMob(state, m, beamDmg, 0, 0, 0, { number: false, sparks: 2 });
         }
         spawnBeamFX(state, p.x, p.y, ex, ey);
         bus.emit('sfx', 'beam');
@@ -249,8 +197,8 @@ export function updateCombat(state, dt, bus, input, audio) {
         bus.emit('ui:toast', '弾切れ - Rでリロード');
       } else {
         p.shootCD = w.fireRate * mods.fireMul; w.mag--;
-        const dir = norm(p.facing.x, p.facing.y), sp = 280;
-        state.grenades.push({ x: p.x + dir.x * 14, y: p.y + dir.y * 14, vx: dir.x * sp, vy: dir.y * sp, fuse: 1.0 });
+        const dir = norm(p.facing.x, p.facing.y), sp = CONFIG.player.grenadeSpeed;
+        state.grenades.push({ x: p.x + dir.x * 14, y: p.y + dir.y * 14, vx: dir.x * sp, vy: dir.y * sp, fuse: CONFIG.player.grenadeFuse });
         shotThisFrame = true;
       }
 
@@ -259,7 +207,7 @@ export function updateCombat(state, dt, bus, input, audio) {
         bus.emit('ui:toast', '弾切れ - Rでリロード');
       } else {
         p.shootCD = w.fireRate * mods.fireMul; w.mag--;
-        const dir = norm(p.facing.x, p.facing.y), baseSpd = 360, shots = w.pellets || 1;
+        const dir = norm(p.facing.x, p.facing.y), baseSpd = CONFIG.player.bulletSpeed, shots = w.pellets || 1;
         const bulletDmg = w.dmg * mods.gunMul;
         const aimAng = Math.atan2(dir.y, dir.x);
         for (let i = 0; i < shots; i++) {
@@ -300,148 +248,13 @@ export function updateCombat(state, dt, bus, input, audio) {
     }
   })();
 
-  // プレイヤー弾
-  for (let i = state.bullets.length - 1; i >= 0; i--) {
-    const b = state.bullets[i];
-    b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
-    const tx = Math.floor(b.x / TILE), ty = Math.floor(b.y / TILE);
-    if (state.map[ty] && (state.map[ty][tx] === '#' || state.map[ty][tx] === 'D')) {
-      damageTile(state, tx, ty, b.dmg);
-      state.bullets.splice(i, 1);
-      continue;
-    }
-    let hit = false;
-    for (const m of state.mobs) {
-      if (m.hp > 0 && Math.abs(m.x - b.x) < m.w / 2 && Math.abs(m.y - b.y) < m.h / 2) {
-        const n = norm(m.x - b.x, m.y - b.y);
-        hurtMob(state, m, b.dmg, n.x, n.y, 160, { number: true });
-        hit = true; break;
-      }
-    }
-    if (hit || b.life <= 0) state.bullets.splice(i, 1);
-  }
-
-  // グレネード
-  for (let i = state.grenades.length - 1; i >= 0; i--) {
-    const g = state.grenades[i];
-    g.x += g.vx * dt; g.y += g.vy * dt; g.fuse -= dt;
-    const tx = Math.floor(g.x / TILE), ty = Math.floor(g.y / TILE);
-    if ((state.map[ty] && (state.map[ty][tx] === '#' || state.map[ty][tx] === 'D')) || g.fuse <= 0) {
-      explode(state, g.x, g.y);
-      state.grenades.splice(i, 1);
-      continue;
-    }
-  }
-
-  // 敵弾
-  for (let i = state.ebullets.length - 1; i >= 0; i--) {
-    const b = state.ebullets[i];
-    // ホーミング弾：プレイヤー方向へ少しずつ旋回
-    if (b.homing) {
-      const want = Math.atan2(p.y - b.y, p.x - b.x);
-      const cur = Math.atan2(b.vy, b.vx);
-      let diff = ((want - cur + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
-      const turn = Math.max(-b.homing * dt, Math.min(b.homing * dt, diff));
-      const sp = Math.hypot(b.vx, b.vy) || 1;
-      const na = cur + turn;
-      b.vx = Math.cos(na) * sp; b.vy = Math.sin(na) * sp;
-    }
-    // 地雷：静止して起爆を待つ（移動なし）
-    if (!b.mine) { b.x += b.vx * dt; b.y += b.vy * dt; }
-    b.life -= dt;
-    const tx = Math.floor(b.x / TILE), ty = Math.floor(b.y / TILE);
-    if ((!b.mine && state.map[ty] && (state.map[ty][tx] === '#' || state.map[ty][tx] === 'D')) || b.life <= 0) {
-      state.ebullets.splice(i, 1);
-      continue;
-    }
-    const hitR = b.mine ? 14 : 3;
-    const hitP = (Math.abs(state.player.x - b.x) < state.player.w / 2 + hitR) && (Math.abs(state.player.y - b.y) < state.player.h / 2 + hitR);
-    if (hitP) {
-      if (p.isDashing) {
-        const n = norm(b.x - p.x, b.y - p.y);
-        b.vx = n.x * 260; b.vy = n.y * 260; b.life = Math.min(b.life, 0.9);
-        continue;
-      } else {
-        if (p.iTime <= 0) {
-          p.hp -= b.dmg; p.iTime = CONFIG.player.iFrameBullet;
-          const n = norm(p.x - b.x, p.y - b.y);
-          p.vx += n.x * 180; p.vy += n.y * 180;
-          addShake(state, 0.18, 6);
-          recordPlayerHit(state, b.x, b.y);
-        }
-        state.ebullets.splice(i, 1);
-        continue;
-      }
-    }
-  }
-
-  // 近接扇形の持続処理（敵＆敵弾に適用）
-  for (let i = state.slashes.length - 1; i >= 0; i--) {
-    const s = state.slashes[i];
-    s.t += dt; s.tick -= dt;
-    if (s.tick <= 0) {
-      s.tick = s.tickInt;
-      // 敵に追撃
-      for (const m of state.mobs) {
-        if (m.hp > 0 && pointInFan(m.x, m.y, s)) {
-          const n = norm(m.x - s.x, m.y - s.y);
-          hurtMob(state, m, s.dmg, n.x, n.y, 140, { number: false, sparks: 2 }); // 継続ヒットは数字省略
-        }
-      }
-      // 敵弾の相殺
-      for (let j = state.ebullets.length - 1; j >= 0; j--) {
-        const b = state.ebullets[j];
-        if (pointInFan(b.x, b.y, s)) {
-          state.ebullets.splice(j, 1);
-          spawnSparksFX(state, b.x, b.y, 4);
-        }
-      }
-    }
-    if (s.t >= s.life) state.slashes.splice(i, 1);
-  }
+  // 飛翔体・継続効果の更新（projectiles.js へ委譲）
+  updateBullets(state, dt);
+  updateGrenades(state, dt);
+  updateEnemyBullets(state, dt);
+  updateSlashes(state, dt);
 
   // 開発者モードのゴッドモード：HPを満タンに固定
   if (state.devGod) p.hp = p.hpMax || 100;
   p.hp = clamp(p.hp, 0, p.hpMax || 100);
-}
-
-function explode(state, x, y) {
-  const r = 70;
-  for (const m of state.mobs) {
-    const dx = m.x - x, dy = m.y - y; const d = Math.hypot(dx, dy);
-    if (d < r + Math.max(m.w, m.h) / 2) {
-      const fall = 1 - d / r; const dmg = Math.round(110 * fall);
-      if (dmg > 0) {
-        const n = norm(dx, dy);
-        hurtMob(state, m, dmg, n.x, n.y, 280 * fall, { number: true, sparks: 8 });
-      }
-    }
-  }
-  addShake(state, 0.25, 11);
-  addHitstop(state, 0.05);
-  const dp = Math.hypot(state.player.x - x, state.player.y - y);
-  if (dp < r * 0.7) {
-    const fall = 1 - dp / (r * 0.7);
-    state.player.hp -= Math.round(25 * fall);
-    recordPlayerHit(state, x, y);
-    const n = norm(state.player.x - x, state.player.y - y);
-    state.player.vx += n.x * 200 * fall; state.player.vy += n.y * 200 * fall;
-  }
-
-  const tx0 = Math.max(1, Math.floor((x - r) / TILE));
-  const ty0 = Math.max(1, Math.floor((y - r) / TILE));
-  const tx1 = Math.min(state.dim.w - 2, Math.floor((x + r) / TILE));
-  const ty1 = Math.min(state.dim.h - 2, Math.floor((y + r) / TILE));
-
-  for (let ty = ty0; ty <= ty1; ty++) {
-    for (let tx = tx0; tx <= tx1; tx++) {
-      const cx = tx * TILE + TILE / 2;
-      const cy = ty * TILE + TILE / 2;
-      const d = Math.hypot(cx - x, cy - y);
-      if (d <= r && state.map[ty][tx] === '#') {
-        damageTile(state, tx, ty, 120 * (1 - d / r));
-      }
-    }
-  }
-  spawnBlastFX(state, x, y, r);
 }

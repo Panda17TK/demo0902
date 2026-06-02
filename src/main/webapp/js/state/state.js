@@ -1,3 +1,4 @@
+import { CONFIG } from '../core/config.js';
 /** @returns {import('./types.js').State} */
 export function createInitialState() {
 	const state = {
@@ -46,14 +47,8 @@ export function createInitialState() {
 			// 弾薬は有限。リロードはこの在庫から補充する（敵ドロップ/クレートで補給）
 			inv: { blocks: 2, key: false, ammo9: 96, ammo12: 24, ammoBeam: 6, ammoNade: 3 },
 
-			// 最初から全武器を所持（弾薬管理が攻略のカギ）
-			weapons: [
-				{ id: 'pistol',  name: 'Pistol',  dmg: 24, fireRate: 0.22, magSize: 12, mag: 12, spread: 0.05, pellets: 1, ammoType: 'ammo9'  },
-				{ id: 'shotgun', name: 'Shotgun', dmg: 16, fireRate: 0.60, magSize: 6,  mag: 6,  spread: 0.25, pellets: 6, ammoType: 'ammo12' },
-				{ id: 'mg',      name: 'MG',      dmg: 12, fireRate: 0.08, magSize: 40, mag: 40, spread: 0.12, pellets: 1, ammoType: 'ammo9'  },
-				{ id: 'beam',    name: 'Beam',    dmg: 80, fireRate: 0.60, magSize: null, mag: 0, spread: 0, pellets: 1, ammoType: 'ammoBeam' },
-				{ id: 'grenade', name: 'Grenade', dmg: 0,  fireRate: 0.90, magSize: 1,  mag: 1,  spread: 0,    pellets: 1, ammoType: 'ammoNade' },
-			],
+			// 武器は CONFIG.weapons からディープコピーで生成（データ駆動・dev-editor 対応）
+			weapons: CONFIG.weapons.map((w) => Object.assign({}, w)),
 			curW: 0,
 
 			meleeCD: 0,

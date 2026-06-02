@@ -1,6 +1,8 @@
 import { TILE } from '../core/constants.js';
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export function norm(x, y) { const l = Math.hypot(x, y) || 1; return { x: x / l, y: y / l }; }
+// 平方距離（範囲判定は sqrt 不要）。閾値も2乗して比較する。
+export function dist2(ax, ay, bx, by) { const dx = ax - bx, dy = ay - by; return dx * dx + dy * dy; }
 export function rectInter(a, b) { return Math.abs(a.x - b.x) < (a.w + b.w) / 2 && Math.abs(a.y - b.y) < (a.h + b.h) / 2; }
 export function isSolidChar(c) { return c === '#' || c === 'D'; }
 export function solidAt(state, tx, ty) {

@@ -20,7 +20,16 @@ jobs:
           java-version: "17"
           cache: maven
 
-      - name: Run unit tests
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Run JS unit tests
+        # クォートなし＝シェル展開。Node のバージョン差（内蔵glob は 21+）に依存しない。
+        run: node --test src/test/js/*.test.mjs
+
+      - name: Run Java unit tests
         run: mvn -B -ntp test
 
       - name: Build WAR

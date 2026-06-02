@@ -21,6 +21,9 @@ import java.util.stream.Collectors;
 public class FileScoreDAO implements ScoreDAO {
 	private final Path file;
 	private final Object lock = new Object();
+	// メモリキャッシュ：初回に全行を読み、以降は save で追記しつつキャッシュも更新。
+	// listTop の度にファイル全走査するのを避ける。
+	private List<ScoreRecord> cache = null;
 
 	private static final Pattern P_UID = Pattern.compile("\"uid\"\\s*:\\s*\"(.*?)\"");
 	private static final Pattern P_NAME = Pattern.compile("\"name\"\\s*:\\s*\"((?:\\\\.|[^\"\\\\])*)\"");
@@ -49,12 +52,18 @@ public class FileScoreDAO implements ScoreDAO {
 			} catch (IOException e) {
 				throw new UncheckedIOException(e);
 			}
+			// キャッシュ済みなら追記分も反映（全再読みを避ける）
+			if (cache != null) cache.add(rec);
 		}
 	}
 
 	@Override
 	public List<ScoreRecord> listTop(int limit) {
-		List<ScoreRecord> all = readAll();
+		List<ScoreRecord> all;
+		synchronized (lock) {
+			if (cache == null) cache = readAll();
+			all = new ArrayList<>(cache);
+		}
 		return all.stream()
 				.sorted(Comparator.comparingLong(ScoreRecord::getTimeMs).reversed()
 						.thenComparing(ScoreRecord::getCreatedAt))

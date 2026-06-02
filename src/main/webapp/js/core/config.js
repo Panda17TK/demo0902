@@ -11,14 +11,44 @@ const STORAGE_KEY = 'arpg_config_v1';
 export const DEFAULT_CONFIG = {
   player: {
     baseSpeed: 110,
+    speedMul: 1.2,       // 全体の移動速度倍率（旧 combat.js のハードコード 1.2）
     hpMax: 100,
     staMax: 100,
+    staDrain: 35,        // ダッシュ中のスタミナ消費/s
+    staRegen: 22,        // 非ダッシュ時のスタミナ回復/s
     meleeDmg: 22,        // 近接の基礎ダメージ（mods.meleeMul と乗算）
     meleeReach: 51,      // 近接の射程(px)。元 34*1.5
+    meleeCD: 0.32,       // 近接クールダウン(s)
+    meleeKB: 240,        // 近接ノックバック
+    meleeSlashDmg: 8,    // 近接の継続ヒット（残像扇）ダメージ
     dashMul: 2,          // ダッシュ時の速度倍率
     iFrameMelee: 0.9,    // 被弾後の無敵時間(s)：近接
     iFrameBullet: 0.8,   // 被弾後の無敵時間(s)：弾
+    bulletSpeed: 360,    // 通常弾の初速
+    grenadeSpeed: 280,   // グレネード初速
+    grenadeFuse: 1.0,    // グレネード信管(s)
+    explodeRadius: 70,   // 爆発半径
+    explodeDmg: 110,     // 爆発の最大ダメージ
+    explodeSelfDmg: 25,  // 自爆ダメージ（近距離）
   },
+
+  // AI 挙動の調整値
+  ai: {
+    sepRadius: 24,       // 分離の半径
+    hpSlowMul: 0.5,      // 通常敵が瀕死(HP半減)で減速する倍率
+    wanderSlow: 0.25,    // 非視認時の徘徊速度倍率
+    wanderStuck: 0.6,    // スタック時の徘徊速度倍率
+  },
+
+  // プレイヤー武器（データ駆動）。dev-editor から編集可能。
+  // 並び順がホットキー 1..5 / curW のインデックスに対応する。
+  weapons: [
+    { id: 'pistol',  name: 'Pistol',  dmg: 24, fireRate: 0.22, magSize: 12, mag: 12, spread: 0.05, pellets: 1, ammoType: 'ammo9'  },
+    { id: 'shotgun', name: 'Shotgun', dmg: 16, fireRate: 0.60, magSize: 6,  mag: 6,  spread: 0.25, pellets: 6, ammoType: 'ammo12' },
+    { id: 'mg',      name: 'MG',      dmg: 12, fireRate: 0.08, magSize: 40, mag: 40, spread: 0.12, pellets: 1, ammoType: 'ammo9'  },
+    { id: 'beam',    name: 'Beam',    dmg: 80, fireRate: 0.60, magSize: null, mag: 0, spread: 0, pellets: 1, ammoType: 'ammoBeam' },
+    { id: 'grenade', name: 'Grenade', dmg: 0,  fireRate: 0.90, magSize: 1,  mag: 1,  spread: 0,    pellets: 1, ammoType: 'ammoNade' },
+  ],
 
   waves: {
     firstWaveDelay: 3.0,    // 開始直後の猶予(s)
@@ -51,6 +81,24 @@ export const DEFAULT_CONFIG = {
     // ボス/中ボス撃破時の追加ドロップ
     bossCrateBonus: 3,
   },
+
+  // アイテム定義テーブル（取得効果・見た目）。新アイテムはここに足すだけ。
+  //   glyph: render/glyphs.js のキー、color: 描画色／グロー色
+  //   kind:  ammo|heal|key|buff|crate（items.js が解釈）
+  items: {
+    key:       { glyph: 'key',  color: '#ffd16b', kind: 'key' },
+    ammo9:     { glyph: 'box',  color: '#9ad0ff', label: '9',  kind: 'ammo', pool: 'ammo9',    defAmt: 12, name: '9mm' },
+    ammo12:    { glyph: 'box',  color: '#c9a56b', label: '12', kind: 'ammo', pool: 'ammo12',   defAmt: 4,  name: '12g' },
+    ammoBeam:  { glyph: 'box',  color: '#a8ceff', label: 'B',  kind: 'ammo', pool: 'ammoBeam', defAmt: 1,  name: 'Beamセル' },
+    ammoNade:  { glyph: 'box',  color: '#ffa8a8', label: 'G',  kind: 'ammo', pool: 'ammoNade', defAmt: 1,  name: 'Grenade' },
+    med:       { glyph: 'med',  color: '#8fffc1', kind: 'heal', defHeal: 25 },
+    buffRange: { glyph: 'ring', color: '#9ecbff', kind: 'buff', stat: 'range', mul: 2, dur: 15, label: '近接範囲' },
+    buffMelee: { glyph: 'sword',color: '#ff9aa2', kind: 'buff', stat: 'dmg',   mul: 2, dur: 15, label: '近接火力' },
+    buffSpeed: { glyph: 'bolt', color: '#ffe08a', kind: 'buff', stat: 'speed', mul: 2, dur: 12, label: '移動速度' },
+    crate:     { glyph: 'crate',color: '#d8b483', kind: 'crate' },
+  },
+  // 武器クレートの補給量
+  crateSupply: { ammo9: 40, ammo12: 8, ammoBeam: 2, ammoNade: 1 },
 
   // 恒久強化カードの効き幅（エディタで調整可能）
   upgrades: {
