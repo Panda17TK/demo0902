@@ -13,6 +13,15 @@ import { hurtMob } from './combat-core.js';
 import { doMelee } from './melee.js';
 import { updateBullets, updateGrenades, updateEnemyBullets, updateSlashes } from './projectiles.js';
 
+// dev-editor で編集された CONFIG.weapons の攻撃ステータスを runtime 武器に同期する。
+// mag/magSize/_autoRT 等のランタイム/構造フィールドは触らず、数値ステータスのみ反映。
+const LIVE_STATS = ['dmg', 'fireRate', 'spread', 'pellets'];
+function liveWeapon(rw) {
+  const cfg = CONFIG.weapons && CONFIG.weapons.find((c) => c.id === rw.id);
+  if (cfg) for (const k of LIVE_STATS) if (typeof cfg[k] === 'number') rw[k] = cfg[k];
+  return rw;
+}
+
 // 自動射撃用：射程内かつ視線の通る最寄りの敵を返す
 function nearestVisibleMob(state, p, maxR) {
   let best = null, bd = maxR * maxR;
@@ -151,7 +160,9 @@ export function updateCombat(state, dt, bus, input, audio) {
   const curWeapon = p.weapons[p.curW];
   const firing = input.pressed('k') || autoFiring;
   if (firing && p.shootCD <= 0 && curWeapon) {
-    const w = curWeapon;
+    // 攻撃ステータスは CONFIG.weapons から都度引く（dev-editor の編集をラン中に反映）。
+    // mag/_autoRT 等のランタイム状態は runtime 側(curWeapon)に残す。
+    const w = liveWeapon(curWeapon);
 
     if (w.id === 'beam') {
       // ビームは ammoBeam セルを1発ずつ消費

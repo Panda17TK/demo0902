@@ -4,23 +4,20 @@
 // （renderer 本体の if 連鎖を編集する必要がない）
 
 import { roundedRect } from './glyphs.js';
+import { radialAtOrigin, radialQuant } from './grad-cache.js';
 
 export const FX_DRAW = {
   slash(ctx, f) {
     ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.ang);
-    const grd = ctx.createRadialGradient(0, 0, 10, 0, 0, 46);
-    grd.addColorStop(0, 'rgba(200,230,255,0.6)');
-    grd.addColorStop(1, 'rgba(200,230,255,0.0)');
-    ctx.fillStyle = grd;
+    ctx.fillStyle = radialAtOrigin(ctx, 10, 46,
+      [[0, 'rgba(200,230,255,0.6)'], [1, 'rgba(200,230,255,0.0)']], 'fx.slash');
     ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, 46, -Math.PI / 2, Math.PI / 2); ctx.closePath(); ctx.fill();
     ctx.restore();
   },
   eslash(ctx, f) {
     ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.ang);
-    const grd = ctx.createRadialGradient(0, 0, 10, 0, 0, 44);
-    grd.addColorStop(0, 'rgba(255,150,150,0.70)');
-    grd.addColorStop(1, 'rgba(255,120,120,0.00)');
-    ctx.fillStyle = grd;
+    ctx.fillStyle = radialAtOrigin(ctx, 10, 44,
+      [[0, 'rgba(255,150,150,0.70)'], [1, 'rgba(255,120,120,0.00)']], 'fx.eslash');
     ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, 44, -Math.PI / 2.4, Math.PI / 2.4); ctx.closePath(); ctx.fill();
     ctx.restore();
   },
@@ -40,11 +37,10 @@ export const FX_DRAW = {
   },
   blast(ctx, f, a) {
     const r = f.r * (0.6 + 0.4 * a);
-    const grd = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, r);
-    grd.addColorStop(0, 'rgba(255,230,150,0.6)');
-    grd.addColorStop(1, 'rgba(255,120,80,0.0)');
-    ctx.fillStyle = grd;
-    ctx.beginPath(); ctx.arc(f.x, f.y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.save(); ctx.translate(f.x, f.y);
+    ctx.fillStyle = radialQuant(ctx, r, [[0, 'rgba(255,230,150,0.6)'], [1, 'rgba(255,120,80,0.0)']], 'fx.blast');
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
   },
   dmg(ctx, f) {
     ctx.font = 'bold 14px ui-sans-serif, system-ui, sans-serif';
@@ -86,10 +82,10 @@ export const FX_DRAW = {
   },
   deathflash(ctx, f, a) {
     const r = f.r * (0.4 + (1 - a) * 0.6);
-    const grd = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, r);
-    grd.addColorStop(0, `rgba(255,255,255,${a})`);
-    grd.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = grd;
-    ctx.beginPath(); ctx.arc(f.x, f.y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.save(); ctx.translate(f.x, f.y);
+    // 白の固定グラデをキャッシュし、フェードは globalAlpha（renderer 側で既に a を乗算済み）
+    ctx.fillStyle = radialQuant(ctx, r, [[0, 'rgba(255,255,255,1)'], [1, 'rgba(255,255,255,0)']], 'fx.deathflash');
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
   },
 };
