@@ -4,6 +4,7 @@ import { CONFIG } from '../core/config.js';
 import { roundedRect, keyGlyph, boxGlyph, medGlyph, ringGlyph, swordGlyph, boltGlyph, crateGlyph } from './glyphs.js';
 import { drawEnemyBody } from './enemy-sprites.js';
 import { FX_DRAW } from './fx-draw.js';
+import { verticalLinear, radialQuant, radialAtOrigin } from './grad-cache.js';
 
 // グリフ名 → 描画関数（CONFIG.items.glyph から引く）
 const GLYPH_DRAW = {
@@ -24,14 +25,17 @@ function hexToRgba(hex, alpha) {
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
 }
 
+// 補間描画位置：直近ステップの px0/py0 から現在位置へ alpha で線形補間。
+// px0 が無い（生成直後/初回）の場合は現在位置をそのまま使う。
+function rx(ent, a) { return (ent.px0 == null) ? ent.x : ent.px0 + (ent.x - ent.px0) * a; }
+function ry(ent, a) { return (ent.py0 == null) ? ent.y : ent.py0 + (ent.y - ent.py0) * a; }
+
 // 背景パララックス：奥行きの異なる2層の塵をカメラに対しゆっくり逆スクロール。
 // 決定論的に配置するのでチラつかない。スクリーン空間に描画。
 function drawParallax(ctx, W, H, camX, camY) {
-  // ベースの暗いグラデ（縦方向）
-  const bg = ctx.createLinearGradient(0, 0, 0, H);
-  bg.addColorStop(0, '#0a0d12');
-  bg.addColorStop(1, '#0d1119');
-  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  // ベースの暗いグラデ（縦方向・サイズ依存なのでキャッシュ）
+  ctx.fillStyle = verticalLinear(ctx, H, [[0, '#0a0d12'], [1, '#0d1119']], 'parallaxBg');
+  ctx.fillRect(0, 0, W, H);
 
   const layers = [
     { factor: 0.15, count: 40, size: 1, alpha: 0.18, span: 900 },
@@ -58,6 +62,8 @@ function drawParallax(ctx, W, H, camX, camY) {
 export function renderFrame(ctx, canvas, state) {
   const W = canvas.width, H = canvas.height;
   ctx.clearRect(0, 0, W, H);
+  const nowMs = performance.now();   // 1フレーム1回だけ取得して各所で使い回す
+  const nowS = nowMs / 1000;
 
   // カメラ：スムーズ追従(state.cam)があれば使用、無ければプレイヤー中心
   const cxw = state.cam ? state.cam.x : state.player.x;
@@ -128,7 +134,7 @@ export function renderFrame(ctx, canvas, state) {
   }
 
   // ===== アイテム（CONFIG.items から色/グリフを引く）=====
-  const tItem = performance.now() / 1000;
+  const tItem = nowS;
   for (const it of state.items) {
     const def = CONFIG.items[it.type];
     if (!def) continue;
@@ -138,14 +144,14 @@ export function renderFrame(ctx, canvas, state) {
     // 接地影
     ctx.fillStyle = 'rgba(0,0,0,0.25)';
     ctx.beginPath(); ctx.ellipse(it.x, it.y + 8, 7, 2.5, 0, 0, Math.PI * 2); ctx.fill();
-    // グロー
-    const gc = def.color || '#ffffff';
-    const grd = ctx.createRadialGradient(it.x, it.y + bobY, 0, it.x, it.y + bobY, 16);
-    grd.addColorStop(0, hexToRgba(gc, 0.18 + 0.18 * pulse));
-    grd.addColorStop(1, hexToRgba(gc, 0));
-    ctx.fillStyle = grd; ctx.beginPath(); ctx.arc(it.x, it.y + bobY, 16, 0, Math.PI * 2); ctx.fill();
 
     ctx.save(); ctx.translate(it.x, it.y + bobY);
+    // グロー：原点中心の色固定グラデをキャッシュし、明滅は globalAlpha で表現
+    const gc = def.color || '#ffffff';
+    const grd = radialQuant(ctx, 16, [[0, hexToRgba(gc, 0.36)], [1, hexToRgba(gc, 0)]], 'itemGlow|' + gc);
+    ctx.globalAlpha = 0.5 + 0.5 * pulse;
+    ctx.fillStyle = grd; ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
     const draw = GLYPH_DRAW[def.glyph];
     if (draw) draw(ctx, def);
     ctx.restore();
@@ -161,30 +167,34 @@ export function renderFrame(ctx, canvas, state) {
     ctx.beginPath(); ctx.moveTo(b.x - tx, b.y - ty); ctx.lineTo(b.x, b.y); ctx.stroke();
     ctx.fillStyle = '#eaf4ff'; ctx.beginPath(); ctx.arc(b.x, b.y, 2, 0, Math.PI * 2); ctx.fill();
   }
-  // 敵弾：脈動する赤いグロー（mine は点滅）
+  // 敵弾：脈動する赤いグロー（mine は点滅）。グラデは原点中心でキャッシュ、明滅は globalAlpha。
+  // nowMs は renderFrame 冒頭で取得済み
   for (const b of state.ebullets) {
-    const pulse = b.mine ? (0.5 + 0.5 * Math.sin(performance.now() / 80)) : 1;
+    const pulse = b.mine ? (0.5 + 0.5 * Math.sin(nowMs / 80)) : 1;
     const r = b.mine ? 6 : 4;
-    const grd = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, r + 2);
-    grd.addColorStop(0, `rgba(255,170,170,${0.9 * pulse})`);
-    grd.addColorStop(1, 'rgba(255,80,80,0)');
-    ctx.fillStyle = grd; ctx.beginPath(); ctx.arc(b.x, b.y, r + 2, 0, Math.PI * 2); ctx.fill();
+    ctx.save(); ctx.translate(b.x, b.y);
+    const grd = radialQuant(ctx, r + 2, [[0, 'rgba(255,170,170,0.9)'], [1, 'rgba(255,80,80,0)']], 'ebGlow');
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle = grd; ctx.beginPath(); ctx.arc(0, 0, r + 2, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
     ctx.fillStyle = b.mine ? '#ff6b6b' : '#ffd0d0';
-    ctx.beginPath(); ctx.arc(b.x, b.y, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, 0, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
   }
   ctx.lineWidth = 1;
   // グレネード：点滅する信管ランプ付き
   for (const g of state.grenades) {
     ctx.fillStyle = '#5b6b3a'; ctx.beginPath(); ctx.arc(g.x, g.y, 4, 0, Math.PI * 2); ctx.fill();
-    const blink = (Math.floor(performance.now() / 120) % 2 === 0);
+    const blink = (Math.floor(nowMs / 120) % 2 === 0);
     ctx.fillStyle = blink ? '#ff5a3a' : '#7a2a1a';
     ctx.beginPath(); ctx.arc(g.x, g.y - 1, 1.6, 0, Math.PI * 2); ctx.fill();
   }
 
   // ===== 敵 =====
-  const tEnemy = (performance.now() / 1000);
+  const tEnemy = nowS;
+  const A = (typeof state.alpha === 'number') ? state.alpha : 1;
   for (const m of state.mobs) {
-    ctx.save(); ctx.translate(m.x, m.y);
+    ctx.save(); ctx.translate(rx(m, A), ry(m, A));
     const isElite = (m.tier === 'midboss' || m.tier === 'boss');
 
     // 接地影（立体感）
@@ -236,12 +246,13 @@ export function renderFrame(ctx, canvas, state) {
     const pl = state.player;
     const ang = Math.atan2(pl.facing.y, pl.facing.x);
     const recoil = pl.recoil || 0;
-    // 反動で本体を後方へわずかにずらす
-    const px = pl.x - Math.cos(ang) * recoil, py = pl.y - Math.sin(ang) * recoil;
+    // 補間位置＋反動で本体を後方へわずかにずらす
+    const ix = rx(pl, A), iy = ry(pl, A);
+    const px = ix - Math.cos(ang) * recoil, py = iy - Math.sin(ang) * recoil;
 
     // 接地影
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
-    ctx.beginPath(); ctx.ellipse(pl.x, pl.y + pl.h / 2 - 1, pl.w * 0.46, pl.h * 0.18, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(ix, iy + pl.h / 2 - 1, pl.w * 0.46, pl.h * 0.18, 0, 0, Math.PI * 2); ctx.fill();
 
     // ダッシュ中の残像
     if (pl.isDashing) {
@@ -295,16 +306,15 @@ export function renderFrame(ctx, canvas, state) {
   }
 
   // ===== ライティング（ビネット）=====
-  // プレイヤー周辺を明るく残し、周囲をうっすら暗く（雰囲気＋視線誘導）
+  // プレイヤー周辺を明るく残し、周囲をうっすら暗く（雰囲気＋視線誘導）。
+  // 原点中心の固定グラデをキャッシュし、プレイヤー位置へ translate して使う。
   ctx.globalCompositeOperation = 'multiply';
-  const lg = ctx.createRadialGradient(
-    state.player.x, state.player.y, 60,
-    state.player.x, state.player.y, 420
-  );
-  lg.addColorStop(0, 'rgba(255,255,255,1)');
-  lg.addColorStop(1, 'rgba(0,0,0,0.55)');
-  ctx.fillStyle = lg;
-  ctx.fillRect(camX, camY, W, H);
+  ctx.save();
+  ctx.translate(state.player.x, state.player.y);
+  ctx.fillStyle = radialAtOrigin(ctx, 60, 420,
+    [[0, 'rgba(255,255,255,1)'], [1, 'rgba(0,0,0,0.55)']], 'vignette');
+  ctx.fillRect(camX - state.player.x, camY - state.player.y, W, H);
+  ctx.restore();
   ctx.globalCompositeOperation = 'source-over';
 
   ctx.restore();
@@ -339,7 +349,7 @@ export function renderFrame(ctx, canvas, state) {
   const pl2 = state.player;
   const hpr = (pl2.hp) / (pl2.hpMax || 100);
   if (hpr > 0 && hpr < 0.3 && !state.gameOver) {
-    const pulse = 0.25 + 0.2 * Math.sin(performance.now() / 220);
+    const pulse = 0.25 + 0.2 * Math.sin(nowMs / 220);
     const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.62);
     vg.addColorStop(0, 'rgba(180,0,0,0)');
     vg.addColorStop(1, `rgba(180,0,0,${pulse * (1 - hpr / 0.3)})`);

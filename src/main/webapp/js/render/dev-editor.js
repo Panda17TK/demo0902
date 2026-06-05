@@ -139,7 +139,7 @@ export function mountDevEditor(overlayEl, bus, state) {
       });
       box.appendChild(wrap);
     });
-    box.appendChild(el('div', 'dev-sub', '※ 変更は次のリスタートから反映'));
+    box.appendChild(el('div', 'dev-sub', '※ dmg/fireRate/spread/pellets はラン中即時反映。magSize はリスタートから'));
     return box;
   }
 

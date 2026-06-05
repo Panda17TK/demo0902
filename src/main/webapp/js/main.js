@@ -159,6 +159,12 @@ if (!canvas) {
 
   // 固定ステップ1回ぶんのシミュレーション更新
   function stepSimulation(h) {
+    // 補間用に「ステップ前」の位置を記録（描画は prev→cur を alpha で補間）
+    const p = state.player;
+    p.px0 = p.x; p.py0 = p.y;
+    for (let i = 0; i < state.mobs.length; i++) {
+      const m = state.mobs[i]; m.px0 = m.x; m.py0 = m.y;
+    }
     // 近傍探索グリッドをステップ先頭で構築し、全システムで共有
     state.mobGrid = buildMobGrid(state);
     updateCombat(state, h, bus, input, audio);
@@ -213,6 +219,8 @@ if (!canvas) {
         // 過負荷時（steps 上限到達）は余剰を捨ててスパイラルを防ぐ
         if (steps >= MAX_STEPS) accumulator = 0;
       }
+      // 補間係数（0..1）：直近ステップからの経過割合。描画位置を滑らかにする。
+      state.alpha = state.paused ? 1 : Math.max(0, Math.min(1, accumulator / FIXED_DT));
 
       // カメラ（スムーズ追従＋向きの先読み）と画面シェイクの更新（実時間）
       const look = 36;
