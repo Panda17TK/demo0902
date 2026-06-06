@@ -1,0 +1,12 @@
+{
+  "name": "wave-arena",
+  "version": "1.0.0",
+  "description": "見下ろし型サバイバル・アクションシューター（ウェーブ制ローグライト）。静的PWA・サーバ不要。",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "serve": "python3 -m http.server 8080"
+  },
+  "license": "MIT"
+}
