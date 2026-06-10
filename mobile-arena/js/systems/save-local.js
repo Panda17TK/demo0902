@@ -1,9 +1,11 @@
 // js/systems/save-local.js
-// localStorage 版のスロットセーブ（静的PWA：サーバ不要）。
+// ローカル永続のスロットセーブ（静的PWA / ネイティブ共通：サーバ不要）。
 // 公開APIは save-remote.js と互換（saveChooser/loadChooser）なので main.js は無改変。
+// 保存は kv（Web=localStorage、ネイティブ=Preferences ミラー）経由。
 
 import { makeMobFromKey, makeZombie } from './enemies.js';
 import { rebuildFlowField } from './flowfield.js';
+import { getItem, setItem } from '../services/kv.js';
 
 const SCHEMA_VERSION = 2;
 const KEY_PREFIX = 'arena_save_';   // arena_save_<slot> = JSON
@@ -100,12 +102,12 @@ function applyToState(state, d) {
   return true;
 }
 
-// ========== localStorage スロット ==========
+// ========== ローカルスロット（kv 経由）==========
 function readIndex() {
-  try { return JSON.parse(localStorage.getItem(KEY_INDEX) || '[]'); } catch (_e) { return []; }
+  try { return JSON.parse(getItem(KEY_INDEX) || '[]'); } catch (_e) { return []; }
 }
 function writeIndex(list) {
-  try { localStorage.setItem(KEY_INDEX, JSON.stringify(list)); } catch (_e) {}
+  try { setItem(KEY_INDEX, JSON.stringify(list)); } catch (_e) {}
 }
 function upsertIndex(slot) {
   const list = readIndex().filter((e) => e.slot !== slot);
@@ -121,7 +123,7 @@ export function save(state, _storage, bus, slot) {
   try {
     const s = slot || window.prompt('保存スロット名（例: slot1, A など）', 'slot1');
     if (!s) { bus && bus.emit('ui:toast', 'save cancelled'); return Promise.resolve(); }
-    localStorage.setItem(KEY_PREFIX + s, JSON.stringify(serialize(state)));
+    setItem(KEY_PREFIX + s, JSON.stringify(serialize(state)));
     upsertIndex(s);
     bus && bus.emit('ui:toast', 'saved (' + s + ')');
   } catch (e) {
@@ -133,7 +135,7 @@ export function save(state, _storage, bus, slot) {
 
 export function load(state, _storage, bus, slot) {
   try {
-    const raw = localStorage.getItem(KEY_PREFIX + slot);
+    const raw = getItem(KEY_PREFIX + slot);
     if (!raw) { bus && bus.emit('ui:toast', 'セーブがありません'); return Promise.resolve(); }
     applyToState(state, JSON.parse(raw));
     bus && bus.emit('ui:toast', 'loaded (' + slot + ')');

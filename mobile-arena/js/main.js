@@ -5,6 +5,7 @@ import { createInput } from './core/input.js';
 import { mountDevEditor } from './render/dev-editor.js';
 import { createAudio } from './services/audio.js';
 import { createStorage } from './services/storage.js';
+import { initKv } from './services/kv.js';
 import { createInitialState, resetState } from './state/state.js';
 import { setupMap } from './state/map.js';
 import { bindHotkeys } from './state/binds.js';
@@ -32,6 +33,10 @@ if (!canvas) {
 } else {
   const ctx2d = canvas.getContext('2d');
   if (!ctx2d) console.error('[INIT] 2Dコンテキストの取得に失敗');
+
+  // 永続ストレージ初期化（ネイティブでは Preferences → localStorage を補完）。
+  // 非同期だが await せず開始：ロード操作（Lキー）は起動より十分後のため間に合う。
+  try { initKv(); } catch (_e) {}
 
   // --- DPR リサイズ ---
   function fitCanvas() {

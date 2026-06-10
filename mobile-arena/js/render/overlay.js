@@ -1,13 +1,15 @@
-// js/render/overlay.js（静的PWA版）
-// ゲームオーバー画面＋ローカルランキング（localStorage）。サーバ不要。
+// js/render/overlay.js（静的PWA / ネイティブ共通）
+// ゲームオーバー画面＋ローカルランキング（kv 経由：Web=localStorage / ネイティブ=Preferencesミラー）。
+
+import { getItem, setItem } from '../services/kv.js';
 
 const KEY_SCORES = 'arena_scores';
 
 function readScores() {
-  try { return JSON.parse(localStorage.getItem(KEY_SCORES) || '[]'); } catch (_e) { return []; }
+  try { return JSON.parse(getItem(KEY_SCORES) || '[]'); } catch (_e) { return []; }
 }
 function writeScores(list) {
-  try { localStorage.setItem(KEY_SCORES, JSON.stringify(list)); } catch (_e) {}
+  try { setItem(KEY_SCORES, JSON.stringify(list)); } catch (_e) {}
 }
 
 export function mountGameOver(overlayEl, bus, state) {

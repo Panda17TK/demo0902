@@ -76,21 +76,40 @@ git remote add origin https://github.com/<user>/<repo>.git
 git push -u origin main
 ```
 
+## ネイティブアプリ化（iOS / Android）
+
+Capacitor で WebView ネイティブアプリにできます（ゲームコードは無改変）。
+手順は **[CAPACITOR.md](CAPACITOR.md)** を参照。
+
+```bash
+npm install
+npm run build          # 静的アセットを www/ に集約
+npx cap add android    # / npx cap add ios（macOS）
+npm run sync && npm run open:android
+```
+
+セーブ/スコアはネイティブ実行時に `@capacitor/preferences` へミラーされ、耐久性が上がります
+（Web/PWA では localStorage のみで動作）。
+
 ## 構成
 
 ```
 index.html              エントリ（DOM＋SW登録）
 manifest.webmanifest    PWA マニフェスト
 sw.js                   Service Worker（アプリシェルを cache-first）
+capacitor.config.json   Capacitor 設定（appId/appName/webDir=www）
+scripts/build-www.mjs   静的アセットを www/ に集約（Capacitor webDir 用）
+CAPACITOR.md            ネイティブ化（iOS/Android）手順
 css/game.css            スタイル（HUD/オーバーレイ/タッチUI）
 icons/                  PWA アイコン
 js/
   main.js               ループ（固定タイムステップ＋補間）/ DI
   core/                 constants, config, events, input, touch, settings
+  services/             audio, storage, kv（localStorage＋Preferencesミラー）
   state/                state, maps, map, upgrades, binds, data, types
   systems/              physics, spatial, los, flowfield, ai, attacks, enemies,
                         combat(+core/melee/projectiles), spawner, items, tiles, fx,
-                        save-local（localStorage セーブ）
+                        save-local（ローカルセーブ）
   render/               renderer, enemy-sprites, fx-draw, grad-cache, hud,
                         overlay（ローカルランキング）, upgrades, dev-editor, glyphs
 test/                   node:test の単体テスト
