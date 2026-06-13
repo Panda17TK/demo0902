@@ -310,6 +310,26 @@ a {
 .slot-actions { justify-content: flex-end; }
 .slot-actions .slot-back { min-height: 44px; min-width: 88px; }
 
+/* ===== 設定パネル（overlay・REQ-TOUCH-3） ===== */
+.settings-panel { min-width: 300px; }
+.set-list { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+.set-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	min-height: 44px;
+	padding: 4px 2px;
+	font-size: 15px;
+}
+.set-row input[type="range"] { width: 140px; }
+.set-row select {
+	background: #0b0e13; color: #e7ecf3; border: 1px solid #273142;
+	border-radius: 6px; padding: 6px 8px; font-size: 14px;
+}
+.set-actions { justify-content: flex-end; }
+.set-actions .set-close { min-height: 44px; min-width: 88px; }
+
 /* ===== タッチ操作（スマホ/タブレット） ===== */
 .touch-controls {
 	position: absolute;
@@ -403,40 +423,6 @@ a {
 .touch-controls.tc-swap .tc-btn-reload { right: auto; left: calc(24px + var(--sal)); }
 .touch-controls.tc-swap .tc-btn-dash   { left: auto; right: calc(24px + var(--sar)); }
 .touch-controls.tc-swap .tc-btn-build  { left: auto; right: calc(102px + var(--sar)); }
-
-/* 設定パネル */
-.tc-settings {
-	position: absolute;
-	right: 12px;
-	top: 64px;
-	z-index: 7;
-	width: 240px;
-	pointer-events: auto;
-	background: rgba(16, 22, 34, .95);
-	border: 1px solid #273142;
-	border-radius: 12px;
-	padding: 12px 14px;
-	font-size: 14px;
-}
-.tc-settings.hidden { display: none; }
-.tc-settings h3 { margin: 0 0 10px; font-size: 15px; }
-.tc-settings .row {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 10px;
-	margin: 8px 0;
-}
-.tc-settings input[type="range"] { width: 120px; }
-.tc-settings .tc-close {
-	margin-top: 10px;
-	width: 100%;
-	background: #1e2a3a;
-	color: #e7ecf3;
-	border: 1px solid #2b3a50;
-	padding: 8px;
-	border-radius: 8px;
-}
 
 /* タッチ端末ではキーボード操作ヘルプを隠す（誤タップ防止＆省スペース） */
 body.touch #help { display: none; }

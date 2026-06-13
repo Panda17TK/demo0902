@@ -17,7 +17,8 @@ import { updateItems } from './systems/items.js';
 import { updateSpawner, startWave } from './systems/spawner.js';
 import { updateCombat, reload, placeWallFront } from './systems/combat.js';
 import { updateFX } from './systems/fx.js';
-import { isTouchDevice, createTouchControls } from './core/touch.js';
+import { createTouchControls, shouldShowTouchUi, readTouchEnv } from './core/touch.js';
+import { loadSettings, saveSettings } from './core/settings.js';
 import { renderFrame } from './render/renderer.js';
 import { mountGameOver } from './render/overlay.js';
 import { mountHUD } from './render/hud.js';
@@ -29,6 +30,7 @@ import {
 } from './core/ui-state.js';
 import { mountPauseMenu } from './render/pause-menu.js';
 import { mountSaveMenu } from './render/save-menu.js';
+import { mountSettingsPanel } from './render/settings-panel.js';
 
 const canvas  = document.getElementById('game');
 const hudEl   = document.getElementById('hud');
@@ -133,13 +135,36 @@ if (!canvas) {
   };
 
   const wrapEl = document.getElementById('wrap');
+
+  // --- 設定（共有オブジェクト）＋ タッチ操作（常時生成し、表示は設定で制御）---
+  const settings = loadSettings();
+  const touchEnv = readTouchEnv();
+  const touchCtl = createTouchControls(wrapEl, input, {
+    reload: () => reload(state, bus),
+    build:  () => placeWallFront(state, bus),
+    cycleWeapon: () => {
+      const ws = state.player.weapons;
+      if (!ws.length) return;
+      state.player.curW = (state.player.curW + 1) % ws.length;
+      bus.emit('ui:toast', '武器: ' + (ws[state.player.curW].name || ''));
+    },
+    pause: () => { if (!state.gameOver && !isUiPaused(state.ui)) uiCtl.push('pause'); },
+    openSettings: () => uiCtl.push('settings'),
+  }, settings);
+
+  // REQ-TOUCH-4: forceTouchUi＋環境からタッチUIの表示可否を決め、即時反映する。
+  function applyTouchVisibility() {
+    const show = shouldShowTouchUi(settings, touchEnv);
+    if (touchCtl && touchCtl.setVisible) touchCtl.setVisible(show);
+    document.body.classList.toggle('touch', show);
+  }
+
   const pauseView = mountPauseMenu(wrapEl, {
     state, uiCtl,
     hooks: {
-      // セーブ/ロードはスロット overlay（REQ-TOUCH-2）を開く
       onSave: () => uiCtl.push('save'),
       onLoad: () => uiCtl.push('load'),
-      // 設定は F2c で overlay 化。onSettings 未提供のため当面ボタン非表示。
+      onSettings: () => uiCtl.push('settings'),
       onRestartConfirmed: () => bus.emit('game:restart'),
       // 終了は F4（Native Android）で onQuitConfirmed/isNativeAndroid を提供。
     },
@@ -149,7 +174,21 @@ if (!canvas) {
     confirm: pauseView.requestConfirm,
     slots: { listSlotMetas, saveToSlot, loadFromSlot, deleteSlot },
   });
-  uiViews.push(pauseView, saveView);
+  const settingsView = mountSettingsPanel({
+    rootEl: wrapEl, settings,
+    onChange: () => {
+      saveSettings(settings);
+      input.autoFire = !!settings.autoFire;
+      if (touchCtl && touchCtl.applySettings) touchCtl.applySettings(settings);
+      applyTouchVisibility(); // forceTouchUi 変更を即時反映
+    },
+    onClose: () => uiCtl.closeTop(),
+  });
+  uiViews.push(pauseView, saveView, settingsView);
+
+  // 初期反映
+  input.autoFire = !!settings.autoFire;
+  applyTouchVisibility();
   syncUi();
 
   // --- ホットキー（保存/読込／Esc）---
@@ -159,25 +198,6 @@ if (!canvas) {
     load: () => uiCtl.push('load'),
     back: () => uiCtl.back(),
   });
-
-  // --- タッチ操作（スマホ/タブレット）---
-  if (isTouchDevice()) {
-    document.body.classList.add('touch');
-    createTouchControls(document.getElementById('wrap'), input, {
-      reload: () => reload(state, bus),
-      build:  () => placeWallFront(state, bus),
-      cycleWeapon: () => {
-        const ws = state.player.weapons;
-        if (!ws.length) return;
-        state.player.curW = (state.player.curW + 1) % ws.length;
-        bus.emit('ui:toast', '武器: ' + (ws[state.player.curW].name || ''));
-      },
-      // ポーズボタン: playing なら pause を開く（overlay 表示中は overlay が覆うため押せない）
-      pause: () => { if (!state.gameOver && !isUiPaused(state.ui)) uiCtl.push('pause'); },
-      isPaused: () => state.paused,
-      setPaused: (b) => { if (!state.gameOver) state.paused = !!b; },
-    });
-  }
 
   // --- 初回のユーザー操作で AudioContext を resume（モバイル対策）---
   const resumeAudio = () => {

@@ -176,7 +176,7 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
   - 空スロットのロードは disabled/「空」表示。破損スロットがあってもクラッシュしない。
   - ロード後は paused のまま（明示的「再開」が必要）。
 
-**REQ-TOUCH-3 設定の独立モジュール化＋導線統合** ⬜ P2（F2c）
+**REQ-TOUCH-3 設定の独立モジュール化＋導線統合** ✅ P2（F2c）
 - 仕様: 設定UIを `js/render/settings-panel.js`(新) に独立。API:
   `mountSettingsPanel({ rootEl, settings, onChange, onClose })`。`touch.js` は設定値を**読むだけ**。
   ポーズメニューと既存 `⚙` の両方から開ける。
@@ -194,7 +194,7 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 - 対象: `js/core/settings.js`（キー拡張）, `js/render/settings-panel.js`(新), `js/core/touch.js`。
 - AC: ポーズ→設定で全項目編集でき、`arpg_touch_settings_v1` に永続化。変更は即時反映。
 
-**REQ-TOUCH-4 タッチUI常時表示の制御** ⬜ P2（F2c）
+**REQ-TOUCH-4 タッチUI常時表示の制御** ✅ P2（F2c）
 - 仕様: 判定順 ①`forceTouchUi==='on'`→表示 ②`'off'`→非表示 ③`'auto'`→
   `navigator.maxTouchPoints>0` または `matchMedia('(pointer: coarse)').matches` または Native なら表示。
 - 対象: `js/core/settings.js`, `js/main.js`。
@@ -270,9 +270,11 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 
 ### REQ-A11Y / REQ-PERF（横断）
 
-**REQ-A11Y-1 メニューのアクセシビリティ** ⬜ P2
+**REQ-A11Y-1 メニューのアクセシビリティ** ✅ P2
 - overlay ボタンに `aria-label`。設定/セーブ/ロードはスクリーンリーダーで最低限読める。
   タップ領域 44×44 CSS px 以上。OS 文字拡大で破綻しない範囲で追従。
+- 実装: pause/confirm/slot/settings の各 overlay に `role` と `aria-label`、ボタンに
+  `aria-label`。タッチボタンにも `aria-label`。最小タップ領域は CSS で 44px 以上を担保。
 
 **REQ-PERF-2 Canvas/DPR 制御** 🟡 P1
 - 仕様: `DPR=min(devicePixelRatio,2.5)`（実装済）。backing store は resize 時のみ更新（毎フレーム再生成しない）。
@@ -353,8 +355,8 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 | UI-2 回転/resize | ✅ | `main.js`(orientation/resize で中立化) |
 | TOUCH-1 ポーズ | ✅ | `render/pause-menu.js`(新), `main.js`, `state/binds.js` |
 | TOUCH-2 save/load UI | ✅ | `render/save-menu.js`(新), `systems/save-local.js` |
-| TOUCH-3 設定統合 | ⬜ | `render/settings-panel.js`(新), `core/settings.js`, `core/touch.js` |
-| TOUCH-4 タッチUI常時 | ⬜ | `core/settings.js`, `main.js` |
+| TOUCH-3 設定統合 | ✅ | `render/settings-panel.js`(新), `core/settings.js`, `core/touch.js` |
+| TOUCH-4 タッチUI常時 | ✅ | `core/touch.js`(`shouldShowTouchUi`), `main.js`, `test/touch.test.mjs` |
 | CTRL-1/1b autoFire/autoAim | ⬜ | `core/settings.js`, `systems/combat.js`, `test/autoaim.test.mjs` |
 | CTRL-2 スティック | ⬜ | `core/touch.js`, `test/stick.test.mjs` |
 | CTRL-3 武器切替 | 🟡 | `core/touch.js`, `render/hud.js` |
@@ -363,4 +365,4 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 | NATIVE-3 ステータスバー | ⬜ | `capacitor.config.json`, `services/native.js` |
 | NATIVE-4 中断復帰 | ⬜ | `services/native.js`, `main.js` |
 | SAVE-1 schema v3 | ✅ | `systems/save-local.js`, `test/save.test.mjs` |
-| A11Y-1 / PERF-2 | ⬜/🟡 | overlay 各所 / `main.js`,`renderer.js` |
+| A11Y-1 / PERF-2 | ✅/🟡 | overlay 各所(aria) / `main.js`,`renderer.js` |

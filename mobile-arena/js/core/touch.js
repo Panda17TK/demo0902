@@ -1,12 +1,12 @@
 // webapp/js/core/touch.js
 // スマホ／タブレット向けの画面上タッチ操作（ツインスティック）。
-// 既存の input（keys / aim / move / autoFire）に書き込むだけなので、ゲームロジックは変更不要。
+// 既存の input（keys / aim / move / autoFire）に書き込むだけ。
 //   - 左スティック: 移動（アナログ：倒し具合で速度可変）
 //   - 右スティック: 照準＋射撃（ドラッグ方向に向き、押下中は K=発射）
 //   - ボタン: 近接(J) / ダッシュ(Shift) / リロード / 武器切替 / 壁設置 / ポーズ / 設定
-// 設定: 左右入替・透明度・サイズ・自動射撃（localStorage 永続化）
+// 設定値は外部（settings-panel）が管理し、本モジュールは「読むだけ」。
 
-import { loadSettings, saveSettings } from './settings.js';
+import { loadSettings } from './settings.js';
 
 export function isTouchDevice() {
   try {
@@ -16,13 +16,32 @@ export function isTouchDevice() {
   } catch (_e) { return false; }
 }
 
-export function createTouchControls(root, input, api) {
+// 現在の実行環境（タッチ能力）を読み取る。
+export function readTouchEnv() {
+  let coarse = false, mtp = 0;
+  try { coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches; } catch (_e) {}
+  try { mtp = (navigator && navigator.maxTouchPoints) || (('ontouchstart' in window) ? 1 : 0); } catch (_e) {}
+  return { maxTouchPoints: mtp, coarsePointer: coarse, native: false };
+}
+
+// REQ-TOUCH-4: タッチUIを表示すべきか（純関数）。
+//  ① forceTouchUi==='on' → 表示 ② 'off' → 非表示
+//  ③ 'auto' → maxTouchPoints>0 または coarse ポインタ または Native なら表示
+export function shouldShowTouchUi(settings, env) {
+  const mode = settings && settings.forceTouchUi;
+  if (mode === 'on') return true;
+  if (mode === 'off') return false;
+  const e = env || {};
+  return !!((e.maxTouchPoints > 0) || e.coarsePointer || e.native);
+}
+
+export function createTouchControls(root, input, api, cfg) {
   if (!root) return null;
+  api = api || {};
+  cfg = cfg || loadSettings();
   const keys = input.keys;
   const aim  = input.aim;
   const move = input.move;
-
-  const cfg = loadSettings();
 
   const layer = document.createElement('div');
   layer.className = 'touch-controls';
@@ -60,13 +79,14 @@ export function createTouchControls(root, input, api) {
       const ny = len ? dy / len : 0;
       knob.style.transform = `translate(calc(-50% + ${nx * cl}px), calc(-50% + ${ny * cl}px))`;
       const mag = cl / R;                 // 0..1（倒し具合）
+      const dz = cfg.deadZone || 0.18;    // 無効域（設定）
       const ux = nx * mag, uy = ny * mag; // 成分 -1..1
 
       if (kind === 'move') {
-        if (mag > 0.12) { move.active = true; move.x = ux; move.y = uy; }
+        if (mag > dz) { move.active = true; move.x = ux; move.y = uy; }
         else { move.active = false; move.x = 0; move.y = 0; }
       } else {
-        if (mag > 0.2) { aim.active = true; aim.x = nx; aim.y = ny; keys['k'] = true; }
+        if (mag > dz) { aim.active = true; aim.x = nx; aim.y = ny; keys['k'] = true; }
         else { aim.active = false; keys['k'] = false; }
       }
     }
@@ -98,6 +118,7 @@ export function createTouchControls(root, input, api) {
     b.type = 'button';
     b.className = 'tc-btn tc-btn-' + cls;
     b.textContent = label;
+    if (opts.aria) b.setAttribute('aria-label', opts.aria);
     if (opts.hold) {
       let pid = null;
       b.addEventListener('pointerdown', (e) => {
@@ -117,69 +138,30 @@ export function createTouchControls(root, input, api) {
     return b;
   }
 
-  makeButton('melee',  '近接', { hold: (on) => { keys['j'] = on; } });
-  makeButton('dash',   'DASH', { hold: (on) => { keys['shift'] = on; } });
-  makeButton('reload', 'R',    { tap: () => { if (api.reload) api.reload(); } });
-  makeButton('weapon', '武器', { tap: () => { if (api.cycleWeapon) api.cycleWeapon(); } });
-  makeButton('build',  '壁',   { tap: () => { if (api.build) api.build(); } });
-  makeButton('pause',  'II',   { tap: () => { if (api.pause) api.pause(); } });
-  makeButton('settings', '⚙', { tap: () => togglePanel() });
+  makeButton('melee',  '近接', { aria: '近接攻撃', hold: (on) => { keys['j'] = on; } });
+  makeButton('dash',   'DASH', { aria: 'ダッシュ', hold: (on) => { keys['shift'] = on; } });
+  makeButton('reload', 'R',    { aria: 'リロード', tap: () => { if (api.reload) api.reload(); } });
+  makeButton('weapon', '武器', { aria: '武器切替', tap: () => { if (api.cycleWeapon) api.cycleWeapon(); } });
+  makeButton('build',  '壁',   { aria: '壁を設置', tap: () => { if (api.build) api.build(); } });
+  makeButton('pause',  'II',   { aria: 'ポーズ', tap: () => { if (api.pause) api.pause(); } });
+  makeButton('settings', '⚙', { aria: '設定', tap: () => { if (api.openSettings) api.openSettings(); } });
 
-  // ===== 設定パネル =====
-  const panel = document.createElement('div');
-  panel.className = 'tc-settings hidden';
-  panel.innerHTML =
-    '<h3>操作設定</h3>' +
-    '<label class="row"><span>左右入れ替え</span><input type="checkbox" data-k="swap"></label>' +
-    '<label class="row"><span>自動射撃</span><input type="checkbox" data-k="autoFire"></label>' +
-    '<label class="row"><span>透明度</span><input type="range" data-k="opacity" min="0.3" max="1" step="0.05"></label>' +
-    '<label class="row"><span>サイズ</span><input type="range" data-k="scale" min="0.8" max="1.4" step="0.05"></label>' +
-    '<button type="button" class="tc-close">閉じる</button>';
-  layer.appendChild(panel);
-
-  const elSwap     = panel.querySelector('[data-k="swap"]');
-  const elAuto     = panel.querySelector('[data-k="autoFire"]');
-  const elOpacity  = panel.querySelector('[data-k="opacity"]');
-  const elScale    = panel.querySelector('[data-k="scale"]');
-  const elClose    = panel.querySelector('.tc-close');
-
+  // 設定値をコントロールに反映（外部から呼ばれる）。
   function apply() {
     layer.classList.toggle('tc-swap', !!cfg.swap);
     layer.style.setProperty('--tc-op', String(cfg.opacity));
     layer.style.setProperty('--tc-scale', String(cfg.scale));
     input.autoFire = !!cfg.autoFire;
   }
-  function syncInputs() {
-    elSwap.checked    = !!cfg.swap;
-    elAuto.checked    = !!cfg.autoFire;
-    elOpacity.value   = String(cfg.opacity);
-    elScale.value     = String(cfg.scale);
+  // 外部（settings-panel）が設定を更新したら呼ぶ。
+  function applySettings(next) {
+    if (next && next !== cfg) Object.assign(cfg, next);
+    apply();
   }
-  function onChange() { apply(); saveSettings(cfg); }
-
-  elSwap.addEventListener('change', () => { cfg.swap = elSwap.checked; onChange(); });
-  elAuto.addEventListener('change', () => { cfg.autoFire = elAuto.checked; onChange(); });
-  elOpacity.addEventListener('input', () => { cfg.opacity = parseFloat(elOpacity.value); onChange(); });
-  elScale.addEventListener('input',   () => { cfg.scale   = parseFloat(elScale.value);   onChange(); });
-
-  let panelOpen = false, pausedByPanel = false;
-  function togglePanel() {
-    panelOpen = !panelOpen;
-    panel.classList.toggle('hidden', !panelOpen);
-    if (panelOpen) {
-      syncInputs();
-      // 設定中は誤操作防止のため自動ポーズ（元から停止中なら触らない）
-      pausedByPanel = api.isPaused ? !api.isPaused() : false;
-      if (pausedByPanel && api.setPaused) api.setPaused(true);
-    } else if (pausedByPanel && api.setPaused) {
-      api.setPaused(false); pausedByPanel = false;
-    }
-  }
-  elClose.addEventListener('click', () => { if (panelOpen) togglePanel(); });
+  // 表示/非表示（REQ-TOUCH-4）。
+  function setVisible(v) { layer.style.display = v ? '' : 'none'; }
 
   apply();
-  syncInputs();
-
   root.appendChild(layer);
-  return layer;
+  return { el: layer, applySettings, setVisible };
 }
