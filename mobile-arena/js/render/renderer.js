@@ -65,23 +65,39 @@ export function renderFrame(ctx, canvas, state) {
   const nowMs = performance.now();   // 1フレーム1回だけ取得して各所で使い回す
   const nowS = nowMs / 1000;
 
+  // ===== ズーム =====
+  // 画面サイズ/DPR に依らず「見えるワールドの縦幅」を一定に保つ（モバイルでスプライトが
+  // 極小になるのを防ぐ）。VIEW_TILES_Y タイルぶんが収まる倍率を基準に、マップ全体より
+  // 縮小しすぎない下限も設ける。
+  const VIEW_TILES_Y = 15;
+  let zoom = H / (VIEW_TILES_Y * TILE);
+  // マップが画面より小さく収まる場合は、はみ出さない最小ズーム以上に保つ
+  const fitZoom = Math.max(W / (state.dim.w * TILE), H / (state.dim.h * TILE));
+  zoom = Math.max(zoom, fitZoom);
+  // 可視ワールドサイズ（device px → world px）
+  const viewW = W / zoom, viewH = H / zoom;
+  state.viewZoom = zoom; state.viewW = viewW; state.viewH = viewH; // 入力の座標変換用
+
   // カメラ：スムーズ追従(state.cam)があれば使用、無ければプレイヤー中心
   const cxw = state.cam ? state.cam.x : state.player.x;
   const cyw = state.cam ? state.cam.y : state.player.y;
-  const baseCamX = clamp(cxw - W / 2, 0, state.dim.w * TILE - W);
-  const baseCamY = clamp(cyw - H / 2, 0, state.dim.h * TILE - H);
-  // 画面シェイク
+  const baseCamX = clamp(cxw - viewW / 2, 0, Math.max(0, state.dim.w * TILE - viewW));
+  const baseCamY = clamp(cyw - viewH / 2, 0, Math.max(0, state.dim.h * TILE - viewH));
+  // 画面シェイク（ワールド単位）
   let sx = 0, sy = 0;
   if (state.shake && state.shake.t > 0) {
     sx = (Math.random() * 2 - 1) * state.shake.mag;
     sy = (Math.random() * 2 - 1) * state.shake.mag;
   }
   const camX = baseCamX + sx, camY = baseCamY + sy;
+  state.camX = camX; state.camY = camY; // 入力の座標変換用
 
   // ===== 背景パララックス（スクリーン空間・カメラに対しゆっくり逆移動）=====
-  drawParallax(ctx, W, H, camX, camY);
+  drawParallax(ctx, W, H, camX * zoom, camY * zoom);
 
-  ctx.save(); ctx.translate(-camX, -camY);
+  ctx.save();
+  ctx.scale(zoom, zoom);
+  ctx.translate(-camX, -camY);
 
   // ===== タイル =====
   for (let y = 0; y < state.dim.h; y++) {
@@ -313,7 +329,8 @@ export function renderFrame(ctx, canvas, state) {
   ctx.translate(state.player.x, state.player.y);
   ctx.fillStyle = radialAtOrigin(ctx, 60, 420,
     [[0, 'rgba(255,255,255,1)'], [1, 'rgba(0,0,0,0.55)']], 'vignette');
-  ctx.fillRect(camX - state.player.x, camY - state.player.y, W, H);
+  // ワールド単位の可視範囲を塗る（スケール変換中なので viewW/viewH を使う）
+  ctx.fillRect(camX - state.player.x, camY - state.player.y, viewW, viewH);
   ctx.restore();
   ctx.globalCompositeOperation = 'source-over';
 
