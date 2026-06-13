@@ -1,32 +1,36 @@
 // js/systems/save-local.js
 // ローカル永続のスロットセーブ（静的PWA / ネイティブ共通：サーバ不要）。
-// 公開APIは save-remote.js と互換（saveChooser/loadChooser）なので main.js は無改変。
 // 保存は kv（Web=localStorage、ネイティブ=Preferences ミラー）経由。
+//
+// REQ-SAVE-1: schema v3。レコードは {schemaVersion, appVersion, createdAt,
+//   updatedAt, slotName, summary{wave,score,weapon,playTimeSec}, state} の形。
+//   migrate() で v2(フラット)→v3 に移行。破損/未対応は読まずにエラー扱い。
+// REQ-TOUCH-2: 固定 3 スロット（slot1/2/3）。一覧に summary を表示。
+//
+// 純関数（serializeGame/buildSummary/migrate/validateGameData）は kv 非依存で
+// 単体テスト可能。スロット I/O（saveToSlot/loadFromSlot/…）のみ kv を触る。
 
 import { makeMobFromKey, makeZombie } from './enemies.js';
 import { rebuildFlowField } from './flowfield.js';
-import { getItem, setItem } from '../services/kv.js';
+import { getItem, setItem, removeItem } from '../services/kv.js';
 
-const SCHEMA_VERSION = 2;
-const KEY_PREFIX = 'arena_save_';   // arena_save_<slot> = JSON
-const KEY_INDEX = 'arena_save_index'; // スロット一覧 [{slot, updatedAt}]
+export const SCHEMA_VERSION = 3;
+export const APP_VERSION = '1.0';
+export const SLOT_IDS = ['slot1', 'slot2', 'slot3']; // 固定 3 スロット
 
-function migrate(d) {
-  const v = (d && typeof d.schema === 'number') ? d.schema : 1;
-  if (v < 2) d.schema = 2;
-  return d;
-}
+const KEY_PREFIX = 'arena_save_'; // arena_save_<slot> = JSON(v3 record)
+
 function clampNum(v, lo, hi, def) {
   if (typeof v !== 'number' || !isFinite(v)) return def;
   return Math.max(lo, Math.min(hi, v));
 }
+export function isValidSlot(slotId) { return SLOT_IDS.indexOf(slotId) !== -1; }
 
-// ========== シリアライズ ==========
-function serialize(state) {
+// ========== シリアライズ（ゲームデータのみ。メタは付けない）==========
+export function serializeGame(state) {
   const weapons = state.player.weapons.map((w) => ({ id: w.id, mag: w.mag }));
   const mobs = state.mobs.map((m) => ({ kind: m.kind, x: m.x, y: m.y, hp: m.hp, maxhp: m.maxhp, waveNum: m.waveNum }));
   return {
-    schema: SCHEMA_VERSION,
     player: {
       x: state.player.x, y: state.player.y, hp: state.player.hp, hpMax: state.player.hpMax,
       inv: state.player.inv, curW: state.player.curW,
@@ -40,7 +44,60 @@ function serialize(state) {
   };
 }
 
-// ========== 復元 ==========
+// ========== summary（スロット一覧表示用）==========
+// g: serializeGame の出力（または v2 フラットデータ）。playTimeSec は任意上書き。
+export function buildSummary(g, playTimeSec) {
+  const p = (g && g.player) || {};
+  const w = Array.isArray(p.weapons) ? p.weapons[p.curW | 0] : null;
+  const stats = (g && g.stats) || {};
+  const pts = (typeof playTimeSec === 'number' && isFinite(playTimeSec))
+    ? Math.max(0, Math.floor(playTimeSec))
+    : (typeof stats.timeMs === 'number' ? Math.floor(stats.timeMs / 1000) : 0);
+  return {
+    wave: (g && g.wave && typeof g.wave.num === 'number') ? (g.wave.num | 0) : 1,
+    score: (typeof stats.kills === 'number') ? (stats.kills | 0) : 0,
+    weapon: w ? (w.id || '') : '',
+    playTimeSec: pts,
+  };
+}
+
+// ========== バリデーション／マイグレーション（純）==========
+export function validateGameData(g) {
+  if (!g || typeof g !== 'object') throw new Error('empty game data');
+  if (!g.player || !g.map || !g.tileHP || !g.tileMaxHP) throw new Error('invalid save shape');
+  return true;
+}
+
+// 任意バージョンの parsed object を v3 レコードへ正規化する。未対応は例外。
+export function migrate(raw) {
+  if (!raw || typeof raw !== 'object') throw new Error('empty record');
+
+  // v3（既に正規形）
+  if (raw.schemaVersion === SCHEMA_VERSION && raw.state) {
+    validateGameData(raw.state);
+    if (!raw.summary) raw.summary = buildSummary(raw.state);
+    return raw;
+  }
+  // 未来バージョン（読み込み不可）
+  if (typeof raw.schemaVersion === 'number' && raw.schemaVersion > SCHEMA_VERSION) {
+    throw new Error('schema too new: ' + raw.schemaVersion);
+  }
+  // v1/v2（フラット：player/map 等がトップレベル）→ v3 へ包む
+  const v = (typeof raw.schema === 'number') ? raw.schema
+          : (typeof raw.schemaVersion === 'number') ? raw.schemaVersion : 1;
+  if (v <= 2) {
+    validateGameData(raw);
+    const now = Date.now();
+    return {
+      schemaVersion: SCHEMA_VERSION, appVersion: APP_VERSION,
+      createdAt: now, updatedAt: now, slotName: '',
+      summary: buildSummary(raw), state: raw,
+    };
+  }
+  throw new Error('unsupported schema: ' + v);
+}
+
+// ========== 復元（ゲームデータ → state）==========
 function reinitArraysToMatch(state, d) {
   const H = (d && d.dim && d.dim.h) || (d && d.map ? d.map.length : 0);
   const W = (d && d.dim && d.dim.w) || (H > 0 ? d.map[0].length : 0);
@@ -54,10 +111,8 @@ function reinitArraysToMatch(state, d) {
   }
 }
 
-function applyToState(state, d) {
-  if (!d || !d.player || !d.map || !d.tileHP || !d.tileMaxHP) throw new Error('invalid save shape');
-  migrate(d);
-  if (d.schema > SCHEMA_VERSION) throw new Error('save schema too new: ' + d.schema);
+export function applyGameData(state, d) {
+  validateGameData(d);
   reinitArraysToMatch(state, d);
 
   const pp = d.player;
@@ -102,61 +157,96 @@ function applyToState(state, d) {
   return true;
 }
 
-// ========== ローカルスロット（kv 経由）==========
-function readIndex() {
-  try { return JSON.parse(getItem(KEY_INDEX) || '[]'); } catch (_e) { return []; }
-}
-function writeIndex(list) {
-  try { setItem(KEY_INDEX, JSON.stringify(list)); } catch (_e) {}
-}
-function upsertIndex(slot) {
-  const list = readIndex().filter((e) => e.slot !== slot);
-  list.unshift({ slot, updatedAt: Date.now() });
-  writeIndex(list);
-}
+// ========== スロット I/O（kv 経由）==========
+function rawSlot(slotId) { return getItem(KEY_PREFIX + slotId); }
 
-export function listSlots() {
-  return Promise.resolve(readIndex());
-}
-
-export function save(state, _storage, bus, slot) {
+// スロットの表示用メタ（破損・空も安全に返す）。
+export function readSlotMeta(slotId) {
+  const raw = rawSlot(slotId);
+  if (!raw) return { id: slotId, empty: true, broken: false };
   try {
-    const s = slot || window.prompt('保存スロット名（例: slot1, A など）', 'slot1');
-    if (!s) { bus && bus.emit('ui:toast', 'save cancelled'); return Promise.resolve(); }
-    setItem(KEY_PREFIX + s, JSON.stringify(serialize(state)));
-    upsertIndex(s);
-    bus && bus.emit('ui:toast', 'saved (' + s + ')');
+    const rec = migrate(JSON.parse(raw));
+    return {
+      id: slotId, empty: false, broken: false,
+      summary: rec.summary, updatedAt: rec.updatedAt || null,
+      appVersion: rec.appVersion || '',
+    };
+  } catch (e) {
+    return { id: slotId, empty: false, broken: true, error: String((e && e.message) || e) };
+  }
+}
+
+export function listSlotMetas() { return SLOT_IDS.map(readSlotMeta); }
+
+export function saveToSlot(state, bus, slotId, playTimeSec) {
+  try {
+    if (!isValidSlot(slotId)) throw new Error('bad slot id');
+    const g = serializeGame(state);
+    const now = Date.now();
+    // createdAt は既存があれば保持
+    let createdAt = now;
+    try { const prev = JSON.parse(rawSlot(slotId)); if (prev && prev.createdAt) createdAt = prev.createdAt; } catch (_e) {}
+    let pts = playTimeSec;
+    if (typeof pts !== 'number') {
+      try { pts = state.runStart ? (performance.now() - state.runStart) / 1000 : 0; } catch (_e) { pts = 0; }
+    }
+    const rec = {
+      schemaVersion: SCHEMA_VERSION, appVersion: APP_VERSION,
+      createdAt, updatedAt: now, slotName: slotId,
+      summary: buildSummary(g, pts), state: g,
+    };
+    setItem(KEY_PREFIX + slotId, JSON.stringify(rec));
+    bus && bus.emit('ui:toast', 'セーブしました (' + slotId + ')');
+    return { ok: true };
   } catch (e) {
     try { console.error('[save]', e); } catch (_) {}
-    bus && bus.emit('ui:toast', 'save error');
+    bus && bus.emit('ui:toast', 'セーブ失敗');
+    return { ok: false, error: String((e && e.message) || e) };
   }
-  return Promise.resolve();
 }
 
-export function load(state, _storage, bus, slot) {
+export function loadFromSlot(state, bus, slotId) {
   try {
-    const raw = getItem(KEY_PREFIX + slot);
-    if (!raw) { bus && bus.emit('ui:toast', 'セーブがありません'); return Promise.resolve(); }
-    applyToState(state, JSON.parse(raw));
-    bus && bus.emit('ui:toast', 'loaded (' + slot + ')');
+    const raw = rawSlot(slotId);
+    if (!raw) { bus && bus.emit('ui:toast', '空きスロットです'); return { ok: false, empty: true }; }
+    const rec = migrate(JSON.parse(raw));
+    applyGameData(state, rec.state);
+    bus && bus.emit('ui:toast', 'ロードしました (' + slotId + ')');
+    return { ok: true };
   } catch (e) {
     try { console.error('[load]', e); } catch (_) {}
-    bus && bus.emit('ui:toast', 'broken save data');
+    bus && bus.emit('ui:toast', '読み込み不可（破損データ）');
+    return { ok: false, broken: true };
   }
+}
+
+export function deleteSlot(slotId, bus) {
+  try {
+    removeItem(KEY_PREFIX + slotId);
+    bus && bus.emit('ui:toast', '削除しました (' + slotId + ')');
+    return { ok: true };
+  } catch (e) {
+    bus && bus.emit('ui:toast', '削除失敗');
+    return { ok: false };
+  }
+}
+
+// ========== 互換：prompt ベースの緊急フォールバック（デスクトップ向け）==========
+export function saveChooser(state, _storage, bus) {
+  const s = (typeof window !== 'undefined' && window.prompt)
+    ? window.prompt('保存スロット（slot1 / slot2 / slot3）', 'slot1') : 'slot1';
+  if (!s) { bus && bus.emit('ui:toast', 'キャンセル'); return Promise.resolve(); }
+  saveToSlot(state, bus, isValidSlot(s) ? s : 'slot1');
   return Promise.resolve();
 }
-
-export function saveChooser(state, _storage, bus) {
-  return save(state, _storage, bus, null);
-}
-
 export function loadChooser(state, _storage, bus) {
-  return listSlots().then((slots) => {
-    if (!slots.length) { bus && bus.emit('ui:toast', 'セーブがありません'); return; }
-    const lines = slots.map((e, i) => (i + 1) + ': ' + e.slot + ' (' + new Date(e.updatedAt).toLocaleString() + ')');
-    const ans = window.prompt('ロードする番号を入力:\n' + lines.join('\n'), '1');
-    const idx = ans ? (parseInt(ans, 10) - 1) : -1;
-    if (idx >= 0 && idx < slots.length) return load(state, _storage, bus, slots[idx].slot);
-    bus && bus.emit('ui:toast', 'load cancelled');
-  });
+  const metas = listSlotMetas().filter((m) => !m.empty);
+  if (!metas.length) { bus && bus.emit('ui:toast', 'セーブがありません'); return Promise.resolve(); }
+  const lines = metas.map((m, i) => (i + 1) + ': ' + m.id + (m.broken ? '（破損）' : ' WAVE ' + (m.summary ? m.summary.wave : '?')));
+  const ans = (typeof window !== 'undefined' && window.prompt)
+    ? window.prompt('ロードする番号:\n' + lines.join('\n'), '1') : null;
+  const idx = ans ? (parseInt(ans, 10) - 1) : -1;
+  if (idx >= 0 && idx < metas.length) loadFromSlot(state, bus, metas[idx].id);
+  else bus && bus.emit('ui:toast', 'キャンセル');
+  return Promise.resolve();
 }

@@ -272,6 +272,44 @@ a {
 .confirm-panel .cf-ok, .confirm-panel .cf-cancel { min-height: 44px; min-width: 88px; }
 .confirm-panel .cf-ok { background: #244; border-color: #2b5; }
 
+/* ===== セーブ/ロード スロットUI（REQ-TOUCH-2） ===== */
+.slot-panel { min-width: 300px; }
+.slot-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.slot-row { display: flex; gap: 8px; align-items: stretch; }
+.slot-info {
+	flex: 1;
+	min-height: 56px;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	text-align: left;
+	padding: 8px 12px;
+	background: #15202e;
+	color: #e7ecf3;
+	border: 1px solid #2b3a50;
+	border-radius: 10px;
+	cursor: pointer;
+}
+.slot-info:hover:not(:disabled) { background: #1b2a3c; border-color: #7ab0ff; }
+.slot-info:disabled { opacity: .4; cursor: not-allowed; }
+.slot-info.broken { border-color: #5a2b2b; }
+.slot-info .slot-name { font-weight: 700; font-size: 15px; color: #ffd166; }
+.slot-info.broken .slot-name { color: #ffb3b3; }
+.slot-info .slot-sub { font-size: 12px; opacity: .9; }
+.slot-info .slot-date { font-size: 11px; opacity: .6; }
+.slot-del {
+	min-width: 48px;
+	background: #1e2a3a;
+	color: #ffb3b3;
+	border: 1px solid #5a2b2b;
+	border-radius: 10px;
+	cursor: pointer;
+	font-size: 16px;
+}
+.slot-del:hover { background: #2a1e1e; }
+.slot-actions { justify-content: flex-end; }
+.slot-actions .slot-back { min-height: 44px; min-width: 88px; }
+
 /* ===== タッチ操作（スマホ/タブレット） ===== */
 .touch-controls {
 	position: absolute;

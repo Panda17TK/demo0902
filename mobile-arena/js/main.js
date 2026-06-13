@@ -22,12 +22,13 @@ import { renderFrame } from './render/renderer.js';
 import { mountGameOver } from './render/overlay.js';
 import { mountHUD } from './render/hud.js';
 import { mountUpgrades } from './render/upgrades.js';
-import { saveChooser, loadChooser } from './systems/save-local.js';
+import { listSlotMetas, saveToSlot, loadFromSlot, deleteSlot } from './systems/save-local.js';
 import {
   createUiState, isUiPaused, topOverlay,
   pushOverlay, closeTopOverlay, closeAllOverlays, requestBack, consumeResumeGuard,
 } from './core/ui-state.js';
 import { mountPauseMenu } from './render/pause-menu.js';
+import { mountSaveMenu } from './render/save-menu.js';
 
 const canvas  = document.getElementById('game');
 const hudEl   = document.getElementById('hud');
@@ -111,10 +112,13 @@ if (!canvas) {
     input.keys['j'] = false; input.keys['k'] = false; input.keys['shift'] = false;
   }
 
+  // overlay を描画する view 群（stack 変更時にまとめて再描画）。
+  const uiViews = [];
+
   // overlay stack の変更を state.paused と DOM に反映する唯一の同期点。
   function syncUi() {
     state.paused = isUiPaused(state.ui) || state.gameOver;
-    pauseView.render(state.ui);
+    for (const v of uiViews) v.render(state.ui);
     // 閉じた直後の 1 フレームは hold 入力をリセット（再開時の暴発防止）
     if (consumeResumeGuard(state.ui) && !isUiPaused(state.ui)) neutralizeGameInput();
   }
@@ -128,23 +132,31 @@ if (!canvas) {
     top:      ()  => topOverlay(state.ui),
   };
 
-  const pauseView = mountPauseMenu(document.getElementById('wrap'), {
+  const wrapEl = document.getElementById('wrap');
+  const pauseView = mountPauseMenu(wrapEl, {
     state, uiCtl,
     hooks: {
-      // F2b でスロットUIに置換予定（暫定: 既存の prompt 版）
-      onSave: () => saveChooser(state, null, bus),
-      onLoad: () => loadChooser(state, null, bus),
+      // セーブ/ロードはスロット overlay（REQ-TOUCH-2）を開く
+      onSave: () => uiCtl.push('save'),
+      onLoad: () => uiCtl.push('load'),
       // 設定は F2c で overlay 化。onSettings 未提供のため当面ボタン非表示。
       onRestartConfirmed: () => bus.emit('game:restart'),
       // 終了は F4（Native Android）で onQuitConfirmed/isNativeAndroid を提供。
     },
   });
+  const saveView = mountSaveMenu(wrapEl, {
+    state, bus, uiCtl,
+    confirm: pauseView.requestConfirm,
+    slots: { listSlotMetas, saveToSlot, loadFromSlot, deleteSlot },
+  });
+  uiViews.push(pauseView, saveView);
   syncUi();
 
   // --- ホットキー（保存/読込／Esc）---
+  // P/L もスロット overlay を開く（タッチ・キーボード共通の導線に統一）。
   bindHotkeys(state, bus, input, {
-    save: () => saveChooser(state, null, bus),
-    load: () => loadChooser(state, null, bus),
+    save: () => { if (!state.gameOver) uiCtl.push('save'); },
+    load: () => uiCtl.push('load'),
     back: () => uiCtl.back(),
   });
 

@@ -161,7 +161,7 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
   - 再開時、残留 `pressed(k)` で攻撃/決定/キャンセルが暴発しない（0.3 暴発防止）。
   - gameOver 中はポーズを開けない。リスタートは confirm 経由（誤タップ事故防止）。
 
-**REQ-TOUCH-2 セーブ/ロードのスロットUI** ⬜ P1（F2b）
+**REQ-TOUCH-2 セーブ/ロードのスロットUI** ✅ P1（F2b）
 - 仕様: **簡易スロットUI**（prompt はデスクトップ互換/緊急フォールバックのみ）。スロット数 **3**。
 
   | 項目 | 内容 |
@@ -262,7 +262,7 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 
 ### REQ-SAVE: セーブデータ（横断・F2b）
 
-**REQ-SAVE-1 schema v3** ⬜ P1
+**REQ-SAVE-1 schema v3** ✅ P1
 - 仕様: 0.4 の構造に拡張。`migrate()` で v2→v3（v2 は summary 欠落→ロード時に算出 or 既定値）。
   `summary` をスロット一覧表示に使う。保存失敗はユーザーへエラー表示。
 - 対象: `js/systems/save-local.js`, `test/save.test.mjs`(新)。
@@ -352,7 +352,7 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 | UI-1 overlay stack | ✅ | `core/ui-state.js`(純), `render/pause-menu.js`, `test/ui-state.test.mjs` |
 | UI-2 回転/resize | ✅ | `main.js`(orientation/resize で中立化) |
 | TOUCH-1 ポーズ | ✅ | `render/pause-menu.js`(新), `main.js`, `state/binds.js` |
-| TOUCH-2 save/load UI | ⬜ | `render/save-menu.js`(新), `systems/save-local.js` |
+| TOUCH-2 save/load UI | ✅ | `render/save-menu.js`(新), `systems/save-local.js` |
 | TOUCH-3 設定統合 | ⬜ | `render/settings-panel.js`(新), `core/settings.js`, `core/touch.js` |
 | TOUCH-4 タッチUI常時 | ⬜ | `core/settings.js`, `main.js` |
 | CTRL-1/1b autoFire/autoAim | ⬜ | `core/settings.js`, `systems/combat.js`, `test/autoaim.test.mjs` |
@@ -362,5 +362,5 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 | NATIVE-2 Android Back | ⬜ | `services/native.js`, `core/ui-state.js` |
 | NATIVE-3 ステータスバー | ⬜ | `capacitor.config.json`, `services/native.js` |
 | NATIVE-4 中断復帰 | ⬜ | `services/native.js`, `main.js` |
-| SAVE-1 schema v3 | ⬜ | `systems/save-local.js`, `test/save.test.mjs` |
+| SAVE-1 schema v3 | ✅ | `systems/save-local.js`, `test/save.test.mjs` |
 | A11Y-1 / PERF-2 | ⬜/🟡 | overlay 各所 / `main.js`,`renderer.js` |
