@@ -23,6 +23,11 @@ import { mountGameOver } from './render/overlay.js';
 import { mountHUD } from './render/hud.js';
 import { mountUpgrades } from './render/upgrades.js';
 import { saveChooser, loadChooser } from './systems/save-local.js';
+import {
+  createUiState, isUiPaused, topOverlay,
+  pushOverlay, closeTopOverlay, closeAllOverlays, requestBack, consumeResumeGuard,
+} from './core/ui-state.js';
+import { mountPauseMenu } from './render/pause-menu.js';
 
 const canvas  = document.getElementById('game');
 const hudEl   = document.getElementById('hud');
@@ -95,10 +100,52 @@ if (!canvas) {
   const devBtn = document.getElementById('dev-btn');
   if (devBtn) devBtn.addEventListener('click', () => bus.emit('dev:toggle'));
 
-  // --- ホットキー（保存/読込） ---
+  // --- UI 状態機械（overlay stack：DESIGN §0.1/0.2）---
+  state.ui = createUiState();
+
+  // ゲーム操作入力（move/aim と hold 系キー）を中立化する。
+  // overlay 表示中は破棄、再開直後は暴発防止のためリセットする（§0.3）。
+  function neutralizeGameInput() {
+    input.move.active = false; input.move.x = 0; input.move.y = 0;
+    input.aim.active = false; input.aim.x = 0; input.aim.y = 0;
+    input.keys['j'] = false; input.keys['k'] = false; input.keys['shift'] = false;
+  }
+
+  // overlay stack の変更を state.paused と DOM に反映する唯一の同期点。
+  function syncUi() {
+    state.paused = isUiPaused(state.ui) || state.gameOver;
+    pauseView.render(state.ui);
+    // 閉じた直後の 1 フレームは hold 入力をリセット（再開時の暴発防止）
+    if (consumeResumeGuard(state.ui) && !isUiPaused(state.ui)) neutralizeGameInput();
+  }
+
+  // overlay 遷移は必ずこの uiCtl を通す（呼び出し後に syncUi で反映）。
+  const uiCtl = {
+    push:     (n) => { pushOverlay(state.ui, n); syncUi(); },
+    closeTop: ()  => { closeTopOverlay(state.ui); syncUi(); },
+    closeAll: ()  => { closeAllOverlays(state.ui); syncUi(); },
+    back:     ()  => { requestBack(state.ui); syncUi(); },
+    top:      ()  => topOverlay(state.ui),
+  };
+
+  const pauseView = mountPauseMenu(document.getElementById('wrap'), {
+    state, uiCtl,
+    hooks: {
+      // F2b でスロットUIに置換予定（暫定: 既存の prompt 版）
+      onSave: () => saveChooser(state, null, bus),
+      onLoad: () => loadChooser(state, null, bus),
+      // 設定は F2c で overlay 化。onSettings 未提供のため当面ボタン非表示。
+      onRestartConfirmed: () => bus.emit('game:restart'),
+      // 終了は F4（Native Android）で onQuitConfirmed/isNativeAndroid を提供。
+    },
+  });
+  syncUi();
+
+  // --- ホットキー（保存/読込／Esc）---
   bindHotkeys(state, bus, input, {
     save: () => saveChooser(state, null, bus),
     load: () => loadChooser(state, null, bus),
+    back: () => uiCtl.back(),
   });
 
   // --- タッチ操作（スマホ/タブレット）---
@@ -113,7 +160,8 @@ if (!canvas) {
         state.player.curW = (state.player.curW + 1) % ws.length;
         bus.emit('ui:toast', '武器: ' + (ws[state.player.curW].name || ''));
       },
-      pause: () => { if (!state.gameOver) state.paused = !state.paused; },
+      // ポーズボタン: playing なら pause を開く（overlay 表示中は overlay が覆うため押せない）
+      pause: () => { if (!state.gameOver && !isUiPaused(state.ui)) uiCtl.push('pause'); },
       isPaused: () => state.paused,
       setPaused: (b) => { if (!state.gameOver) state.paused = !!b; },
     });
@@ -127,6 +175,13 @@ if (!canvas) {
   };
   window.addEventListener('pointerdown', resumeAudio);
   window.addEventListener('keydown', resumeAudio);
+
+  // --- 回転/リサイズ（REQ-UI-2）---
+  // canvas は ResizeObserver で追従し、ズームは毎フレーム computeView で再計算、
+  // スティック base は指追従なので再計算不要。回転直後の入力暴発のみ中立化する。
+  function onViewportChange() { fitCanvas(); neutralizeGameInput(); }
+  addEventListener('orientationchange', onViewportChange);
+  addEventListener('resize', onViewportChange);
 
   // --- エラーをトーストにも表示 ---
   addEventListener('error', (ev) => {
@@ -152,7 +207,8 @@ if (!canvas) {
     startWave(state, 1);
     state.runStart = performance.now();
     state.gameOver = false;
-    state.paused   = false;
+    closeAllOverlays(state.ui); // gameover 含め全 overlay を消す
+    syncUi();                   // state.paused を再計算（playing へ）
     bus.emit('ui:toast', 'Restart');
   });
 
@@ -186,7 +242,8 @@ if (!canvas) {
     // HP=0 → 一度だけゲームオーバー
     if (!state.gameOver && state.player.hp <= 0) {
       state.gameOver = true;
-      state.paused = true;
+      pushOverlay(state.ui, 'gameover'); // 最下位固定。pause を積めなくする
+      syncUi();                          // state.paused = true（UI または gameOver）
       const timeMs = Math.max(0, performance.now() - state.runStart);
       state.stats.timeMs = timeMs;
       bus.emit('game:over', { reason: 'death', timeMs });
@@ -210,6 +267,10 @@ if (!canvas) {
       }
       // キルカム演出タイマ（描画用・実時間）
       if (state.killCam) { state.killCam.t += dt; if (state.killCam.t >= state.killCam.life) state.killCam = null; }
+
+      // overlay 表示中はゲーム操作入力を破棄（§0.3 優先度1）。
+      // pointer capture により stick が裏で更新し続けても反映させない。
+      if (isUiPaused(state.ui)) neutralizeGameInput();
 
       if (!state.paused) {
         // ===== 固定タイムステップ蓄積（決定論・トンネリング抑止）=====

@@ -3,10 +3,11 @@ import { reload, placeWallFront, switchWeapon } from '../systems/combat.js';
 export function bindHotkeys(state, bus, input, api){
   addEventListener('keydown', e=>{
     const k = e.key.toLowerCase();
-    // ゲームオーバー中（オーバーレイ表示中）はホットキーを無効化し、
-    // Escape による誤アンポーズを防ぐ。
+    // Escape は overlay stack の共通入口（空＆playing→pause / それ以外→最上位を閉じる）。
+    // gameover 中も Esc は無効（requestBack 側で gameover は閉じない）。
+    if(k==='escape'){ if(api.back) api.back(); else state.paused = !state.paused; return; }
+    // ゲームオーバー中はその他ホットキーを無効化。
     if(state.gameOver) return;
-    if(k==='escape'){ state.paused = !state.paused; }
     if(k==='p'){ api.save(); }
     if(k==='l'){ api.load(); }
     if(k==='1') switchWeapon(state, 0);

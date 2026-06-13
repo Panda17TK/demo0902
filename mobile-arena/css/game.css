@@ -245,6 +245,33 @@ a {
 	opacity: .9;
 }
 
+/* ===== ポーズ／確認メニュー（REQ-TOUCH-1） ===== */
+.pause-panel, .confirm-panel { min-width: 260px; }
+.pause-menu {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin-top: 12px;
+}
+.pm-btn {
+	min-height: 48px;           /* A11Y: タップ領域 44px 以上 */
+	padding: 10px 16px;
+	font-size: 16px;
+	text-align: left;
+	background: #1e2a3a;
+	color: #e7ecf3;
+	border: 1px solid #2b3a50;
+	border-radius: 10px;
+	cursor: pointer;
+}
+.pm-btn:hover { background: #273548; }
+.pm-btn:disabled { opacity: .45; cursor: not-allowed; }
+.pm-btn.pm-quit { border-color: #5a2b2b; color: #ffb3b3; }
+.confirm-panel .cf-msg { margin: 8px 0 0; font-size: 14px; line-height: 1.5; opacity: .9; }
+.confirm-panel .cf-actions { justify-content: flex-end; }
+.confirm-panel .cf-ok, .confirm-panel .cf-cancel { min-height: 44px; min-width: 88px; }
+.confirm-panel .cf-ok { background: #244; border-color: #2b5; }
+
 /* ===== タッチ操作（スマホ/タブレット） ===== */
 .touch-controls {
 	position: absolute;

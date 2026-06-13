@@ -2,7 +2,7 @@
  * アプリシェル（HTML/JS/CSS/アイコン）をキャッシュしてオフライン起動を可能にする。
  * すべて相対パス＝GitHub Pages の任意サブパスでも動作する。
  */
-const CACHE = 'wave-arena-v3';
+const CACHE = 'wave-arena-v4';
 
 const ASSETS = [
   './',
@@ -14,10 +14,11 @@ const ASSETS = [
   './js/main.js',
   './js/core/config.js', './js/core/constants.js', './js/core/events.js',
   './js/core/input.js', './js/core/settings.js', './js/core/touch.js',
+  './js/core/ui-state.js',
   './js/render/dev-editor.js', './js/render/enemy-sprites.js', './js/render/fx-draw.js',
   './js/render/glyphs.js', './js/render/grad-cache.js', './js/render/hud.js',
   './js/render/overlay.js', './js/render/renderer.js', './js/render/upgrades.js',
-  './js/render/view.js',
+  './js/render/view.js', './js/render/pause-menu.js',
   './js/services/audio.js', './js/services/storage.js', './js/services/kv.js',
   './js/state/binds.js', './js/state/data.js', './js/state/map.js', './js/state/maps.js',
   './js/state/state.js', './js/state/types.js', './js/state/upgrades.js',

@@ -126,14 +126,14 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 
 ### REQ-UI: UI共通基盤（F2a）
 
-**REQ-UI-1 オーバーレイ階層とフォーカス** ⬜ P1
+**REQ-UI-1 オーバーレイ階層とフォーカス** ✅ P1
 - 仕様: 0.2 の overlay stack を `js/core/ui-state.js`（純）＋ `js/render/overlay-host.js`（DOM）で実装。
   - overlay 表示中は背面 UI 不操作（`pointer-events`）。
   - overlay の最初の操作対象に focus 移動。デスクトップは Tab 移動可。
   - ボタンは最低 **44×44 CSS px** のタップ領域。
 - AC: スタックの push/closeTop/closeAll が 0.2 の規則どおり遷移する（純関数テスト）。
 
-**REQ-UI-2 画面向き/リサイズ対応** ⬜ P2
+**REQ-UI-2 画面向き/リサイズ対応** ✅ P2
 - 仕様: 縦/横を正式対応。回転・resize で canvas サイズ・`viewZoom`・touch base を再計算。
   回転直後は `move/aim` を中立化。
 - 対象: `js/main.js`（resize/orientationchange）, `js/core/touch.js`。
@@ -141,7 +141,9 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 
 ### REQ-TOUCH: タッチで完結（F2a〜F2c）
 
-**REQ-TOUCH-1 ポーズメニュー** ⬜ P1（F2a）
+**REQ-TOUCH-1 ポーズメニュー** ✅ P1（F2a）
+> 注: セーブ/ロードは暫定で既存 prompt 版を呼ぶ（F2b でスロットUIに置換）。
+> 設定ボタンは F2c で overlay 化するまで非表示。終了は F4（Native Android）で有効化。
 - 仕様: `pushOverlay('pause')` で開くモーダル。項目と条件：
 
   | 項目 | 条件 | 動作 |
@@ -347,9 +349,9 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 |---|---|---|
 | DISP-1 ズーム | ✅ | `render/renderer.js`(`computeView` 純化), `test/view.test.mjs` |
 | DISP-2 セーフエリア | ✅/🟡 | `css/game.css`, `core/touch.js`, `index.html` |
-| UI-1 overlay stack | ⬜ | `core/ui-state.js`(新), `render/overlay-host.js`(新) |
-| UI-2 回転/resize | ⬜ | `main.js`, `core/touch.js` |
-| TOUCH-1 ポーズ | ⬜ | `render/pause-menu.js`(新), `index.html`, `main.js` |
+| UI-1 overlay stack | ✅ | `core/ui-state.js`(純), `render/pause-menu.js`, `test/ui-state.test.mjs` |
+| UI-2 回転/resize | ✅ | `main.js`(orientation/resize で中立化) |
+| TOUCH-1 ポーズ | ✅ | `render/pause-menu.js`(新), `main.js`, `state/binds.js` |
 | TOUCH-2 save/load UI | ⬜ | `render/save-menu.js`(新), `systems/save-local.js` |
 | TOUCH-3 設定統合 | ⬜ | `render/settings-panel.js`(新), `core/settings.js`, `core/touch.js` |
 | TOUCH-4 タッチUI常時 | ⬜ | `core/settings.js`, `main.js` |
