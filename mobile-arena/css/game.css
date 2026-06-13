@@ -1,5 +1,14 @@
 @charset "UTF-8";
 
+/* REQ-DISP-2: セーフエリア（ノッチ/ホームインジケータ/角丸）を CSS 変数化。
+   非対応環境では 0px にフォールバックし、デスクトップでは現状と同一レイアウトになる。 */
+:root {
+	--sat: env(safe-area-inset-top, 0px);
+	--sar: env(safe-area-inset-right, 0px);
+	--sab: env(safe-area-inset-bottom, 0px);
+	--sal: env(safe-area-inset-left, 0px);
+}
+
 html,
 body {
 	height: 100%;
@@ -36,8 +45,8 @@ canvas {
 
 #hud {
 	position: absolute;
-	left: 12px;
-	top: 10px;
+	left: calc(12px + var(--sal));
+	top: calc(10px + var(--sat));
 	font-size: 14px;
 	line-height: 1.35;
 	background: rgba(0, 0, 0, .35);
@@ -88,8 +97,8 @@ canvas {
 
 #help {
 	position: absolute;
-	right: 12px;
-	top: 10px;
+	right: calc(12px + var(--sar));
+	top: calc(10px + var(--sat));
 	font-size: 13px;
 	line-height: 1.4;
 	opacity: .9;
@@ -154,6 +163,10 @@ a {
 	padding: 16px 18px;
 	min-width: 320px;
 	color: #e7ecf3;
+	/* REQ-DISP-2: セーフエリアを除いた表示可能高を超えない（100vh ではなく 100dvh） */
+	max-width: calc(100vw - var(--sal) - var(--sar) - 24px);
+	max-height: calc(100dvh - var(--sat) - var(--sab) - 32px);
+	overflow: auto;
 }
 
 .overlay .panel h2 {
@@ -310,20 +323,21 @@ a {
 }
 
 /* 配置：右親指=近接/武器/リロード（射撃は右スティック）、左親指=ダッシュ/壁 */
-.tc-btn-melee  { right: 24px;  bottom: 150px; }
-.tc-btn-weapon { right: 102px; bottom: 150px; width: calc(54px * var(--tc-scale)); height: calc(54px * var(--tc-scale)); font-size: 12px; }
-.tc-btn-reload { right: 24px;  bottom: 224px; width: calc(54px * var(--tc-scale)); height: calc(54px * var(--tc-scale)); }
-.tc-btn-dash   { left: 24px;   bottom: 150px; }
-.tc-btn-build  { left: 102px;  bottom: 150px; width: calc(54px * var(--tc-scale)); height: calc(54px * var(--tc-scale)); }
-.tc-btn-pause    { right: 12px; top: 12px; width: 44px; height: 44px; font-size: 12px; }
-.tc-btn-settings { right: 64px; top: 12px; width: 44px; height: 44px; font-size: 18px; }
+/* REQ-DISP-2: 右/左/下のオフセットに safe-area を加算（最低余白を確保） */
+.tc-btn-melee  { right: calc(24px + var(--sar));  bottom: calc(150px + var(--sab)); }
+.tc-btn-weapon { right: calc(102px + var(--sar)); bottom: calc(150px + var(--sab)); width: calc(54px * var(--tc-scale)); height: calc(54px * var(--tc-scale)); font-size: 12px; }
+.tc-btn-reload { right: calc(24px + var(--sar));  bottom: calc(224px + var(--sab)); width: calc(54px * var(--tc-scale)); height: calc(54px * var(--tc-scale)); }
+.tc-btn-dash   { left: calc(24px + var(--sal));   bottom: calc(150px + var(--sab)); }
+.tc-btn-build  { left: calc(102px + var(--sal));  bottom: calc(150px + var(--sab)); width: calc(54px * var(--tc-scale)); height: calc(54px * var(--tc-scale)); }
+.tc-btn-pause    { right: calc(12px + var(--sar)); top: calc(12px + var(--sat)); width: 44px; height: 44px; font-size: 12px; }
+.tc-btn-settings { right: calc(64px + var(--sar)); top: calc(12px + var(--sat)); width: 44px; height: 44px; font-size: 18px; }
 
-/* 左右入れ替え時はボタンクラスタも反対側へ */
-.touch-controls.tc-swap .tc-btn-melee  { right: auto; left: 24px; }
-.touch-controls.tc-swap .tc-btn-weapon { right: auto; left: 102px; }
-.touch-controls.tc-swap .tc-btn-reload { right: auto; left: 24px; }
-.touch-controls.tc-swap .tc-btn-dash   { left: auto; right: 24px; }
-.touch-controls.tc-swap .tc-btn-build  { left: auto; right: 102px; }
+/* 左右入れ替え時はボタンクラスタも反対側へ（safe-area も入替側に） */
+.touch-controls.tc-swap .tc-btn-melee  { right: auto; left: calc(24px + var(--sal)); }
+.touch-controls.tc-swap .tc-btn-weapon { right: auto; left: calc(102px + var(--sal)); }
+.touch-controls.tc-swap .tc-btn-reload { right: auto; left: calc(24px + var(--sal)); }
+.touch-controls.tc-swap .tc-btn-dash   { left: auto; right: calc(24px + var(--sar)); }
+.touch-controls.tc-swap .tc-btn-build  { left: auto; right: calc(102px + var(--sar)); }
 
 /* 設定パネル */
 .tc-settings {
@@ -398,7 +412,7 @@ body.touch #rotate-hint {
 	cursor: pointer;
 }
 #dev-btn:hover { background: #1b2a3c; }
-body.touch #dev-btn { bottom: auto; top: 12px; right: 116px; }
+body.touch #dev-btn { bottom: auto; top: calc(12px + var(--sat)); right: calc(116px + var(--sar)); }
 
 .dev-overlay {
 	position: absolute;

@@ -98,7 +98,7 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 
 ### REQ-DISP: 画面適応（F1）
 
-**REQ-DISP-1 カメラズーム** 🟡 P1（算出関数の純化が残）
+**REQ-DISP-1 カメラズーム** ✅ P1
 - 仕様: 純関数 `computeView({canvasW,canvasH,mapW,mapH,tileSize,viewTilesY})` →
   `{zoom, viewW, viewH, camBounds:{maxX,maxY}}` を返す。`renderFrame` はこれを使う。
   - 通常は可視縦 `viewTilesY=15` を基準。
@@ -112,7 +112,7 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
   - `1080×2160` で可視縦タイル≈15、`2160×1080` で縦≈15 かつ横30タイルが収まる。
   - `mapW≤viewW` でも黒余白が出ない。
 
-**REQ-DISP-2 セーフエリア対応** ⬜ P1
+**REQ-DISP-2 セーフエリア対応** ✅ P1（CSS）/🟡（touch当たり判定は据置）
 - 仕様（CSS）: `:root` に `--sat/--sar/--sab/--sal = env(safe-area-inset-*, 0px)`。
   - タッチUI最低余白: `bottom: calc(16px + var(--sab))`、`left: calc(16px + var(--sal))`、`right: calc(16px + var(--sar))`。
   - overlay panel: `max-height: calc(100dvh - var(--sat) - var(--sab) - 32px)`。高さは `100dvh` 基準（`100vh` 不可）。
@@ -345,8 +345,8 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 
 | REQ | 状態 | 主対象 |
 |---|---|---|
-| DISP-1 ズーム | 🟡 | `render/renderer.js`(`computeView` 純化), `test/view.test.mjs` |
-| DISP-2 セーフエリア | ⬜ | `css/game.css`, `core/touch.js`, `index.html` |
+| DISP-1 ズーム | ✅ | `render/renderer.js`(`computeView` 純化), `test/view.test.mjs` |
+| DISP-2 セーフエリア | ✅/🟡 | `css/game.css`, `core/touch.js`, `index.html` |
 | UI-1 overlay stack | ⬜ | `core/ui-state.js`(新), `render/overlay-host.js`(新) |
 | UI-2 回転/resize | ⬜ | `main.js`, `core/touch.js` |
 | TOUCH-1 ポーズ | ⬜ | `render/pause-menu.js`(新), `index.html`, `main.js` |

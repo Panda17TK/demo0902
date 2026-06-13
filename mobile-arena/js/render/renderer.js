@@ -5,6 +5,7 @@ import { roundedRect, keyGlyph, boxGlyph, medGlyph, ringGlyph, swordGlyph, boltG
 import { drawEnemyBody } from './enemy-sprites.js';
 import { FX_DRAW } from './fx-draw.js';
 import { verticalLinear, radialQuant, radialAtOrigin } from './grad-cache.js';
+import { computeView, clampCamera } from './view.js';
 
 // グリフ名 → 描画関数（CONFIG.items.glyph から引く）
 const GLYPH_DRAW = {
@@ -65,24 +66,20 @@ export function renderFrame(ctx, canvas, state) {
   const nowMs = performance.now();   // 1フレーム1回だけ取得して各所で使い回す
   const nowS = nowMs / 1000;
 
-  // ===== ズーム =====
-  // 画面サイズ/DPR に依らず「見えるワールドの縦幅」を一定に保つ（モバイルでスプライトが
-  // 極小になるのを防ぐ）。VIEW_TILES_Y タイルぶんが収まる倍率を基準に、マップ全体より
-  // 縮小しすぎない下限も設ける。
+  // ===== ズーム（REQ-DISP-1：純関数 computeView を使用）=====
   const VIEW_TILES_Y = 15;
-  let zoom = H / (VIEW_TILES_Y * TILE);
-  // マップが画面より小さく収まる場合は、はみ出さない最小ズーム以上に保つ
-  const fitZoom = Math.max(W / (state.dim.w * TILE), H / (state.dim.h * TILE));
-  zoom = Math.max(zoom, fitZoom);
-  // 可視ワールドサイズ（device px → world px）
-  const viewW = W / zoom, viewH = H / zoom;
+  const view = computeView({
+    canvasW: W, canvasH: H,
+    mapW: state.dim.w, mapH: state.dim.h, tileSize: TILE, viewTilesY: VIEW_TILES_Y,
+  });
+  const zoom = view.zoom, viewW = view.viewW, viewH = view.viewH;
   state.viewZoom = zoom; state.viewW = viewW; state.viewH = viewH; // 入力の座標変換用
 
   // カメラ：スムーズ追従(state.cam)があれば使用、無ければプレイヤー中心
   const cxw = state.cam ? state.cam.x : state.player.x;
   const cyw = state.cam ? state.cam.y : state.player.y;
-  const baseCamX = clamp(cxw - viewW / 2, 0, Math.max(0, state.dim.w * TILE - viewW));
-  const baseCamY = clamp(cyw - viewH / 2, 0, Math.max(0, state.dim.h * TILE - viewH));
+  const cam = clampCamera(cxw, cyw, viewW, viewH, view.camBounds);
+  const baseCamX = cam.camX, baseCamY = cam.camY;
   // 画面シェイク（ワールド単位）
   let sx = 0, sy = 0;
   if (state.shake && state.shake.t > 0) {
