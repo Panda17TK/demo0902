@@ -95,3 +95,55 @@ export function onAndroidBack(handler) {
     try { App.addListener('backButton', () => handler()); } catch (_e) {}
   }).catch(() => {});
 }
+
+// ネイティブのときだけプラグインを動的 import（Web/不在は null）。
+async function loadIfNative(name) {
+  try {
+    const core = await import('@capacitor/core').catch(() => null);
+    if (!core || !core.Capacitor || !core.Capacitor.isNativePlatform || !core.Capacitor.isNativePlatform()) return null;
+    return await import(name).catch(() => null);
+  } catch (_e) { return null; }
+}
+
+let capHapticsPromise = null;
+function getCapHaptics() {
+  if (!capHapticsPromise) capHapticsPromise = loadIfNative('@capacitor/haptics');
+  return capHapticsPromise;
+}
+
+// REQ-NATIVE-1: 触覚フィードバック（Native のみ。Web/非対応は no-op・例外なし）。
+//   style: 'light' | 'medium' | 'heavy'
+export function hapticImpact(style) {
+  getCapHaptics().then((mod) => {
+    if (!mod || !mod.Haptics || !mod.Haptics.impact) return;
+    try {
+      const S = mod.ImpactStyle || {};
+      const s = (style === 'heavy') ? (S.Heavy || 'HEAVY')
+              : (style === 'light') ? (S.Light || 'LIGHT')
+              : (S.Medium || 'MEDIUM');
+      mod.Haptics.impact({ style: s });
+    } catch (_e) {}
+  }).catch(() => {});
+}
+
+// REQ-NATIVE-3: 起動時のステータスバー/スプラッシュ整え（Native のみ。Web は no-op）。
+//   - StatusBar: 暗背景に合わせ light アイコン＋背景色 #0b0e13（Android 15/16+ の
+//     edge-to-edge で色制御が効かない場合があるため、失敗は無視＝破綻回避を優先）。
+//   - SplashScreen: 初期化完了後に hide()。失敗時フェイルセーフとして遅延 hide も試みる。
+export function initNativeChrome(opts) {
+  const bg = (opts && opts.background) || '#0b0e13';
+  loadIfNative('@capacitor/status-bar').then((mod) => {
+    if (!mod || !mod.StatusBar) return;
+    const SB = mod.StatusBar, Style = mod.Style || {};
+    try { SB.setStyle && SB.setStyle({ style: Style.Dark || 'DARK' }); } catch (_e) {}
+    try { SB.setBackgroundColor && SB.setBackgroundColor({ color: bg }); } catch (_e) {}
+  }).catch(() => {});
+
+  loadIfNative('@capacitor/splash-screen').then((mod) => {
+    if (!mod || !mod.SplashScreen || !mod.SplashScreen.hide) return;
+    const hide = () => { try { mod.SplashScreen.hide(); } catch (_e) {} };
+    hide();
+    // フェイルセーフ：何らかの理由で残った場合に備えて少し後にも hide。
+    try { setTimeout(hide, 3000); } catch (_e) {}
+  }).catch(() => {});
+}

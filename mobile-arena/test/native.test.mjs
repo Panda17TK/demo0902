@@ -1,7 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-const { shouldAutoPause, androidBackAction } = await import('../js/services/native.js');
+const {
+  shouldAutoPause, androidBackAction,
+  hapticImpact, initNativeChrome, exitApp, isNativeAndroid, isNativePlatform,
+} = await import('../js/services/native.js');
 const { createUiState, pushOverlay } = await import('../js/core/ui-state.js');
 
 function mkState(over) {
@@ -72,4 +75,19 @@ test('Back: gameover → noop（いきなり終了しない）', () => {
 
 test('Back: ui 未指定でも例外なく openPause', () => {
   assert.equal(androidBackAction(null), 'openPause');
+});
+
+// ===== F4c: Native 専用 API は非ネイティブ（Web/Node）で no-op・例外なし =====
+test('非ネイティブ判定は false', () => {
+  assert.equal(isNativePlatform(), false);
+  assert.equal(isNativeAndroid(), false);
+});
+
+test('hapticImpact / initNativeChrome / exitApp は例外を投げない（no-op）', () => {
+  assert.doesNotThrow(() => hapticImpact('light'));
+  assert.doesNotThrow(() => hapticImpact('medium'));
+  assert.doesNotThrow(() => hapticImpact('heavy'));
+  assert.doesNotThrow(() => initNativeChrome({ background: '#0b0e13' }));
+  assert.doesNotThrow(() => initNativeChrome());
+  assert.doesNotThrow(() => exitApp());
 });

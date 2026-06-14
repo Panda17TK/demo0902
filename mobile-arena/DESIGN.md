@@ -229,7 +229,7 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 
 すべて**任意依存**。`js/services/native.js`(新) に集約し、プラグイン不在の Web では **no-op**・例外なし。
 
-**REQ-NATIVE-1 ハプティクス** ⬜ P2（F4c）
+**REQ-NATIVE-1 ハプティクス** ✅ P2（F4c）
 - 仕様: `@capacitor/haptics`。被弾/ボス撃破/強化確定で短い振動。`settings.haptics` で ON/OFF。
   非対応端末では API が resolve するだけ（no-op）。
 - AC: 対応イベントで `Haptics.impact` 呼出（mock 検証）／Web で無音・例外なし。
@@ -248,7 +248,7 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 - 対象: `js/services/native.js`, `js/main.js`。Back は 0.2 の `closeTopOverlay` を再利用。
 - AC: Android 実機で overlay が順に閉じ、最後に終了確認が出る（いきなり exit しない）。
 
-**REQ-NATIVE-3 ステータスバー / スプラッシュ** ⬜ P2（F4c）
+**REQ-NATIVE-3 ステータスバー / スプラッシュ** ✅ P2（F4c）
 - 仕様: 起動時テーマを `#0b0e13` に揃える。`@capacitor/status-bar` で style 設定。
   **Android 15/16+ の edge-to-edge により背景色制御が効かない場合があるため、色の完全制御では
   なく「safe-area＋アプリ背景色で破綻しない」を目標**にする。`@capacitor/splash-screen` は
@@ -362,9 +362,9 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 | CTRL-1/1b autoFire/autoAim | ✅ | `main.js`, `systems/autoaim.js`(新), `systems/combat.js`, `test/autoaim.test.mjs` |
 | CTRL-2 スティック | ✅ | `core/touch.js`(`normalizeStick`), `test/stick.test.mjs` |
 | CTRL-3 武器切替 | 🟡 | `core/touch.js`, `render/hud.js` |
-| NATIVE-1 ハプティクス | ⬜ | `services/native.js`(新), `main.js` |
+| NATIVE-1 ハプティクス | ✅ | `services/native.js`(`hapticImpact`), `main.js`, `render/upgrades.js` |
 | NATIVE-2 Android Back | ✅ | `services/native.js`(`androidBackAction`), `main.js`, `test/native.test.mjs` |
-| NATIVE-3 ステータスバー | ⬜ | `capacitor.config.json`, `services/native.js` |
+| NATIVE-3 ステータスバー | ✅ | `capacitor.config.json`, `services/native.js`(`initNativeChrome`) |
 | NATIVE-4 中断復帰 | ✅ | `services/native.js`(新), `main.js`, `test/native.test.mjs` |
 | SAVE-1 schema v3 | ✅ | `systems/save-local.js`, `test/save.test.mjs` |
 | A11Y-1 / PERF-2 | ✅/🟡 | overlay 各所(aria) / `main.js`,`renderer.js` |

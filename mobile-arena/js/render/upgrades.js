@@ -14,6 +14,7 @@ export function mountUpgrades(overlayEl, bus, state) {
 
   function choose(id) {
     applyUpgrade(state, id);
+    bus.emit('upgrade:chosen', { id }); // 強化確定（ハプティクス等の演出フック）
     close();
     state.paused = false;
     startNextWave(state, bus);

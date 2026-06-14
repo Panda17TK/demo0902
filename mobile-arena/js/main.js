@@ -34,6 +34,7 @@ import { mountSettingsPanel } from './render/settings-panel.js';
 import {
   onAppBackground, shouldAutoPause,
   onAndroidBack, androidBackAction, exitApp, isNativeAndroid,
+  hapticImpact, initNativeChrome,
 } from './services/native.js';
 
 const canvas  = document.getElementById('game');
@@ -213,6 +214,25 @@ if (!canvas) {
     }
   });
 
+  // --- ネイティブ chrome（ステータスバー/スプラッシュ・REQ-NATIVE-3）---
+  initNativeChrome({ background: '#0b0e13' });
+
+  // --- ハプティクス（REQ-NATIVE-1）---
+  // 被弾(HP減少)/ボス撃破(killCam)/強化確定。settings.haptics で ON/OFF。Web は no-op。
+  function haptic(style) { if (settings.haptics) hapticImpact(style); }
+  bus.on('upgrade:chosen', () => haptic('medium'));
+  let hapPrevHp = state.player.hp;
+  let hapPrevKillCam = false;
+  function observeHaptics() {
+    if (state.player.hp < hapPrevHp - 0.001 && !state.gameOver) haptic('light'); // 被弾
+    const kc = !!state.killCam;
+    if (kc && !hapPrevKillCam) haptic(state.killCam.boss ? 'heavy' : 'medium'); // ボス/中ボス撃破
+    hapPrevHp = state.player.hp;
+    hapPrevKillCam = kc;
+  }
+  // リスタート/ロードで HP がジャンプしても誤発火しないよう基準を合わせる。
+  bus.on('game:restart', () => { hapPrevHp = state.player.hp; hapPrevKillCam = !!state.killCam; });
+
   // --- ホットキー（保存/読込／Esc）---
   // P/L もスロット overlay を開く（タッチ・キーボード共通の導線に統一）。
   bindHotkeys(state, bus, input, {
@@ -361,6 +381,9 @@ if (!canvas) {
         state.shake.t -= dt;
         if (state.shake.t <= 0) { state.shake.t = 0; state.shake.mag = 0; }
       }
+
+      // ハプティクス（状態を観測してエッジ検出。Web は no-op）
+      observeHaptics();
 
       // 描画
       renderFrame(ctx2d, canvas, state);
