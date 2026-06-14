@@ -256,7 +256,7 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 - 対象: `capacitor.config.json`, `js/services/native.js`。
 - AC: ネイティブ起動でステータスバー周辺が破綻せず、スプラッシュが必ず消える（失敗時も）。
 
-**REQ-NATIVE-4 中断/復帰ポーズ** ⬜ P1（F4a）
+**REQ-NATIVE-4 中断/復帰ポーズ** ✅ P1（F4a）
 - 仕様: `@capacitor/app` `appStateChange`（Web は `visibilitychange`）。バックグラウンド化で
   **自動ポーズ**（`pushOverlay('pause')` 相当 or `paused=true`）。復帰時は**自動再開しない**。
 - 対象: `js/services/native.js`, `js/main.js`。
@@ -365,6 +365,6 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 | NATIVE-1 ハプティクス | ⬜ | `services/native.js`(新), `main.js` |
 | NATIVE-2 Android Back | ⬜ | `services/native.js`, `core/ui-state.js` |
 | NATIVE-3 ステータスバー | ⬜ | `capacitor.config.json`, `services/native.js` |
-| NATIVE-4 中断復帰 | ⬜ | `services/native.js`, `main.js` |
+| NATIVE-4 中断復帰 | ✅ | `services/native.js`(新), `main.js`, `test/native.test.mjs` |
 | SAVE-1 schema v3 | ✅ | `systems/save-local.js`, `test/save.test.mjs` |
 | A11Y-1 / PERF-2 | ✅/🟡 | overlay 各所(aria) / `main.js`,`renderer.js` |

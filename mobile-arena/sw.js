@@ -2,7 +2,7 @@
  * アプリシェル（HTML/JS/CSS/アイコン）をキャッシュしてオフライン起動を可能にする。
  * すべて相対パス＝GitHub Pages の任意サブパスでも動作する。
  */
-const CACHE = 'wave-arena-v7';
+const CACHE = 'wave-arena-v8';
 
 const ASSETS = [
   './',
@@ -21,6 +21,7 @@ const ASSETS = [
   './js/render/view.js', './js/render/pause-menu.js', './js/render/save-menu.js',
   './js/render/settings-panel.js',
   './js/services/audio.js', './js/services/storage.js', './js/services/kv.js',
+  './js/services/native.js',
   './js/state/binds.js', './js/state/data.js', './js/state/map.js', './js/state/maps.js',
   './js/state/state.js', './js/state/types.js', './js/state/upgrades.js',
   './js/systems/ai.js', './js/systems/attacks.js', './js/systems/combat-core.js',

@@ -31,6 +31,7 @@ import {
 import { mountPauseMenu } from './render/pause-menu.js';
 import { mountSaveMenu } from './render/save-menu.js';
 import { mountSettingsPanel } from './render/settings-panel.js';
+import { onAppBackground, shouldAutoPause } from './services/native.js';
 
 const canvas  = document.getElementById('game');
 const hudEl   = document.getElementById('hud');
@@ -190,6 +191,11 @@ if (!canvas) {
   input.autoFire = !!settings.autoFire;
   applyTouchVisibility();
   syncUi();
+
+  // --- 中断/復帰の自動ポーズ（REQ-NATIVE-4・F4a）---
+  // バックグラウンド化（タブ非表示 / Native 非アクティブ）で自動ポーズ。
+  // 復帰しても自動再開しない（明示的に「再開」が必要）。
+  onAppBackground(() => { if (shouldAutoPause(state)) uiCtl.push('pause'); });
 
   // --- ホットキー（保存/読込／Esc）---
   // P/L もスロット overlay を開く（タッチ・キーボード共通の導線に統一）。
