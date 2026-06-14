@@ -2,7 +2,7 @@
 
 見下ろし型のサバイバル・アクションシューター（ウェーブ制ローグライト）。
 Java サーブレット/JSP をホストに、ゲーム本体は Canvas + JavaScript（ES Modules）で実装。
-
+(2025年度研修用)
 ![build](https://github.com/Panda17TK/demo0902/actions/workflows/build.yml/badge.svg)
 
 ## 特徴
