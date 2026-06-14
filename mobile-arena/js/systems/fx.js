@@ -1,3 +1,10 @@
+// REQ-PERF-2: FX 密度。低性能時に粒子数を間引くための純関数（最低 1 は残す）。
+// density は state.fxDensity（0<d<=1、既定 1）。
+export function fxCount(base, density) {
+	const d = (typeof density === 'number' && density > 0) ? Math.min(1, density) : 1;
+	return Math.max(1, Math.round(base * d));
+}
+
 export function spawnSlashFX(state, x, y, ang) {
 	state.fx.push({ type: 'slash', x, y, ang, t: 0, life: 0.30 });
 }
@@ -53,8 +60,9 @@ export function addSlowmo(state, duration, factor) {
 // 発射のマズルフラッシュ（向き ang・色 color）
 export function spawnMuzzleFX(state, x, y, ang, color) {
 	state.fx.push({ type: 'muzzle', x, y, ang, color: color || '#fff1c0', t: 0, life: 0.09 });
-	// 火花を前方へ少し
-	for (let i = 0; i < 3; i++) {
+	// 火花を前方へ少し（密度で間引き）
+	const sparks = fxCount(3, state.fxDensity);
+	for (let i = 0; i < sparks; i++) {
 		const a = ang + (Math.random() - 0.5) * 0.5, sp = 120 + Math.random() * 120;
 		state.fx.push({ type: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, life: 0.18 });
 	}
@@ -62,7 +70,7 @@ export function spawnMuzzleFX(state, x, y, ang, color) {
 
 // 死亡演出：破片（gib）を飛散させ、フェードするスプライト痕を残す
 export function spawnDeathFX(state, x, y, color, big) {
-	const n = big ? 22 : 12;
+	const n = fxCount(big ? 22 : 12, state.fxDensity);
 	for (let i = 0; i < n; i++) {
 		const a = Math.random() * Math.PI * 2, sp = (big ? 120 : 80) + Math.random() * (big ? 200 : 140);
 		state.fx.push({
@@ -81,7 +89,8 @@ export function spawnDeathFX(state, x, y, color, big) {
 
 
 export function spawnSparksFX(state, x, y, n = 6) {
-	for (let i = 0; i < n; i++) {
+	const c = fxCount(n, state.fxDensity);
+	for (let i = 0; i < c; i++) {
 		const a = Math.random() * Math.PI * 2;
 		const sp = 60 + Math.random() * 120;
 		state.fx.push({ type: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, life: 0.25 });
@@ -93,7 +102,8 @@ export function spawnEnemySlashFX(state, x, y, ang) {
 }
 
 export function spawnDustFX(state, x, y, n = 8) {
-	for (let i = 0; i < n; i++) {
+	const c = fxCount(n, state.fxDensity);
+	for (let i = 0; i < c; i++) {
 		const a = Math.random() * Math.PI * 2;
 		const sp = 20 + Math.random() * 40;
 		state.fx.push({ type: 'dust', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, life: 0.35 });

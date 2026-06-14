@@ -31,6 +31,7 @@ import {
 import { mountPauseMenu } from './render/pause-menu.js';
 import { mountSaveMenu } from './render/save-menu.js';
 import { mountSettingsPanel } from './render/settings-panel.js';
+import { mountWeaponRadial } from './render/weapon-radial.js';
 import {
   onAppBackground, shouldAutoPause,
   onAndroidBack, androidBackAction, exitApp, isNativeAndroid,
@@ -144,15 +145,24 @@ if (!canvas) {
   // --- 設定（共有オブジェクト）＋ タッチ操作（常時生成し、表示は設定で制御）---
   const settings = loadSettings();
   const touchEnv = readTouchEnv();
+
+  // 武器選択（巡回／ラジアル共通）
+  function selectWeapon(idx) {
+    const ws = state.player.weapons;
+    if (!ws.length) return;
+    state.player.curW = ((idx % ws.length) + ws.length) % ws.length;
+    bus.emit('ui:toast', '武器: ' + (ws[state.player.curW].name || ''));
+  }
+  // REQ-CTRL-3: 武器ラジアル（武器ボタン長押しで開く）
+  const weaponRadial = mountWeaponRadial(wrapEl, { state, onSelect: (idx) => selectWeapon(idx) });
+
   const touchCtl = createTouchControls(wrapEl, input, {
     reload: () => reload(state, bus),
     build:  () => placeWallFront(state, bus),
-    cycleWeapon: () => {
-      const ws = state.player.weapons;
-      if (!ws.length) return;
-      state.player.curW = (state.player.curW + 1) % ws.length;
-      bus.emit('ui:toast', '武器: ' + (ws[state.player.curW].name || ''));
-    },
+    cycleWeapon: () => selectWeapon(state.player.curW + 1),
+    openWeaponRadial:   (x, y) => weaponRadial.openAt(x, y),
+    updateWeaponRadial: (x, y) => weaponRadial.update(x, y),
+    closeWeaponRadial:  (commit) => weaponRadial.close(commit),
     pause: () => { if (!state.gameOver && !isUiPaused(state.ui)) uiCtl.push('pause'); },
     openSettings: () => uiCtl.push('settings'),
   }, settings);
@@ -292,6 +302,16 @@ if (!canvas) {
   let accumulator = 0; // 固定タイムステップの蓄積
   const MAX_STEPS = 5; // 1フレームでの最大ステップ数（スパイラル防止）
 
+  // REQ-PERF-2: フレーム時間の EMA を見て FX 密度を自動調整（ヒステリシス付き）。
+  state.fxDensity = 1;
+  let frameMsEMA = 16.7;
+  function adaptFxDensity(rawMs) {
+    frameMsEMA = frameMsEMA * 0.92 + Math.min(100, rawMs) * 0.08;
+    if (frameMsEMA > 30 && state.fxDensity > 0.3) state.fxDensity = 0.3;        // 〜33fps 未満
+    else if (frameMsEMA > 23 && state.fxDensity > 0.5) state.fxDensity = 0.5;   // 〜43fps 未満
+    else if (frameMsEMA < 18 && state.fxDensity < 1) state.fxDensity = 1;       // 〜55fps 超で復帰
+  }
+
   // 固定ステップ1回ぶんのシミュレーション更新
   function stepSimulation(h) {
     // 補間用に「ステップ前」の位置を記録（描画は prev→cur を alpha で補間）
@@ -327,8 +347,10 @@ if (!canvas) {
   function loop(t) {
     try {
       fitCanvas();
+      const rawMs = t - last;                       // クランプ前の実フレーム時間（perf 監視用）
       const dt = Math.min(MAX_DT, (t - last) / 1000);
       last = t;
+      adaptFxDensity(rawMs);                         // REQ-PERF-2: FX 密度の自動調整
 
       // 時間スケール（演出）：ヒットストップとスローモーションを掛け合わせる。
       // タイマ自体は実時間で減衰させ、演出が間延びしないようにする。

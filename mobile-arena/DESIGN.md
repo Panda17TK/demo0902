@@ -112,7 +112,7 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
   - `1080×2160` で可視縦タイル≈15、`2160×1080` で縦≈15 かつ横30タイルが収まる。
   - `mapW≤viewW` でも黒余白が出ない。
 
-**REQ-DISP-2 セーフエリア対応** ✅ P1（CSS）/🟡（touch当たり判定は据置）
+**REQ-DISP-2 セーフエリア対応** ✅ P1
 - 仕様（CSS）: `:root` に `--sat/--sar/--sab/--sal = env(safe-area-inset-*, 0px)`。
   - タッチUI最低余白: `bottom: calc(16px + var(--sab))`、`left: calc(16px + var(--sal))`、`right: calc(16px + var(--sar))`。
   - overlay panel: `max-height: calc(100dvh - var(--sat) - var(--sab) - 32px)`。高さは `100dvh` 基準（`100vh` 不可）。
@@ -221,9 +221,11 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 - 対象: `js/core/touch.js`, `test/stick.test.mjs`(新)。
 - AC: 半径18%未満で `active=false`／100%以上で `magnitude∈[0.98,1.0]`／斜めでも縦横より速くならない。
 
-**REQ-CTRL-3 武器切替** 🟡 P3
-- 仕様: 巡回切替（実装済み）＋ HUD に現在武器表示（実装済み）。ラジアル等は任意（必須でない）。
-- AC: 武器ボタンで 5 種巡回／HUD に現在武器表示。
+**REQ-CTRL-3 武器切替** ✅ P3
+- 仕様: 巡回切替（実装済み）＋ HUD に現在武器表示（実装済み）＋ラジアル選択UI。
+  武器ボタン短タップ=巡回、長押し(200ms)でラジアルを開きドラッグ方向の武器を選択。
+- 実装: `render/weapon-radial.js`(純関数 `radialAngleIndex`/`slotPosition`)＋`core/touch.js`。
+- AC: 武器ボタンで巡回／HUD 表示／長押しラジアルで方向選択（中央=変更なし）。
 
 ### REQ-NATIVE: ネイティブ統合（F4）
 
@@ -278,10 +280,12 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 - 実装: pause/confirm/slot/settings の各 overlay に `role` と `aria-label`、ボタンに
   `aria-label`。タッチボタンにも `aria-label`。最小タップ領域は CSS で 44px 以上を担保。
 
-**REQ-PERF-2 Canvas/DPR 制御** 🟡 P1
+**REQ-PERF-2 Canvas/DPR 制御** ✅ P1
 - 仕様: `DPR=min(devicePixelRatio,2.5)`（実装済）。backing store は resize 時のみ更新（毎フレーム再生成しない）。
-  回転/resize 後に renderer と touch layout を再計算。低性能向けに FX density を落とす余地を残す。
-- AC: 連続 resize で backing store 再確保が過剰に起きない。
+  回転/resize 後に renderer と touch layout を再計算。低性能時は FX density を自動で落とす。
+- 実装: フレーム時間 EMA を監視し `state.fxDensity` を 1→0.5→0.3 と段階調整（復帰はヒステリシス）。
+  `fx.js` の純関数 `fxCount(base, density)` で粒子数を間引く（最低 1 は残す）。
+- AC: 連続 resize で backing store 再確保が過剰に起きない／低fpsで粒子数が自動的に減る。
 
 ---
 
@@ -352,7 +356,7 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 | REQ | 状態 | 主対象 |
 |---|---|---|
 | DISP-1 ズーム | ✅ | `render/renderer.js`(`computeView` 純化), `test/view.test.mjs` |
-| DISP-2 セーフエリア | ✅/🟡 | `css/game.css`, `core/touch.js`, `index.html` |
+| DISP-2 セーフエリア | ✅ | `css/game.css`, `core/touch.js`(`clampStickCenter`), `index.html`, `test/fx.test.mjs` |
 | UI-1 overlay stack | ✅ | `core/ui-state.js`(純), `render/pause-menu.js`, `test/ui-state.test.mjs` |
 | UI-2 回転/resize | ✅ | `main.js`(orientation/resize で中立化) |
 | TOUCH-1 ポーズ | ✅ | `render/pause-menu.js`(新), `main.js`, `state/binds.js` |
@@ -361,10 +365,10 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 | TOUCH-4 タッチUI常時 | ✅ | `core/touch.js`(`shouldShowTouchUi`), `main.js`, `test/touch.test.mjs` |
 | CTRL-1/1b autoFire/autoAim | ✅ | `main.js`, `systems/autoaim.js`(新), `systems/combat.js`, `test/autoaim.test.mjs` |
 | CTRL-2 スティック | ✅ | `core/touch.js`(`normalizeStick`), `test/stick.test.mjs` |
-| CTRL-3 武器切替 | 🟡 | `core/touch.js`, `render/hud.js` |
+| CTRL-3 武器切替 | ✅ | `render/weapon-radial.js`(新), `core/touch.js`, `test/weapon-radial.test.mjs` |
 | NATIVE-1 ハプティクス | ✅ | `services/native.js`(`hapticImpact`), `main.js`, `render/upgrades.js` |
 | NATIVE-2 Android Back | ✅ | `services/native.js`(`androidBackAction`), `main.js`, `test/native.test.mjs` |
 | NATIVE-3 ステータスバー | ✅ | `capacitor.config.json`, `services/native.js`(`initNativeChrome`) |
 | NATIVE-4 中断復帰 | ✅ | `services/native.js`(新), `main.js`, `test/native.test.mjs` |
 | SAVE-1 schema v3 | ✅ | `systems/save-local.js`, `test/save.test.mjs` |
-| A11Y-1 / PERF-2 | ✅/🟡 | overlay 各所(aria) / `main.js`,`renderer.js` |
+| A11Y-1 / PERF-2 | ✅ | overlay 各所(aria) / `main.js`(FX密度), `fx.js`(`fxCount`), `test/fx.test.mjs` |

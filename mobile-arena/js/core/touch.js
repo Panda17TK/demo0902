@@ -57,6 +57,27 @@ export function normalizeStick({ dx, dy, radius, deadZone, maxZone }) {
   return { x: nx * mag, y: ny * mag, magnitude: mag, active: true };
 }
 
+// REQ-DISP-2: スティックの操作中心をセーフエリア内側に収める（純関数）。
+//   base 半径 R を考慮し、(x,y) を [inset+R, viewport-inset-R] に clamp。
+//   画面が極端に狭く範囲が反転する場合は中点を返す。
+export function clampStickCenter(x, y, R, insets, vw, vh) {
+  const ins = insets || { top: 0, right: 0, bottom: 0, left: 0 };
+  const clamp1 = (v, lo, hi) => (hi < lo ? (lo + hi) / 2 : Math.max(lo, Math.min(hi, v)));
+  return {
+    x: clamp1(x, ins.left + R, vw - ins.right - R),
+    y: clamp1(y, ins.top + R, vh - ins.bottom - R),
+  };
+}
+
+// :root に定義した env(safe-area-inset-*) の計算値を px で読む（非対応は 0）。
+function readSafeInsets() {
+  try {
+    const cs = getComputedStyle(document.documentElement);
+    const px = (v) => { const n = parseFloat(cs.getPropertyValue(v)); return isFinite(n) ? n : 0; };
+    return { top: px('--sat'), right: px('--sar'), bottom: px('--sab'), left: px('--sal') };
+  } catch (_e) { return { top: 0, right: 0, bottom: 0, left: 0 }; }
+}
+
 export function createTouchControls(root, input, api, cfg) {
   if (!root) return null;
   api = api || {};
@@ -118,7 +139,11 @@ export function createTouchControls(root, input, api, cfg) {
       pid = e.pointerId;
       try { z.setPointerCapture(pid); } catch (_e) {}
       const r = z.getBoundingClientRect();
-      cx = e.clientX - r.left; cy = e.clientY - r.top;
+      // REQ-DISP-2: 操作中心をセーフエリア内に clamp（ノッチ/ホームバー回避）
+      const vw = (typeof window !== 'undefined' && window.innerWidth) || r.width;
+      const vh = (typeof window !== 'undefined' && window.innerHeight) || r.height;
+      const sc = clampStickCenter(e.clientX, e.clientY, getR(), readSafeInsets(), vw, vh);
+      cx = sc.x - r.left; cy = sc.y - r.top;
       base.style.left = cx + 'px'; base.style.top = cy + 'px'; base.classList.add('show');
       update(e);
       e.preventDefault();
@@ -163,10 +188,50 @@ export function createTouchControls(root, input, api, cfg) {
   makeButton('melee',  '近接', { aria: '近接攻撃', hold: (on) => { keys['j'] = on; } });
   makeButton('dash',   'DASH', { aria: 'ダッシュ', hold: (on) => { keys['shift'] = on; } });
   makeButton('reload', 'R',    { aria: 'リロード', tap: () => { if (api.reload) api.reload(); } });
-  makeButton('weapon', '武器', { aria: '武器切替', tap: () => { if (api.cycleWeapon) api.cycleWeapon(); } });
+  makeWeaponButton(); // 短タップ=巡回 / 長押し=ラジアル（REQ-CTRL-3）
   makeButton('build',  '壁',   { aria: '壁を設置', tap: () => { if (api.build) api.build(); } });
   makeButton('pause',  'II',   { aria: 'ポーズ', tap: () => { if (api.pause) api.pause(); } });
   makeButton('settings', '⚙', { aria: '設定', tap: () => { if (api.openSettings) api.openSettings(); } });
+
+  // 武器ボタン：短タップで巡回、長押し（200ms）でラジアル選択を開く。
+  function makeWeaponButton() {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'tc-btn tc-btn-weapon';
+    b.textContent = '武器';
+    b.setAttribute('aria-label', '武器切替（長押しで一覧）');
+    let pid = null, holdTimer = null, opened = false;
+    const clearHold = () => { if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; } };
+    b.addEventListener('pointerdown', (e) => {
+      pid = e.pointerId; try { b.setPointerCapture(pid); } catch (_e) {}
+      opened = false; b.classList.add('active');
+      const r = b.getBoundingClientRect();
+      const ax = r.left + r.width / 2, ay = r.top + r.height / 2;
+      clearHold();
+      holdTimer = setTimeout(() => { opened = true; if (api.openWeaponRadial) api.openWeaponRadial(ax, ay); }, 200);
+      e.preventDefault();
+    });
+    b.addEventListener('pointermove', (e) => {
+      if (e.pointerId !== pid) return;
+      if (opened && api.updateWeaponRadial) api.updateWeaponRadial(e.clientX, e.clientY);
+    });
+    const up = (e) => {
+      if (e.pointerId !== pid) return;
+      pid = null; b.classList.remove('active'); clearHold();
+      if (opened) { if (api.closeWeaponRadial) api.closeWeaponRadial(true); }
+      else if (api.cycleWeapon) api.cycleWeapon();
+      opened = false;
+    };
+    b.addEventListener('pointerup', up);
+    b.addEventListener('pointercancel', (e) => {
+      if (e.pointerId !== pid) return;
+      pid = null; b.classList.remove('active'); clearHold();
+      if (opened && api.closeWeaponRadial) api.closeWeaponRadial(false);
+      opened = false;
+    });
+    layer.appendChild(b);
+    return b;
+  }
 
   // 設定値をコントロールに反映（外部から呼ばれる）。
   function apply() {

@@ -424,6 +424,45 @@ a {
 .touch-controls.tc-swap .tc-btn-dash   { left: auto; right: calc(24px + var(--sar)); }
 .touch-controls.tc-swap .tc-btn-build  { left: auto; right: calc(102px + var(--sar)); }
 
+/* ===== 武器ラジアル（REQ-CTRL-3・長押しで表示） ===== */
+.weapon-radial {
+	position: absolute;
+	inset: 0;
+	z-index: 6;            /* タッチボタン(5)より上・overlay(10)より下 */
+	pointer-events: none; /* 選択は武器ボタンの捕捉ポインタが駆動 */
+}
+.weapon-radial.hidden { display: none; }
+.weapon-radial .wr-hub {
+	position: absolute;
+	width: 18px; height: 18px;
+	border-radius: 50%;
+	background: rgba(180, 210, 255, .5);
+	border: 1px solid rgba(255, 255, 255, .6);
+	transform: translate(-50%, -50%);
+}
+.weapon-radial .wr-slot {
+	position: absolute;
+	transform: translate(-50%, -50%);
+	min-width: 56px;
+	padding: 8px 10px;
+	border-radius: 12px;
+	background: rgba(16, 22, 34, .9);
+	border: 1px solid #2b3a50;
+	color: #cfe0f5;
+	font-size: 13px;
+	font-weight: 600;
+	text-align: center;
+	white-space: nowrap;
+	box-shadow: 0 2px 10px rgba(0, 0, 0, .4);
+}
+.weapon-radial .wr-slot.cur { border-color: #4a6a90; color: #9ad0ff; }
+.weapon-radial .wr-slot.active {
+	background: rgba(90, 130, 200, .9);
+	border-color: #b4d2ff;
+	color: #fff;
+	transform: translate(-50%, -50%) scale(1.12);
+}
+
 /* タッチ端末ではキーボード操作ヘルプを隠す（誤タップ防止＆省スペース） */
 body.touch #help { display: none; }
 
