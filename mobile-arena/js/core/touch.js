@@ -35,6 +35,28 @@ export function shouldShowTouchUi(settings, env) {
   return !!((e.maxTouchPoints > 0) || e.coarsePointer || e.native);
 }
 
+// REQ-CTRL-2: スティック入力の正規化（純関数）。
+//   入力 {dx,dy,radius,deadZone,maxZone}（deadZone/maxZone は radius に対する割合）。
+//   出力 {x,y,magnitude,active}。
+//   - 半径比 deadZone 未満 → 中立（active=false, magnitude=0）。
+//   - deadZone..maxZone を 0..1 に再マップ（指を離せば即中立）。
+//   - maxZone 以上は magnitude=1 に clamp。
+//   - x/y は単位方向 × magnitude（斜めでも縦横より速くならない）。
+export function normalizeStick({ dx, dy, radius, deadZone, maxZone }) {
+  const r = (typeof radius === 'number' && radius > 0) ? radius : 1;
+  const dz = (typeof deadZone === 'number') ? deadZone : 0.18;
+  const mz = (typeof maxZone === 'number') ? maxZone : 1;
+  const len = Math.hypot(dx, dy);
+  const raw = len / r; // 0..(>1)
+  if (raw < dz) return { x: 0, y: 0, magnitude: 0, active: false };
+  const nx = len ? dx / len : 0;
+  const ny = len ? dy / len : 0;
+  const span = Math.max(1e-6, mz - dz);
+  let mag = (Math.min(raw, mz) - dz) / span;
+  mag = Math.max(0, Math.min(1, mag));
+  return { x: nx * mag, y: ny * mag, magnitude: mag, active: true };
+}
+
 export function createTouchControls(root, input, api, cfg) {
   if (!root) return null;
   api = api || {};
@@ -78,15 +100,15 @@ export function createTouchControls(root, input, api, cfg) {
       const nx = len ? dx / len : 0;
       const ny = len ? dy / len : 0;
       knob.style.transform = `translate(calc(-50% + ${nx * cl}px), calc(-50% + ${ny * cl}px))`;
-      const mag = cl / R;                 // 0..1（倒し具合）
-      const dz = cfg.deadZone || 0.18;    // 無効域（設定）
-      const ux = nx * mag, uy = ny * mag; // 成分 -1..1
+      // REQ-CTRL-2: deadZone を踏まえて 0..1 に再マップ（純関数）
+      const st = normalizeStick({ dx, dy, radius: R, deadZone: cfg.deadZone || 0.18, maxZone: 1 });
 
       if (kind === 'move') {
-        if (mag > dz) { move.active = true; move.x = ux; move.y = uy; }
+        if (st.active) { move.active = true; move.x = st.x; move.y = st.y; }
         else { move.active = false; move.x = 0; move.y = 0; }
       } else {
-        if (mag > dz) { aim.active = true; aim.x = nx; aim.y = ny; keys['k'] = true; }
+        // 照準は方向のみ（倒し具合に依らず active 判定だけ deadZone を使う）
+        if (st.active) { aim.active = true; aim.x = nx; aim.y = ny; keys['k'] = true; }
         else { aim.active = false; keys['k'] = false; }
       }
     }

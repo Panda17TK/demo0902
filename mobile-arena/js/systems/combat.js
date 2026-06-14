@@ -12,6 +12,7 @@ import { hasLineOfSight } from './los.js';
 import { hurtMob } from './combat-core.js';
 import { doMelee } from './melee.js';
 import { updateBullets, updateGrenades, updateEnemyBullets, updateSlashes } from './projectiles.js';
+import { pickAutoTarget } from './autoaim.js';
 
 // dev-editor で編集された CONFIG.weapons の攻撃ステータスを runtime 武器に同期する。
 // mag/magSize/_autoRT 等のランタイム/構造フィールドは触らず、数値ステータスのみ反映。
@@ -20,17 +21,6 @@ function liveWeapon(rw) {
   const cfg = CONFIG.weapons && CONFIG.weapons.find((c) => c.id === rw.id);
   if (cfg) for (const k of LIVE_STATS) if (typeof cfg[k] === 'number') rw[k] = cfg[k];
   return rw;
-}
-
-// 自動射撃用：射程内かつ視線の通る最寄りの敵を返す
-function nearestVisibleMob(state, p, maxR) {
-  let best = null, bd = maxR * maxR;
-  for (const m of state.mobs) {
-    if (m.hp <= 0) continue;
-    const dx = m.x - p.x, dy = m.y - p.y, d2 = dx * dx + dy * dy;
-    if (d2 < bd && hasLineOfSight(state, p.x, p.y, m.x, m.y)) { bd = d2; best = m; }
-  }
-  return best;
 }
 
 export function switchWeapon(state, idx) {
@@ -135,7 +125,8 @@ export function updateCombat(state, dt, bus, input, audio) {
     const al = Math.hypot(input.aim.x, input.aim.y) || 1;
     p.facing.x = input.aim.x / al; p.facing.y = input.aim.y / al;
   } else if (input.autoFire) {
-    const target = nearestVisibleMob(state, p, 480);
+    // REQ-CTRL-1b: 射線が通る最寄り（→HP低→id昇順）の敵をオート照準
+    const target = pickAutoTarget(p, state.mobs, (m) => hasLineOfSight(state, p.x, p.y, m.x, m.y), 480);
     if (target) {
       const dx = target.x - p.x, dy = target.y - p.y, l = Math.hypot(dx, dy) || 1;
       p.facing.x = dx / l; p.facing.y = dy / l;

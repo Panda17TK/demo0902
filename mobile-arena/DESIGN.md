@@ -202,17 +202,19 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 
 ### REQ-CTRL: 操作最適化（F3）
 
-**REQ-CTRL-1 autoFire 初期値** ⬜ P2
+**REQ-CTRL-1 autoFire 初期値** ✅ P2
 - 仕様: 起動時に `settings.autoFire` を `input.autoFire` へ反映。モバイル既定 true を検討（設定で上書き可）。
+- 実装: `main.js` 起動時＋設定変更時に `input.autoFire = settings.autoFire`。モバイル既定は
+  当面 **false 据置**（設定で即 ON 可。既定 true 化は別途判断）。
 - AC: `autoFire=true` 起動で右スティック未操作でも最寄り敵へ発射。操作中は手動方向優先。
 
-**REQ-CTRL-1b autoAim 対象選定** ⬜ P2
+**REQ-CTRL-1b autoAim 対象選定** ✅ P2
 - 仕様（純関数 `pickAutoTarget(player, mobs, los)`）: 右スティック inactive かつ autoFire 時に
   ①最寄り ②射線が通る敵を優先 ③同距離なら HP 低 ④同じなら id 昇順。敵不在なら発射しない。
 - 対象: `js/systems/combat.js`（既存 `nearestVisibleMob` を仕様準拠に）, `test/autoaim.test.mjs`(新)。
 - AC: 上記順で1体を選ぶ／敵不在で無駄撃ちしない（純関数テスト）。
 
-**REQ-CTRL-2 スティック正規化** ⬜ P3
+**REQ-CTRL-2 スティック正規化** ✅ P3
 - 仕様（純関数 `normalizeStick({dx,dy,radius,deadZone,maxZone})` → `{x,y,magnitude,active}`）:
   deadZone 未満は中立、以上は 0–1 再マップ、maxZone 以上は magnitude=1 clamp。指を離せば即中立
   （visual knob は 80–120ms で復帰可）。
@@ -357,8 +359,8 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 | TOUCH-2 save/load UI | ✅ | `render/save-menu.js`(新), `systems/save-local.js` |
 | TOUCH-3 設定統合 | ✅ | `render/settings-panel.js`(新), `core/settings.js`, `core/touch.js` |
 | TOUCH-4 タッチUI常時 | ✅ | `core/touch.js`(`shouldShowTouchUi`), `main.js`, `test/touch.test.mjs` |
-| CTRL-1/1b autoFire/autoAim | ⬜ | `core/settings.js`, `systems/combat.js`, `test/autoaim.test.mjs` |
-| CTRL-2 スティック | ⬜ | `core/touch.js`, `test/stick.test.mjs` |
+| CTRL-1/1b autoFire/autoAim | ✅ | `main.js`, `systems/autoaim.js`(新), `systems/combat.js`, `test/autoaim.test.mjs` |
+| CTRL-2 スティック | ✅ | `core/touch.js`(`normalizeStick`), `test/stick.test.mjs` |
 | CTRL-3 武器切替 | 🟡 | `core/touch.js`, `render/hud.js` |
 | NATIVE-1 ハプティクス | ⬜ | `services/native.js`(新), `main.js` |
 | NATIVE-2 Android Back | ⬜ | `services/native.js`, `core/ui-state.js` |
