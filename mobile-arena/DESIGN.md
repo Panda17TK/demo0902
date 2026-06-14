@@ -234,7 +234,7 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
   非対応端末では API が resolve するだけ（no-op）。
 - AC: 対応イベントで `Haptics.impact` 呼出（mock 検証）／Web で無音・例外なし。
 
-**REQ-NATIVE-2 Android 戻るボタン** ⬜ P1（F4b・Android）
+**REQ-NATIVE-2 Android 戻るボタン** ✅ P1（F4b・Android）
 - 仕様: `@capacitor/app` の `backButton`。**いきなり終了しない**。状態遷移：
 
   | 現在状態 | Back 動作 |
@@ -363,7 +363,7 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 | CTRL-2 スティック | ✅ | `core/touch.js`(`normalizeStick`), `test/stick.test.mjs` |
 | CTRL-3 武器切替 | 🟡 | `core/touch.js`, `render/hud.js` |
 | NATIVE-1 ハプティクス | ⬜ | `services/native.js`(新), `main.js` |
-| NATIVE-2 Android Back | ⬜ | `services/native.js`, `core/ui-state.js` |
+| NATIVE-2 Android Back | ✅ | `services/native.js`(`androidBackAction`), `main.js`, `test/native.test.mjs` |
 | NATIVE-3 ステータスバー | ⬜ | `capacitor.config.json`, `services/native.js` |
 | NATIVE-4 中断復帰 | ✅ | `services/native.js`(新), `main.js`, `test/native.test.mjs` |
 | SAVE-1 schema v3 | ✅ | `systems/save-local.js`, `test/save.test.mjs` |

@@ -31,7 +31,10 @@ import {
 import { mountPauseMenu } from './render/pause-menu.js';
 import { mountSaveMenu } from './render/save-menu.js';
 import { mountSettingsPanel } from './render/settings-panel.js';
-import { onAppBackground, shouldAutoPause } from './services/native.js';
+import {
+  onAppBackground, shouldAutoPause,
+  onAndroidBack, androidBackAction, exitApp, isNativeAndroid,
+} from './services/native.js';
 
 const canvas  = document.getElementById('game');
 const hudEl   = document.getElementById('hud');
@@ -167,7 +170,9 @@ if (!canvas) {
       onLoad: () => uiCtl.push('load'),
       onSettings: () => uiCtl.push('settings'),
       onRestartConfirmed: () => bus.emit('game:restart'),
-      // 終了は F4（Native Android）で onQuitConfirmed/isNativeAndroid を提供。
+      // 終了（Native Android のみ表示。F4b）
+      isNativeAndroid: () => isNativeAndroid(),
+      onQuitConfirmed: () => exitApp(),
     },
   });
   const saveView = mountSaveMenu(wrapEl, {
@@ -196,6 +201,17 @@ if (!canvas) {
   // バックグラウンド化（タブ非表示 / Native 非アクティブ）で自動ポーズ。
   // 復帰しても自動再開しない（明示的に「再開」が必要）。
   onAppBackground(() => { if (shouldAutoPause(state)) uiCtl.push('pause'); });
+
+  // --- Android 戻るボタン（REQ-NATIVE-2・F4b）---
+  // いきなり終了せず overlay を順に閉じ、pause で Back→終了確認→OK で exitApp。
+  onAndroidBack(() => {
+    switch (androidBackAction(state.ui)) {
+      case 'openPause':   uiCtl.push('pause'); break;
+      case 'closeTop':    uiCtl.closeTop(); break;
+      case 'confirmExit': pauseView.requestConfirm('終了', 'アプリを終了しますか？', () => exitApp()); break;
+      case 'noop':        break;
+    }
+  });
 
   // --- ホットキー（保存/読込／Esc）---
   // P/L もスロット overlay を開く（タッチ・キーボード共通の導線に統一）。

@@ -6,6 +6,10 @@
 //   - Web: document の visibilitychange（タブ非表示）。
 //   - Native: @capacitor/app の appStateChange（isActive=false）。
 //   - 復帰時は自動再開しない（ポーズを積むだけ）。
+// F4b(REQ-NATIVE-2): Android 戻るボタン。いきなり終了せず overlay を順に閉じ、
+//   pause で Back→終了確認→OK で exitApp。
+
+import { topOverlay } from '../core/ui-state.js';
 
 let capAppPromise = null;
 
@@ -31,6 +35,22 @@ export function isNativePlatform() {
   } catch (_e) { return false; }
 }
 
+// Native Android か（pause メニューの「終了」ボタン表示などに使う・同期判定）。
+export function isNativeAndroid() {
+  try {
+    const cap = (typeof window !== 'undefined') && window.Capacitor;
+    return !!(cap && cap.isNativePlatform && cap.isNativePlatform()
+      && cap.getPlatform && cap.getPlatform() === 'android');
+  } catch (_e) { return false; }
+}
+
+// アプリ終了（Native のみ。Web は no-op）。
+export function exitApp() {
+  getCapApp().then((App) => {
+    if (App && App.exitApp) { try { App.exitApp(); } catch (_e) {} }
+  }).catch(() => {});
+}
+
 // REQ-NATIVE-4 純ロジック：いま自動ポーズすべきか（playing 中のみ）。
 export function shouldAutoPause(state) {
   if (!state || state.gameOver) return false;
@@ -51,5 +71,27 @@ export function onAppBackground(handler) {
   getCapApp().then((App) => {
     if (!App || !App.addListener) return;
     try { App.addListener('appStateChange', (st) => { if (st && st.isActive === false) handler(); }); } catch (_e) {}
+  }).catch(() => {});
+}
+
+// REQ-NATIVE-2 純ロジック：Android Back で何をすべきかを返す。
+//   'openPause'   … playing 中（stack 空）→ ポーズを開く
+//   'confirmExit' … pause が最上位 → 終了確認を出す
+//   'noop'        … gameover（最下位固定）→ 何もしない
+//   'closeTop'    … settings/save/load/confirm → 最上位を閉じる（=cancel/戻る）
+export function androidBackAction(ui) {
+  const top = ui ? topOverlay(ui) : null;
+  if (top === null) return 'openPause';
+  if (top === 'gameover') return 'noop';
+  if (top === 'pause') return 'confirmExit';
+  return 'closeTop';
+}
+
+// Android のハードウェア戻るボタンを購読（Web では never fire = no-op）。
+export function onAndroidBack(handler) {
+  if (typeof handler !== 'function') return;
+  getCapApp().then((App) => {
+    if (!App || !App.addListener) return;
+    try { App.addListener('backButton', () => handler()); } catch (_e) {}
   }).catch(() => {});
 }

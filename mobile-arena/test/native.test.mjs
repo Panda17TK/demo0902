@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-const { shouldAutoPause } = await import('../js/services/native.js');
+const { shouldAutoPause, androidBackAction } = await import('../js/services/native.js');
 const { createUiState, pushOverlay } = await import('../js/core/ui-state.js');
 
 function mkState(over) {
@@ -34,4 +34,42 @@ test('overlay を閉じて playing に戻れば再び自動ポーズ対象', () 
 test('state 不正でも例外を投げず false', () => {
   assert.equal(shouldAutoPause(null), false);
   assert.equal(shouldAutoPause({}), true); // gameOver/stack 無し → playing 扱い
+});
+
+// ===== REQ-NATIVE-2: Android Back の状態遷移 =====
+test('Back: playing（空）→ openPause', () => {
+  const ui = createUiState();
+  assert.equal(androidBackAction(ui), 'openPause');
+});
+
+test('Back: settings/save/load → closeTop', () => {
+  for (const name of ['settings', 'save', 'load']) {
+    const ui = createUiState();
+    pushOverlay(ui, 'pause');
+    pushOverlay(ui, name);
+    assert.equal(androidBackAction(ui), 'closeTop', name);
+  }
+});
+
+test('Back: pause が最上位 → confirmExit（終了確認）', () => {
+  const ui = createUiState();
+  pushOverlay(ui, 'pause');
+  assert.equal(androidBackAction(ui), 'confirmExit');
+});
+
+test('Back: confirm が最上位 → closeTop（=cancel）', () => {
+  const ui = createUiState();
+  pushOverlay(ui, 'pause');
+  pushOverlay(ui, 'confirm');
+  assert.equal(androidBackAction(ui), 'closeTop');
+});
+
+test('Back: gameover → noop（いきなり終了しない）', () => {
+  const ui = createUiState();
+  pushOverlay(ui, 'gameover');
+  assert.equal(androidBackAction(ui), 'noop');
+});
+
+test('Back: ui 未指定でも例外なく openPause', () => {
+  assert.equal(androidBackAction(null), 'openPause');
 });
