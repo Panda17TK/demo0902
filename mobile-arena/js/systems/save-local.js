@@ -2,9 +2,9 @@
 // ローカル永続のスロットセーブ（静的PWA / ネイティブ共通：サーバ不要）。
 // 保存は kv（Web=localStorage、ネイティブ=Preferences ミラー）経由。
 //
-// REQ-SAVE-1: schema v3。レコードは {schemaVersion, appVersion, createdAt,
-//   updatedAt, slotName, summary{wave,score,weapon,playTimeSec}, state} の形。
-//   migrate() で v2(フラット)→v3 に移行。破損/未対応は読まずにエラー扱い。
+// REQ-SAVE-1/2: schema v4。レコードは {schemaVersion, appVersion, createdAt,
+//   updatedAt, slotName, mode, summary{wave,score,weapon,playTimeSec,stage}, state}。
+//   migrate() で v2(フラット)→v3→v4 に移行。破損/未対応は読まずにエラー扱い。
 // REQ-TOUCH-2: 固定 3 スロット（slot1/2/3）。一覧に summary を表示。
 //
 // 純関数（serializeGame/buildSummary/migrate/validateGameData）は kv 非依存で
@@ -12,13 +12,14 @@
 
 import { makeMobFromKey, makeZombie } from './enemies.js';
 import { rebuildFlowField } from './flowfield.js';
+import { stageForWave } from '../state/stages.js';
 import { getItem, setItem, removeItem } from '../services/kv.js';
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 export const APP_VERSION = '1.0';
 export const SLOT_IDS = ['slot1', 'slot2', 'slot3']; // 固定 3 スロット
 
-const KEY_PREFIX = 'arena_save_'; // arena_save_<slot> = JSON(v3 record)
+const KEY_PREFIX = 'arena_save_'; // arena_save_<slot> = JSON(v4 record)
 
 function clampNum(v, lo, hi, def) {
   if (typeof v !== 'number' || !isFinite(v)) return def;
@@ -41,6 +42,10 @@ export function serializeGame(state) {
     mobs,
     spawner: state.timers ? { elapsed: state.timers.elapsed || 0, spawnTimer: state.timers.spawn || 5 } : null,
     dim: state.dim,
+    // ステージ進行（schema v4）
+    mode: state.mode || 'stage',
+    stage: state.stage || 1,
+    mapId: state.mapId || null,
   };
 }
 
@@ -53,11 +58,13 @@ export function buildSummary(g, playTimeSec) {
   const pts = (typeof playTimeSec === 'number' && isFinite(playTimeSec))
     ? Math.max(0, Math.floor(playTimeSec))
     : (typeof stats.timeMs === 'number' ? Math.floor(stats.timeMs / 1000) : 0);
+  const wave = (g && g.wave && typeof g.wave.num === 'number') ? (g.wave.num | 0) : 1;
   return {
-    wave: (g && g.wave && typeof g.wave.num === 'number') ? (g.wave.num | 0) : 1,
+    wave,
     score: (typeof stats.kills === 'number') ? (stats.kills | 0) : 0,
     weapon: w ? (w.id || '') : '',
     playTimeSec: pts,
+    stage: (g && typeof g.stage === 'number') ? (g.stage | 0) : stageForWave(wave),
   };
 }
 
@@ -68,31 +75,47 @@ export function validateGameData(g) {
   return true;
 }
 
-// 任意バージョンの parsed object を v3 レコードへ正規化する。未対応は例外。
+// v3 ラップ済みレコードを v4 へ底上げ（mode 既定・summary.stage 補完）。
+function liftV3toV4(rec) {
+  rec.schemaVersion = SCHEMA_VERSION;
+  if (rec.mode !== 'endless') rec.mode = (rec.mode === 'stage') ? 'stage' : (rec.state && rec.state.mode) || 'stage';
+  if (!rec.summary) rec.summary = buildSummary(rec.state);
+  if (typeof rec.summary.stage !== 'number') {
+    rec.summary.stage = (rec.state && typeof rec.state.stage === 'number')
+      ? rec.state.stage : stageForWave(rec.summary.wave || 1);
+  }
+  return rec;
+}
+
+// 任意バージョンの parsed object を v4 レコードへ正規化する。未対応は例外。
 export function migrate(raw) {
   if (!raw || typeof raw !== 'object') throw new Error('empty record');
 
-  // v3（既に正規形）
+  // v4（既に正規形）
   if (raw.schemaVersion === SCHEMA_VERSION && raw.state) {
     validateGameData(raw.state);
-    if (!raw.summary) raw.summary = buildSummary(raw.state);
-    return raw;
+    return liftV3toV4(raw); // mode/summary.stage の欠落を保険で補完
   }
   // 未来バージョン（読み込み不可）
   if (typeof raw.schemaVersion === 'number' && raw.schemaVersion > SCHEMA_VERSION) {
     throw new Error('schema too new: ' + raw.schemaVersion);
   }
-  // v1/v2（フラット：player/map 等がトップレベル）→ v3 へ包む
+  // v3（ラップ済みだが mode/summary.stage なし）→ v4
+  if (raw.schemaVersion === 3 && raw.state) {
+    validateGameData(raw.state);
+    return liftV3toV4(raw);
+  }
+  // v1/v2（フラット：player/map 等がトップレベル）→ v4 へ包む
   const v = (typeof raw.schema === 'number') ? raw.schema
           : (typeof raw.schemaVersion === 'number') ? raw.schemaVersion : 1;
   if (v <= 2) {
     validateGameData(raw);
     const now = Date.now();
-    return {
-      schemaVersion: SCHEMA_VERSION, appVersion: APP_VERSION,
+    return liftV3toV4({
+      schemaVersion: 3, appVersion: APP_VERSION,
       createdAt: now, updatedAt: now, slotName: '',
       summary: buildSummary(raw), state: raw,
-    };
+    });
   }
   throw new Error('unsupported schema: ' + v);
 }
@@ -127,6 +150,11 @@ export function applyGameData(state, d) {
   state.player.sta = clampNum(pp.sta, 0, state.player.staMax || 100, state.player.sta);
   if (d.wave && typeof d.wave === 'object') { state.wave = d.wave; state.wave.num = clampNum(d.wave.num, 1, 100000, 1) | 0; }
   if (d.stats && typeof d.stats === 'object') state.stats = d.stats;
+  // ステージ進行（schema v4。旧データは wave から算出）
+  state.mode = (d.mode === 'endless') ? 'endless' : 'stage';
+  state.stage = (typeof d.stage === 'number') ? (d.stage | 0) : stageForWave((d.wave && d.wave.num) || 1);
+  if (d.mapId) state.mapId = d.mapId;
+  state._stageAllCleared = false;
 
   state.items.length = 0;
   (Array.isArray(d.items) ? d.items : []).forEach((it) => state.items.push(Object.assign({}, it)));
@@ -169,7 +197,7 @@ export function readSlotMeta(slotId) {
     return {
       id: slotId, empty: false, broken: false,
       summary: rec.summary, updatedAt: rec.updatedAt || null,
-      appVersion: rec.appVersion || '',
+      appVersion: rec.appVersion || '', mode: rec.mode || 'stage',
     };
   } catch (e) {
     return { id: slotId, empty: false, broken: true, error: String((e && e.message) || e) };
@@ -193,6 +221,7 @@ export function saveToSlot(state, bus, slotId, playTimeSec) {
     const rec = {
       schemaVersion: SCHEMA_VERSION, appVersion: APP_VERSION,
       createdAt, updatedAt: now, slotName: slotId,
+      mode: state.mode || 'stage',
       summary: buildSummary(g, pts), state: g,
     };
     setItem(KEY_PREFIX + slotId, JSON.stringify(rec));

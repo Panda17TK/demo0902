@@ -534,7 +534,7 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 
 ### 8.5 REQ-SAVE-2: 進行度永続化 ＆ つづきから
 
-**REQ-SAVE-2 schema v4 ＋ continue** ⬜ P1
+**REQ-SAVE-2 schema v4 ＋ continue** ✅ P1（F5d）
 - 仕様: §8.0.3 のとおり schema v4（`mode`, `summary.stage`）＋ `migrate()` v3→v4。
   `arena_progress` を読み書き。タイトル「つづきから」overlay（`continue`）で
   **① スロットロード（既存 save-menu 再利用）** と **② ステージ選択（1..bestStage、解放時 endless）**
@@ -585,5 +585,5 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 | STAGE-4 難易度(AI挙動) | ✅ | `state/stages.js`(`stageDifficulty`), `enemies.js`(`applyDifficultyToDef`), `spawner.js`, `test/stage.test.mjs` |
 | STAGE-FX-1 遷移演出 | ✅ | `main.js`, `render/renderer.js`(STAGE バナー) |
 | MODE-1 モード/解放 | ✅ | `state/stages.js`(新), `systems/progress.js`(新), `spawner.js`, `main.js`, `render/title-screen.js`, `test/progress.test.mjs` |
-| SAVE-2 schema v4/continue | ⬜ | `systems/save-local.js`, `render/continue-menu.js`(新), `test/progress.test.mjs` |
+| SAVE-2 schema v4/continue | ✅ | `systems/save-local.js`(v4/migrate), `render/continue-menu.js`(新), `render/save-menu.js`, `main.js`, `test/save.test.mjs` |
 | CONTENT-1 ステージ定義＋専用マップ | ✅ | `state/stages.js`(STAGES/enemyPool), `state/maps.js`(stage1..4), `test/stage.test.mjs` |

@@ -60,8 +60,8 @@ export function mountTitleScreen(rootEl, { state, getProgress, hasSaves, actions
         b.textContent = endlessOk ? 'エンドレス' : 'エンドレス🔒';
       }
     }
-    // つづき: セーブが無ければ無効
-    const canContinue = hasSaves ? !!hasSaves() : false;
+    // つづき: セーブがある or 到達ステージ>1 or エンドレス解放のいずれかで有効
+    const canContinue = (hasSaves && hasSaves()) || (prog && (prog.bestStage > 1 || prog.endlessUnlocked));
     const cb = btn('continue');
     cb.disabled = !canContinue;
     // ヒント

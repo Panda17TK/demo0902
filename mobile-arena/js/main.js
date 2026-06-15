@@ -34,9 +34,10 @@ import { mountSettingsPanel } from './render/settings-panel.js';
 import { mountWeaponRadial } from './render/weapon-radial.js';
 import { mountTitleScreen } from './render/title-screen.js';
 import { mountScoresMenu } from './render/scores-menu.js';
+import { mountContinueMenu } from './render/continue-menu.js';
 import { setAppPhase, isPlaying } from './core/app-state.js';
 import { readProgress, writeProgress, markStageReached } from './systems/progress.js';
-import { stageDef, STAGE_MAX } from './state/stages.js';
+import { stageDef, STAGES, STAGE_WAVES, STAGE_MAX } from './state/stages.js';
 import {
   onAppBackground, shouldAutoPause,
   onAndroidBack, androidBackAction, exitApp, isNativeAndroid,
@@ -202,12 +203,44 @@ if (!canvas) {
     syncUi();
     applyPhase();
   }
-  // はじめから / ステージ選択からの新規ラン開始
+  // 新規ランの初期化（指定ステージの先頭ウェーブから）。
+  function beginRun(opts) {
+    const mode = (opts && opts.mode === 'endless') ? 'endless' : 'stage';
+    const stage = Math.max(1, (opts && opts.stage) | 0 || 1);
+    resetState(state);
+    applyPlayerConfig(state);
+    state.mode = mode;
+    state.stage = stage;
+    state.mapId = stageDef(stage).mapId;
+    state._stageAllCleared = false;
+    state.stageBanner = null;
+    setupMap(state);
+    rebuildFlowField(state);
+    startWave(state, (stage - 1) * STAGE_WAVES + 1); // 当該ステージの先頭ウェーブ
+    state.runStart = performance.now();
+    state.gameOver = false;
+    closeAllOverlays(state.ui);
+    syncUi();
+  }
+  // はじめから（mode 指定）/ ステージ選択からの新規ラン開始＋playing へ。
   function startGame(mode) {
-    state.mode = (mode === 'endless') ? 'endless' : 'stage';
-    progress.lastMode = state.mode; writeProgress(progress);
-    bus.emit('game:restart');       // フレッシュなラン（reset＋wave1）
+    progress.lastMode = (mode === 'endless') ? 'endless' : 'stage';
+    writeProgress(progress);
+    beginRun({ mode, stage: 1 });
     setPhase('playing');
+  }
+  function startAtStage(stage) {
+    beginRun({ mode: 'stage', stage });
+    setPhase('playing');
+  }
+  // ロード成功後はタイトル/プレイ中いずれからでも playing へ入り、pause を残す
+  // （ロード直後の被弾理不尽を防ぐ）。
+  function afterLoad() {
+    setAppPhase(state, 'playing');
+    closeAllOverlays(state.ui);
+    pushOverlay(state.ui, 'pause');
+    syncUi();
+    applyPhase();
   }
 
   const pauseView = mountPauseMenu(wrapEl, {
@@ -227,6 +260,7 @@ if (!canvas) {
     state, bus, uiCtl,
     confirm: pauseView.requestConfirm,
     slots: { listSlotMetas, saveToSlot, loadFromSlot, deleteSlot },
+    onLoaded: () => afterLoad(),
   });
   const settingsView = mountSettingsPanel({
     rootEl: wrapEl, settings,
@@ -239,19 +273,29 @@ if (!canvas) {
     onClose: () => uiCtl.closeTop(),
   });
   const scoresView = mountScoresMenu(wrapEl, { uiCtl });
+  const continueView = mountContinueMenu(wrapEl, {
+    uiCtl,
+    getProgress: () => progress,
+    stages: { STAGES, STAGE_MAX },
+    actions: {
+      loadFromSave: () => uiCtl.push('load'),
+      startStage: (stage) => startAtStage(stage),
+      startEndless: () => startGame('endless'),
+    },
+  });
   const titleView = mountTitleScreen(wrapEl, {
     state,
     getProgress: () => progress,
     hasSaves: () => listSlotMetas().some((m) => !m.empty),
     actions: {
       start: (mode) => startGame(mode),
-      continue: () => uiCtl.push('load'),       // F5d でステージ選択を追加
+      continue: () => uiCtl.push('continue'),   // ロード/ステージ選択（REQ-SAVE-2）
       openSettings: () => uiCtl.push('settings'),
       openScores: () => uiCtl.push('scores'),
       onModeChange: (m) => { progress.lastMode = m; writeProgress(progress); },
     },
   });
-  uiViews.push(pauseView, saveView, settingsView, scoresView, titleView);
+  uiViews.push(pauseView, saveView, settingsView, scoresView, continueView, titleView);
 
   // 初期反映
   input.autoFire = !!settings.autoFire;
@@ -348,22 +392,9 @@ if (!canvas) {
     }
   });
 
-  // リスタート：state をその場で初期化し、マップ／フローフィールドを作り直す
+  // リスタート：現在のモードのまま、ステージ1の先頭から作り直す。
   bus.on('game:restart', () => {
-    resetState(state);
-    applyPlayerConfig(state);
-    state.stage = 1;
-    state.mapId = stageDef(1).mapId; // 新規ランは常にステージ1の専用マップから
-    setupMap(state);
-    rebuildFlowField(state);
-    startWave(state, 1);
-    state.stage = 1;            // ステージ進行をリセット（F5a/F5b）
-    state._stageAllCleared = false;
-    state.stageBanner = null;
-    state.runStart = performance.now();
-    state.gameOver = false;
-    closeAllOverlays(state.ui); // gameover 含め全 overlay を消す
-    syncUi();                   // state.paused を再計算（playing へ）
+    beginRun({ mode: state.mode, stage: 1 });
     bus.emit('ui:toast', 'Restart');
   });
 

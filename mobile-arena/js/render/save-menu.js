@@ -17,7 +17,7 @@ function fmtDate(ms) {
   try { return new Date(ms).toLocaleString(); } catch (_e) { return ''; }
 }
 
-export function mountSaveMenu(rootEl, { state, bus, uiCtl, confirm, slots }) {
+export function mountSaveMenu(rootEl, { state, bus, uiCtl, confirm, slots, onLoaded }) {
   if (!rootEl) return { render() {} };
 
   const el = document.createElement('div');
@@ -35,10 +35,12 @@ export function mountSaveMenu(rootEl, { state, bus, uiCtl, confirm, slots }) {
   const listEl  = el.querySelector('.slot-list');
   el.querySelector('.slot-back').addEventListener('click', () => uiCtl.closeTop());
 
-  // ロード後は paused のまま「pause」へ戻す（直後の被弾理不尽を防ぐ）。
+  // ロード後の遷移。呼び出し側が onLoaded を渡せばそれに委譲（タイトルからのロード等で
+  // playing フェーズへ入れる）。無ければ既定：load を閉じて playing 直上なら pause を残す。
   function afterLoad() {
-    uiCtl.closeTop();                 // load overlay を閉じる
-    if (!uiCtl.top()) uiCtl.push('pause'); // 直下が playing なら pause を残す
+    if (onLoaded) { onLoaded(); return; }
+    uiCtl.closeTop();
+    if (!uiCtl.top()) uiCtl.push('pause');
   }
 
   function doSave(slotId, occupied) {
@@ -84,8 +86,9 @@ export function mountSaveMenu(rootEl, { state, bus, uiCtl, confirm, slots }) {
         else { info.disabled = true; }
       } else {
         const s = m.summary || {};
+        const stageStr = (m.mode === 'endless') ? 'ENDLESS' : ('STAGE ' + (s.stage | 0 || 1));
         info.innerHTML =
-          '<span class="slot-name">' + m.id + '</span>' +
+          '<span class="slot-name">' + m.id + ' <small>' + stageStr + '</small></span>' +
           '<span class="slot-sub">WAVE ' + (s.wave | 0) + ' / SCORE ' + (s.score | 0) +
             ' / ' + (s.weapon || '-') + ' / ' + fmtTime(s.playTimeSec | 0) + '</span>' +
           '<span class="slot-date">' + fmtDate(m.updatedAt) + '</span>';
