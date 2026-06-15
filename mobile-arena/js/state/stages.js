@@ -6,12 +6,12 @@
 
 export const STAGE_WAVES = 5; // 1 ステージあたりのウェーブ数（暫定）
 
-// 各ステージのメタ。mapId/enemyPool/gimmicks/behavior は F5b/F5c で充実させる。
+// 各ステージのメタ。mapId(専用マップ)・enemyPool(出現する通常敵)・gimmicks。
 export const STAGES = [
-  { id: 1, name: '崩落区画',   mapId: 'arena' },
-  { id: 2, name: '廃液プラント', mapId: 'arena' },
-  { id: 3, name: '封鎖回廊',   mapId: 'arena' },
-  { id: 4, name: '中枢コア',   mapId: 'arena' },
+  { id: 1, name: '崩落区画',   mapId: 'stage1', enemyPool: ['zombie'] },
+  { id: 2, name: '廃液プラント', mapId: 'stage2', enemyPool: ['zombie', 'spitter'] },
+  { id: 3, name: '封鎖回廊',   mapId: 'stage3', enemyPool: ['zombie', 'spitter', 'stalker'] },
+  { id: 4, name: '中枢コア',   mapId: 'stage4', enemyPool: ['spitter', 'stalker'] },
 ];
 
 export const STAGE_MAX = STAGES.length;
@@ -56,6 +56,12 @@ export function stageDifficulty(stage) {
     enemyHpMul: 1,
     enemyDmgMul: 1,
   };
+}
+
+// REQ-STAGE-3: そのステージで出現する通常敵キー（未定義なら null＝全種）。
+export function stageEnemyKeys(stage) {
+  const d = stageDef(stage);
+  return (d && Array.isArray(d.enemyPool) && d.enemyPool.length) ? d.enemyPool.slice() : null;
 }
 
 // エンドレス用の実効ステージ（ウェーブから算出・上限なし）。

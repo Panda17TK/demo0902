@@ -2,7 +2,9 @@ import { CONFIG } from '../core/config.js';
 import { hasLineOfSight } from './los.js';
 import { pickUpgradeChoices } from '../state/upgrades.js';
 import { makeMobFromKey, normalKeys, midbossKeys, bossKeys } from './enemies.js';
-import { stageForWave, stageDifficulty, effectiveStage, STAGE_WAVES, STAGE_MAX } from '../state/stages.js';
+import { stageForWave, stageDifficulty, effectiveStage, stageEnemyKeys, stageDef, STAGE_WAVES, STAGE_MAX } from '../state/stages.js';
+import { loadStageMap } from '../state/map.js';
+import { rebuildFlowField } from './flowfield.js';
 
 // 現在の実効ステージに応じた AI 挙動修正子（REQ-STAGE-4）。
 function curDifficulty(state) { return stageDifficulty(effectiveStage(state)); }
@@ -51,13 +53,20 @@ export function startWave(state, n) {
 }
 
 export function startNextWave(state, bus) {
-  startWave(state, state.wave.num + 1);
-  // REQ-STAGE-1: ステージ帯を跨いだら state.stage を更新し stage:enter を一度だけ発火。
-  const newStage = stageForWave(state.wave.num);
+  const nextNum = state.wave.num + 1;
+  // REQ-STAGE-1/2: ステージ帯を跨いだら state.stage 更新→専用マップへ安全点で切替→stage:enter。
+  // （マップ切替は startWave の前に行い、直後に投入されるエリートを新マップに置く）
+  const newStage = stageForWave(nextNum);
   if (newStage !== (state.stage || 1) && newStage <= STAGE_MAX) {
     state.stage = newStage;
-    if (bus && bus.emit) bus.emit('stage:enter', { stage: newStage, wave: state.wave.num });
+    const d = stageDef(newStage);
+    if (d && d.mapId && d.mapId !== state.mapId) {
+      loadStageMap(state, d.mapId);
+      rebuildFlowField(state);
+    }
+    if (bus && bus.emit) bus.emit('stage:enter', { stage: newStage, wave: nextNum });
   }
+  startWave(state, nextNum); // マップ切替後にスポーン
   // 定義済みステージ帯を踏破＝全クリア（エンドレス解放トリガ）。一度だけ。
   const rawStage = Math.floor((state.wave.num - 1) / STAGE_WAVES) + 1;
   if (rawStage > STAGE_MAX && !state._stageAllCleared) {
@@ -108,12 +117,15 @@ function pickTile(state, minDist) {
 }
 
 function spawnNormal(state, bus, waveNum) {
-  const keys = normalKeys();
-  if (!keys.length) return false;
+  // REQ-STAGE-3: ステージの enemyPool に限定（未定義/不一致は全種にフォールバック）。
+  const all = normalKeys();
+  if (!all.length) return false;
+  const pool = stageEnemyKeys(effectiveStage(state));
+  const keys = (pool && pool.length) ? pool.filter((k) => all.indexOf(k) !== -1) : all;
+  const use = keys.length ? keys : all;
   const t = pickTile(state, 32 * 8);
   if (!t) return false;
-  // スピッター比率は CONFIG（互換）。複数通常敵なら均等＋スピッター寄せ
-  const key = keys[Math.floor(Math.random() * keys.length)];
+  const key = use[Math.floor(Math.random() * use.length)];
   const mob = makeMobFromKey(state, key, t.cx, t.cy, waveNum, curDifficulty(state));
   if (!mob) return false;
   state.mobs.push(mob);

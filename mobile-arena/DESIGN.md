@@ -486,7 +486,7 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 - 対象: `js/systems/spawner.js`, `js/state/stages.js`(新), `test/stage.test.mjs`(新)。
 - AC: 既定 5 ウェーブごとに `stage` が 1 増える／境界で `stage:enter` が一度だけ発火。
 
-**REQ-STAGE-2 マップ切替（ステージ毎の新規マップ）** ⬜ P2
+**REQ-STAGE-2 マップ切替（ステージ毎の新規マップ）** ✅ P2（F5c）
 - 仕様: `stage:enter` で当該ステージの**専用マップ `mapId`**（maps.js の新規アリーナ）へ
   **安全点（インターミッション）で**切替。`setupMap`／`rebuildFlowField` 再構築、プレイヤーを
   当該マップの spawn へ再配置、弾/敵/FX をクリア。各ステージのマップは**別レイアウト**にする。
@@ -494,7 +494,9 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 - AC: ステージごとに**異なるマップ**になる／遷移後に黒余白・はみ出しなし（§DISP-1 と整合）／
   プレイヤーが壁内に埋まらない／FF 再構築済み。
 
-**REQ-STAGE-3 ギミック／敵編成** ⬜ P2
+**REQ-STAGE-3 ギミック／敵編成** ✅ P2（F5c）
+> ギミック差別化は当面「ステージ専用マップの障害物レイアウト」＋「enemyPool」で実現。
+> ハザードタイル等の追加ギミックは将来拡張。
 - 仕様: ステージ定義の `enemyPool` と `gimmicks`（障害物配置・出現制限など）をスポナーへ反映。
 - 対象: `js/systems/spawner.js`, `js/systems/enemies.js`, `js/state/stages.js`。
 - AC: ステージごとに出現敵種が変わる／障害物レイアウトが切り替わる。
@@ -544,9 +546,9 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 
 ### 8.6 REQ-CONTENT: ステージ定義データ
 
-**REQ-CONTENT-1 ステージテーブル＋専用マップ** 🟡 P2（F5b 骨子）
-> F5b: `STAGES`（4ステージ・名前）＋ `STAGE_WAVES`/`STAGE_MAX` ＋ AI 挙動係数
-> （`stageDifficulty`）まで。専用マップ実体・敵プール・障害物は F5c。
+**REQ-CONTENT-1 ステージテーブル＋専用マップ** ✅ P2（F5c）
+> F5c: 4ステージに固有マップ（`maps.js` の `stage1..4`・別レイアウト）＋ `enemyPool` を定義。
+> バランス（AI 挙動係数・敵編成）はデータで後調整可能。
 - 仕様: `js/state/stages.js` に `STAGES`（最低 3〜5 ステージ）と `STAGE_WAVES`/`STAGE_MAX` を定義。
   各ステージに `name/mapId(専用)/enemyPool/gimmicks/behavior(stageDifficulty 用初期値)`。
   **ステージ数ぶんの新規マップ**を `js/state/maps.js` に追加（別レイアウト）。バランスは初期値で後調整可。
@@ -578,10 +580,10 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 | APP-1 フェーズ | ✅ | `core/app-state.js`(新), `main.js`, `test/app-state.test.mjs` |
 | TITLE-1 タイトル | ✅ | `render/title-screen.js`(新), `render/scores-menu.js`(新), `main.js` |
 | STAGE-1 算出/遷移 | ✅ | `systems/spawner.js`, `state/stages.js`(新), `test/stage.test.mjs` |
-| STAGE-2 マップ切替(新規) | ⬜ | `state/map.js`, `state/maps.js`(マップ追加), `systems/spawner.js` |
-| STAGE-3 ギミック/編成 | ⬜ | `systems/spawner.js`, `systems/enemies.js`, `state/stages.js` |
+| STAGE-2 マップ切替(新規) | ✅ | `state/map.js`(`loadStageMap`), `state/maps.js`(stage1..4), `systems/spawner.js` |
+| STAGE-3 ギミック/編成 | ✅ | `systems/spawner.js`(enemyPool), `state/stages.js`(`stageEnemyKeys`), `state/maps.js` |
 | STAGE-4 難易度(AI挙動) | ✅ | `state/stages.js`(`stageDifficulty`), `enemies.js`(`applyDifficultyToDef`), `spawner.js`, `test/stage.test.mjs` |
 | STAGE-FX-1 遷移演出 | ✅ | `main.js`, `render/renderer.js`(STAGE バナー) |
 | MODE-1 モード/解放 | ✅ | `state/stages.js`(新), `systems/progress.js`(新), `spawner.js`, `main.js`, `render/title-screen.js`, `test/progress.test.mjs` |
 | SAVE-2 schema v4/continue | ⬜ | `systems/save-local.js`, `render/continue-menu.js`(新), `test/progress.test.mjs` |
-| CONTENT-1 ステージ定義＋専用マップ | 🟡 | `state/stages.js`(新・骨子), `state/maps.js`(マップ追加は F5c) |
+| CONTENT-1 ステージ定義＋専用マップ | ✅ | `state/stages.js`(STAGES/enemyPool), `state/maps.js`(stage1..4), `test/stage.test.mjs` |

@@ -1,9 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-const { stageForWave, stageDifficulty, effectiveStage, STAGE_WAVES, STAGE_MAX } =
+const { stageForWave, stageDifficulty, effectiveStage, stageEnemyKeys, stageDef, STAGES, STAGE_WAVES, STAGE_MAX } =
   await import('../js/state/stages.js');
 const { applyDifficultyToDef } = await import('../js/systems/enemies.js');
+const { getMap, MAPS } = await import('../js/state/maps.js');
 
 function baseDef() {
   return {
@@ -85,4 +86,34 @@ test('stage モードは state.stage、endless はウェーブから算出（上
   assert.equal(effectiveStage({ mode: 'stage', stage: 2, wave: { num: 99 } }), 2);
   const eff = effectiveStage({ mode: 'endless', wave: { num: 5 * STAGE_WAVES + 1 } });
   assert.ok(eff > STAGE_MAX); // 上限を超えてスケールし続ける
+});
+
+// ===== REQ-STAGE-3: enemyPool =====
+test('stageEnemyKeys はステージの出現敵を返す', () => {
+  assert.deepEqual(stageEnemyKeys(1), ['zombie']);
+  assert.ok(stageEnemyKeys(3).includes('stalker'));
+  // 範囲外は最終ステージにクランプ
+  assert.deepEqual(stageEnemyKeys(99), stageDef(STAGE_MAX).enemyPool);
+});
+
+// ===== REQ-CONTENT-1: 各ステージに固有マップが存在し 30x20 =====
+test('各ステージの mapId が実在し、別レイアウト・30x20', () => {
+  const seen = new Set();
+  for (const s of STAGES) {
+    const m = getMap(s.mapId);
+    assert.equal(m.id, s.mapId, 'mapId ' + s.mapId + ' が実在');
+    assert.equal(m.rows.length, 20);
+    assert.ok(m.rows.every((r) => r.length === 30), s.mapId + ' は全行30幅');
+    const sig = m.rows.join('\n');
+    assert.ok(!seen.has(sig), s.mapId + ' は他ステージと別レイアウト');
+    seen.add(sig);
+  }
+});
+
+test('各ステージマップにプレイヤー開始(P)が1つ', () => {
+  for (const s of STAGES) {
+    const def = MAPS.find((m) => m.id === s.mapId);
+    const p = def.rows.join('').split('').filter((c) => c === 'P').length;
+    assert.equal(p, 1, s.mapId);
+  }
 });

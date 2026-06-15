@@ -105,6 +105,7 @@ if (!canvas) {
   state.appPhase = 'title';
   state.mode = 'stage';
   state.stage = 1;
+  state.mapId = stageDef(1).mapId; // ステージ1の専用マップ（F5c）
 
   setupMap(state);
   rebuildFlowField(state);
@@ -351,6 +352,8 @@ if (!canvas) {
   bus.on('game:restart', () => {
     resetState(state);
     applyPlayerConfig(state);
+    state.stage = 1;
+    state.mapId = stageDef(1).mapId; // 新規ランは常にステージ1の専用マップから
     setupMap(state);
     rebuildFlowField(state);
     startWave(state, 1);

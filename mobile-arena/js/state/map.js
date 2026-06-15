@@ -3,7 +3,10 @@ import { TILE } from '../core/constants.js';
 import { makeMobFromKey } from '../systems/enemies.js';
 import { getMap } from './maps.js';
 
-export function setupMap(state) {
+// opts.spawnEnemies=false で legend の初期敵マーカーを無視（ステージ切替時は
+// 敵をウェーブスポナーに任せる）。
+export function setupMap(state, opts) {
+  const spawnEnemies = !(opts && opts.spawnEnemies === false);
   const def = getMap(state.mapId);
   const rows = def.rows;
   const H = rows.length, W = rows[0].length;
@@ -27,8 +30,10 @@ export function setupMap(state) {
       if (mark) {
         if (mark.kind === 'player') { state.player.x = cx; state.player.y = cy; }
         else if (mark.kind === 'enemy') {
-          const mob = makeMobFromKey(state, mark.enemy, cx, cy, 1);
-          if (mob) state.mobs.push(mob);
+          if (spawnEnemies) {
+            const mob = makeMobFromKey(state, mark.enemy, cx, cy, 1);
+            if (mob) state.mobs.push(mob);
+          }
         } else if (mark.kind === 'item') {
           const it = { type: mark.item, x: cx, y: cy };
           if (mark.amt != null) it.amt = mark.amt;
@@ -52,4 +57,19 @@ export function setupMap(state) {
       }
     }
   }
+}
+
+// REQ-STAGE-2: ステージ専用マップへ安全点で切り替える。
+// 残存エンティティ（敵/弾/グレ/FX/アイテム）を一掃し、地形を作り直してプレイヤーを
+// 新マップの spawn へ再配置する。初期敵はウェーブスポナーに任せる（spawnEnemies:false）。
+// フローフィールド再構築は呼び出し側で行う。
+export function loadStageMap(state, mapId) {
+  state.mapId = mapId;
+  if (state.mobs) state.mobs.length = 0;
+  if (state.bullets) state.bullets.length = 0;
+  if (state.ebullets) state.ebullets.length = 0;
+  if (state.grenades) state.grenades.length = 0;
+  if (state.fx) state.fx.length = 0;
+  if (state.items) state.items.length = 0;
+  setupMap(state, { spawnEnemies: false });
 }
