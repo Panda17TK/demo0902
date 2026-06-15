@@ -330,6 +330,72 @@ a {
 .set-actions { justify-content: flex-end; }
 .set-actions .set-close { min-height: 44px; min-width: 88px; }
 
+/* ===== タイトル画面（REQ-TITLE-1・F5a） ===== */
+.title-screen {
+	position: absolute;
+	inset: 0;
+	z-index: 9;            /* overlay(10) より下・タッチ/ラジアル より上 */
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: calc(24px + var(--sat)) calc(16px + var(--sar)) calc(24px + var(--sab)) calc(16px + var(--sal));
+	background:
+		radial-gradient(120% 80% at 50% 10%, rgba(40, 70, 120, .35), rgba(11, 14, 19, .92) 70%),
+		#0b0e13;
+	overflow: auto;
+}
+.title-screen.hidden { display: none; }
+.title-inner {
+	width: min(420px, 100%);
+	text-align: center;
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 10px;
+}
+.title-logo {
+	margin: 0;
+	font-size: clamp(32px, 9vw, 52px);
+	letter-spacing: .08em;
+	color: #cfe5ff;
+	text-shadow: 0 2px 18px rgba(120, 180, 255, .35);
+}
+.title-sub { margin: 0 0 10px; opacity: .8; font-size: 13px; }
+.title-mode { display: flex; gap: 10px; justify-content: center; }
+.tm-btn {
+	flex: 1;
+	min-height: 44px;
+	background: #15202e;
+	color: #cfe0f5;
+	border: 1px solid #2b3a50;
+	border-radius: 10px;
+	font-size: 15px;
+	cursor: pointer;
+}
+.tm-btn.sel { background: rgba(90, 130, 200, .8); border-color: #b4d2ff; color: #fff; }
+.tm-btn:disabled { opacity: .45; cursor: not-allowed; }
+.title-menu { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+.tt-btn {
+	min-height: 50px;
+	padding: 10px 16px;
+	font-size: 17px;
+	text-align: left;
+	background: #1e2a3a;
+	color: #e7ecf3;
+	border: 1px solid #2b3a50;
+	border-radius: 12px;
+	cursor: pointer;
+}
+.tt-btn:hover:not(:disabled) { background: #273548; }
+.tt-btn:disabled { opacity: .4; cursor: not-allowed; }
+.title-hint { margin: 8px 0 0; font-size: 12px; opacity: .7; }
+
+/* ===== スコア overlay ===== */
+.scores-panel { min-width: 280px; }
+.scores-board { margin-top: 12px; font-size: 14px; line-height: 1.7; }
+.scores-actions { justify-content: flex-end; }
+.scores-actions .scores-close { min-height: 44px; min-width: 88px; }
+
 /* ===== タッチ操作（スマホ/タブレット） ===== */
 .touch-controls {
 	position: absolute;

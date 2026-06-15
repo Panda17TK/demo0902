@@ -455,7 +455,7 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 
 ### 8.1 REQ-APP: アプリ・フェーズ
 
-**REQ-APP-1 フェーズ状態と起動フロー** ⬜ P1
+**REQ-APP-1 フェーズ状態と起動フロー** ✅ P1（F5a）
 - 仕様: 起動時 `appPhase='title'`。ループは `playing` 以外でシミュレーションしない。
   `setAppPhase` は純関数（`state` と次フェーズを受け、許可された遷移のみ適用）。
 - 対象: `js/core/app-state.js`(新), `js/main.js`。
@@ -464,7 +464,8 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 
 ### 8.2 REQ-TITLE: タイトル画面
 
-**REQ-TITLE-1 タイトルUI** ⬜ P1
+**REQ-TITLE-1 タイトルUI** ✅ P1（F5a）
+> 注: 「つづきから」は暫定で load overlay を開く（ステージ選択は F5d で追加）。
 - 仕様: フルスクリーンのタイトル。項目と条件：
 
   | 項目 | 条件 | 動作 |
@@ -520,7 +521,9 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 
 ### 8.4 REQ-MODE: モード
 
-**REQ-MODE-1 モード選択とエンドレス解放** ⬜ P1
+**REQ-MODE-1 モード選択とエンドレス解放** 🟡 P1（F5a 基礎）
+> F5a: モード選択UI（stage/endless・ロック表示）＋進行度永続化（`progress.js`）＋
+> 純関数 `markStageReached`（解放判定）まで。全クリアでの実解放呼び出しは F5b/F5d。
 - 仕様: `mode ∈ {'stage','endless'}`。`endless` は `progress.endlessUnlocked` が真のときのみ選択可。
   `STAGE_MAX` 踏破で `allCleared=true, endlessUnlocked=true` を永続化し、`result` overlay で通知。
 - 対象: `js/state/stages.js`, `js/systems/save-local.js`(progress), `js/render/title-screen.js`,
@@ -570,13 +573,13 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 
 | REQ | 状態 | 主対象 |
 |---|---|---|
-| APP-1 フェーズ | ⬜ | `core/app-state.js`(新), `main.js`, `test/app-state.test.mjs` |
-| TITLE-1 タイトル | ⬜ | `render/title-screen.js`(新), `index.html`, `main.js` |
+| APP-1 フェーズ | ✅ | `core/app-state.js`(新), `main.js`, `test/app-state.test.mjs` |
+| TITLE-1 タイトル | ✅ | `render/title-screen.js`(新), `render/scores-menu.js`(新), `main.js` |
 | STAGE-1 算出/遷移 | ⬜ | `systems/spawner.js`, `state/stages.js`(新), `test/stage.test.mjs` |
 | STAGE-2 マップ切替(新規) | ⬜ | `state/map.js`, `state/maps.js`(マップ追加), `systems/spawner.js` |
 | STAGE-3 ギミック/編成 | ⬜ | `systems/spawner.js`, `systems/enemies.js`, `state/stages.js` |
 | STAGE-4 難易度(AI挙動) | ⬜ | `state/stages.js`, `enemies.js`(`applyDifficultyToDef`), `ai.js`(`aiTier`), `test/stage.test.mjs` |
 | STAGE-FX-1 遷移演出 | ⬜ | `render/renderer.js`/`hud.js`, `systems/fx.js` |
-| MODE-1 モード/解放 | ⬜ | `state/stages.js`, `systems/save-local.js`, `render/title-screen.js`, `test/progress.test.mjs` |
+| MODE-1 モード/解放 | 🟡 | `state/stages.js`(新), `systems/progress.js`(新), `render/title-screen.js`, `test/progress.test.mjs` |
 | SAVE-2 schema v4/continue | ⬜ | `systems/save-local.js`, `render/continue-menu.js`(新), `test/progress.test.mjs` |
 | CONTENT-1 ステージ定義＋専用マップ | ⬜ | `state/stages.js`(新), `state/maps.js`(マップ追加) |

@@ -32,6 +32,10 @@ import { mountPauseMenu } from './render/pause-menu.js';
 import { mountSaveMenu } from './render/save-menu.js';
 import { mountSettingsPanel } from './render/settings-panel.js';
 import { mountWeaponRadial } from './render/weapon-radial.js';
+import { mountTitleScreen } from './render/title-screen.js';
+import { mountScoresMenu } from './render/scores-menu.js';
+import { setAppPhase, isPlaying } from './core/app-state.js';
+import { readProgress, writeProgress } from './systems/progress.js';
 import {
   onAppBackground, shouldAutoPause,
   onAndroidBack, androidBackAction, exitApp, isNativeAndroid,
@@ -96,6 +100,10 @@ if (!canvas) {
   applyPlayerConfig(state);
   state.runStart = performance.now();
   state.gameOver = false;
+  // アプリ・フェーズ（F5a）：起動時はタイトル。ステージ/モードの既定。
+  state.appPhase = 'title';
+  state.mode = 'stage';
+  state.stage = 1;
 
   setupMap(state);
   rebuildFlowField(state);
@@ -167,11 +175,37 @@ if (!canvas) {
     openSettings: () => uiCtl.push('settings'),
   }, settings);
 
+  // 進行度（到達ステージ・エンドレス解放・最終モード）
+  const progress = readProgress();
+  if (progress.lastMode) state.mode = progress.lastMode;
+
   // REQ-TOUCH-4: forceTouchUi＋環境からタッチUIの表示可否を決め、即時反映する。
+  // F5a: タッチUIは playing フェーズのときだけ表示する。
   function applyTouchVisibility() {
-    const show = shouldShowTouchUi(settings, touchEnv);
+    const show = isPlaying(state) && shouldShowTouchUi(settings, touchEnv);
     if (touchCtl && touchCtl.setVisible) touchCtl.setVisible(show);
-    document.body.classList.toggle('touch', show);
+    document.body.classList.toggle('touch', isPlaying(state) && shouldShowTouchUi(settings, touchEnv));
+  }
+
+  // --- アプリ・フェーズ制御（REQ-APP-1）---
+  function applyPhase() {
+    const playing = isPlaying(state);
+    if (hudEl) hudEl.style.display = playing ? '' : 'none';
+    applyTouchVisibility();
+    titleView.render(state);
+  }
+  function setPhase(phase) {
+    setAppPhase(state, phase);
+    if (phase === 'title') closeAllOverlays(state.ui);
+    syncUi();
+    applyPhase();
+  }
+  // はじめから / ステージ選択からの新規ラン開始
+  function startGame(mode) {
+    state.mode = (mode === 'endless') ? 'endless' : 'stage';
+    progress.lastMode = state.mode; writeProgress(progress);
+    bus.emit('game:restart');       // フレッシュなラン（reset＋wave1）
+    setPhase('playing');
   }
 
   const pauseView = mountPauseMenu(wrapEl, {
@@ -181,6 +215,7 @@ if (!canvas) {
       onLoad: () => uiCtl.push('load'),
       onSettings: () => uiCtl.push('settings'),
       onRestartConfirmed: () => bus.emit('game:restart'),
+      onTitleConfirmed: () => setPhase('title'),
       // 終了（Native Android のみ表示。F4b）
       isNativeAndroid: () => isNativeAndroid(),
       onQuitConfirmed: () => exitApp(),
@@ -201,12 +236,25 @@ if (!canvas) {
     },
     onClose: () => uiCtl.closeTop(),
   });
-  uiViews.push(pauseView, saveView, settingsView);
+  const scoresView = mountScoresMenu(wrapEl, { uiCtl });
+  const titleView = mountTitleScreen(wrapEl, {
+    state,
+    getProgress: () => progress,
+    hasSaves: () => listSlotMetas().some((m) => !m.empty),
+    actions: {
+      start: (mode) => startGame(mode),
+      continue: () => uiCtl.push('load'),       // F5d でステージ選択を追加
+      openSettings: () => uiCtl.push('settings'),
+      openScores: () => uiCtl.push('scores'),
+      onModeChange: (m) => { progress.lastMode = m; writeProgress(progress); },
+    },
+  });
+  uiViews.push(pauseView, saveView, settingsView, scoresView, titleView);
 
   // 初期反映
   input.autoFire = !!settings.autoFire;
-  applyTouchVisibility();
   syncUi();
+  applyPhase(); // 起動時はタイトル表示（HUD/タッチUI非表示）
 
   // --- 中断/復帰の自動ポーズ（REQ-NATIVE-4・F4a）---
   // バックグラウンド化（タブ非表示 / Native 非アクティブ）で自動ポーズ。
@@ -289,6 +337,7 @@ if (!canvas) {
     setupMap(state);
     rebuildFlowField(state);
     startWave(state, 1);
+    state.stage = 1;            // ステージ進行をリセット（F5a）
     state.runStart = performance.now();
     state.gameOver = false;
     closeAllOverlays(state.ui); // gameover 含め全 overlay を消す
@@ -364,11 +413,11 @@ if (!canvas) {
       // キルカム演出タイマ（描画用・実時間）
       if (state.killCam) { state.killCam.t += dt; if (state.killCam.t >= state.killCam.life) state.killCam = null; }
 
-      // overlay 表示中はゲーム操作入力を破棄（§0.3 優先度1）。
-      // pointer capture により stick が裏で更新し続けても反映させない。
-      if (isUiPaused(state.ui)) neutralizeGameInput();
+      // overlay 表示中・タイトル中はゲーム操作入力を破棄（§0.3 / §8.0.1）。
+      if (isUiPaused(state.ui) || !isPlaying(state)) neutralizeGameInput();
 
-      if (!state.paused) {
+      // シミュレーションは playing フェーズ かつ 非ポーズ のときだけ進める（§8.0.1）。
+      if (isPlaying(state) && !state.paused) {
         // ===== 固定タイムステップ蓄積（決定論・トンネリング抑止）=====
         accumulator += dt * timeScale;
         let steps = 0;
@@ -382,7 +431,7 @@ if (!canvas) {
         if (steps >= MAX_STEPS) accumulator = 0;
       }
       // 補間係数（0..1）：直近ステップからの経過割合。描画位置を滑らかにする。
-      state.alpha = state.paused ? 1 : Math.max(0, Math.min(1, accumulator / FIXED_DT));
+      state.alpha = (state.paused || !isPlaying(state)) ? 1 : Math.max(0, Math.min(1, accumulator / FIXED_DT));
 
       // カメラ（スムーズ追従＋向きの先読み）と画面シェイクの更新（実時間）
       const look = 36;

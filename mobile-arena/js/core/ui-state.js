@@ -10,7 +10,7 @@
 //  - 同一 overlay を連続して積まない（多重 push 防止）。
 //  - overlay を閉じた直後は resumeGuard=1（暴発防止：呼び出し側が hold 入力をリセット）。
 
-export const OVERLAYS = ['pause', 'settings', 'save', 'load', 'confirm', 'gameover', 'dev'];
+export const OVERLAYS = ['pause', 'settings', 'save', 'load', 'confirm', 'gameover', 'dev', 'scores'];
 
 export function createUiState() {
   return { overlayStack: [], resumeGuard: 0 };

@@ -21,6 +21,7 @@ export function mountPauseMenu(rootEl, { state, uiCtl, hooks }) {
     '    <button type="button" class="pm-btn" data-act="load" aria-label="ロード">📂 ロード</button>' +
     '    <button type="button" class="pm-btn" data-act="settings" aria-label="設定">⚙ 設定</button>' +
     '    <button type="button" class="pm-btn" data-act="restart" aria-label="リスタート">↻ リスタート</button>' +
+    '    <button type="button" class="pm-btn" data-act="title" aria-label="タイトルへ">⌂ タイトルへ</button>' +
     '    <button type="button" class="pm-btn pm-quit" data-act="quit" aria-label="終了">✕ 終了</button>' +
     '  </div>' +
     '</div>';
@@ -65,6 +66,10 @@ export function mountPauseMenu(rootEl, { state, uiCtl, hooks }) {
   btn('restart').addEventListener('click', () => {
     requestConfirm('リスタート', '最初からやり直しますか？（現在の進行は失われます）',
       () => { uiCtl.closeAll(); if (hooks.onRestartConfirmed) hooks.onRestartConfirmed(); });
+  });
+  btn('title').addEventListener('click', () => {
+    requestConfirm('タイトルへ', 'タイトルに戻りますか？（現在の進行は失われます）',
+      () => { uiCtl.closeAll(); if (hooks.onTitleConfirmed) hooks.onTitleConfirmed(); });
   });
   btn('quit').addEventListener('click', () => {
     requestConfirm('終了', 'アプリを終了しますか？',
