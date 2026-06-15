@@ -2,6 +2,10 @@ import { CONFIG } from '../core/config.js';
 import { hasLineOfSight } from './los.js';
 import { pickUpgradeChoices } from '../state/upgrades.js';
 import { makeMobFromKey, normalKeys, midbossKeys, bossKeys } from './enemies.js';
+import { stageForWave, stageDifficulty, effectiveStage, STAGE_WAVES, STAGE_MAX } from '../state/stages.js';
+
+// 現在の実効ステージに応じた AI 挙動修正子（REQ-STAGE-4）。
+function curDifficulty(state) { return stageDifficulty(effectiveStage(state)); }
 
 // ウェーブ制スポナー（パラメータは CONFIG.waves を参照）
 
@@ -14,7 +18,8 @@ export function updateSpawner(state, dt, bus, audio) {
     if (w.toSpawn > 0) {
       w.spawnCD -= dt;
       if (w.spawnCD <= 0 && countAlive(state) < liveCap(w.num)) {
-        if (spawnNormal(state, bus, w.num)) { w.toSpawn--; w.spawnCD = spawnInterval(w.num); }
+        // REQ-STAGE-4: スポーン間隔も難易度で控えめに短縮
+        if (spawnNormal(state, bus, w.num)) { w.toSpawn--; w.spawnCD = spawnInterval(w.num) * curDifficulty(state).spawnRateMul; }
         else w.spawnCD = 0.2;
       }
     }
@@ -47,6 +52,18 @@ export function startWave(state, n) {
 
 export function startNextWave(state, bus) {
   startWave(state, state.wave.num + 1);
+  // REQ-STAGE-1: ステージ帯を跨いだら state.stage を更新し stage:enter を一度だけ発火。
+  const newStage = stageForWave(state.wave.num);
+  if (newStage !== (state.stage || 1) && newStage <= STAGE_MAX) {
+    state.stage = newStage;
+    if (bus && bus.emit) bus.emit('stage:enter', { stage: newStage, wave: state.wave.num });
+  }
+  // 定義済みステージ帯を踏破＝全クリア（エンドレス解放トリガ）。一度だけ。
+  const rawStage = Math.floor((state.wave.num - 1) / STAGE_WAVES) + 1;
+  if (rawStage > STAGE_MAX && !state._stageAllCleared) {
+    state._stageAllCleared = true;
+    if (bus && bus.emit) bus.emit('stage:cleared', { wave: state.wave.num });
+  }
   if (bus && bus.emit) {
     const C = CONFIG.waves;
     const isBoss = C.bossEvery > 0 && state.wave.num % C.bossEvery === 0;
@@ -97,7 +114,7 @@ function spawnNormal(state, bus, waveNum) {
   if (!t) return false;
   // スピッター比率は CONFIG（互換）。複数通常敵なら均等＋スピッター寄せ
   const key = keys[Math.floor(Math.random() * keys.length)];
-  const mob = makeMobFromKey(state, key, t.cx, t.cy, waveNum);
+  const mob = makeMobFromKey(state, key, t.cx, t.cy, waveNum, curDifficulty(state));
   if (!mob) return false;
   state.mobs.push(mob);
   if (bus && bus.emit) bus.emit('sfx', 'spawn');
@@ -110,7 +127,7 @@ function spawnElite(state, keys, waveNum) {
   const key = keys[Math.floor(Math.random() * keys.length)];
   const cx = t ? t.cx : state.player.x + 200;
   const cy = t ? t.cy : state.player.y;
-  const mob = makeMobFromKey(state, key, cx, cy, waveNum);
+  const mob = makeMobFromKey(state, key, cx, cy, waveNum, curDifficulty(state));
   if (mob) state.mobs.push(mob);
   return !!mob;
 }

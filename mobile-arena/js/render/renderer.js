@@ -389,4 +389,22 @@ export function renderFrame(ctx, canvas, state) {
       ctx.globalAlpha = 1;
     }
   }
+
+  // ステージ遷移バナー（REQ-STAGE-FX-1）：上部に "STAGE N — 名前" をフェードイン/アウト。
+  if (state.stageBanner) {
+    const ph = state.stageBanner.t / state.stageBanner.life; // 0→1
+    const ease = Math.sin(Math.min(1, ph) * Math.PI);        // 出てから引っ込む
+    if (ease > 0.02) {
+      const y = H * 0.18;
+      const tw = Math.min(W * 0.9, 520);
+      ctx.globalAlpha = ease;
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect((W - tw) / 2, y - 26, tw, 52);
+      ctx.fillStyle = '#9ad0ff';
+      ctx.font = 'bold 26px ui-sans-serif, system-ui, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(state.stageBanner.text, W / 2, y);
+      ctx.globalAlpha = 1;
+    }
+  }
 }

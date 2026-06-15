@@ -66,10 +66,56 @@ function defOf(key) {
   return CONFIG.enemies[key] || BUILTIN_BOSSES[key] || null;
 }
 
-// 波スケールを適用して mob 実体を作る
-export function makeMobFromKey(state, key, x, y, waveNum) {
-  const def = defOf(key);
-  if (!def) return null;
+// aiTier>=2/3 で付与する既定の追加技（mods.extraAttacks 未指定時のフォールバック）。
+const DEFAULT_EXTRA_ATTACKS = [
+  { type: 'shot',  cd: 1.6, dmg: 8, speed: 220 },
+  { type: 'burst', cd: 3.0, dmg: 6, count: 3, spread: 30, speed: 220 },
+];
+
+// REQ-STAGE-4（純）: behavior 修正子を敵 def へ適用したクローンを返す。
+// HP/ダメージは触らない（水増し禁止）。反応(cd/windup)・知覚(seeRange)・機動(speed)・
+// 回避(dodge)・技(extraAttacks)を aiTier に応じて決定的に変える。
+export function applyDifficultyToDef(def, mods) {
+  if (!def || !mods) return def;
+  const out = Object.assign({}, def);
+  if (def.seeRange) out.seeRange = Math.round(def.seeRange * (mods.perceptionMul || 1));
+  if (def.speed) out.speed = Math.round(def.speed * (mods.speedMul || 1));
+
+  const rm = mods.reactionMul || 1;
+  let attacks = (def.attacks || []).map((a) => {
+    const na = Object.assign({}, a);
+    if (typeof na.cd === 'number') na.cd = Math.max(0.15, na.cd * rm);
+    if (typeof na.windup === 'number') na.windup = Math.max(0.1, na.windup * rm);
+    return na;
+  });
+
+  const tier = mods.aiTier || 0;
+  // 回避: tier>=1 で付与/強化（既存 dodge は据え置き強化）
+  let dodge = def.dodge ? Object.assign({}, def.dodge) : null;
+  if (tier >= 1) {
+    if (!dodge) dodge = { chance: 0, duration: 0.15, cd: 1.6 };
+    const dm = mods.dodge || {};
+    dodge.chance = Math.min(0.5, (dodge.chance || 0) + (dm.chanceAdd || 0));
+    dodge.cd = Math.max(0.4, (dodge.cd || 1.6) * (dm.cdMul || 1));
+  }
+  if (dodge) out.dodge = dodge;
+
+  // 技のレパートリー: tier>=2 で1つ、tier>=3 でさらに1つ追加
+  const extras = (mods.extraAttacks && mods.extraAttacks.length) ? mods.extraAttacks : DEFAULT_EXTRA_ATTACKS;
+  if (tier >= 2 && extras[0]) attacks = attacks.concat([Object.assign({}, extras[0])]);
+  if (tier >= 3 && extras[1]) attacks = attacks.concat([Object.assign({}, extras[1])]);
+
+  out.attacks = attacks;
+  out._aiTier = tier;
+  return out;
+}
+
+// 波スケールを適用して mob 実体を作る。mods（stageDifficulty の出力）があれば
+// def に挙動修正子を適用してから生成する（無ければ従来どおり）。
+export function makeMobFromKey(state, key, x, y, waveNum, mods) {
+  const baseDef = defOf(key);
+  if (!baseDef) return null;
+  const def = mods ? applyDifficultyToDef(baseDef, mods) : baseDef;
   const w = CONFIG.waves;
   const hs = 1 + (waveNum - 1) * w.hpScalePerWave;
   const ss = 1 + (waveNum - 1) * w.speedScalePerWave;
@@ -88,6 +134,7 @@ export function makeMobFromKey(state, key, x, y, waveNum) {
     vx: 0, vy: 0,
     shootCD: 0, meleeCD: 0, bumpCD: 0,
     _cd: (def.attacks || []).map(() => Math.random() * 0.6), // 初期CDをばらけさせる
+    aiTier: def._aiTier || 0,
     faceX: 1, faceY: 0,
     prevX: x, prevY: y, stuckT: 0,
     hitFlash: 0, enrageT: 0, guardT: 0,

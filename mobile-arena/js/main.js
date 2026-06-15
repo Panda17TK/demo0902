@@ -35,7 +35,8 @@ import { mountWeaponRadial } from './render/weapon-radial.js';
 import { mountTitleScreen } from './render/title-screen.js';
 import { mountScoresMenu } from './render/scores-menu.js';
 import { setAppPhase, isPlaying } from './core/app-state.js';
-import { readProgress, writeProgress } from './systems/progress.js';
+import { readProgress, writeProgress, markStageReached } from './systems/progress.js';
+import { stageDef, STAGE_MAX } from './state/stages.js';
 import {
   onAppBackground, shouldAutoPause,
   onAndroidBack, androidBackAction, exitApp, isNativeAndroid,
@@ -176,7 +177,7 @@ if (!canvas) {
   }, settings);
 
   // 進行度（到達ステージ・エンドレス解放・最終モード）
-  const progress = readProgress();
+  let progress = readProgress();
   if (progress.lastMode) state.mode = progress.lastMode;
 
   // REQ-TOUCH-4: forceTouchUi＋環境からタッチUIの表示可否を決め、即時反映する。
@@ -330,6 +331,22 @@ if (!canvas) {
     bus.emit('ui:toast', 'Game Over');
   });
 
+  // REQ-STAGE-FX-1: ステージ遷移バナー（"STAGE N — 名前"）。描画は renderer が担当。
+  bus.on('stage:enter', ({ stage }) => {
+    const d = stageDef(stage);
+    state.stageBanner = { text: 'STAGE ' + stage + (d && d.name ? ' — ' + d.name : ''), t: 0, life: 2.0 };
+    // 到達ステージを記録（解放は cleared で行う）
+    if (stage > progress.bestStage) { progress.bestStage = stage; writeProgress(progress); }
+  });
+  // REQ-MODE-1: 定義済みステージ踏破でエンドレス解放（永続化）。
+  bus.on('stage:cleared', () => {
+    if (!progress.endlessUnlocked) {
+      progress = markStageReached(progress, STAGE_MAX, STAGE_MAX);
+      writeProgress(progress);
+      bus.emit('ui:toast', '全ステージ制覇！ エンドレス解放');
+    }
+  });
+
   // リスタート：state をその場で初期化し、マップ／フローフィールドを作り直す
   bus.on('game:restart', () => {
     resetState(state);
@@ -337,7 +354,9 @@ if (!canvas) {
     setupMap(state);
     rebuildFlowField(state);
     startWave(state, 1);
-    state.stage = 1;            // ステージ進行をリセット（F5a）
+    state.stage = 1;            // ステージ進行をリセット（F5a/F5b）
+    state._stageAllCleared = false;
+    state.stageBanner = null;
     state.runStart = performance.now();
     state.gameOver = false;
     closeAllOverlays(state.ui); // gameover 含め全 overlay を消す
@@ -412,6 +431,8 @@ if (!canvas) {
       }
       // キルカム演出タイマ（描画用・実時間）
       if (state.killCam) { state.killCam.t += dt; if (state.killCam.t >= state.killCam.life) state.killCam = null; }
+      // ステージバナー演出タイマ（描画用・実時間）
+      if (state.stageBanner) { state.stageBanner.t += dt; if (state.stageBanner.t >= state.stageBanner.life) state.stageBanner = null; }
 
       // overlay 表示中・タイトル中はゲーム操作入力を破棄（§0.3 / §8.0.1）。
       if (isUiPaused(state.ui) || !isPlaying(state)) neutralizeGameInput();

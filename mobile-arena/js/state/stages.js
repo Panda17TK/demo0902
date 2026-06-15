@@ -30,3 +30,38 @@ export function stageDef(stage) {
   const i = Math.min(STAGES.length - 1, Math.max(0, (stage | 0) - 1));
   return STAGES[i];
 }
+
+// REQ-STAGE-4: 難易度＝敵 AI 挙動の段階強化（HP/ダメージ水増しはしない）。
+// 純関数。stage(ステージ番号。endless は実効ステージを渡す) から behavior 修正子を返す。
+//   reactionMul (<1)  : attacks[].cd / windup を短縮（下限あり）
+//   perceptionMul(>1) : seeRange 拡大
+//   speedMul          : 控えめな機動UP
+//   aggressionMul     : 攻撃頻度の目安（参考値）
+//   dodge{chanceAdd,cdMul}: 回避を付与/強化
+//   aiTier (0..3)     : 解禁される判断分岐（回避/遠隔追加 等）
+//   extraAttacks[]    : 追加技（applyDifficultyToDef が aiTier に応じ付与）
+//   spawnRateMul(<=1) : スポーン間隔の短縮（控えめ）
+export function stageDifficulty(stage) {
+  const t = Math.max(0, (Math.max(1, stage | 0)) - 1); // stage1→0
+  return {
+    reactionMul: Math.max(0.45, 1 - 0.12 * t),
+    perceptionMul: 1 + 0.10 * t,
+    speedMul: 1 + 0.04 * t,
+    aggressionMul: 1 + 0.10 * t,
+    dodge: { chanceAdd: Math.min(0.35, 0.06 * t), cdMul: Math.max(0.5, 1 - 0.08 * t) },
+    aiTier: Math.min(3, t),
+    extraAttacks: [],
+    spawnRateMul: Math.max(0.6, 1 - 0.05 * t),
+    // 水増し禁止: HP/ダメージ倍率は常に 1
+    enemyHpMul: 1,
+    enemyDmgMul: 1,
+  };
+}
+
+// エンドレス用の実効ステージ（ウェーブから算出・上限なし）。
+export function effectiveStage(state) {
+  const wave = (state && state.wave && state.wave.num) || 1;
+  if (state && state.mode === 'endless') return Math.floor((wave - 1) / STAGE_WAVES) + 1;
+  return (state && state.stage) || stageForWave(wave);
+}
+
