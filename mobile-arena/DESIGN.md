@@ -346,7 +346,8 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 ## 6. 既知の制約
 
 - APK/IPA ビルドには各 OS SDK が必要（生成物は本リポジトリに含めない）。
-- 認証なし・ローカル完結。タイトル画面/ステージ進行/オンライン同期は範囲外（将来課題）。
+- 認証なし・ローカル完結。オンライン同期は範囲外（将来課題）。
+- **タイトル画面／ステージ進行は §8 で要件化**（将来課題から昇格。実装は F5 系で順次）。
 - StatusBar の色制御は Android 16+ の edge-to-edge で限定的（破綻回避を目標とする）。
 
 ---
@@ -372,3 +373,181 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 | NATIVE-4 中断復帰 | ✅ | `services/native.js`(新), `main.js`, `test/native.test.mjs` |
 | SAVE-1 schema v3 | ✅ | `systems/save-local.js`, `test/save.test.mjs` |
 | A11Y-1 / PERF-2 | ✅ | overlay 各所(aria) / `main.js`(FX密度), `fx.js`(`fxCount`), `test/fx.test.mjs` |
+
+---
+
+## 8. 新要件：タイトル画面 ＆ ステージ進行（§6 将来課題の昇格）
+
+§6 で範囲外としていた「タイトル画面」「ステージ進行」を要件化する。方針（確定事項）:
+
+- **ステージ構造＝連続難易度ティア**：1 ラン中ウェーブは途切れず流れ、一定ウェーブごとに
+  「ステージ N」へ遷移して**難易度を段階的に上げる**（ハードな区切りで分割しない）。
+- **環境＝マップ切替＋ギミック**：ステージ遷移で**アリーナ（map）と出現敵種・障害物**を変える。
+- **エンドレスは全ステージ攻略後に解放**：定義済みステージ（1..`STAGE_MAX`）を踏破＝全クリアで
+  **エンドレスモード**（真の無限）を解放する。
+- **タイトルの「つづきから」＝ロード ＋ ステージ選択の両方**を提供する。
+
+本章も §0 と同様、**まず共通モデル（アプリ・フェーズ／ステージ・モデル／永続化）を固定**し、
+個別 REQ はそれに従う。状態は ✅実装済 / 🟡一部 / ⬜未実装、優先度 P1/P2/P3。
+
+### 8.0 共通設計前提（先に固定する）
+
+#### 8.0.1 アプリ・フェーズ状態モデル（`state.appPhase`）
+
+§0.1 の `paused`／`overlayStack` の**上位**に、アプリ全体のフェーズを 1 つ追加する。
+
+| `appPhase` | 意味 | シミュレーション | 表示 | overlayStack |
+|---|---|---|---|---|
+| `title` | タイトル画面 | 停止 | タイトルUI（HUD/タッチUIは非表示） | 利用可（settings/load/stageSelect/scores） |
+| `playing` | プレイ中（既存） | §0 のとおり | HUD＋タッチUI | §0 のとおり |
+
+- 規則: **ループは `appPhase==='playing' && !paused` のときだけシミュレーションを進める**。
+  `title` 中は更新せず、背景に静止したアリーナ（または専用背景）を描く。
+- 遷移 API（純）: `setAppPhase(state, phase)` を新規 `js/core/app-state.js` に置く。
+  `goTitle()` / `startGame(opts)` は main 側の薄いラッパで、フェーズ切替＋必要な reset を行う。
+- **gameover は据え置き**（`playing` 内の overlay）。「タイトルへ」操作で `playing→title`。
+  ステージ全クリアは `result` overlay（stack に積む）を出し、確認後 `title` に戻す。
+- overlayStack は**フェーズ非依存**で従来どおり機能する（タイトルからも `settings`/`load` を再利用）。
+
+#### 8.0.2 ステージ・モデル（データ駆動）
+
+- 1 ステージ＝**ウェーブの帯**。`STAGE_WAVES`（既定 5）ごとに 1 ステージ進む。
+  純関数 `stageForWave(waveNum, stageWaves, stageMax)` → ステージ番号（1..`stageMax`、
+  超過は `endless` 相当）。境界跨ぎ＝**ステージ遷移**。
+- ステージ定義 `STAGES`（`js/state/stages.js`・新）: 各要素
+  `{ id, name, mapId, enemyPool[], gimmicks{}, difficulty{enemyHpMul,enemyDmgMul,spawnRateMul,eliteChance} }`。
+  `STAGE_MAX = STAGES.length`。`endless` は最終ステージの difficulty を**ウェーブで継続スケール**。
+- 遷移タイミング: **ウェーブ間インターミッション**（既存 `wave:intermission`）で、次ウェーブが
+  別ステージ帯に入るときに遷移処理（敵が居ない安全点で map/敵プール/難易度を差し替え）。
+- 難易度: 純関数 `stageDifficulty(stage, base)` で敵 HP/ダメージ/スポーン/エリート率を算出。
+  「連続ティア」＝ステージごとに段階加算（ラン中は単調増加）。
+
+#### 8.0.3 永続化の追加（§0.4 を拡張）
+
+- 新メタキー（`kv.js` 経由・接頭辞 `arena_`）:
+  `arena_progress = { bestStage, allCleared, endlessUnlocked, lastMode }`。
+- セーブ schema を **v4** に拡張：`mode`（`'stage'|'endless'`）と `summary.stage` を追加。
+  `migrate()` で v3→v4（`mode` 既定 `'stage'`、`stage` は `wave` から算出）。破損耐性は §0.4 のまま。
+- 進行度の更新は**クリア／到達時のみ**（毎フレーム書かない）。書込失敗はトーストで通知。
+
+#### 8.0.4 入力契約・テスト方針の追補
+
+- 入力契約（§0.3）は不変。タイトル/ステージ選択は overlay 同様に**UI操作のみ**で、`systems/*` は不変。
+- 純関数テスト追加: `stageForWave` / `stageDifficulty` / `setAppPhase` 遷移 /
+  進行度 `migrate v3→v4` / `endlessUnlocked` 解放判定。
+
+### 8.1 REQ-APP: アプリ・フェーズ
+
+**REQ-APP-1 フェーズ状態と起動フロー** ⬜ P1
+- 仕様: 起動時 `appPhase='title'`。ループは `playing` 以外でシミュレーションしない。
+  `setAppPhase` は純関数（`state` と次フェーズを受け、許可された遷移のみ適用）。
+- 対象: `js/core/app-state.js`(新), `js/main.js`。
+- AC: 起動でタイトル表示・敵やウェーブが進行しない／「はじめから」で `playing` に入りウェーブ開始／
+  ゲーム中「タイトルへ」で `title` に戻り、再度始められる（リーク・暴発なし）。
+
+### 8.2 REQ-TITLE: タイトル画面
+
+**REQ-TITLE-1 タイトルUI** ⬜ P1
+- 仕様: フルスクリーンのタイトル。項目と条件：
+
+  | 項目 | 条件 | 動作 |
+  |---|---|---|
+  | はじめから | 常時 | モード選択（既定 stage）で `startGame` |
+  | つづきから | スロットあり **or** 到達ステージあり | `pushOverlay('continue')`（ロード/ステージ選択） |
+  | モード | 常時 | stage／endless（endless は未解放ならロック表示） |
+  | 設定 | 常時 | `pushOverlay('settings')`（既存モジュール再利用） |
+  | スコア | 常時 | `pushOverlay('scores')`（ローカルランキング表示） |
+- 対象: `js/render/title-screen.js`(新), `index.html`, `css/game.css`, `js/main.js`。
+- AC: タッチのみで全項目に到達。`aria-label`＋44px タップ領域。未解放 endless は disabled 表示。
+
+### 8.3 REQ-STAGE: ステージ進行
+
+**REQ-STAGE-1 ステージ算出と遷移** ⬜ P1
+- 仕様: `stageForWave` でウェーブ→ステージを算出。インターミッションで帯跨ぎを検出し遷移を発火
+  （`bus.emit('stage:enter', { stage })`）。`state.stage` を保持。
+- 対象: `js/systems/spawner.js`, `js/state/stages.js`(新), `test/stage.test.mjs`(新)。
+- AC: 既定 5 ウェーブごとに `stage` が 1 増える／境界で `stage:enter` が一度だけ発火。
+
+**REQ-STAGE-2 マップ切替** ⬜ P2
+- 仕様: `stage:enter` で当該ステージの `mapId` に**安全点（インターミッション）で**切替。
+  `setupMap`／`rebuildFlowField` 再構築、プレイヤーを spawn へ再配置、弾/敵/FX をクリア。
+- 対象: `js/state/map.js`, `js/state/maps.js`, `js/systems/spawner.js`, `js/main.js`。
+- AC: 遷移後に黒余白・はみ出しなし（§DISP-1 と整合）／プレイヤーが壁内に埋まらない／FF 再構築済み。
+
+**REQ-STAGE-3 ギミック／敵編成** ⬜ P2
+- 仕様: ステージ定義の `enemyPool` と `gimmicks`（障害物配置・出現制限など）をスポナーへ反映。
+- 対象: `js/systems/spawner.js`, `js/systems/enemies.js`, `js/state/stages.js`。
+- AC: ステージごとに出現敵種が変わる／障害物レイアウトが切り替わる。
+
+**REQ-STAGE-4 難易度スケール** ⬜ P1
+- 仕様: 純関数 `stageDifficulty(stage, base)` を spawner/enemies が参照し、敵 HP/ダメージ/
+  スポーン間隔/エリート率を段階適用。endless は最終ステージ係数＋ウェーブ継続スケール。
+- 対象: `js/systems/spawner.js`, `js/systems/enemies.js`, `test/stage.test.mjs`(新)。
+- AC: stage 増で敵が単調に強く／endless で頭打ちにならず緩やかに上昇（純関数テスト）。
+
+**REQ-STAGE-FX-1 ステージ遷移演出** ⬜ P3
+- 仕様: 「STAGE N」バナー＋短い演出（既存 wave 演出・キルカム機構に統合、no-op 安全）。
+- 対象: `js/render/renderer.js` or `js/render/hud.js`, `js/systems/fx.js`。
+- AC: 遷移時にバナー表示／演出が描画を阻害しない。
+
+### 8.4 REQ-MODE: モード
+
+**REQ-MODE-1 モード選択とエンドレス解放** ⬜ P1
+- 仕様: `mode ∈ {'stage','endless'}`。`endless` は `progress.endlessUnlocked` が真のときのみ選択可。
+  `STAGE_MAX` 踏破で `allCleared=true, endlessUnlocked=true` を永続化し、`result` overlay で通知。
+- 対象: `js/state/stages.js`, `js/systems/save-local.js`(progress), `js/render/title-screen.js`,
+  `test/progress.test.mjs`(新)。
+- AC: 初回は endless ロック／全クリア後に解放され、以後タイトルで選べる（再起動後も維持）。
+
+### 8.5 REQ-SAVE-2: 進行度永続化 ＆ つづきから
+
+**REQ-SAVE-2 schema v4 ＋ continue** ⬜ P1
+- 仕様: §8.0.3 のとおり schema v4（`mode`, `summary.stage`）＋ `migrate()` v3→v4。
+  `arena_progress` を読み書き。タイトル「つづきから」overlay（`continue`）で
+  **① スロットロード（既存 save-menu 再利用）** と **② ステージ選択（1..bestStage、解放時 endless）**
+  の双方を提供。ステージ選択は当該ステージ先頭ウェーブから新規ランを開始。
+- 対象: `js/systems/save-local.js`, `js/render/title-screen.js` or `js/render/continue-menu.js`(新),
+  `test/progress.test.mjs`(新)。
+- AC: v3 セーブが v4 として読める／一覧に STAGE 表示／ステージ選択で当該難易度から開始／
+  進行度が再起動後も保持。
+
+### 8.6 REQ-CONTENT: ステージ定義データ
+
+**REQ-CONTENT-1 ステージテーブル** ⬜ P2
+- 仕様: `js/state/stages.js` に `STAGES`（最低 3〜5 ステージ）と `STAGE_WAVES`/`STAGE_MAX` を定義。
+  各ステージに `name/mapId/enemyPool/gimmicks/difficulty`。バランスは初期値を置き後調整可能に。
+- 対象: `js/state/stages.js`(新), `js/state/maps.js`（必要マップの追加）。
+- AC: データのみで難易度・編成・マップを差し替えられる（コード変更不要）。
+
+### 8.7 非機能・整合
+
+- NFR（§3）を継承。ステージ遷移は**インターミッションの安全点のみ**で行い、戦闘中の map 差し替えを禁止。
+- 後方互換: v3 セーブ・既存スコアは保持（migrate）。タイトル追加で既存の操作契約（§0.3）を壊さない。
+- 回帰防止: 追加純関数は `test/` に単体テスト（NFR-5）。`node --test` 緑を維持。
+
+### 8.8 実装フェーズ（依存順・F5 系）
+
+| フェーズ | 含む REQ | 完了条件 |
+|---|---|---|
+| **F5a** タイトル/フェーズ | APP-1, TITLE-1, MODE-1(基礎) | フェーズ純関数テスト緑、タイトルから開始/設定/スコアに到達 |
+| **F5b** ステージ進行ロジック | STAGE-1, STAGE-4, CONTENT-1(数値), STAGE-FX-1 | `stageForWave`/`stageDifficulty` テスト緑、ステージ表示と難易度段階 |
+| **F5c** マップ/ギミック | STAGE-2, STAGE-3 | 遷移でマップ/敵編成が切替、黒余白なし・FF 再構築 |
+| **F5d** 永続化＆つづき | SAVE-2, MODE-1(解放) | schema v4＋migrate、continue(ロード/ステージ選択)、endless 解放 |
+
+> 重要: **タイトルは overlay ではなく `appPhase`**。設定/ロード/スコア/ステージ選択は
+> 既存 overlay stack（§0.2）を再利用し、二重実装しない。ステージ遷移は**インターミッション安全点限定**。
+
+### 8.9 トレーサビリティ（§8 追補）
+
+| REQ | 状態 | 主対象 |
+|---|---|---|
+| APP-1 フェーズ | ⬜ | `core/app-state.js`(新), `main.js`, `test/app-state.test.mjs` |
+| TITLE-1 タイトル | ⬜ | `render/title-screen.js`(新), `index.html`, `main.js` |
+| STAGE-1 算出/遷移 | ⬜ | `systems/spawner.js`, `state/stages.js`(新), `test/stage.test.mjs` |
+| STAGE-2 マップ切替 | ⬜ | `state/map.js`, `state/maps.js`, `systems/spawner.js` |
+| STAGE-3 ギミック/編成 | ⬜ | `systems/spawner.js`, `systems/enemies.js`, `state/stages.js` |
+| STAGE-4 難易度 | ⬜ | `systems/spawner.js`, `systems/enemies.js`, `test/stage.test.mjs` |
+| STAGE-FX-1 遷移演出 | ⬜ | `render/renderer.js`/`hud.js`, `systems/fx.js` |
+| MODE-1 モード/解放 | ⬜ | `state/stages.js`, `systems/save-local.js`, `render/title-screen.js`, `test/progress.test.mjs` |
+| SAVE-2 schema v4/continue | ⬜ | `systems/save-local.js`, `render/continue-menu.js`(新), `test/progress.test.mjs` |
+| CONTENT-1 ステージ定義 | ⬜ | `state/stages.js`(新), `state/maps.js` |
