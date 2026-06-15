@@ -382,7 +382,10 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 
 - **ステージ構造＝連続難易度ティア**：1 ラン中ウェーブは途切れず流れ、一定ウェーブごとに
   「ステージ N」へ遷移して**難易度を段階的に上げる**（ハードな区切りで分割しない）。
-- **環境＝マップ切替＋ギミック**：ステージ遷移で**アリーナ（map）と出現敵種・障害物**を変える。
+- **環境＝ステージ毎に新規マップ＋ギミック**：ステージ遷移で**専用マップ（新規アリーナ）と
+  出現敵種・障害物**を変える。各ステージは固有 `mapId`（maps.js に新規追加）を持つ。
+- **難易度は「敵 AI の挙動」中心に上げる**：HP/ダメージの水増しではなく、**反応速度・回避・
+  判断 AI・技のレパートリー**を段階強化する（§8.0.2 / REQ-STAGE-4 で具体化）。
 - **エンドレスは全ステージ攻略後に解放**：定義済みステージ（1..`STAGE_MAX`）を踏破＝全クリアで
   **エンドレスモード**（真の無限）を解放する。
 - **タイトルの「つづきから」＝ロード ＋ ステージ選択の両方**を提供する。
@@ -415,12 +418,26 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
   純関数 `stageForWave(waveNum, stageWaves, stageMax)` → ステージ番号（1..`stageMax`、
   超過は `endless` 相当）。境界跨ぎ＝**ステージ遷移**。
 - ステージ定義 `STAGES`（`js/state/stages.js`・新）: 各要素
-  `{ id, name, mapId, enemyPool[], gimmicks{}, difficulty{enemyHpMul,enemyDmgMul,spawnRateMul,eliteChance} }`。
-  `STAGE_MAX = STAGES.length`。`endless` は最終ステージの difficulty を**ウェーブで継続スケール**。
+  `{ id, name, mapId(専用・新規), enemyPool[], gimmicks{}, behavior{ ... §下 } }`。
+  `STAGE_MAX = STAGES.length`。`endless` は最終ステージの behavior を**ウェーブで継続スケール**。
 - 遷移タイミング: **ウェーブ間インターミッション**（既存 `wave:intermission`）で、次ウェーブが
-  別ステージ帯に入るときに遷移処理（敵が居ない安全点で map/敵プール/難易度を差し替え）。
-- 難易度: 純関数 `stageDifficulty(stage, base)` で敵 HP/ダメージ/スポーン/エリート率を算出。
-  「連続ティア」＝ステージごとに段階加算（ラン中は単調増加）。
+  別ステージ帯に入るときに遷移処理（敵が居ない安全点で map/敵プール/挙動を差し替え）。
+- **難易度＝敵 AI 挙動の段階強化**（HP/ダメージ水増しは原則行わない）。純関数
+  `stageDifficulty(stage)` が下記の **behavior 修正子**を返し、`applyDifficultyToDef(def, mods)`
+  （純）が spawn 時に敵 def へ適用する。「連続ティア」＝ステージごとに単調強化。
+
+  | 修正子 | 適用先（既存フィールド） | 効果 |
+  |---|---|---|
+  | `reactionMul` (<1) | 各 `attacks[].cd`、`attacks[].windup` を短縮 | 反応・手数が速くなる |
+  | `perceptionMul` (>1) | `seeRange` | 早く気づき追跡開始 |
+  | `dodge{chanceAdd, cdMul}` | `def.dodge`（無ければ付与） | 回避を覚える/頻度UP |
+  | `aiTier` (0..3) | AI 判断分岐（カイト/スタンドオフ/標的選択/heal・blink活用） | 判断が賢くなる |
+  | `extraAttacks[]` | `attacks` に追加 | 技のレパートリー増加 |
+  | `aggression` (>1) | 攻撃選択頻度・接近性 | 手数と圧が増す |
+  | `speedMul` (控えめ) | `speed` | 機動が上がる（過度にしない） |
+  | `spawnRateMul` (控えめ) | スポーン間隔 | 数の圧（補助・上げ過ぎない） |
+
+  ※ `enemyHpMul`/`enemyDmgMul` は既定 1（水増し禁止）。必要時のみ微調整可とし、主軸にしない。
 
 #### 8.0.3 永続化の追加（§0.4 を拡張）
 
@@ -468,22 +485,33 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 - 対象: `js/systems/spawner.js`, `js/state/stages.js`(新), `test/stage.test.mjs`(新)。
 - AC: 既定 5 ウェーブごとに `stage` が 1 増える／境界で `stage:enter` が一度だけ発火。
 
-**REQ-STAGE-2 マップ切替** ⬜ P2
-- 仕様: `stage:enter` で当該ステージの `mapId` に**安全点（インターミッション）で**切替。
-  `setupMap`／`rebuildFlowField` 再構築、プレイヤーを spawn へ再配置、弾/敵/FX をクリア。
-- 対象: `js/state/map.js`, `js/state/maps.js`, `js/systems/spawner.js`, `js/main.js`。
-- AC: 遷移後に黒余白・はみ出しなし（§DISP-1 と整合）／プレイヤーが壁内に埋まらない／FF 再構築済み。
+**REQ-STAGE-2 マップ切替（ステージ毎の新規マップ）** ⬜ P2
+- 仕様: `stage:enter` で当該ステージの**専用マップ `mapId`**（maps.js の新規アリーナ）へ
+  **安全点（インターミッション）で**切替。`setupMap`／`rebuildFlowField` 再構築、プレイヤーを
+  当該マップの spawn へ再配置、弾/敵/FX をクリア。各ステージのマップは**別レイアウト**にする。
+- 対象: `js/state/map.js`, `js/state/maps.js`（マップ追加）, `js/systems/spawner.js`, `js/main.js`。
+- AC: ステージごとに**異なるマップ**になる／遷移後に黒余白・はみ出しなし（§DISP-1 と整合）／
+  プレイヤーが壁内に埋まらない／FF 再構築済み。
 
 **REQ-STAGE-3 ギミック／敵編成** ⬜ P2
 - 仕様: ステージ定義の `enemyPool` と `gimmicks`（障害物配置・出現制限など）をスポナーへ反映。
 - 対象: `js/systems/spawner.js`, `js/systems/enemies.js`, `js/state/stages.js`。
 - AC: ステージごとに出現敵種が変わる／障害物レイアウトが切り替わる。
 
-**REQ-STAGE-4 難易度スケール** ⬜ P1
-- 仕様: 純関数 `stageDifficulty(stage, base)` を spawner/enemies が参照し、敵 HP/ダメージ/
-  スポーン間隔/エリート率を段階適用。endless は最終ステージ係数＋ウェーブ継続スケール。
-- 対象: `js/systems/spawner.js`, `js/systems/enemies.js`, `test/stage.test.mjs`(新)。
-- AC: stage 増で敵が単調に強く／endless で頭打ちにならず緩やかに上昇（純関数テスト）。
+**REQ-STAGE-4 難易度スケール（AI 挙動ベース）** ⬜ P1
+- 仕様: 純関数 `stageDifficulty(stage)` が §8.0.2 の **behavior 修正子**を返し、純関数
+  `applyDifficultyToDef(def, mods)` が spawn 時に敵 def へ適用する。強化は
+  **反応速度（`cd`/`windup` 短縮）・回避（`dodge`）・判断 AI（`aiTier`）・技レパートリー
+  （`extraAttacks`）・aggression**を中心に行い、**HP/ダメージの水増しは原則しない**。
+  endless は最終ステージ係数＋ウェーブで behavior を継続スケール（上げ過ぎ防止に上限/緩和曲線）。
+  `aiTier` は `ai.js` の判断分岐（追跡/カイト/スタンドオフ/標的選択/heal・blink 活用可否）を段階解禁。
+- 対象: `js/state/stages.js`(新), `js/systems/enemies.js`(`applyDifficultyToDef`), `js/systems/ai.js`
+  (`aiTier` 分岐), `js/systems/spawner.js`, `test/stage.test.mjs`(新)。
+- AC（純関数テスト中心）:
+  - stage 増で `cd`/`windup` が単調短縮、`seeRange` 増、`dodge.chance` 増、`extraAttacks` 反映。
+  - `enemyHpMul`/`enemyDmgMul` は既定 1（水増しなし）。
+  - endless で behavior が頭打ちにならず緩やかに上昇（上限内）。
+  - `aiTier` の段階で解禁される判断分岐が決定的に変わる。
 
 **REQ-STAGE-FX-1 ステージ遷移演出** ⬜ P3
 - 仕様: 「STAGE N」バナー＋短い演出（既存 wave 演出・キルカム機構に統合、no-op 安全）。
@@ -513,11 +541,12 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 
 ### 8.6 REQ-CONTENT: ステージ定義データ
 
-**REQ-CONTENT-1 ステージテーブル** ⬜ P2
+**REQ-CONTENT-1 ステージテーブル＋専用マップ** ⬜ P2
 - 仕様: `js/state/stages.js` に `STAGES`（最低 3〜5 ステージ）と `STAGE_WAVES`/`STAGE_MAX` を定義。
-  各ステージに `name/mapId/enemyPool/gimmicks/difficulty`。バランスは初期値を置き後調整可能に。
-- 対象: `js/state/stages.js`(新), `js/state/maps.js`（必要マップの追加）。
-- AC: データのみで難易度・編成・マップを差し替えられる（コード変更不要）。
+  各ステージに `name/mapId(専用)/enemyPool/gimmicks/behavior(stageDifficulty 用初期値)`。
+  **ステージ数ぶんの新規マップ**を `js/state/maps.js` に追加（別レイアウト）。バランスは初期値で後調整可。
+- 対象: `js/state/stages.js`(新), `js/state/maps.js`（ステージ数ぶんのマップ追加）。
+- AC: データのみで編成・マップ・AI 挙動係数を差し替えられる（コード変更不要）／各ステージに固有マップ。
 
 ### 8.7 非機能・整合
 
@@ -544,10 +573,10 @@ input = { keys, pressed(k), aim:{x,y,active}, move:{x,y,active}, autoFire }
 | APP-1 フェーズ | ⬜ | `core/app-state.js`(新), `main.js`, `test/app-state.test.mjs` |
 | TITLE-1 タイトル | ⬜ | `render/title-screen.js`(新), `index.html`, `main.js` |
 | STAGE-1 算出/遷移 | ⬜ | `systems/spawner.js`, `state/stages.js`(新), `test/stage.test.mjs` |
-| STAGE-2 マップ切替 | ⬜ | `state/map.js`, `state/maps.js`, `systems/spawner.js` |
+| STAGE-2 マップ切替(新規) | ⬜ | `state/map.js`, `state/maps.js`(マップ追加), `systems/spawner.js` |
 | STAGE-3 ギミック/編成 | ⬜ | `systems/spawner.js`, `systems/enemies.js`, `state/stages.js` |
-| STAGE-4 難易度 | ⬜ | `systems/spawner.js`, `systems/enemies.js`, `test/stage.test.mjs` |
+| STAGE-4 難易度(AI挙動) | ⬜ | `state/stages.js`, `enemies.js`(`applyDifficultyToDef`), `ai.js`(`aiTier`), `test/stage.test.mjs` |
 | STAGE-FX-1 遷移演出 | ⬜ | `render/renderer.js`/`hud.js`, `systems/fx.js` |
 | MODE-1 モード/解放 | ⬜ | `state/stages.js`, `systems/save-local.js`, `render/title-screen.js`, `test/progress.test.mjs` |
 | SAVE-2 schema v4/continue | ⬜ | `systems/save-local.js`, `render/continue-menu.js`(新), `test/progress.test.mjs` |
-| CONTENT-1 ステージ定義 | ⬜ | `state/stages.js`(新), `state/maps.js` |
+| CONTENT-1 ステージ定義＋専用マップ | ⬜ | `state/stages.js`(新), `state/maps.js`(マップ追加) |
