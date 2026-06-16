@@ -2,12 +2,9 @@ import { CONFIG } from '../core/config.js';
 import { hasLineOfSight } from './los.js';
 import { pickUpgradeChoices } from '../state/upgrades.js';
 import { makeMobFromKey, normalKeys, midbossKeys, bossKeys } from './enemies.js';
-import { stageForWave, stageDifficulty, effectiveStage, stageEnemyKeys, stageDef, STAGE_WAVES, STAGE_MAX } from '../state/stages.js';
+import { stageForWave, currentDifficulty, effectiveStage, stageEnemyKeys, stageDef, STAGE_WAVES, STAGE_MAX } from '../state/stages.js';
 import { loadStageMap } from '../state/map.js';
 import { rebuildFlowField } from './flowfield.js';
-
-// 現在の実効ステージに応じた AI 挙動修正子（REQ-STAGE-4）。
-function curDifficulty(state) { return stageDifficulty(effectiveStage(state)); }
 
 // ウェーブ制スポナー（パラメータは CONFIG.waves を参照）
 
@@ -21,7 +18,7 @@ export function updateSpawner(state, dt, bus, audio) {
       w.spawnCD -= dt;
       if (w.spawnCD <= 0 && countAlive(state) < liveCap(w.num)) {
         // REQ-STAGE-4: スポーン間隔も難易度で控えめに短縮
-        if (spawnNormal(state, bus, w.num)) { w.toSpawn--; w.spawnCD = spawnInterval(w.num) * curDifficulty(state).spawnRateMul; }
+        if (spawnNormal(state, bus, w.num)) { w.toSpawn--; w.spawnCD = spawnInterval(w.num) * currentDifficulty(state).spawnRateMul; }
         else w.spawnCD = 0.2;
       }
     }
@@ -126,7 +123,7 @@ function spawnNormal(state, bus, waveNum) {
   const t = pickTile(state, 32 * 8);
   if (!t) return false;
   const key = use[Math.floor(Math.random() * use.length)];
-  const mob = makeMobFromKey(state, key, t.cx, t.cy, waveNum, curDifficulty(state));
+  const mob = makeMobFromKey(state, key, t.cx, t.cy, waveNum, currentDifficulty(state));
   if (!mob) return false;
   state.mobs.push(mob);
   if (bus && bus.emit) bus.emit('sfx', 'spawn');
@@ -139,7 +136,7 @@ function spawnElite(state, keys, waveNum) {
   const key = keys[Math.floor(Math.random() * keys.length)];
   const cx = t ? t.cx : state.player.x + 200;
   const cy = t ? t.cy : state.player.y;
-  const mob = makeMobFromKey(state, key, cx, cy, waveNum, curDifficulty(state));
+  const mob = makeMobFromKey(state, key, cx, cy, waveNum, currentDifficulty(state));
   if (mob) state.mobs.push(mob);
   return !!mob;
 }

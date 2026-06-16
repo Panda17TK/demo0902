@@ -12,7 +12,7 @@
 
 import { makeMobFromKey, makeZombie } from './enemies.js';
 import { rebuildFlowField } from './flowfield.js';
-import { stageForWave } from '../state/stages.js';
+import { stageForWave, currentDifficulty } from '../state/stages.js';
 import { getItem, setItem, removeItem } from '../services/kv.js';
 
 export const SCHEMA_VERSION = 4;
@@ -160,8 +160,10 @@ export function applyGameData(state, d) {
   (Array.isArray(d.items) ? d.items : []).forEach((it) => state.items.push(Object.assign({}, it)));
 
   state.mobs.length = 0;
+  // 復元する敵も現ステージの AI 挙動でスケール（state.stage/mode は上で復元済み）
+  const mods = currentDifficulty(state);
   (Array.isArray(d.mobs) ? d.mobs : []).forEach((m) => {
-    const obj = makeMobFromKey(state, m.kind, m.x, m.y, m.waveNum || (state.wave && state.wave.num) || 1) || makeZombie(m.x, m.y);
+    const obj = makeMobFromKey(state, m.kind, m.x, m.y, m.waveNum || (state.wave && state.wave.num) || 1, mods) || makeZombie(m.x, m.y);
     if (typeof m.hp === 'number') obj.hp = m.hp;
     if (typeof m.maxhp === 'number') obj.maxhp = m.maxhp;
     state.mobs.push(obj);

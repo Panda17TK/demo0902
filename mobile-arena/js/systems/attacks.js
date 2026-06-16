@@ -7,6 +7,7 @@
 import { norm, rectInter, clamp, moveAndCollide } from './physics.js';
 import { spawnEnemySlashFX, addShake, spawnAfterimageFX, spawnSparksFX, spawnMuzzleFX, recordPlayerHit } from './fx.js';
 import { makeMobFromKey } from './enemies.js';
+import { currentDifficulty } from '../state/stages.js';
 import { TILE } from '../core/constants.js';
 
 // 敵→プレイヤーへの被弾処理（無敵時間・ノックバック・SE・シェイク）
@@ -130,7 +131,8 @@ const REGISTRY = {
     const n = a.count || 2;
     for (let i = 0; i < n; i++) {
       const ang = Math.random() * Math.PI * 2, r = 28 + Math.random() * 16;
-      const mob = makeMobFromKey(state, key, m.x + Math.cos(ang) * r, m.y + Math.sin(ang) * r, m.waveNum || 1);
+      // REQ-STAGE-4: 召喚されたミニオンも現ステージの AI 挙動でスケールさせる
+      const mob = makeMobFromKey(state, key, m.x + Math.cos(ang) * r, m.y + Math.sin(ang) * r, m.waveNum || 1, currentDifficulty(state));
       if (mob) state.mobs.push(mob);
     }
     return true;

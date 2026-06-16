@@ -2,20 +2,7 @@
 // REQ-TITLE-1: スコア（ローカルランキング）overlay。top==='scores' のとき表示。
 // データは overlay.js と同じ arena_scores（kv 経由）。読み取り専用。
 
-import { getItem } from '../services/kv.js';
-
-const KEY_SCORES = 'arena_scores';
-
-function readScores() {
-  try { return JSON.parse(getItem(KEY_SCORES) || '[]'); } catch (_e) { return []; }
-}
-function fmt(ms) {
-  const s = Math.floor((ms || 0) / 1000);
-  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
-}
-function esc(s) {
-  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
+import { topScores, fmtTime, escapeHtml } from '../systems/scores.js';
 
 export function mountScoresMenu(rootEl, { uiCtl }) {
   if (!rootEl) return { render() {} };
@@ -35,14 +22,11 @@ export function mountScoresMenu(rootEl, { uiCtl }) {
   el.querySelector('.scores-close').addEventListener('click', () => uiCtl.closeTop());
 
   function renderBoard() {
-    const list = readScores()
-      .slice()
-      .sort((a, b) => (b.wave - a.wave) || (b.timeMs - a.timeMs))
-      .slice(0, 10);
+    const list = topScores();
     boardEl.innerHTML = list.length
       ? list.map((r, i) =>
-          (i + 1) + '. ' + esc(r.name || '(no name)') +
-          ' — WAVE ' + (r.wave | 0) + ' / ' + fmt(r.timeMs)).join('<br>')
+          (i + 1) + '. ' + escapeHtml(r.name || '(no name)') +
+          ' — WAVE ' + (r.wave | 0) + ' / ' + fmtTime(r.timeMs)).join('<br>')
       : '<i>まだ記録がありません</i>';
   }
 

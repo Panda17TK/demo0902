@@ -71,3 +71,8 @@ export function effectiveStage(state) {
   return (state && state.stage) || stageForWave(wave);
 }
 
+// 現在の実効ステージに応じた AI 挙動修正子（spawner/attacks/save-local 共用）。
+export function currentDifficulty(state) {
+  return stageDifficulty(effectiveStage(state));
+}
+

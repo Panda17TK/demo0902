@@ -1,16 +1,7 @@
 // js/render/overlay.js（静的PWA / ネイティブ共通）
 // ゲームオーバー画面＋ローカルランキング（kv 経由：Web=localStorage / ネイティブ=Preferencesミラー）。
 
-import { getItem, setItem } from '../services/kv.js';
-
-const KEY_SCORES = 'arena_scores';
-
-function readScores() {
-  try { return JSON.parse(getItem(KEY_SCORES) || '[]'); } catch (_e) { return []; }
-}
-function writeScores(list) {
-  try { setItem(KEY_SCORES, JSON.stringify(list)); } catch (_e) {}
-}
+import { readScores, writeScores, topScores, fmtTime, escapeHtml } from '../systems/scores.js';
 
 export function mountGameOver(overlayEl, bus, state) {
   if (!overlayEl || !bus || !state) return;
@@ -29,22 +20,6 @@ export function mountGameOver(overlayEl, bus, state) {
     if (typeof state.stats.name   !== 'string') state.stats.name   = '';
   }
 
-  function fmt(ms) {
-    const s = Math.floor(ms / 1000);
-    return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
-  }
-  function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  }
-
-  // 到達WAVE優先→生存時間でソート、上位10件
-  function topScores() {
-    return readScores()
-      .slice()
-      .sort((a, b) => (b.wave - a.wave) || (b.timeMs - a.timeMs))
-      .slice(0, 10);
-  }
-
   function renderBoard() {
     if (!boardEl) return;
     const list = topScores();
@@ -53,7 +28,7 @@ export function mountGameOver(overlayEl, bus, state) {
       ? list.map((r, i) => {
           const nm = escapeHtml(r.name || '(no name)');
           const wv = (r.wave | 0);
-          const tm = (typeof r.timeMs === 'number') ? fmt(r.timeMs) : '0:00';
+          const tm = (typeof r.timeMs === 'number') ? fmtTime(r.timeMs) : '0:00';
           return (i + 1) + '. ' + nm + ' — WAVE ' + wv + ' / ' + tm;
         }).join('<br>')
       : '<i>まだ記録がありません</i>';
@@ -67,7 +42,7 @@ export function mountGameOver(overlayEl, bus, state) {
     overlayEl.classList.remove('hidden');
     const kills = state.stats.kills | 0;
     const wave = state.stats.wave | 0;
-    if (linesEl) linesEl.innerHTML = '到達WAVE: <b>' + wave + '</b>　生存時間: <b>' + fmt(timeMs) + '</b>　倒した数: <b>' + kills + '</b>';
+    if (linesEl) linesEl.innerHTML = '到達WAVE: <b>' + wave + '</b>　生存時間: <b>' + fmtTime(timeMs) + '</b>　倒した数: <b>' + kills + '</b>';
     if (nameInput) nameInput.value = state.stats.name || '';
     renderBoard();
   });
