@@ -39,6 +39,10 @@ jobs:
       - name: Build static site (www/)
         run: npm run build
       - uses: actions/configure-pages@v5
+        with:
+          # Pages 未設定でも workflow 側から有効化を試みる（要: リポジトリで Actions 経由の
+          # Pages を許可。組織ポリシー等で不可の場合は Settings→Pages→Source=GitHub Actions を手動設定）。
+          enablement: true
       - name: Upload site artifact (mobile-arena/www)
         uses: actions/upload-pages-artifact@v3
         with:
