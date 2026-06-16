@@ -5,8 +5,14 @@ name: android-apk
 # ビルドできない。GitHub ホストランナー（Android SDK 同梱・フル回線）でビルドし、
 # 成果物(artifact) と（成功時は）リリース資産として APK を配布する。
 #
-# 実行: Actions → "android-apk" → Run workflow（このブランチを選択）。
+# 実行: このブランチへ push すると自動ビルド（workflow_dispatch は既定ブランチに
+# 取り込まれるまで API/UI から起動できないため push トリガを主とする）。
 on:
+  push:
+    branches: ["claude/mobile-arena-export-u36CG"]
+    paths:
+      - "mobile-arena/**"
+      - ".github/workflows/android-apk.yml"
   workflow_dispatch:
 
 permissions:
