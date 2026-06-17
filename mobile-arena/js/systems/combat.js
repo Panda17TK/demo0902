@@ -89,6 +89,7 @@ export function updateCombat(state, dt, bus, input, audio) {
   if (p.iTime > 0) { p.iTime -= dt; if (p.iTime < 0) p.iTime = 0; }
   // マズル/反動の減衰（描画用）
   if (p.muzzleT > 0) { p.muzzleT -= dt; if (p.muzzleT < 0) p.muzzleT = 0; }
+  if (p.meleeT > 0) { p.meleeT -= dt; if (p.meleeT < 0) p.meleeT = 0; }
   if (p.recoil > 0) { p.recoil -= dt * 28; if (p.recoil < 0) p.recoil = 0; }
 
   // バフ時間

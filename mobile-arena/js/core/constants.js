@@ -13,6 +13,8 @@ export const MAX_MOB_RADIUS = 24;
 // 固定タイムステップ（秒）。60Hz。通常弾(360px/s→6px/step)はタイル32pxに対し安全。
 // 高速移動(縮地)は moveAndCollide で増分移動するためこの刻みでもすり抜けない。
 export const FIXED_DT = 1 / 60;
+// 近接スイングの描画演出時間(秒)。プレイヤーに刃を一閃させる長さ（CDとは独立）。
+export const MELEE_SWING = 0.22;
 
 export const CTX = (typeof window !== 'undefined' && typeof window.CTX === 'string')
   ? window.CTX

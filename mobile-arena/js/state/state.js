@@ -52,6 +52,7 @@ export function createInitialState() {
 			curW: 0,
 
 			meleeCD: 0,
+			meleeT: 0,
 			shootCD: 0,
 			isDashing: false,
 		},

@@ -1,7 +1,7 @@
 // webapp/js/systems/melee.js
 // プレイヤーの近接攻撃（即時の扇ヒット＋壁破壊＋継続扇スラッシュの生成）。
 
-import { TILE } from '../core/constants.js';
+import { TILE, MELEE_SWING } from '../core/constants.js';
 import { CONFIG } from '../core/config.js';
 import { norm } from './physics.js';
 import { forNearby } from './spatial.js';
@@ -13,6 +13,7 @@ export function doMelee(state, bus) {
   const p = state.player;
   const mods = p.mods || { meleeMul: 1, dmg: 1 };
   p.meleeCD = CONFIG.player.meleeCD;
+  p.meleeT = MELEE_SWING;   // 刃の一閃アニメ用（描画）
   const reach = CONFIG.player.meleeReach * p.buffs.range;
   const arc = Math.PI;
   const faceAng = Math.atan2(p.facing.y, p.facing.x);

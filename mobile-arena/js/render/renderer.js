@@ -1,5 +1,5 @@
 import { clamp } from '../systems/physics.js';
-import { TILE } from '../core/constants.js';
+import { TILE, MELEE_SWING } from '../core/constants.js';
 import { CONFIG } from '../core/config.js';
 import { roundedRect, keyGlyph, boxGlyph, medGlyph, ringGlyph, swordGlyph, boltGlyph, crateGlyph } from './glyphs.js';
 import { drawEnemyBody } from './enemy-sprites.js';
@@ -67,7 +67,7 @@ export function renderFrame(ctx, canvas, state) {
   const nowS = nowMs / 1000;
 
   // ===== ズーム（REQ-DISP-1：純関数 computeView を使用）=====
-  const VIEW_TILES_Y = 15;
+  const VIEW_TILES_Y = 17;   // 視点を少し遠く（縦に見えるタイル数を増やす）
   const view = computeView({
     canvasW: W, canvasH: H,
     mapW: state.dim.w, mapH: state.dim.h, tileSize: TILE, viewTilesY: VIEW_TILES_Y,
@@ -305,6 +305,33 @@ export function renderFrame(ctx, canvas, state) {
     ctx.fillStyle = '#16202e';
     ctx.beginPath(); ctx.arc(-4 + ex, -2 + ey, 1.5, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.arc(4 + ex, -2 + ey, 1.5, 0, Math.PI * 2); ctx.fill();
+
+    // 近接スイング中：刃を一閃させる（FXの三日月トレイルと同期）
+    if (pl.meleeT > 0) {
+      const sp = 1 - pl.meleeT / MELEE_SWING;     // 0→1 スイング進行
+      const span = 2.4;                           // 振り幅(約138°)
+      const swing = -span / 2 + span * sp;        // 現在の振り角（手前→奥）
+      const len = 30, bw = 5;                     // 刃の長さ・根本幅
+      ctx.save();
+      ctx.rotate(ang + swing);
+      // 鍔（ガード）
+      ctx.fillStyle = '#8a6a36';
+      ctx.fillRect(7, -4, 3, 8);
+      // 刃（根本→先端でテーパ）
+      ctx.fillStyle = '#d3deec';
+      ctx.beginPath();
+      ctx.moveTo(10, -bw / 2);
+      ctx.lineTo(10 + len, -1.3);
+      ctx.lineTo(10 + len + 5, 0);                // 先端
+      ctx.lineTo(10 + len, 1.3);
+      ctx.lineTo(10, bw / 2);
+      ctx.closePath(); ctx.fill();
+      // 刃の高光（峰側の鋭いハイライト）
+      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(11, -1.1); ctx.lineTo(10 + len, -0.6); ctx.stroke();
+      ctx.restore();
+    }
     ctx.restore();
   }
 

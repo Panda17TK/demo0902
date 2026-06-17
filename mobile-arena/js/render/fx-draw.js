@@ -7,18 +7,69 @@ import { roundedRect } from './glyphs.js';
 import { radialAtOrigin, radialQuant } from './grad-cache.js';
 
 export const FX_DRAW = {
-  slash(ctx, f) {
+  // 剣の一閃：外周ほど明るい三日月トレイル＋先端の光る刃。
+  // a:1→0 で進行。前半でスイープし切り、後半は先端位置でフェードする。
+  slash(ctx, f, a) {
+    const p = 1 - a;                       // 0→1 進行
+    const span = 2.6;                      // 総スイープ角(約150°)
+    const half = span / 2;
+    const r0 = 16, r1 = 56;
+    const lead = -half + span * Math.min(1, p * 1.8);   // 先端角
+    const tail = Math.max(-half, lead - span * 0.5);    // 三日月の後端
+    const cl = Math.cos(lead), sl = Math.sin(lead);
     ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.ang);
-    ctx.fillStyle = radialAtOrigin(ctx, 10, 46,
-      [[0, 'rgba(200,230,255,0.6)'], [1, 'rgba(200,230,255,0.0)']], 'fx.slash');
-    ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, 46, -Math.PI / 2, Math.PI / 2); ctx.closePath(); ctx.fill();
+    // 扇トレイル（環状セクター）
+    ctx.beginPath();
+    ctx.arc(0, 0, r1, tail, lead, false);
+    ctx.arc(0, 0, r0, lead, tail, true);
+    ctx.closePath();
+    ctx.fillStyle = radialAtOrigin(ctx, r0, r1, [
+      [0.0, 'rgba(120,170,235,0.0)'],
+      [0.6, 'rgba(150,205,255,0.20)'],
+      [0.9, 'rgba(225,242,255,0.72)'],
+      [1.0, 'rgba(255,255,255,0.0)'],
+    ], 'fx.slash.trail');
+    ctx.fill();
+    // 先端の光る刃＋外側グロー
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(245,251,255,0.95)';
+    ctx.lineWidth = 3.4;
+    ctx.beginPath();
+    ctx.moveTo(cl * (r0 + 3), sl * (r0 + 3));
+    ctx.lineTo(cl * (r1 - 1), sl * (r1 - 1));
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(210,235,255,0.55)';
+    ctx.beginPath(); ctx.arc(cl * r1, sl * r1, 3.4, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
   },
-  eslash(ctx, f) {
+  // 敵の一閃（赤系・小ぶり）。slash と同じ三日月＋刃エッジ。
+  eslash(ctx, f, a) {
+    const p = 1 - a;
+    const span = 2.2;
+    const half = span / 2;
+    const r0 = 14, r1 = 48;
+    const lead = -half + span * Math.min(1, p * 1.8);
+    const tail = Math.max(-half, lead - span * 0.5);
+    const cl = Math.cos(lead), sl = Math.sin(lead);
     ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.ang);
-    ctx.fillStyle = radialAtOrigin(ctx, 10, 44,
-      [[0, 'rgba(255,150,150,0.70)'], [1, 'rgba(255,120,120,0.00)']], 'fx.eslash');
-    ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, 44, -Math.PI / 2.4, Math.PI / 2.4); ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.arc(0, 0, r1, tail, lead, false);
+    ctx.arc(0, 0, r0, lead, tail, true);
+    ctx.closePath();
+    ctx.fillStyle = radialAtOrigin(ctx, r0, r1, [
+      [0.0, 'rgba(230,90,90,0.0)'],
+      [0.6, 'rgba(255,120,120,0.22)'],
+      [0.9, 'rgba(255,190,185,0.70)'],
+      [1.0, 'rgba(255,255,255,0.0)'],
+    ], 'fx.eslash.trail');
+    ctx.fill();
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(255,225,220,0.9)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(cl * (r0 + 3), sl * (r0 + 3));
+    ctx.lineTo(cl * (r1 - 1), sl * (r1 - 1));
+    ctx.stroke();
     ctx.restore();
   },
   spark(ctx, f) {
