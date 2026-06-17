@@ -5,8 +5,37 @@ export function fxCount(base, density) {
 	return Math.max(1, Math.round(base * d));
 }
 
-export function spawnSlashFX(state, x, y, ang) {
-	state.fx.push({ type: 'slash', x, y, ang, t: 0, life: 0.30 });
+export function spawnSlashFX(state, x, y, ang, dir) {
+	state.fx.push({ type: 'slash', x, y, ang, dir: dir || 1, t: 0, life: 0.30 });
+}
+
+// 徒手空拳の殴り：前方の小さな衝撃（白いリング＋火花）。
+export function spawnPunchFX(state, x, y, ang) {
+	state.fx.push({ type: 'punch', x, y, ang, t: 0, life: 0.16 });
+	const n = fxCount(3, state.fxDensity);
+	for (let i = 0; i < n; i++) {
+		const a = ang + (Math.random() - 0.5) * 0.8, sp = 80 + Math.random() * 80;
+		state.fx.push({ type: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, life: 0.14 });
+	}
+}
+
+// 蹴り（コンボ3段目）：大きめの衝撃リング＋ノックバック表現の火花。
+export function spawnKickFX(state, x, y, ang) {
+	state.fx.push({ type: 'kick', x, y, ang, t: 0, life: 0.22 });
+	const n = fxCount(6, state.fxDensity);
+	for (let i = 0; i < n; i++) {
+		const a = ang + (Math.random() - 0.5) * 0.7, sp = 140 + Math.random() * 140;
+		state.fx.push({ type: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, life: 0.2 });
+	}
+}
+
+// 出血付与/継続：赤い飛沫。
+export function spawnBleedFX(state, x, y, n = 4) {
+	const c = fxCount(n, state.fxDensity);
+	for (let i = 0; i < c; i++) {
+		const a = Math.random() * Math.PI * 2, sp = 30 + Math.random() * 70;
+		state.fx.push({ type: 'bleed', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp + 20, t: 0, life: 0.45 });
+	}
 }
 
 // ダメージ数字ポップ

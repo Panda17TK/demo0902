@@ -22,7 +22,7 @@ export function slotPosition(i, count, cx, cy, R) {
   return { x: cx + Math.cos(ang) * R, y: cy + Math.sin(ang) * R };
 }
 
-export function mountWeaponRadial(rootEl, { state, onSelect, radius }) {
+export function mountWeaponRadial(rootEl, { state, onSelect, radius, list, curIndex }) {
   if (!rootEl) return { openAt() {}, update() {}, close() {}, isOpen: () => false };
 
   const el = document.createElement('div');
@@ -34,7 +34,9 @@ export function mountWeaponRadial(rootEl, { state, onSelect, radius }) {
   const DEAD = 28;
   let open = false, anchorX = 0, anchorY = 0, current = -1, slots = [];
 
-  function weapons() { return (state.player && state.player.weapons) || []; }
+  // list/curIndex を差し替えれば武器以外（近接武器など）のラジアルにも使える。
+  function weapons() { return (list ? list() : (state.player && state.player.weapons)) || []; }
+  function curIdx() { return curIndex ? curIndex() : (state.player ? state.player.curW : -1); }
 
   function build() {
     el.innerHTML = '';
@@ -61,7 +63,7 @@ export function mountWeaponRadial(rootEl, { state, onSelect, radius }) {
   function highlight() {
     for (let i = 0; i < slots.length; i++) {
       slots[i].classList.toggle('active', i === current);
-      slots[i].classList.toggle('cur', i === (state.player ? state.player.curW : -1));
+      slots[i].classList.toggle('cur', i === curIdx());
     }
   }
 

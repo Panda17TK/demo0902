@@ -53,6 +53,15 @@ export function createInitialState() {
 
 			meleeCD: 0,
 			meleeT: 0,
+			// 近接武器：初期は徒手空拳のみ所持。刀はドロップ/アップグレードで解放。
+			meleeWeapons: ['fists'],
+			curMelee: 0,
+			meleeCombo: 0,      // 現在のコンボ段
+			meleeComboT: 0,     // 次入力の受付残り時間
+			meleeStep: 0,       // 描画用：直近の攻撃段
+			meleeKind: 'fist',  // 描画用：直近の攻撃種別
+			meleeDir: 1,        // 描画用：振り方向
+			meleeFinisher: false,
 			shootCD: 0,
 			isDashing: false,
 		},

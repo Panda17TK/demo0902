@@ -18,6 +18,7 @@ export const FX_DRAW = {
     const tail = Math.max(-half, lead - span * 0.5);    // 三日月の後端
     const cl = Math.cos(lead), sl = Math.sin(lead);
     ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.ang);
+    if (f.dir < 0) ctx.scale(1, -1); // 振り方向（コンボで左右交互）
     // 扇トレイル（環状セクター）
     ctx.beginPath();
     ctx.arc(0, 0, r1, tail, lead, false);
@@ -71,6 +72,40 @@ export const FX_DRAW = {
     ctx.lineTo(cl * (r1 - 1), sl * (r1 - 1));
     ctx.stroke();
     ctx.restore();
+  },
+  // 徒手空拳の殴り：前方に伸びる短い衝撃線＋小リング。
+  punch(ctx, f, a) {
+    const p = 1 - a;
+    ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.ang);
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.lineWidth = 3; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-2, 0); ctx.lineTo(6 + p * 14, 0); ctx.stroke();
+    ctx.strokeStyle = 'rgba(220,235,255,0.7)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(8 + p * 12, 0, 4 + p * 6, -1.1, 1.1); ctx.stroke();
+    ctx.restore();
+  },
+  // 蹴り（3段目）：大きな衝撃リング＋放射状の線（ノックバック表現）。
+  kick(ctx, f, a) {
+    const p = 1 - a;
+    const r = 8 + p * 26;
+    ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.ang);
+    ctx.strokeStyle = `rgba(255,236,180,${0.9 * a})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(0, 0, r, -1.3, 1.3); ctx.stroke();
+    ctx.lineWidth = 2; ctx.strokeStyle = `rgba(255,255,255,${0.8 * a})`;
+    for (const ay of [-0.6, 0, 0.6]) {
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(ay) * (r - 6), Math.sin(ay) * (r - 6));
+      ctx.lineTo(Math.cos(ay) * (r + 8), Math.sin(ay) * (r + 8));
+      ctx.stroke();
+    }
+    ctx.restore();
+  },
+  // 出血：赤い飛沫の粒子。
+  bleed(ctx, f) {
+    ctx.fillStyle = '#c8324b';
+    ctx.beginPath(); ctx.arc(f.x, f.y, 1.6, 0, Math.PI * 2); ctx.fill();
   },
   spark(ctx, f) {
     ctx.fillStyle = '#e6f3ff';

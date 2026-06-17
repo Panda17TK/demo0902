@@ -32,6 +32,27 @@ export const DEFAULT_CONFIG = {
     explodeSelfDmg: 25,  // 自爆ダメージ（近距離）
   },
 
+  // 近接武器（徒手空拳/刀）。コンボ・効果はデータ駆動。dmg は mods.meleeMul と乗算。
+  melee: {
+    // 出血の状態異常：10秒持続・移動速度×0.8・毎秒 最大HPの1%ダメージ
+    status: { bleedDur: 10, bleedSlowMul: 0.8, bleedDotFrac: 0.01 },
+    weapons: {
+      fists: {
+        id: 'fists', name: '徒手空拳', kind: 'fist',
+        reach: 44, arc: Math.PI * 0.9, cd: 0.18, dmg: 16, kb: 70, stagger: 0.18,
+        combo: 3, comboWindow: 0.55,
+        // 3段目＝蹴り：当たった相手に大きなノックバック＋長めの怯み
+        finisher: { reach: 50, arc: Math.PI * 0.8, dmg: 30, kb: 380, stagger: 0.30 },
+      },
+      katana: {
+        id: 'katana', name: '刀', kind: 'blade',
+        reach: 66, arc: Math.PI * 1.15, cd: 0.14, dmg: 20, kb: 0,
+        combo: 4, comboWindow: 0.5,
+        bleedChance: 0.12,   // まれに出血を付与
+      },
+    },
+  },
+
   // AI 挙動の調整値
   ai: {
     sepRadius: 24,       // 分離の半径
@@ -78,6 +99,7 @@ export const DEFAULT_CONFIG = {
     buffSpeedChance: 0.05,
     buffMeleeChance: 0.04,
     crateChance: 0.04,
+    katanaChance: 0.02,     // 刀（近接武器）の解放ドロップ：まれ。未所持時のみ抽選。
     // ボス/中ボス撃破時の追加ドロップ
     bossCrateBonus: 3,
   },
@@ -96,6 +118,7 @@ export const DEFAULT_CONFIG = {
     buffMelee: { glyph: 'sword',color: '#ff9aa2', kind: 'buff', stat: 'dmg',   mul: 2, dur: 15, label: '近接火力' },
     buffSpeed: { glyph: 'bolt', color: '#ffe08a', kind: 'buff', stat: 'speed', mul: 2, dur: 12, label: '移動速度' },
     crate:     { glyph: 'crate',color: '#d8b483', kind: 'crate' },
+    katana:    { glyph: 'sword',color: '#dfe8f2', kind: 'unlock', unlock: 'katana', name: '刀' },
   },
   // 武器クレートの補給量
   crateSupply: { ammo9: 40, ammo12: 8, ammoBeam: 2, ammoNade: 1 },

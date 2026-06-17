@@ -82,7 +82,7 @@ function enterIntermission(state, bus) {
   const w = state.wave;
   w.phase = 'intermission';
   w.interT = CONFIG.waves.intermission;
-  w.choices = pickUpgradeChoices(3);
+  w.choices = pickUpgradeChoices(3, state);
   if (bus && bus.emit) bus.emit('wave:intermission', { wave: w.num, choices: w.choices });
 }
 

@@ -15,7 +15,7 @@ import { updateAI } from './systems/ai.js';
 import { updateTiles } from './systems/tiles.js';
 import { updateItems } from './systems/items.js';
 import { updateSpawner, startWave } from './systems/spawner.js';
-import { updateCombat, reload, placeWallFront } from './systems/combat.js';
+import { updateCombat, reload, placeWallFront, switchMelee, cycleMelee } from './systems/combat.js';
 import { updateFX } from './systems/fx.js';
 import { createTouchControls, shouldShowTouchUi, readTouchEnv } from './core/touch.js';
 import { loadSettings, saveSettings } from './core/settings.js';
@@ -167,6 +167,18 @@ if (!canvas) {
   // REQ-CTRL-3: 武器ラジアル（武器ボタン長押しで開く）
   const weaponRadial = mountWeaponRadial(wrapEl, { state, onSelect: (idx) => selectWeapon(idx) });
 
+  // 近接武器ラジアル（近接ボタン長押し）。所持中の近接武器(meleeWeapons)から選ぶ。
+  function meleeOwnedDefs() {
+    const W = (CONFIG.melee && CONFIG.melee.weapons) || {};
+    return (state.player.meleeWeapons || ['fists']).map((id) => W[id] || { name: id });
+  }
+  const meleeRadial = mountWeaponRadial(wrapEl, {
+    state, radius: 84,
+    list: meleeOwnedDefs,
+    curIndex: () => state.player.curMelee || 0,
+    onSelect: (idx) => switchMelee(state, idx, bus),
+  });
+
   const touchCtl = createTouchControls(wrapEl, input, {
     reload: () => reload(state, bus),
     build:  () => placeWallFront(state, bus),
@@ -174,6 +186,10 @@ if (!canvas) {
     openWeaponRadial:   (x, y) => weaponRadial.openAt(x, y),
     updateWeaponRadial: (x, y) => weaponRadial.update(x, y),
     closeWeaponRadial:  (commit) => weaponRadial.close(commit),
+    cycleMelee: () => cycleMelee(state, bus),
+    openMeleeRadial:   (x, y) => meleeRadial.openAt(x, y),
+    updateMeleeRadial: (x, y) => meleeRadial.update(x, y),
+    closeMeleeRadial:  (commit) => meleeRadial.close(commit),
     pause: () => { if (!state.gameOver && !isUiPaused(state.ui)) uiCtl.push('pause'); },
     openSettings: () => uiCtl.push('settings'),
   }, settings);

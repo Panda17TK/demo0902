@@ -1,4 +1,4 @@
-import { reload, placeWallFront, switchWeapon } from '../systems/combat.js';
+import { reload, placeWallFront, switchWeapon, cycleMelee } from '../systems/combat.js';
 
 export function bindHotkeys(state, bus, input, api){
   addEventListener('keydown', e=>{
@@ -17,5 +17,6 @@ export function bindHotkeys(state, bus, input, api){
     if(k==='5') switchWeapon(state, 4);
     if(k==='r') reload(state, bus);
     if(k==='f') placeWallFront(state, bus);
+    if(k==='q') cycleMelee(state, bus);   // 近接武器（徒手空拳/刀）の切替
   });
 }

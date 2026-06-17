@@ -185,7 +185,7 @@ export function createTouchControls(root, input, api, cfg) {
     return b;
   }
 
-  makeButton('melee',  '近接', { aria: '近接攻撃', hold: (on) => { keys['j'] = on; } });
+  makeMeleeButton();  // 短タップ=近接攻撃 / 長押し=近接武器ラジアル（徒手空拳/刀）
   makeButton('dash',   'DASH', { aria: 'ダッシュ', hold: (on) => { keys['shift'] = on; } });
   makeButton('reload', 'R',    { aria: 'リロード', tap: () => { if (api.reload) api.reload(); } });
   makeWeaponButton(); // 短タップ=巡回 / 長押し=ラジアル（REQ-CTRL-3）
@@ -227,6 +227,47 @@ export function createTouchControls(root, input, api, cfg) {
       if (e.pointerId !== pid) return;
       pid = null; b.classList.remove('active'); clearHold();
       if (opened && api.closeWeaponRadial) api.closeWeaponRadial(false);
+      opened = false;
+    });
+    layer.appendChild(b);
+    return b;
+  }
+
+  // 近接ボタン：短タップで攻撃（keys['j'] を一瞬パルス→エッジ検出）、長押しで武器ラジアル。
+  function makeMeleeButton() {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'tc-btn tc-btn-melee';
+    b.textContent = '近接';
+    b.setAttribute('aria-label', '近接攻撃（長押しで武器一覧）');
+    let pid = null, holdTimer = null, opened = false;
+    const clearHold = () => { if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; } };
+    const attack = () => { keys['j'] = true; setTimeout(() => { keys['j'] = false; }, 80); };
+    b.addEventListener('pointerdown', (e) => {
+      pid = e.pointerId; try { b.setPointerCapture(pid); } catch (_e) {}
+      opened = false; b.classList.add('active');
+      const r = b.getBoundingClientRect();
+      const ax = r.left + r.width / 2, ay = r.top + r.height / 2;
+      clearHold();
+      holdTimer = setTimeout(() => { opened = true; if (api.openMeleeRadial) api.openMeleeRadial(ax, ay); }, 220);
+      e.preventDefault();
+    });
+    b.addEventListener('pointermove', (e) => {
+      if (e.pointerId !== pid) return;
+      if (opened && api.updateMeleeRadial) api.updateMeleeRadial(e.clientX, e.clientY);
+    });
+    const up = (e) => {
+      if (e.pointerId !== pid) return;
+      pid = null; b.classList.remove('active'); clearHold();
+      if (opened) { if (api.closeMeleeRadial) api.closeMeleeRadial(true); }
+      else attack();
+      opened = false;
+    };
+    b.addEventListener('pointerup', up);
+    b.addEventListener('pointercancel', (e) => {
+      if (e.pointerId !== pid) return;
+      pid = null; b.classList.remove('active'); clearHold();
+      if (opened && api.closeMeleeRadial) api.closeMeleeRadial(false);
       opened = false;
     });
     layer.appendChild(b);

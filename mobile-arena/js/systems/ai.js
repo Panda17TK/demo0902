@@ -2,8 +2,9 @@ import { TILE } from '../core/constants.js';
 import { CONFIG } from '../core/config.js';
 import { norm, moveAndCollide, rectInter, dist2 } from './physics.js';
 import { buildMobGrid, forNearby } from './spatial.js';
-import { addShake, spawnDeathFX, addSlowmo } from './fx.js';
+import { addShake, spawnDeathFX, addSlowmo, spawnBleedFX } from './fx.js';
 import { runAttacks, updateMobActions } from './attacks.js';
+import { tickStatus } from './status.js';
 // mob 生成はデータ駆動の enemies.js に一本化。後方互換のため re-export。
 import { makeMobFromKey, makeZombie, makeSpitter } from './enemies.js';
 export { makeMobFromKey, makeZombie, makeSpitter };
@@ -22,6 +23,11 @@ function dropLoot(state, x, y, isElite) {
   if (Math.random() < d.buffSpeedChance) items.push({ type: 'buffSpeed', x, y });
   if (Math.random() < d.buffMeleeChance) items.push({ type: 'buffMelee', x, y });
   if (Math.random() < d.crateChance) items.push({ type: 'crate', x, y });
+  // 刀の解放ドロップ（まれ）。未所持のときだけ抽選する。
+  const mw = state.player && state.player.meleeWeapons;
+  if (mw && mw.indexOf('katana') === -1 && Math.random() < (d.katanaChance || 0)) {
+    items.push({ type: 'katana', x: x + 2, y: y - 2 });
+  }
   // 中ボス/ボスは確定で補給クレートを複数ドロップ
   if (isElite) { const n = d.bossCrateBonus || 3; for (let i = 0; i < n; i++) items.push({ type: 'crate', x: x + (Math.random() * 20 - 10), y: y + (Math.random() * 20 - 10) }); }
 }
@@ -93,6 +99,10 @@ export function updateAI(state, dt, bus/*, audio */) {
     if (m.enrageT > 0) m.enrageT -= dt;
     if (m.guardT > 0) m.guardT -= dt;
 
+    // 状態異常（出血DoT/減速・怯み）。出血中は赤い飛沫を散らす。
+    const st = tickStatus(m, dt, CONFIG.melee && CONFIG.melee.status);
+    if (m.bleedT > 0 && Math.random() < dt * 6) spawnBleedFX(state, m.x, m.y, 1);
+
     // スタック検出
     const moved = Math.hypot(m.x - (m.prevX || m.x), m.y - (m.prevY || m.y));
     if (moved < 0.2) m.stuckT = (m.stuckT || 0) + dt; else m.stuckT = 0;
@@ -100,7 +110,9 @@ export function updateAI(state, dt, bus/*, audio */) {
     // 速度：HP半減で減速、狂乱で加速。ボスは減速しない。
     const slow = (m.tier === 'normal' && m.hp <= (m.maxhp || m.hp) * 0.5) ? CONFIG.ai.hpSlowMul : 1;
     const enr = (m.enrageT > 0) ? (m.enrageMul || 1.6) : 1;
-    const eff = (m.baseSpeed || 60) * slow * enr;
+    // 怯み中は移動停止、出血中は減速（st.slowMul）。
+    let eff = (m.baseSpeed || 60) * slow * enr * st.slowMul;
+    if (st.stunned) eff = 0;
 
     const dx = p.x - m.x, dy = p.y - m.y;
     const dist = Math.hypot(dx, dy);
@@ -181,8 +193,8 @@ export function updateAI(state, dt, bus/*, audio */) {
       m.bumpCD = 0.28;
     }
 
-    // ===== データ駆動の攻撃 =====
-    runAttacks(state, m, dt, bus, CONFIG);
+    // ===== データ駆動の攻撃 =====（怯み中は攻撃も中断）
+    if (!st.stunned) runAttacks(state, m, dt, bus, CONFIG);
     // 溜め近接・縮地・回避クールダウンなど、複数フレーム行動を進める
     updateMobActions(state, m, dt, bus, CONFIG);
 

@@ -29,6 +29,37 @@ export function switchWeapon(state, idx) {
   state.player.curW = idx;
 }
 
+// 近接武器（徒手空拳/刀）の選択。所持リスト state.player.meleeWeapons から index で選ぶ。
+export function switchMelee(state, idx, bus) {
+  const p = state.player;
+  const list = p.meleeWeapons || ['fists'];
+  if (!list.length) return;
+  const i = ((idx % list.length) + list.length) % list.length;
+  p.curMelee = i;
+  p.meleeComboT = 0; p.meleeCombo = 0; // 持ち替えでコンボはリセット
+  const W = CONFIG.melee && CONFIG.melee.weapons;
+  const def = W && W[list[i]];
+  if (bus && bus.emit) bus.emit('ui:toast', '近接: ' + ((def && def.name) || list[i]));
+}
+
+// 次の近接武器へ巡回（キーQ／タッチ巡回用）。
+export function cycleMelee(state, bus) {
+  switchMelee(state, (state.player.curMelee || 0) + 1, bus);
+}
+
+// 刀などの近接武器を解放（ドロップ/アップグレード）。重複は無視。
+export function unlockMelee(state, id, bus) {
+  const p = state.player;
+  if (!p.meleeWeapons) p.meleeWeapons = ['fists'];
+  if (p.meleeWeapons.indexOf(id) !== -1) return false;
+  p.meleeWeapons.push(id);
+  p.curMelee = p.meleeWeapons.length - 1; // 解放したら即装備
+  const W = CONFIG.melee && CONFIG.melee.weapons;
+  const def = W && W[id];
+  if (bus && bus.emit) bus.emit('ui:toast', '近接武器を解放: ' + ((def && def.name) || id));
+  return true;
+}
+
 export function reload(state, bus) {
   const p = state.player;
   const w = p.weapons[p.curW];
@@ -141,9 +172,13 @@ export function updateCombat(state, dt, bus, input, audio) {
   moveAndCollide(state, p, vx, 0);
   moveAndCollide(state, p, 0, vy);
 
-  // 近接（J）
+  // 近接（J）：押した瞬間（エッジ）で発動。タイミングよく押すとコンボが継続する。
   if (p.meleeCD > 0) p.meleeCD -= dt;
-  if (input.pressed('j') && p.meleeCD <= 0) doMelee(state, bus);
+  if (p.meleeComboT > 0) { p.meleeComboT -= dt; if (p.meleeComboT < 0) p.meleeComboT = 0; }
+  const jNow = input.pressed('j');
+  const jEdge = jNow && !p._meleePrevJ;
+  p._meleePrevJ = jNow;
+  if (jEdge && p.meleeCD <= 0) doMelee(state, bus);
 
   // 射撃（K）
   if (p.shootCD > 0) p.shootCD -= dt;

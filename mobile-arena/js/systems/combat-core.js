@@ -10,13 +10,13 @@ import { spawnSparksFX, spawnDamageNumber, spawnDodgeFX } from './fx.js';
 export function hurtMob(state, m, dmg, nx, ny, kb, opts) {
   opts = opts || {};
   // 回避：被弾の瞬間にごく低確率で発動。発動中は当たり判定が消え、白く点滅。
-  if (m.dodgeT > 0) { spawnDodgeFX(state, m.x, m.y); return; }
+  if (m.dodgeT > 0) { spawnDodgeFX(state, m.x, m.y); return false; }
   const dg = m.def && m.def.dodge;
   if (dg && dg.chance > 0 && (m.dodgeCDLeft || 0) <= 0 && Math.random() < dg.chance) {
     m.dodgeT = dg.duration || 0.15;
     m.dodgeCDLeft = dg.cd || 1.5;
     spawnDodgeFX(state, m.x, m.y);
-    return;
+    return false;
   }
   // ガード態勢：被ダメージ軽減
   if (m.guardT > 0 && m.guardMul) dmg *= m.guardMul;
@@ -25,6 +25,7 @@ export function hurtMob(state, m, dmg, nx, ny, kb, opts) {
   m.hitFlash = 0.12;
   spawnSparksFX(state, m.x, m.y, opts.sparks != null ? opts.sparks : 5);
   if (opts.number !== false) spawnDamageNumber(state, m.x, m.y, dmg, { crit: !!opts.crit });
+  return true; // 実際にヒットした（出血/怯み付与の判定に使う）
 }
 
 // 扇形（近接の継続ヒット＆弾相殺）の内外判定

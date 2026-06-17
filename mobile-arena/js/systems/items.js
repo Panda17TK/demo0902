@@ -38,6 +38,17 @@ function applyPickup(state, bus, it) {
     }
     case 'crate':
       onWeaponCrate(state, bus); break;
+    case 'unlock': {
+      // 近接武器（刀など）の解放。所持していなければ追加して即装備。
+      const id = def.unlock;
+      if (!p.meleeWeapons) p.meleeWeapons = ['fists'];
+      if (id && p.meleeWeapons.indexOf(id) === -1) {
+        p.meleeWeapons.push(id);
+        p.curMelee = p.meleeWeapons.length - 1;
+      }
+      bus.emit('ui:toast', '近接武器を解放: ' + (def.name || id));
+      break;
+    }
   }
   bus.emit('sfx', 'pickup');
 }

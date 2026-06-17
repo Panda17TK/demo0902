@@ -25,6 +25,16 @@ export const UPGRADES = [
     apply(s) { s.player.mods.healOnKill += CONFIG.upgrades.lifestealAdd; } },
   { id: 'engineer',  name: '築城術', desc: () => `資材 +${CONFIG.upgrades.blocksAdd}・壁が頑丈に`,
     apply(s) { s.player.inv.blocks += CONFIG.upgrades.blocksAdd; s.player.mods.wallHp = (s.player.mods.wallHp || 70) + CONFIG.upgrades.wallHpAdd; } },
+  // 刀の解放（未所持のときだけ提示）。近接武器に「刀」を追加して即装備。
+  { id: 'katana_unlock', name: '刀を入手', desc: () => '近接武器「刀」を解放（Q/長押しで切替）',
+    avail: (s) => ((s.player.meleeWeapons || []).indexOf('katana') === -1),
+    apply(s) {
+      if (!s.player.meleeWeapons) s.player.meleeWeapons = ['fists'];
+      if (s.player.meleeWeapons.indexOf('katana') === -1) {
+        s.player.meleeWeapons.push('katana');
+        s.player.curMelee = s.player.meleeWeapons.length - 1;
+      }
+    } },
 ];
 
 // 説明文（関数 or 文字列の両対応）
@@ -32,8 +42,9 @@ export function upgradeDesc(u) {
   return (typeof u.desc === 'function') ? u.desc() : u.desc;
 }
 
-export function pickUpgradeChoices(n) {
-  const pool = UPGRADES.slice();
+export function pickUpgradeChoices(n, state) {
+  // avail(state) を持つカードは条件を満たすときだけ候補に含める（例: 刀解放は未所持時のみ）。
+  const pool = UPGRADES.filter((u) => (typeof u.avail === 'function' ? (state ? u.avail(state) : false) : true));
   const out = [];
   for (let i = 0; i < n && pool.length; i++) {
     const k = Math.floor(Math.random() * pool.length);

@@ -36,6 +36,7 @@ export function serializeGame(state) {
       x: state.player.x, y: state.player.y, hp: state.player.hp, hpMax: state.player.hpMax,
       inv: state.player.inv, curW: state.player.curW,
       weapons, buffs: state.player.buffs, mods: state.player.mods, sta: state.player.sta,
+      meleeWeapons: (state.player.meleeWeapons || ['fists']).slice(), curMelee: state.player.curMelee || 0,
     },
     wave: state.wave, stats: state.stats,
     map: state.map, tileHP: state.tileHP, tileMaxHP: state.tileMaxHP, items: state.items,
@@ -147,6 +148,9 @@ export function applyGameData(state, d) {
   state.player.curW = Math.max(0, Math.min(state.player.weapons.length - 1, (pp.curW | 0)));
   if (pp.buffs && typeof pp.buffs === 'object') state.player.buffs = pp.buffs;
   if (pp.mods && typeof pp.mods === 'object') state.player.mods = pp.mods;
+  // 近接武器ロードアウト（旧データは徒手空拳のみ）。curMelee は範囲内に丸める。
+  state.player.meleeWeapons = (Array.isArray(pp.meleeWeapons) && pp.meleeWeapons.length) ? pp.meleeWeapons.slice() : ['fists'];
+  state.player.curMelee = Math.max(0, Math.min(state.player.meleeWeapons.length - 1, (pp.curMelee | 0)));
   state.player.sta = clampNum(pp.sta, 0, state.player.staMax || 100, state.player.sta);
   if (d.wave && typeof d.wave === 'object') { state.wave = d.wave; state.wave.num = clampNum(d.wave.num, 1, 100000, 1) | 0; }
   if (d.stats && typeof d.stats === 'object') state.stats = d.stats;
