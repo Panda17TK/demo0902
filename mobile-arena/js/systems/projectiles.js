@@ -12,7 +12,7 @@ import { spawnBlastFX, spawnSparksFX, addShake, addHitstop, recordPlayerHit } fr
 
 function isSolidTile(state, x, y) {
   const tx = Math.floor(x / TILE), ty = Math.floor(y / TILE);
-  return state.map[ty] && (state.map[ty][tx] === '#' || state.map[ty][tx] === 'D');
+  return state.map[ty] && (state.map[ty][tx] === '#' || state.map[ty][tx] === 'D' || state.map[ty][tx] === 'O');
 }
 
 // プレイヤー弾
@@ -21,7 +21,7 @@ export function updateBullets(state, dt) {
     const b = state.bullets[i];
     b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
     const tx = Math.floor(b.x / TILE), ty = Math.floor(b.y / TILE);
-    if (state.map[ty] && (state.map[ty][tx] === '#' || state.map[ty][tx] === 'D')) {
+    if (state.map[ty] && (state.map[ty][tx] === '#' || state.map[ty][tx] === 'D' || state.map[ty][tx] === 'O')) {
       damageTile(state, tx, ty, b.dmg);
       state.bullets.splice(i, 1);
       continue;

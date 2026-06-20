@@ -140,7 +140,7 @@ export const DEFAULT_CONFIG = {
   // attacks: 攻撃タイプ定義の配列（systems/attacks.js が解釈）。
   enemies: {
     zombie: {
-      name: 'ゾンビ', tier: 'normal', color: '#b24a4a',
+      name: '剣の人影', tier: 'normal', color: '#23262e',
       hp: 55, speed: 72, w: 22, h: 22, seeRange: 240, contactKB: 220,
       attacks: [
         { type: 'melee', cd: 0.9, dmg: 10, range: 12, arc: 360 },
@@ -148,7 +148,7 @@ export const DEFAULT_CONFIG = {
       ],
     },
     spitter: {
-      name: 'スピッター', tier: 'normal', color: '#3aa06f',
+      name: '幽霊', tier: 'normal', color: '#cdd8ea',
       hp: 65, speed: 35, w: 22, h: 22, seeRange: 320, contactKB: 220,
       attacks: [
         { type: 'melee', cd: 3.0, dmg: 10, range: 9, arc: 90 },
@@ -157,7 +157,7 @@ export const DEFAULT_CONFIG = {
     },
     // ストーカー：縮地で間合いを詰め、溜め近接で刺す。たまに回避する。
     stalker: {
-      name: 'ストーカー', tier: 'normal', color: '#9a6ad0',
+      name: '狼', tier: 'normal', color: '#2b2b34',
       hp: 60, speed: 64, w: 22, h: 22, seeRange: 340, contactKB: 200,
       dodge: { chance: 0.18, duration: 0.15, cd: 2.0 }, // 回避：18%・0.15s無敵・CD2s
       attacks: [

@@ -36,7 +36,7 @@ function dropLoot(state, x, y, isElite) {
 function isSolid(state, tx, ty) {
   if (tx < 0 || ty < 0 || tx >= state.dim.w || ty >= state.dim.h) return true;
   const c = state.map[ty][tx];
-  return c === '#' || c === 'D';
+  return c === '#' || c === 'D' || c === 'O';
 }
 function hasLineOfSight(state, x0, y0, x1, y1) {
   let cx = Math.floor(x0 / TILE), cy = Math.floor(y0 / TILE);

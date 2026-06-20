@@ -57,6 +57,35 @@ export function setupMap(state, opts) {
       }
     }
   }
+
+  // ドラム缶（固定の遮蔽物 'O'）をマップ依存の決定論で配置（毎回同じ＝固定オブジェクト）。
+  placeBarrels(state, W, H);
+}
+
+// 'O'＝不壊の遮蔽物。床('.')のみに、短い並びで数か所だけ置く（領域を塞がない）。
+function placeBarrels(state, W, H) {
+  if (W < 8 || H < 8) return;
+  const pcx = Math.floor((state.player.x || 0) / TILE);
+  const pcy = Math.floor((state.player.y || 0) / TILE);
+  // mapId 由来の決定論 PRNG
+  let seed = 0; const id = String(state.mapId || '0');
+  for (let i = 0; i < id.length; i++) seed = (seed * 31 + id.charCodeAt(i)) >>> 0;
+  const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  const groups = 3 + Math.floor(rnd() * 3); // 3〜5 グループ
+  for (let g = 0; g < groups; g++) {
+    const len = 2 + Math.floor(rnd() * 3);   // 2〜4 個の並び
+    const horiz = rnd() < 0.5;
+    const sx = 2 + Math.floor(rnd() * (W - 4));
+    const sy = 2 + Math.floor(rnd() * (H - 4));
+    for (let k = 0; k < len; k++) {
+      const x = horiz ? sx + k : sx;
+      const y = horiz ? sy : sy + k;
+      if (x < 1 || y < 1 || x >= W - 1 || y >= H - 1) continue;
+      if (state.map[y][x] !== '.') continue;
+      if (Math.abs(x - pcx) <= 2 && Math.abs(y - pcy) <= 2) continue; // プレイヤー近傍は避ける
+      state.map[y][x] = 'O';
+    }
+  }
 }
 
 // REQ-STAGE-2: ステージ専用マップへ安全点で切り替える。

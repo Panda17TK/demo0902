@@ -205,7 +205,7 @@ export function updateCombat(state, dt, bus, input, audio) {
         for (let t = 0; t < maxL; t += step) {
           x += dir.x * step; y += dir.y * step;
           const tx = Math.floor(x / TILE), ty = Math.floor(y / TILE);
-          if (state.map[ty] && (state.map[ty][tx] === '#' || state.map[ty][tx] === 'D')) { reach = t; break; }
+          if (state.map[ty] && (state.map[ty][tx] === '#' || state.map[ty][tx] === 'D' || state.map[ty][tx] === 'O')) { reach = t; break; }
           ex = x; ey = y;
         }
         // 候補敵を1回だけ収集（線分の近傍）。各候補について、線分が AABB 内に居る

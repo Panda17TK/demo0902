@@ -4,7 +4,7 @@ export function norm(x, y) { const l = Math.hypot(x, y) || 1; return { x: x / l,
 // 平方距離（範囲判定は sqrt 不要）。閾値も2乗して比較する。
 export function dist2(ax, ay, bx, by) { const dx = ax - bx, dy = ay - by; return dx * dx + dy * dy; }
 export function rectInter(a, b) { return Math.abs(a.x - b.x) < (a.w + b.w) / 2 && Math.abs(a.y - b.y) < (a.h + b.h) / 2; }
-export function isSolidChar(c) { return c === '#' || c === 'D'; }
+export function isSolidChar(c) { return c === '#' || c === 'D' || c === 'O'; }
 export function solidAt(state, tx, ty) {
 	const { w, h } = state.dim;
 	if (tx < 0 || ty < 0 || tx >= w || ty >= h) return '#';

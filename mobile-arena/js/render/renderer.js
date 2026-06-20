@@ -195,6 +195,23 @@ export function renderFrame(ctx, canvas, state) {
       } else if (c === 'D') {
         ctx.fillStyle = '#3b2a1a'; ctx.fillRect(px, py, TILE, TILE);
         ctx.strokeStyle = '#6b4c2b'; ctx.strokeRect(px + 6, py + 4, TILE - 12, TILE - 8);
+      } else if (c === 'O') {
+        // 床＋ドラム缶（固定の遮蔽物）
+        const checker = ((x + y) & 1) === 0;
+        ctx.fillStyle = checker ? '#1f3a43' : '#1b343c';
+        ctx.fillRect(px, py, TILE, TILE);
+        ctx.fillStyle = 'rgba(0,0,0,0.26)'; ctx.fillRect(px, py, TILE, 1); ctx.fillRect(px, py, 1, TILE);
+        // 接地影
+        ctx.fillStyle = 'rgba(0,0,0,0.32)';
+        ctx.beginPath(); ctx.ellipse(px + TILE / 2, py + TILE - 6, TILE * 0.36, 4, 0, 0, Math.PI * 2); ctx.fill();
+        // ドラム缶本体
+        const bx = px + TILE / 2, byT = py + 4, bw = 18, bh = 24;
+        ctx.fillStyle = '#3f5a64'; roundedRect(ctx, bx - bw / 2, byT, bw, bh, 4); ctx.fill();
+        ctx.fillStyle = '#56767f'; ctx.fillRect(bx - bw / 2, byT, 5, bh);      // 左ハイライト
+        ctx.fillStyle = '#2a3d44'; ctx.fillRect(bx + bw / 2 - 5, byT, 5, bh);  // 右陰
+        ctx.fillStyle = '#101a1e'; ctx.fillRect(bx - bw / 2, byT + 6, bw, 2); ctx.fillRect(bx - bw / 2, byT + bh - 8, bw, 2); // 帯
+        ctx.fillStyle = '#27424b'; ctx.fillRect(bx - bw / 2, byT, bw, 2);      // 天面の縁
+        ctx.fillStyle = '#cf6b3a'; ctx.fillRect(bx - 4, byT + 11, 8, 3);       // 注意ラベル
       } else {
         // 床：ティール調の金属タイル＋目地＋四隅のリベット（スクショ寄せ）
         const checker = ((x + y) & 1) === 0;
