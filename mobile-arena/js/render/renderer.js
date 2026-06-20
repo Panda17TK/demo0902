@@ -60,6 +60,73 @@ function drawParallax(ctx, W, H, camX, camY) {
   }
 }
 
+// 銃のシルエットを原点から +x 方向へ描く（プレイヤーの構え／HUDアイコン共用）。
+function drawHeldGun(ctx, id, recoil) {
+  const r = recoil || 0;
+  if (id === 'shotgun') {
+    ctx.fillStyle = '#3a2a1c'; ctx.fillRect(5 - r, -2, 14, 4);      // 木ストック
+    ctx.fillStyle = '#6b727b'; ctx.fillRect(13 - r, -1.4, 11, 2.8); // 金属バレル
+    ctx.fillStyle = '#222a32'; ctx.fillRect(10 - r, 2, 5, 2);       // ポンプ
+  } else if (id === 'mg') {
+    ctx.fillStyle = '#2b323c'; ctx.fillRect(5 - r, -2.4, 19, 4.6);
+    ctx.fillStyle = '#6b737d'; ctx.fillRect(16 - r, -1.2, 9, 2.4);
+    ctx.fillStyle = '#161d27'; ctx.fillRect(8 - r, 2, 4, 5);        // マガジン
+  } else if (id === 'beam') {
+    ctx.fillStyle = '#26384a'; ctx.fillRect(5 - r, -2.6, 14, 5.2);
+    ctx.fillStyle = '#7fe0ff'; ctx.fillRect(17 - r, -1.4, 7, 2.8);  // エミッタ
+    ctx.fillStyle = '#bff2ff'; ctx.fillRect(22 - r, -0.8, 2, 1.6);
+  } else if (id === 'grenade') {
+    ctx.fillStyle = '#33402c'; ctx.fillRect(5 - r, -2.6, 12, 5.2);
+    ctx.fillStyle = '#1c2417'; ctx.fillRect(14 - r, -3, 6, 6);      // 太い銃口
+  } else { // pistol
+    ctx.fillStyle = '#2b3340'; ctx.fillRect(5 - r, -2, 11, 4);
+    ctx.fillStyle = '#161d27'; ctx.fillRect(14 - r, -1.4, 3, 2.8);
+    ctx.fillStyle = '#384353'; ctx.fillRect(5 - r, 1, 3, 4);        // グリップ
+  }
+}
+
+// 近接アイコン（拳/刀）を原点中心に描く（HUD用）。
+function drawMeleeIcon(ctx, id) {
+  if (id === 'katana' || id === 'blade') {
+    ctx.save(); ctx.rotate(-0.5);
+    ctx.fillStyle = '#cfd8e3'; ctx.fillRect(-1.5, -12, 3, 18);  // 刃
+    ctx.fillStyle = '#eef3f8'; ctx.fillRect(-1.5, -12, 1, 18);  // 峰の光
+    ctx.fillStyle = '#caa45a'; ctx.fillRect(-3, 5, 6, 2);       // 鍔
+    ctx.fillStyle = '#7a5a32'; ctx.fillRect(-1.5, 6, 3, 5);     // 柄
+    ctx.restore();
+  } else { // 徒手空拳＝拳
+    ctx.fillStyle = '#e7b48a'; roundedRect(ctx, -7, -5, 14, 11, 3); ctx.fill();
+    ctx.fillStyle = '#c98f63'; ctx.fillRect(-7, 2, 14, 2);
+    ctx.fillStyle = '#a9744b'; for (let i = 0; i < 3; i++) ctx.fillRect(-5 + i * 4, -4, 1, 4);
+  }
+}
+
+// 右上の武器スロット（近接＋現在の銃）。スクリーン空間で描く。
+function drawWeaponHud(ctx, W, H, state) {
+  const p = state.player;
+  if (!p || !p.weapons) return;
+  const bw = 48, bh = 30, gap = 6, pad = 8;
+  const slots = [
+    { kind: 'melee', id: (p.meleeWeapons && p.meleeWeapons[p.curMelee || 0]) || 'fists' },
+    { kind: 'gun', id: (p.weapons[p.curW] || {}).id || 'pistol', active: true },
+  ];
+  let x = W - pad - (bw * slots.length + gap * (slots.length - 1));
+  const y = pad;
+  for (const s of slots) {
+    ctx.fillStyle = 'rgba(10,16,22,0.62)';
+    roundedRect(ctx, x, y, bw, bh, 5); ctx.fill();
+    ctx.strokeStyle = s.active ? 'rgba(120,220,255,0.95)' : 'rgba(150,170,190,0.35)';
+    ctx.lineWidth = s.active ? 2 : 1;
+    roundedRect(ctx, x, y, bw, bh, 5); ctx.stroke();
+    ctx.save();
+    ctx.translate(x + bw / 2, y + bh / 2);
+    if (s.kind === 'melee') drawMeleeIcon(ctx, s.id);
+    else { ctx.translate(-13, 0); drawHeldGun(ctx, s.id, 0); }
+    ctx.restore();
+    x += bw + gap;
+  }
+}
+
 export function renderFrame(ctx, canvas, state) {
   const W = canvas.width, H = canvas.height;
   ctx.clearRect(0, 0, W, H);
@@ -102,8 +169,18 @@ export function renderFrame(ctx, canvas, state) {
       const c = state.map[y][x];
       const px = x * TILE, py = y * TILE;
       if (c === '#') {
-        ctx.fillStyle = '#1b2735'; ctx.fillRect(px, py, TILE, TILE);
-        ctx.fillStyle = '#0f1620'; ctx.fillRect(px + 2, py + 2, TILE - 4, TILE - 4);
+        ctx.fillStyle = '#27484f'; ctx.fillRect(px, py, TILE, TILE);
+        // ベベル（左上が明るく・右下が暗い金属ブロック感）
+        ctx.fillStyle = 'rgba(255,255,255,0.10)'; ctx.fillRect(px, py, TILE, 2); ctx.fillRect(px, py, 2, TILE);
+        ctx.fillStyle = 'rgba(0,0,0,0.40)'; ctx.fillRect(px, py + TILE - 2, TILE, 2); ctx.fillRect(px + TILE - 2, py, 2, TILE);
+        // 一部のタイルに窓（決定論的＝チラつかない）
+        const hw = (x * 73856093 ^ y * 19349663) >>> 0;
+        if (hw % 4 === 0) {
+          ctx.fillStyle = '#0b1418'; ctx.fillRect(px + 7, py + 9, TILE - 14, TILE - 17);
+          ctx.fillStyle = 'rgba(130,185,195,0.30)'; ctx.fillRect(px + 7, py + 9, TILE - 14, 2);
+          ctx.strokeStyle = 'rgba(150,200,210,0.30)'; ctx.lineWidth = 1;
+          ctx.strokeRect(px + 6.5, py + 8.5, TILE - 13, TILE - 16);
+        }
         const hp = state.tileHP[y][x], mh = state.tileMaxHP[y][x];
         if (mh !== Infinity) {
           const r = clamp(1 - hp / mh, 0, 1);
@@ -119,28 +196,28 @@ export function renderFrame(ctx, canvas, state) {
         ctx.fillStyle = '#3b2a1a'; ctx.fillRect(px, py, TILE, TILE);
         ctx.strokeStyle = '#6b4c2b'; ctx.strokeRect(px + 6, py + 4, TILE - 12, TILE - 8);
       } else {
-        // 床：市松の濃淡＋目地＋決定論的な汚れ／ひび
+        // 床：ティール調の金属タイル＋目地＋四隅のリベット（スクショ寄せ）
         const checker = ((x + y) & 1) === 0;
-        ctx.fillStyle = checker ? '#141b25' : '#121823';
+        ctx.fillStyle = checker ? '#1f3a43' : '#1b343c';
         ctx.fillRect(px, py, TILE, TILE);
         // 目地（タイル境界の陰影）
-        ctx.fillStyle = 'rgba(0,0,0,0.22)';
+        ctx.fillStyle = 'rgba(0,0,0,0.26)';
         ctx.fillRect(px, py, TILE, 1);
         ctx.fillRect(px, py, 1, TILE);
-        ctx.fillStyle = 'rgba(255,255,255,0.02)';
+        ctx.fillStyle = 'rgba(255,255,255,0.04)';
         ctx.fillRect(px + 1, py + TILE - 1, TILE - 1, 1);
-        // 決定論的ハッシュで斑点／ひびを散らす（毎フレーム同じ＝チラつかない）
-        const h = (x * 73856093 ^ y * 19349663) >>> 0;
-        if (h % 7 === 0) {
-          ctx.fillStyle = 'rgba(255,255,255,0.04)';
-          ctx.fillRect(px + (h % TILE), py + ((h >> 3) % TILE), 2, 2);
+        // リベット（四隅）：明点＋下に影で凹凸感
+        for (const rx of [8, 24]) {
+          for (const ry of [8, 24]) {
+            ctx.fillStyle = 'rgba(140,185,195,0.22)'; ctx.fillRect(px + rx, py + ry, 2, 2);
+            ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fillRect(px + rx, py + ry + 2, 2, 1);
+          }
         }
-        if (h % 23 === 0) {
-          ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(px + (h % (TILE - 8)) + 2, py + 6);
-          ctx.lineTo(px + (h % (TILE - 8)) + 9, py + TILE - 6);
-          ctx.stroke();
+        // 決定論的ハッシュで薄い汚れを散らす（毎フレーム同じ＝チラつかない）
+        const h = (x * 73856093 ^ y * 19349663) >>> 0;
+        if (h % 11 === 0) {
+          ctx.fillStyle = 'rgba(0,0,0,0.16)';
+          ctx.fillRect(px + 4 + (h % 12), py + 4 + ((h >> 4) % 12), 3, 2);
         }
       }
     }
@@ -221,6 +298,13 @@ export function renderFrame(ctx, canvas, state) {
     const base = (m.hitFlash > 0 || blink) ? '#ffffff' : (m.color || '#b24a4a');
     if (m.dodgeT > 0) ctx.globalAlpha = 0.55; // 回避中は半透明（当たり判定なしを示唆）
 
+    // ダークアウトライン：シルエットを一回り大きく黒で描いて縁取り（ドット絵風の引き締め）
+    if (!(m.hitFlash > 0 || blink) && m.dodgeT <= 0) {
+      ctx.save(); ctx.scale(1.12, 1.12);
+      drawEnemyBody(ctx, m, tEnemy, '#0a0d12');
+      ctx.restore();
+    }
+
     // 本体（種類別の凝ったスプライト）
     drawEnemyBody(ctx, m, tEnemy, base);
     ctx.globalAlpha = 1;
@@ -269,42 +353,56 @@ export function renderFrame(ctx, canvas, state) {
 
     // ダッシュ中の残像
     if (pl.isDashing) {
-      ctx.globalAlpha = 0.25; ctx.fillStyle = '#7ab0ff';
+      ctx.globalAlpha = 0.22; ctx.fillStyle = '#e7c23c';
       roundedRect(ctx, px - pl.facing.x * 8 - pl.w / 2, py - pl.facing.y * 8 - pl.h / 2, pl.w, pl.h, 5); ctx.fill();
       ctx.globalAlpha = 1;
     }
 
     ctx.save(); ctx.translate(px, py);
-    // 銃身（向きの先・反動で前後）
+
+    const flip = pl.facing.x < 0 ? -1 : 1;
+    const hitFlash = pl.iTime > 0 && (Math.floor(pl.iTime * 20) % 2 === 0);
+    const SKIN = '#e7b48a', SKIN_SH = '#c98f63';
+    const SHIRT = hitFlash ? '#ff9aa2' : '#e7c23c';
+    const SHIRT_SH = hitFlash ? '#d8707a' : '#b9991f';
+    const PANTS = '#33589e', HAIR = '#2a231f';
+
+    // --- 本体（正面向きのドット絵人物。左向き時は左右反転）---
+    ctx.save();
+    if (flip < 0) ctx.scale(-1, 1);
+    // 脚（青ズボン）＋靴
+    ctx.fillStyle = PANTS; ctx.fillRect(-5, 4, 4, 7); ctx.fillRect(1, 4, 4, 7);
+    ctx.fillStyle = '#1c2c52'; ctx.fillRect(-5, 9, 4, 2); ctx.fillRect(1, 9, 4, 2);
+    // 腕（肌）
+    ctx.fillStyle = SKIN; ctx.fillRect(-8, -2, 3, 6); ctx.fillRect(5, -2, 3, 6);
+    // 胴（黄シャツ）
+    ctx.fillStyle = SHIRT; ctx.fillRect(-6, -3, 12, 8);
+    ctx.fillStyle = SHIRT_SH; ctx.fillRect(-6, 3, 12, 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.20)'; ctx.fillRect(-6, -3, 12, 2);
+    // 頭（肌）
+    ctx.fillStyle = SKIN; ctx.fillRect(-5, -11, 10, 9);
+    ctx.fillStyle = SKIN_SH; ctx.fillRect(-5, -3, 10, 1);
+    // 髪（黒・前髪＋もみあげ）
+    ctx.fillStyle = HAIR;
+    ctx.fillRect(-6, -12, 12, 5);
+    ctx.fillRect(-6, -12, 2, 6); ctx.fillRect(4, -12, 2, 6);
+    ctx.fillRect(-6, -8, 1, 3); ctx.fillRect(5, -8, 1, 3);
+    // 目
+    ctx.fillStyle = '#26303c';
+    ctx.fillRect(-3, -7, 2, 2); ctx.fillRect(1, -7, 2, 2);
+    ctx.restore();
+
+    // --- 武器の構え（照準方向へ前腕＋銃。発射時マズルフラッシュ）---
     ctx.save(); ctx.rotate(ang);
-    ctx.fillStyle = '#2b3a50';
-    ctx.fillRect(6 - recoil, -2.5, 12, 5);
-    ctx.fillStyle = '#1a2738';
-    ctx.fillRect(15 - recoil, -1.5, 3, 3);
-    // マズルフラッシュ（発射直後）
+    ctx.fillStyle = SKIN; ctx.fillRect(3, -1.6, 6 - recoil * 0.4, 3.2); // 前腕
+    drawHeldGun(ctx, (pl.weapons[pl.curW] || {}).id || 'pistol', recoil);
     if (pl.muzzleT > 0) {
       ctx.fillStyle = '#fff1c0';
       ctx.beginPath();
-      ctx.moveTo(24 - recoil, 0); ctx.lineTo(17 - recoil, 3.5); ctx.lineTo(19 - recoil, 0); ctx.lineTo(17 - recoil, -3.5);
+      ctx.moveTo(26 - recoil, 0); ctx.lineTo(19 - recoil, 3.5); ctx.lineTo(21 - recoil, 0); ctx.lineTo(19 - recoil, -3.5);
       ctx.closePath(); ctx.fill();
     }
     ctx.restore();
-
-    // 本体
-    const hitFlash = pl.iTime > 0 && (Math.floor(pl.iTime * 20) % 2 === 0);
-    ctx.fillStyle = hitFlash ? '#ff9aa2' : '#7ab0ff';
-    roundedRect(ctx, -pl.w / 2, -pl.h / 2, pl.w, pl.h, 6); ctx.fill();
-    // 腹のハイライト
-    ctx.fillStyle = 'rgba(255,255,255,0.18)';
-    roundedRect(ctx, -pl.w / 2 + 3, -pl.h / 2 + 3, pl.w - 6, pl.h * 0.45, 4); ctx.fill();
-    // 目（向きに追従）
-    const ex = pl.facing.x * 3, ey = pl.facing.y * 2;
-    ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(-4, -2, 2.6, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(4, -2, 2.6, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#16202e';
-    ctx.beginPath(); ctx.arc(-4 + ex, -2 + ey, 1.5, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(4 + ex, -2 + ey, 1.5, 0, Math.PI * 2); ctx.fill();
 
     // 近接スイング中：装備中の近接武器に応じて刀／拳／蹴りを描く（FXと同期）。
     if (pl.meleeT > 0) {
@@ -405,6 +503,9 @@ export function renderFrame(ctx, canvas, state) {
     }
     ctx.globalAlpha = 1;
   }
+
+  // 右上の武器スロット（近接＋現在の銃）
+  drawWeaponHud(ctx, W, H, state);
 
   // 低HP時の赤いビネット（パルス）
   const pl2 = state.player;
