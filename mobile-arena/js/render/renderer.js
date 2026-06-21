@@ -426,44 +426,46 @@ export function renderFrame(ctx, canvas, state) {
       const sp = 1 - pl.meleeT / MELEE_SWING;     // 0→1 スイング進行
       const dir = pl.meleeDir || 1;               // 振り方向（コンボで左右交互）
       if (pl.meleeKind === 'blade') {
-        const span = 2.4;                          // 振り幅(約138°)
-        const swing = (-span / 2 + span * sp) * dir;
-        const len = 32, bw = 5;
+        // 上段からの振り下ろし（前方へ踏み込みながらの袈裟斬り）
+        const chop = (-1.5 + 2.2 * sp) * dir;        // 上→下
+        const adv = Math.sin(sp * Math.PI) * 5;      // 前方への踏み込み
+        const len = 34, bw = 5;
         ctx.save();
-        ctx.rotate(ang + swing);
-        ctx.fillStyle = '#8a6a36';                 // 鍔
-        ctx.fillRect(7, -4, 3, 8);
-        ctx.fillStyle = '#d3deec';                 // 刃（テーパ）
+        ctx.rotate(ang + chop);
+        ctx.translate(adv, 0);
+        ctx.fillStyle = '#8a6a36'; ctx.fillRect(7, -4, 3, 8);   // 鍔
+        ctx.fillStyle = '#d3deec';                              // 刃（テーパ）
         ctx.beginPath();
         ctx.moveTo(10, -bw / 2);
         ctx.lineTo(10 + len, -1.3);
-        ctx.lineTo(10 + len + 5, 0);
+        ctx.lineTo(10 + len + 6, 0);
         ctx.lineTo(10 + len, 1.3);
         ctx.lineTo(10, bw / 2);
         ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+        ctx.strokeStyle = 'rgba(255,255,255,0.9)';
         ctx.lineWidth = 1;
         ctx.beginPath(); ctx.moveTo(11, -1.1); ctx.lineTo(10 + len, -0.6); ctx.stroke();
         ctx.restore();
       } else if (pl.meleeFinisher) {
-        // 蹴り：前方へ突き出す脚＋足
-        const thrust = Math.sin(sp * Math.PI) * 12;   // 出して戻る
+        // 蹴り：前方へ大きく突き出す脚＋足（踏み込みに同期）
+        const thrust = Math.sin(sp * Math.PI) * 16;
         ctx.save();
         ctx.rotate(ang);
         ctx.strokeStyle = '#6f8db0'; ctx.lineWidth = 5; ctx.lineCap = 'round';
-        ctx.beginPath(); ctx.moveTo(2, 4 * dir); ctx.lineTo(10 + thrust, 1 * dir); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(2, 4 * dir); ctx.lineTo(11 + thrust, 1 * dir); ctx.stroke();
         ctx.fillStyle = '#8fb0d8';
-        ctx.beginPath(); ctx.arc(12 + thrust, 1 * dir, 3.2, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(13 + thrust, 1 * dir, 3.4, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
       } else {
-        // 殴り：前方へ突き出す腕＋拳（左右交互）
-        const thrust = Math.sin(sp * Math.PI) * 10;
+        // 殴り：腕を振り抜くフック（直突きでなく弧を描く）
+        const hook = (-0.9 + 1.8 * sp) * dir;
+        const ext = 6 + Math.sin(sp * Math.PI) * 7;
         ctx.save();
-        ctx.rotate(ang);
+        ctx.rotate(ang + hook);
         ctx.strokeStyle = '#7ab0ff'; ctx.lineWidth = 4; ctx.lineCap = 'round';
-        ctx.beginPath(); ctx.moveTo(2, 3 * dir); ctx.lineTo(9 + thrust, 1 * dir); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(2, 0); ctx.lineTo(2 + ext, 0); ctx.stroke();
         ctx.fillStyle = '#cfe0ff';
-        ctx.beginPath(); ctx.arc(11 + thrust, 1 * dir, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(4 + ext, 0, 3, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
       }
     }

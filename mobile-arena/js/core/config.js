@@ -14,21 +14,22 @@ export const DEFAULT_CONFIG = {
     speedMul: 1.2,       // 全体の移動速度倍率（旧 combat.js のハードコード 1.2）
     hpMax: 100,
     staMax: 100,
-    staDrain: 35,        // ダッシュ中のスタミナ消費/s
-    staRegen: 22,        // 非ダッシュ時のスタミナ回復/s
+    staDrain: 22,        // ダッシュ中のスタミナ消費/s（軽め＝長く走れる）
+    staRegen: 32,        // 非ダッシュ時のスタミナ回復/s（速め＝すぐ再使用）
     meleeDmg: 22,        // 近接の基礎ダメージ（mods.meleeMul と乗算）
     meleeReach: 51,      // 近接の射程(px)。元 34*1.5
     meleeCD: 0.32,       // 近接クールダウン(s)
     meleeKB: 240,        // 近接ノックバック
     meleeSlashDmg: 8,    // 近接の継続ヒット（残像扇）ダメージ
-    dashMul: 2,          // ダッシュ時の速度倍率
+    dashMul: 2.4,        // ダッシュ時の速度倍率（キビキビ）
+    dashBurst: 220,      // ダッシュ開始時の初速ブースト（押した瞬間に出やすく）
     iFrameMelee: 0.9,    // 被弾後の無敵時間(s)：近接
     iFrameBullet: 0.8,   // 被弾後の無敵時間(s)：弾
     bulletSpeed: 360,    // 通常弾の初速
     grenadeSpeed: 280,   // グレネード初速
     grenadeFuse: 1.0,    // グレネード信管(s)
-    explodeRadius: 70,   // 爆発半径
-    explodeDmg: 110,     // 爆発の最大ダメージ
+    explodeRadius: 76,   // 爆発半径
+    explodeDmg: 150,     // 爆発の最大ダメージ
     explodeSelfDmg: 25,  // 自爆ダメージ（近距離）
   },
 
@@ -41,14 +42,16 @@ export const DEFAULT_CONFIG = {
         id: 'fists', name: '徒手空拳', kind: 'fist',
         reach: 44, arc: Math.PI * 0.9, cd: 0.18, dmg: 16, kb: 70, stagger: 0.18,
         combo: 3, comboWindow: 0.55,
+        staCost: 7, lunge: 150,   // スタミナ消費／踏み込み量
         // 3段目＝蹴り：当たった相手に大きなノックバック＋長めの怯み
-        finisher: { reach: 50, arc: Math.PI * 0.8, dmg: 30, kb: 380, stagger: 0.30 },
+        finisher: { reach: 50, arc: Math.PI * 0.8, dmg: 30, kb: 380, stagger: 0.30, lunge: 260 },
       },
       katana: {
         id: 'katana', name: '刀', kind: 'blade',
         reach: 66, arc: Math.PI * 1.15, cd: 0.14, dmg: 20, kb: 0,
         combo: 4, comboWindow: 0.5,
         bleedChance: 0.12,   // まれに出血を付与
+        staCost: 9, lunge: 130,
       },
     },
   },
@@ -64,10 +67,10 @@ export const DEFAULT_CONFIG = {
   // プレイヤー武器（データ駆動）。dev-editor から編集可能。
   // 並び順がホットキー 1..5 / curW のインデックスに対応する。
   weapons: [
-    { id: 'pistol',  name: 'Pistol',  dmg: 24, fireRate: 0.22, magSize: 12, mag: 12, spread: 0.05, pellets: 1, ammoType: 'ammo9'  },
-    { id: 'shotgun', name: 'Shotgun', dmg: 16, fireRate: 0.60, magSize: 6,  mag: 6,  spread: 0.25, pellets: 6, ammoType: 'ammo12' },
-    { id: 'mg',      name: 'MG',      dmg: 12, fireRate: 0.08, magSize: 40, mag: 40, spread: 0.12, pellets: 1, ammoType: 'ammo9'  },
-    { id: 'beam',    name: 'Beam',    dmg: 80, fireRate: 0.60, magSize: null, mag: 0, spread: 0, pellets: 1, ammoType: 'ammoBeam' },
+    { id: 'pistol',  name: 'Pistol',  dmg: 34, fireRate: 0.22, magSize: 12, mag: 12, spread: 0.05, pellets: 1, ammoType: 'ammo9'  },
+    { id: 'shotgun', name: 'Shotgun', dmg: 22, fireRate: 0.60, magSize: 6,  mag: 6,  spread: 0.25, pellets: 6, ammoType: 'ammo12' },
+    { id: 'mg',      name: 'MG',      dmg: 17, fireRate: 0.08, magSize: 40, mag: 40, spread: 0.12, pellets: 1, ammoType: 'ammo9'  },
+    { id: 'beam',    name: 'Beam',    dmg: 110, fireRate: 0.60, magSize: null, mag: 0, spread: 0, pellets: 1, ammoType: 'ammoBeam' },
     { id: 'grenade', name: 'Grenade', dmg: 0,  fireRate: 0.90, magSize: 1,  mag: 1,  spread: 0,    pellets: 1, ammoType: 'ammoNade' },
   ],
 

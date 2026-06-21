@@ -23,6 +23,7 @@ export function doMelee(state, bus) {
   const p = state.player;
   const def = equippedMelee(p);
   if (!def) return;
+  if ((p.sta || 0) <= 0) return; // スタミナ切れでは近接を振れない
   const mods = p.mods || { meleeMul: 1, dmg: 1 };
 
   // ===== コンボ段の決定（タイミングよく押すと継続）=====
@@ -30,6 +31,10 @@ export function doMelee(state, bus) {
   const sameWeapon = p._meleeComboId === def.id;
   const step = advanceCombo(p.meleeCombo || 0, def.combo, within, sameWeapon);
   const sw = resolveSwing(def, step);
+
+  // スタミナ消費（蹴り＝フィニッシャは多め）
+  const staCost = (sw.finisher ? 1.6 : 1) * (def.staCost || 7);
+  p.sta = Math.max(0, p.sta - staCost);
 
   // クールダウン＆コンボ受付・描画ヒントを更新
   p.meleeCD = def.cd;
@@ -47,6 +52,10 @@ export function doMelee(state, bus) {
   const faceAng = Math.atan2(p.facing.y, p.facing.x);
   const dmg = Math.round(sw.dmg * p.buffs.dmg * mods.meleeMul);
   const kb = sw.kb;
+
+  // 踏み込み（モーション）：振りに合わせて前方へステップする速度インパルス
+  const lunge = sw.finisher ? ((def.finisher && def.finisher.lunge) || def.lunge || 0) : (def.lunge || 0);
+  if (lunge) { p.vx += Math.cos(faceAng) * lunge; p.vy += Math.sin(faceAng) * lunge; }
 
   bus.emit('sfx', 'melee');
 

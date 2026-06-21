@@ -97,9 +97,27 @@ export function placeWallFront(state, bus) {
     bus.emit('ui:toast', '資材がありません');
     return;
   }
-  const tx = Math.floor((p.x + p.facing.x * 18) / TILE);
-  const ty = Math.floor((p.y + p.facing.y * 18) / TILE);
-  if (canPlaceAt(state, tx, ty)) {
+  // オートスナップ：正面を主軸に、近い順の候補から最初に置けるタイルへ自動配置。
+  const ptx = Math.floor(p.x / TILE), pty = Math.floor(p.y / TILE);
+  const fx = p.facing.x, fy = p.facing.y;
+  // 主軸方向（カーディナルに丸め）と、その垂直方向
+  let dx = 0, dy = 0;
+  if (Math.abs(fx) >= Math.abs(fy)) dx = (fx >= 0 ? 1 : -1); else dy = (fy >= 0 ? 1 : -1);
+  const px = dy, py = dx; // 垂直（左右ずれ）
+  const cand = [
+    [ptx + dx, pty + dy],
+    [ptx + dx + px, pty + dy + py],
+    [ptx + dx - px, pty + dy - py],
+    [ptx + 2 * dx, pty + 2 * dy],
+    [ptx + 2 * dx + px, pty + 2 * dy + py],
+    [ptx + 2 * dx - px, pty + 2 * dy - py],
+  ];
+  let placed = null;
+  for (const [tx, ty] of cand) {
+    if (canPlaceAt(state, tx, ty)) { placed = [tx, ty]; break; }
+  }
+  if (placed) {
+    const [tx, ty] = placed;
     state.map[ty][tx] = '#';
     const wallHp = (p.mods && p.mods.wallHp) || 70; // 築城術アップグレードで頑丈に
     state.tileHP[ty][tx] = state.tileMaxHP[ty][tx] = wallHp;
@@ -108,7 +126,7 @@ export function placeWallFront(state, bus) {
     bus.emit('ui:toast', '壁を設置');
     bus.emit('sfx', 'build');
   } else {
-    bus.emit('ui:toast', 'ここには設置できません');
+    bus.emit('ui:toast', '近くに置ける場所がありません');
   }
 }
 
@@ -145,6 +163,12 @@ export function updateCombat(state, dt, bus, input, audio) {
   const moving = speedScale > 0;
   const dash = input.pressed('shift') && moving && p.sta > 0;
   p.isDashing = dash;
+  // ダッシュ開始の瞬間に初速ブースト（押した瞬間に即動く＝使いやすさ）
+  if (dash && !p._dashPrev) {
+    const burst = CONFIG.player.dashBurst || 0;
+    p.vx += dirx * burst; p.vy += diry * burst;
+  }
+  p._dashPrev = dash;
 
   const spd = p.baseSpeed * CONFIG.player.speedMul * p.buffs.speed * mods.moveMul * (dash ? CONFIG.player.dashMul : 1);
   let vx = dirx * spd * speedScale * dt, vy = diry * spd * speedScale * dt;
