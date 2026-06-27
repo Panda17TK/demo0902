@@ -23,4 +23,9 @@ class NumbersTest {
     fun `clamp returns default for non-finite input`() {
         assertEquals(-1.0, clamp(Double.NaN, 0.0, 10.0, -1.0))
     }
+
+    @Test
+    fun `clamp returns default for infinite input`() {
+        assertEquals(-1.0, clamp(Double.POSITIVE_INFINITY, 0.0, 10.0, -1.0))
+    }
 }

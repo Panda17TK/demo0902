@@ -23,3 +23,7 @@ kotlin {
 application {
     mainClass.set("io.github.panda17tk.arpg.lwjgl3.Lwjgl3LauncherKt")
 }
+
+tasks.test {
+    useJUnitPlatform()
+}
