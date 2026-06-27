@@ -99,19 +99,24 @@ if (!canvas) {
   // --- タッチ操作（スマホ/タブレット）---
   if (isTouchDevice()) {
     document.body.classList.add('touch');
-    createTouchControls(document.getElementById('wrap'), input, {
-      reload: () => reload(state, bus),
-      build:  () => placeWallFront(state, bus),
-      cycleWeapon: () => {
-        const ws = state.player.weapons;
-        if (!ws.length) return;
-        state.player.curW = (state.player.curW + 1) % ws.length;
-        bus.emit('ui:toast', '武器: ' + (ws[state.player.curW].name || ''));
-      },
-      pause: () => { if (!state.gameOver) state.paused = !state.paused; },
-      isPaused: () => state.paused,
-      setPaused: (b) => { if (!state.gameOver) state.paused = !!b; },
-    });
+    // タッチUIの構築失敗がゲーム本体の初期化（ループ起動）を巻き込まないよう隔離する
+    try {
+      createTouchControls(document.getElementById('wrap'), input, {
+        reload: () => reload(state, bus),
+        build:  () => placeWallFront(state, bus),
+        cycleWeapon: () => {
+          const ws = state.player.weapons;
+          if (!ws.length) return;
+          state.player.curW = (state.player.curW + 1) % ws.length;
+          bus.emit('ui:toast', '武器: ' + (ws[state.player.curW].name || ''));
+        },
+        pause: () => { if (!state.gameOver) state.paused = !state.paused; },
+        isPaused: () => state.paused,
+        setPaused: (b) => { if (!state.gameOver) state.paused = !!b; },
+      });
+    } catch (e) {
+      try { console.error('[touch] コントロール構築に失敗:', e); } catch (_e) {}
+    }
   }
 
   // --- 初回のユーザー操作で AudioContext を resume（モバイル対策）---

@@ -37,13 +37,13 @@ export function createTouchControls(root, input, api) {
   const settings = createSettingsPanel({ layer, cfg, input, api });
 
   // ===== ボタン =====
-  createButton('melee',  '近接', { hold: (on) => { keys['j'] = on; } }, haptic);
-  createButton('dash',   'DASH', { hold: (on) => { keys['shift'] = on; } }, haptic);
-  createButton('reload', 'R',    { tap: () => { if (api.reload) api.reload(); } }, haptic);
-  createButton('weapon', '武器', { tap: () => { if (api.cycleWeapon) api.cycleWeapon(); } }, haptic);
-  createButton('build',  '壁',   { tap: () => { if (api.build) api.build(); } }, haptic);
-  createButton('pause',  'II',   { tap: () => { if (api.pause) api.pause(); } }, haptic);
-  createButton('settings', '⚙', { tap: () => settings.toggle() }, haptic);
+  createButton(layer, 'melee',  '近接', { hold: (on) => { keys['j'] = on; } }, haptic);
+  createButton(layer, 'dash',   'DASH', { hold: (on) => { keys['shift'] = on; } }, haptic);
+  createButton(layer, 'reload', 'R',    { tap: () => { if (api.reload) api.reload(); } }, haptic);
+  createButton(layer, 'weapon', '武器', { tap: () => { if (api.cycleWeapon) api.cycleWeapon(); } }, haptic);
+  createButton(layer, 'build',  '壁',   { tap: () => { if (api.build) api.build(); } }, haptic);
+  createButton(layer, 'pause',  'II',   { tap: () => { if (api.pause) api.pause(); } }, haptic);
+  createButton(layer, 'settings', '⚙', { tap: () => settings.toggle() }, haptic);
 
   // ===== 初期反映 =====
   applyVisual(layer, cfg, input);
