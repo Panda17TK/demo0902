@@ -16,11 +16,16 @@ export const DEFAULT_CONFIG = {
     staMax: 100,
     staDrain: 35,        // ダッシュ中のスタミナ消費/s
     staRegen: 22,        // 非ダッシュ時のスタミナ回復/s
-    meleeDmg: 22,        // 近接の基礎ダメージ（mods.meleeMul と乗算）
+    meleeDmg: 22,        // 近接（剣）の基礎ダメージ（mods.meleeMul と乗算）
     meleeReach: 51,      // 近接の射程(px)。元 34*1.5
     meleeCD: 0.32,       // 近接クールダウン(s)
     meleeKB: 240,        // 近接ノックバック
     meleeSlashDmg: 8,    // 近接の継続ヒット（残像扇）ダメージ
+    // スタミナ連動の近接威力。剣はスタミナが高いほど本来の威力を出す。
+    meleeStaWeakBelow: 0.40, // スタミナがこの割合(staMax比)未満で剣の威力が低下
+    meleeStaSwordMin: 0.20,  // この割合以下では剣を振れず「拳」になる
+    meleeWeakMul: 0.6,       // 低スタミナ時の剣ダメージ倍率（拳より大きく保つこと）
+    fistDmg: 8,              // 拳（素手）の基礎ダメージ。剣が振れない時の代替・最弱
     dashMul: 2,          // ダッシュ時の速度倍率
     iFrameMelee: 0.9,    // 被弾後の無敵時間(s)：近接
     iFrameBullet: 0.8,   // 被弾後の無敵時間(s)：弾
@@ -30,6 +35,15 @@ export const DEFAULT_CONFIG = {
     explodeRadius: 70,   // 爆発半径
     explodeDmg: 110,     // 爆発の最大ダメージ
     explodeSelfDmg: 25,  // 自爆ダメージ（近距離）
+    autoAimRange: 480,   // 自動射撃（モバイル）のオート照準が敵を捕捉する最大距離(px)
+    autoReloadDelay: 0.8,// 射撃停止からの自動リロード待ち時間(s)。短いほど即リロード
+  },
+
+  // カメラ。zoom<1 で引き(=視界が広い)、>1 で寄り。設定スライダーで上書き可能。
+  camera: {
+    zoom: 1.0,           // 既定ズーム倍率
+    minZoom: 0.6,        // 最も引いた状態（視界最大）
+    maxZoom: 1.2,        // 最も寄った状態
   },
 
   // AI 挙動の調整値

@@ -7,6 +7,7 @@ import { createAudio } from './services/audio.js';
 import { createStorage } from './services/storage.js';
 import { createInitialState, resetState } from './state/state.js';
 import { setupMap } from './state/map.js';
+import { randomMapId, getMap } from './state/maps.js';
 import { bindHotkeys } from './state/binds.js';
 import { rebuildFlowField } from './systems/flowfield.js';
 import { buildMobGrid } from './systems/spatial.js';
@@ -16,7 +17,7 @@ import { updateItems } from './systems/items.js';
 import { updateSpawner, startWave } from './systems/spawner.js';
 import { updateCombat, reload, placeWallFront } from './systems/combat.js';
 import { updateFX } from './systems/fx.js';
-import { isTouchDevice, createTouchControls } from './core/touch.js';
+import { isTouchDevice, createTouchControls } from './core/touch/index.js';
 import { renderFrame } from './render/renderer.js';
 import { mountGameOver } from './render/overlay.js';
 import { mountHUD } from './render/hud.js';
@@ -78,6 +79,7 @@ if (!canvas) {
   state.runStart = performance.now();
   state.gameOver = false;
 
+  state.mapId = randomMapId();   // 起動ごとにステージをランダム選択
   setupMap(state);
   rebuildFlowField(state);
   startWave(state, 1);
@@ -90,6 +92,10 @@ if (!canvas) {
   const devBtn = document.getElementById('dev-btn');
   if (devBtn) devBtn.addEventListener('click', () => bus.emit('dev:toggle'));
 
+  // 開始ステージ名を通知（HUD のトーストリスナ登録後に emit）
+  const stageToast = () => { try { bus.emit('ui:toast', 'STAGE: ' + getMap(state.mapId).name); } catch (_e) {} };
+  stageToast();
+
   // --- ホットキー（保存/読込） ---
   bindHotkeys(state, bus, input, {
     save: () => saveChooser(state, null, bus),
@@ -99,19 +105,25 @@ if (!canvas) {
   // --- タッチ操作（スマホ/タブレット）---
   if (isTouchDevice()) {
     document.body.classList.add('touch');
-    createTouchControls(document.getElementById('wrap'), input, {
-      reload: () => reload(state, bus),
-      build:  () => placeWallFront(state, bus),
-      cycleWeapon: () => {
-        const ws = state.player.weapons;
-        if (!ws.length) return;
-        state.player.curW = (state.player.curW + 1) % ws.length;
-        bus.emit('ui:toast', '武器: ' + (ws[state.player.curW].name || ''));
-      },
-      pause: () => { if (!state.gameOver) state.paused = !state.paused; },
-      isPaused: () => state.paused,
-      setPaused: (b) => { if (!state.gameOver) state.paused = !!b; },
-    });
+    // タッチUIの構築失敗がゲーム本体の初期化（ループ起動）を巻き込まないよう隔離する
+    try {
+      createTouchControls(document.getElementById('wrap'), input, {
+        reload: () => reload(state, bus),
+        build:  () => placeWallFront(state, bus),
+        cycleWeapon: () => {
+          const ws = state.player.weapons;
+          if (!ws.length) return;
+          state.player.curW = (state.player.curW + 1) % ws.length;
+          bus.emit('ui:toast', '武器: ' + (ws[state.player.curW].name || ''));
+        },
+        pause: () => { if (!state.gameOver) state.paused = !state.paused; },
+        isPaused: () => state.paused,
+        setPaused: (b) => { if (!state.gameOver) state.paused = !!b; },
+        setZoom: (z) => { state.camZoom = z; },
+      });
+    } catch (e) {
+      try { console.error('[touch] コントロール構築に失敗:', e); } catch (_e) {}
+    }
   }
 
   // --- 初回のユーザー操作で AudioContext を resume（モバイル対策）---
@@ -122,6 +134,18 @@ if (!canvas) {
   };
   window.addEventListener('pointerdown', resumeAudio);
   window.addEventListener('keydown', resumeAudio);
+
+  // --- バックグラウンド（アプリ切替・タブ非表示）で自動ポーズ ---
+  // スマホで通知やアプリ切替の間にゲームが進行して死ぬのを防ぐ。
+  let pausedByHidden = false;
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      if (!state.gameOver && !state.paused) { state.paused = true; pausedByHidden = true; }
+    } else if (pausedByHidden) {
+      if (!state.gameOver) state.paused = false;
+      pausedByHidden = false;
+    }
+  });
 
   // --- エラーをトーストにも表示 ---
   addEventListener('error', (ev) => {
@@ -140,15 +164,17 @@ if (!canvas) {
 
   // リスタート：state をその場で初期化し、マップ／フローフィールドを作り直す
   bus.on('game:restart', () => {
+    const prevMap = state.mapId;
     resetState(state);
     applyPlayerConfig(state);
+    state.mapId = randomMapId(prevMap);  // 再挑戦ごとにステージを変える（直前と重複回避）
     setupMap(state);
     rebuildFlowField(state);
     startWave(state, 1);
     state.runStart = performance.now();
     state.gameOver = false;
     state.paused   = false;
-    bus.emit('ui:toast', 'Restart');
+    stageToast();
   });
 
   // --- ループ ---

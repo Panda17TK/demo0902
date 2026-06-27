@@ -1,5 +1,6 @@
 import { makeMobFromKey, makeZombie, makeSpitter } from './enemies.js';
 import { rebuildFlowField } from './flowfield.js';
+import { promptModal, chooseModal } from '../core/modal.js';
 
 // セーブフォーマットのバージョン。互換を壊す変更時にインクリメントし、
 // migrate() で旧→新へ移行する。
@@ -181,9 +182,9 @@ export function listSlots(bus) {
 
 export function save(state, _storage, bus, slot) {
 	if (!CTX) { if (bus && bus.emit) bus.emit('ui:toast', 'CTX not set'); return Promise.resolve(); }
-	try {
-		var s = slot || window.prompt('保存スロット名（例: slot1, A など）', 'slot1');
-		if (!s) { if (bus && bus.emit) bus.emit('ui:toast', 'save cancelled'); return Promise.resolve(); }
+	var ask = slot ? Promise.resolve(slot) : promptModal('保存スロット名（例: slot1, A など）', 'slot1');
+	return ask.then(function(s) {
+		if (!s) { if (bus && bus.emit) bus.emit('ui:toast', 'save cancelled'); return; }
 		var payload = serialize(state);
 		return fetch(CTX + '/api/state2?slot=' + encodeURIComponent(s), {
 			method: 'POST',
@@ -196,11 +197,7 @@ export function save(state, _storage, bus, slot) {
 			try { console.error('[save]', e); } catch (_) { }
 			if (bus && bus.emit) bus.emit('ui:toast', 'remote save error');
 		});
-	} catch (e) {
-		try { console.error('[save-sync]', e); } catch (_) { }
-		if (bus && bus.emit) bus.emit('ui:toast', 'remote save error');
-		return Promise.resolve();
-	}
+	});
 }
 
 export function load(state, _storage, bus, slot) {
@@ -235,17 +232,16 @@ export function saveChooser(state, _storage, bus) {
 export function loadChooser(state, _storage, bus) {
 	return listSlots(bus).then(function(slots) {
 		if (!slots.length) { if (bus && bus.emit) bus.emit('ui:toast', 'セーブがありません'); return; }
-		var lines = [];
+		var items = [];
 		for (var i = 0; i < slots.length; i++) {
-			lines.push((i + 1) + ': ' + slots[i].slot + ' (' + nowStr(slots[i].updatedAt) + ')');
+			items.push(slots[i].slot + '  (' + nowStr(slots[i].updatedAt) + ')');
 		}
-		var ans = window.prompt('ロードする番号を入力:\n' + lines.join('\n'), '1');
-		var idx = ans ? (parseInt(ans, 10) - 1) : -1;
-		if (idx >= 0 && idx < slots.length) {
-			return load(state, _storage, bus, slots[idx].slot);
-		} else {
+		return chooseModal('ロードするスロットを選択', items).then(function(idx) {
+			if (idx >= 0 && idx < slots.length) {
+				return load(state, _storage, bus, slots[idx].slot);
+			}
 			if (bus && bus.emit) bus.emit('ui:toast', 'load cancelled');
-		}
+		});
 	});
 }
 

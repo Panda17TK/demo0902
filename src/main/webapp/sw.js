@@ -2,7 +2,7 @@
  * アプリシェル（JS/CSS/アイコン）をキャッシュしてオフライン起動を可能にする。
  * API（/api/*, /controller）はキャッシュせず常にネットワークへ（スコア等は鮮度優先）。
  */
-const CACHE = 'arpg-v8';
+const CACHE = 'arpg-v11';
 
 // 自身の URL からスコープ（コンテキストパス）を導出。例: /demo0902/sw.js → /demo0902/
 const SCOPE = self.registration ? new URL(self.registration.scope).pathname
@@ -16,7 +16,11 @@ const ASSETS = [
   // JS モジュール（相対パスでスコープ起点）
   'js/main.js',
   'js/core/constants.js', 'js/core/config.js', 'js/core/events.js',
-  'js/core/input.js', 'js/core/touch.js', 'js/core/settings.js',
+  'js/core/input.js', 'js/core/settings.js', 'js/core/modal.js',
+  // タッチ操作パッケージ（core/touch/）
+  'js/core/touch/index.js', 'js/core/touch/detect.js', 'js/core/touch/stick.js',
+  'js/core/touch/buttons.js', 'js/core/touch/settings-panel.js',
+  'js/core/touch/haptics.js', 'js/core/touch/visual.js', 'js/core/touch/layout.js',
   'js/services/audio.js', 'js/services/storage.js',
   'js/state/state.js', 'js/state/data.js', 'js/state/map.js', 'js/state/maps.js',
   'js/state/binds.js', 'js/state/upgrades.js', 'js/state/types.js',
@@ -55,12 +59,18 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // 静的アセットは cache-first（無ければ取得してキャッシュ）
+  // 静的アセットは stale-while-revalidate：
+  // キャッシュがあれば即返して体感を速く保ちつつ、裏で再取得してキャッシュを更新する。
+  // これにより「コードを更新したのにキャッシュ優先で古いJSが返り続ける」事故を防ぐ
+  // （次回読み込みから最新が反映される）。オフライン時はキャッシュにフォールバック。
   e.respondWith(
-    caches.match(req).then((hit) => hit || fetch(req).then((res) => {
-      const copy = res.clone();
-      caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
-      return res;
-    }).catch(() => hit))
+    caches.match(req).then((hit) => {
+      const fetching = fetch(req).then((res) => {
+        const copy = res.clone();
+        caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+        return res;
+      }).catch(() => hit);
+      return hit || fetching;
+    })
   );
 });
