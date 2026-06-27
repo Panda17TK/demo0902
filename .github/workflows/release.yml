@@ -1,0 +1,75 @@
+name: release
+
+# v* タグの push、または Actions UI からの手動実行(workflow_dispatch)で
+# WAR をビルドし、GitHub Release を自動作成する。
+# 手動実行では未作成のタグを main HEAD に作成してから公開できる
+#（タグを直接 push できない環境でも Actions UI だけでリリースを切れる）。
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "リリースするタグ（例: v1.1.0）。未作成なら main HEAD に作成します"
+        required: true
+
+permissions:
+  contents: write   # タグ作成・Release 公開に必要
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # リリースノート自動生成のため全履歴を取得
+
+      - name: タグを用意（手動実行時・未作成なら main HEAD に作成）
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          TAG: ${{ github.event.inputs.tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "タグ $TAG は既に存在します"
+          else
+            git tag -a "$TAG" -m "$TAG"
+            git push origin "$TAG"
+          fi
+
+      - name: タグ名を決定
+        id: meta
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Run JS unit tests
+        run: node --test src/test/js/*.test.mjs
+
+      - name: Build WAR
+        run: mvn -B -ntp clean package
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.tag }}
+          generate_release_notes: true   # 直前タグからの変更点を自動生成
+          files: target/demo0902.war
