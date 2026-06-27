@@ -3,7 +3,6 @@ name: android-apk
 # Capacitor で Web アセットを同梱した Android デバッグAPK（サイドロード用）をビルドする。
 # - workflow_dispatch: 任意で release_tag を指定すると、その Release に APK を添付。
 # - v* タグ push: そのタグの Release に APK を添付。
-# - claude/android-apk ブランチ push: 動作確認用（マージ前にこのトリガーは削除する）。
 on:
   workflow_dispatch:
     inputs:
@@ -12,7 +11,6 @@ on:
         required: false
   push:
     tags: ["v*"]
-    branches: ["claude/android-apk"]
 
 permissions:
   contents: write
