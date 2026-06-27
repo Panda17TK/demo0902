@@ -135,7 +135,7 @@ export function updateCombat(state, dt, bus, input, audio) {
     const al = Math.hypot(input.aim.x, input.aim.y) || 1;
     p.facing.x = input.aim.x / al; p.facing.y = input.aim.y / al;
   } else if (input.autoFire) {
-    const target = nearestVisibleMob(state, p, 480);
+    const target = nearestVisibleMob(state, p, CONFIG.player.autoAimRange);
     if (target) {
       const dx = target.x - p.x, dy = target.y - p.y, l = Math.hypot(dx, dy) || 1;
       p.facing.x = dx / l; p.facing.y = dy / l;

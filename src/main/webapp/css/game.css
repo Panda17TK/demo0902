@@ -240,6 +240,12 @@ a {
 	pointer-events: none;
 	--tc-op: 0.9;    /* 不透明度（設定で変更） */
 	--tc-scale: 1;   /* サイズ倍率（設定で変更） */
+	/* ノッチ／ホームインジケータ回避（viewport-fit=cover 前提）。
+	   非対応端末では env() が 0px にフォールバックする。 */
+	--tc-safe-t: env(safe-area-inset-top, 0px);
+	--tc-safe-r: env(safe-area-inset-right, 0px);
+	--tc-safe-b: env(safe-area-inset-bottom, 0px);
+	--tc-safe-l: env(safe-area-inset-left, 0px);
 }
 
 .tc-zone {
@@ -310,28 +316,31 @@ a {
 }
 
 /* 配置：右親指=近接/武器/リロード（射撃は右スティック）、左親指=ダッシュ/壁 */
-.tc-btn-melee  { right: 24px;  bottom: 150px; }
-.tc-btn-weapon { right: 102px; bottom: 150px; width: calc(54px * var(--tc-scale)); height: calc(54px * var(--tc-scale)); font-size: 12px; }
-.tc-btn-reload { right: 24px;  bottom: 224px; width: calc(54px * var(--tc-scale)); height: calc(54px * var(--tc-scale)); }
-.tc-btn-dash   { left: 24px;   bottom: 150px; }
-.tc-btn-build  { left: 102px;  bottom: 150px; width: calc(54px * var(--tc-scale)); height: calc(54px * var(--tc-scale)); }
-.tc-btn-pause    { right: 12px; top: 12px; width: 44px; height: 44px; font-size: 12px; }
-.tc-btn-settings { right: 64px; top: 12px; width: 44px; height: 44px; font-size: 18px; }
+.tc-btn-melee  { right: calc(24px + var(--tc-safe-r));  bottom: calc(150px + var(--tc-safe-b)); }
+.tc-btn-weapon { right: calc(102px + var(--tc-safe-r)); bottom: calc(150px + var(--tc-safe-b)); width: calc(54px * var(--tc-scale)); height: calc(54px * var(--tc-scale)); font-size: 12px; }
+.tc-btn-reload { right: calc(24px + var(--tc-safe-r));  bottom: calc(224px + var(--tc-safe-b)); width: calc(54px * var(--tc-scale)); height: calc(54px * var(--tc-scale)); }
+.tc-btn-dash   { left: calc(24px + var(--tc-safe-l));   bottom: calc(150px + var(--tc-safe-b)); }
+.tc-btn-build  { left: calc(102px + var(--tc-safe-l));  bottom: calc(150px + var(--tc-safe-b)); width: calc(54px * var(--tc-scale)); height: calc(54px * var(--tc-scale)); }
+.tc-btn-pause    { right: calc(12px + var(--tc-safe-r)); top: calc(12px + var(--tc-safe-t)); width: 44px; height: 44px; font-size: 12px; }
+.tc-btn-settings { right: calc(64px + var(--tc-safe-r)); top: calc(12px + var(--tc-safe-t)); width: 44px; height: 44px; font-size: 18px; }
 
 /* 左右入れ替え時はボタンクラスタも反対側へ */
-.touch-controls.tc-swap .tc-btn-melee  { right: auto; left: 24px; }
-.touch-controls.tc-swap .tc-btn-weapon { right: auto; left: 102px; }
-.touch-controls.tc-swap .tc-btn-reload { right: auto; left: 24px; }
-.touch-controls.tc-swap .tc-btn-dash   { left: auto; right: 24px; }
-.touch-controls.tc-swap .tc-btn-build  { left: auto; right: 102px; }
+.touch-controls.tc-swap .tc-btn-melee  { right: auto; left: calc(24px + var(--tc-safe-l)); }
+.touch-controls.tc-swap .tc-btn-weapon { right: auto; left: calc(102px + var(--tc-safe-l)); }
+.touch-controls.tc-swap .tc-btn-reload { right: auto; left: calc(24px + var(--tc-safe-l)); }
+.touch-controls.tc-swap .tc-btn-dash   { left: auto; right: calc(24px + var(--tc-safe-r)); }
+.touch-controls.tc-swap .tc-btn-build  { left: auto; right: calc(102px + var(--tc-safe-r)); }
 
 /* 設定パネル */
 .tc-settings {
 	position: absolute;
-	right: 12px;
-	top: 64px;
+	right: calc(12px + var(--tc-safe-r));
+	top: calc(64px + var(--tc-safe-t));
 	z-index: 7;
 	width: 240px;
+	/* 小型端末・横持ちで画面外にはみ出さないよう上限と縦スクロールを設定 */
+	max-height: calc(100vh - 80px - var(--tc-safe-t) - var(--tc-safe-b));
+	overflow-y: auto;
 	pointer-events: auto;
 	background: rgba(16, 22, 34, .95);
 	border: 1px solid #273142;

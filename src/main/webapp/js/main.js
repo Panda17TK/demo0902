@@ -16,7 +16,7 @@ import { updateItems } from './systems/items.js';
 import { updateSpawner, startWave } from './systems/spawner.js';
 import { updateCombat, reload, placeWallFront } from './systems/combat.js';
 import { updateFX } from './systems/fx.js';
-import { isTouchDevice, createTouchControls } from './core/touch.js';
+import { isTouchDevice, createTouchControls } from './core/touch/index.js';
 import { renderFrame } from './render/renderer.js';
 import { mountGameOver } from './render/overlay.js';
 import { mountHUD } from './render/hud.js';

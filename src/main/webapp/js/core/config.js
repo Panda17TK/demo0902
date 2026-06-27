@@ -30,6 +30,7 @@ export const DEFAULT_CONFIG = {
     explodeRadius: 70,   // 爆発半径
     explodeDmg: 110,     // 爆発の最大ダメージ
     explodeSelfDmg: 25,  // 自爆ダメージ（近距離）
+    autoAimRange: 480,   // 自動射撃（モバイル）のオート照準が敵を捕捉する最大距離(px)
   },
 
   // AI 挙動の調整値
