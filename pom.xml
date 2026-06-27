@@ -6,7 +6,7 @@
 
   <groupId>app</groupId>
   <artifactId>demo0902</artifactId>
-  <version>1.0.0</version>
+  <version>1.1.0</version>
   <packaging>war</packaging>
   <name>arpg-survival</name>
   <description>見下ろし型サバイバルARPG（Servlet/JSP + Canvas/JS）</description>
