@@ -65,17 +65,11 @@ export function renderFrame(ctx, canvas, state) {
   const nowMs = performance.now();   // 1フレーム1回だけ取得して各所で使い回す
   const nowS = nowMs / 1000;
 
-  // ズーム：zoom<1 で引き（視界が広い）、>1 で寄り。state.camZoom 優先、無ければ CONFIG。
-  const cam = CONFIG.camera || { zoom: 1, minZoom: 0.6, maxZoom: 1.2 };
-  const zoom = clamp(state.camZoom != null ? state.camZoom : cam.zoom, cam.minZoom, cam.maxZoom);
-  // ズーム後にワールドで見える範囲（=スクリーンサイズ / zoom）
-  const viewW = W / zoom, viewH = H / zoom;
-
   // カメラ：スムーズ追従(state.cam)があれば使用、無ければプレイヤー中心
   const cxw = state.cam ? state.cam.x : state.player.x;
   const cyw = state.cam ? state.cam.y : state.player.y;
-  const baseCamX = clamp(cxw - viewW / 2, 0, Math.max(0, state.dim.w * TILE - viewW));
-  const baseCamY = clamp(cyw - viewH / 2, 0, Math.max(0, state.dim.h * TILE - viewH));
+  const baseCamX = clamp(cxw - W / 2, 0, state.dim.w * TILE - W);
+  const baseCamY = clamp(cyw - H / 2, 0, state.dim.h * TILE - H);
   // 画面シェイク
   let sx = 0, sy = 0;
   if (state.shake && state.shake.t > 0) {
@@ -87,7 +81,7 @@ export function renderFrame(ctx, canvas, state) {
   // ===== 背景パララックス（スクリーン空間・カメラに対しゆっくり逆移動）=====
   drawParallax(ctx, W, H, camX, camY);
 
-  ctx.save(); ctx.scale(zoom, zoom); ctx.translate(-camX, -camY);
+  ctx.save(); ctx.translate(-camX, -camY);
 
   // ===== タイル =====
   for (let y = 0; y < state.dim.h; y++) {

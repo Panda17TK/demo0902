@@ -39,13 +39,6 @@ export const DEFAULT_CONFIG = {
     autoReloadDelay: 0.8,// 射撃停止からの自動リロード待ち時間(s)。短いほど即リロード
   },
 
-  // カメラ。zoom<1 で引き(=視界が広い)、>1 で寄り。設定スライダーで上書き可能。
-  camera: {
-    zoom: 1.0,           // 既定ズーム倍率
-    minZoom: 0.6,        // 最も引いた状態（視界最大）
-    maxZoom: 1.2,        // 最も寄った状態
-  },
-
   // AI 挙動の調整値
   ai: {
     sepRadius: 24,       // 分離の半径

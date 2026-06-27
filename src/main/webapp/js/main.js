@@ -119,7 +119,6 @@ if (!canvas) {
         pause: () => { if (!state.gameOver) state.paused = !state.paused; },
         isPaused: () => state.paused,
         setPaused: (b) => { if (!state.gameOver) state.paused = !!b; },
-        setZoom: (z) => { state.camZoom = z; },
       });
     } catch (e) {
       try { console.error('[touch] コントロール構築に失敗:', e); } catch (_e) {}
