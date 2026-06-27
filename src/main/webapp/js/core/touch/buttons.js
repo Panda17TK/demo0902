@@ -9,9 +9,13 @@ export function createButton(layer, cls, label, opts, haptic) {
   b.className = 'tc-btn tc-btn-' + cls;
   b.textContent = label;
 
+  // 編集モード中はボタン本来の動作を抑止し、layout.js のドラッグに委ねる
+  const editing = () => layer.classList.contains('tc-edit');
+
   if (opts.hold) {
     let pid = null;
     b.addEventListener('pointerdown', (e) => {
+      if (editing()) return;
       pid = e.pointerId; try { b.setPointerCapture(pid); } catch (_e) {}
       if (haptic) haptic(12);
       opts.hold(true); b.classList.add('active'); e.preventDefault();
@@ -21,6 +25,7 @@ export function createButton(layer, cls, label, opts, haptic) {
     b.addEventListener('pointercancel', up);
   } else {
     b.addEventListener('pointerdown', (e) => {
+      if (editing()) return;
       if (haptic) haptic(10);
       opts.tap(); b.classList.add('active'); e.preventDefault();
     });

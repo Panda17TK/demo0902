@@ -7,6 +7,7 @@ import { createAudio } from './services/audio.js';
 import { createStorage } from './services/storage.js';
 import { createInitialState, resetState } from './state/state.js';
 import { setupMap } from './state/map.js';
+import { randomMapId } from './state/maps.js';
 import { bindHotkeys } from './state/binds.js';
 import { rebuildFlowField } from './systems/flowfield.js';
 import { buildMobGrid } from './systems/spatial.js';
@@ -78,6 +79,7 @@ if (!canvas) {
   state.runStart = performance.now();
   state.gameOver = false;
 
+  state.mapId = randomMapId();   // 起動ごとにステージをランダム選択
   setupMap(state);
   rebuildFlowField(state);
   startWave(state, 1);
@@ -113,6 +115,7 @@ if (!canvas) {
         pause: () => { if (!state.gameOver) state.paused = !state.paused; },
         isPaused: () => state.paused,
         setPaused: (b) => { if (!state.gameOver) state.paused = !!b; },
+        setZoom: (z) => { state.camZoom = z; },
       });
     } catch (e) {
       try { console.error('[touch] コントロール構築に失敗:', e); } catch (_e) {}
@@ -145,8 +148,10 @@ if (!canvas) {
 
   // リスタート：state をその場で初期化し、マップ／フローフィールドを作り直す
   bus.on('game:restart', () => {
+    const prevMap = state.mapId;
     resetState(state);
     applyPlayerConfig(state);
+    state.mapId = randomMapId(prevMap);  // 再挑戦ごとにステージを変える（直前と重複回避）
     setupMap(state);
     rebuildFlowField(state);
     startWave(state, 1);

@@ -235,7 +235,8 @@ export function updateCombat(state, dt, bus, input, audio) {
     }
   }
 
-  // ★ 自動リロード：射撃キーを離してから2秒経過、かつ弾が満タンでない
+  // ★ 自動リロード：射撃キーを離して一定時間（CONFIG.player.autoReloadDelay）経過、
+  //   かつ弾が満タンでないとき予備弾から自動補充する。
   (function() {
     const w = p.weapons[p.curW];
     if (!w) return;
@@ -247,9 +248,8 @@ export function updateCombat(state, dt, bus, input, audio) {
       if (shotThisFrame || input.pressed('k')) {
         w._autoRT = 0; // 射撃中はリセット
       } else {
-        // 射撃を止めて2秒経過したら、予備弾から自動リロード
         w._autoRT = (w._autoRT || 0) + dt;
-        if (w._autoRT >= 2.0) {
+        if (w._autoRT >= CONFIG.player.autoReloadDelay) {
           reload(state, bus);
           w._autoRT = 0;
         }
