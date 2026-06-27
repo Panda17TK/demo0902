@@ -13,6 +13,26 @@ export function doMelee(state, bus) {
   const p = state.player;
   const mods = p.mods || { meleeMul: 1, dmg: 1 };
   p.meleeCD = CONFIG.player.meleeCD;
+
+  // スタミナに応じた近接の段階：
+  //   40%以上          … 剣（本来の威力）
+  //   20%超〜40%未満   … 剣（威力低下。ただし拳より大きい）
+  //   20%以下          … 剣を振れず「拳」（最弱・継続斬りなし）
+  const pc = CONFIG.player;
+  const staR = p.staMax > 0 ? p.sta / p.staMax : 1;
+  let baseDmg, baseSlash, isFist = false;
+  if (staR <= pc.meleeStaSwordMin) {
+    isFist = true;
+    baseDmg = pc.fistDmg;
+    baseSlash = 0;            // 拳は継続斬り（残像扇）なし
+  } else if (staR < pc.meleeStaWeakBelow) {
+    baseDmg = pc.meleeDmg * pc.meleeWeakMul;
+    baseSlash = pc.meleeSlashDmg * pc.meleeWeakMul;
+  } else {
+    baseDmg = pc.meleeDmg;
+    baseSlash = pc.meleeSlashDmg;
+  }
+
   const reach = CONFIG.player.meleeReach * p.buffs.range;
   const arc = Math.PI;
   const faceAng = Math.atan2(p.facing.y, p.facing.x);
@@ -20,7 +40,7 @@ export function doMelee(state, bus) {
   spawnSlashFX(state, p.x, p.y, faceAng);
 
   // 即時ヒット（敵）。近傍グリッドで対象を絞り、hurtMob で一元処理（回避/ガード反映）。
-  const meleeDmg = Math.round(CONFIG.player.meleeDmg * p.buffs.dmg * mods.meleeMul);
+  const meleeDmg = Math.round(baseDmg * p.buffs.dmg * mods.meleeMul);
   const maxReach = reach + 24;
   const meleeHit = (m) => {
     if (m.hp <= 0) return;
@@ -48,11 +68,13 @@ export function doMelee(state, bus) {
     }
   }
 
-  // 継続扇（弱）＆敵弾相殺は projectiles.updateSlashes が処理
-  state.slashes.push({
-    x: p.x, y: p.y, ang: faceAng,
-    t: 0, life: 0.30, reach: reach, arc: arc,
-    tickInt: 0.07, tick: 0,
-    dmg: Math.round(CONFIG.player.meleeSlashDmg * p.buffs.dmg * mods.meleeMul)
-  });
+  // 継続扇（弱）＆敵弾相殺は projectiles.updateSlashes が処理。拳のときは出さない。
+  if (!isFist) {
+    state.slashes.push({
+      x: p.x, y: p.y, ang: faceAng,
+      t: 0, life: 0.30, reach: reach, arc: arc,
+      tickInt: 0.07, tick: 0,
+      dmg: Math.round(baseSlash * p.buffs.dmg * mods.meleeMul)
+    });
+  }
 }

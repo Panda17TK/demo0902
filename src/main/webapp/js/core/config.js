@@ -16,11 +16,16 @@ export const DEFAULT_CONFIG = {
     staMax: 100,
     staDrain: 35,        // ダッシュ中のスタミナ消費/s
     staRegen: 22,        // 非ダッシュ時のスタミナ回復/s
-    meleeDmg: 22,        // 近接の基礎ダメージ（mods.meleeMul と乗算）
+    meleeDmg: 22,        // 近接（剣）の基礎ダメージ（mods.meleeMul と乗算）
     meleeReach: 51,      // 近接の射程(px)。元 34*1.5
     meleeCD: 0.32,       // 近接クールダウン(s)
     meleeKB: 240,        // 近接ノックバック
     meleeSlashDmg: 8,    // 近接の継続ヒット（残像扇）ダメージ
+    // スタミナ連動の近接威力。剣はスタミナが高いほど本来の威力を出す。
+    meleeStaWeakBelow: 0.40, // スタミナがこの割合(staMax比)未満で剣の威力が低下
+    meleeStaSwordMin: 0.20,  // この割合以下では剣を振れず「拳」になる
+    meleeWeakMul: 0.6,       // 低スタミナ時の剣ダメージ倍率（拳より大きく保つこと）
+    fistDmg: 8,              // 拳（素手）の基礎ダメージ。剣が振れない時の代替・最弱
     dashMul: 2,          // ダッシュ時の速度倍率
     iFrameMelee: 0.9,    // 被弾後の無敵時間(s)：近接
     iFrameBullet: 0.8,   // 被弾後の無敵時間(s)：弾
