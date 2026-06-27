@@ -24,6 +24,8 @@
 | compileSdk / targetSdk | 35 |
 | minSdk | 24 |
 
+> **Environment note (this machine, verified 2026-06-28):** JDK **21** is installed (no JDK 17) and Gradle is **not** on PATH. The build targets Java **17 bytecode** using JDK 21 (no Java-toolchain pin); the wrapper is bootstrapped from a downloaded Gradle 8.10.2 distribution (Task 2 Step 5). Android SDK: `C:\Users\banti\AppData\Local\Android\Sdk` (set `sdk.dir` in `local.properties`, Task 5). Risk: if AGP 8.7.2 misbehaves on JDK 21, install Temurin 17 and set `JAVA_HOME` for the Android build.
+
 ## File Structure (created in this phase)
 
 ```
@@ -168,14 +170,18 @@ local.properties
 Thumbs.db
 ```
 
-- [ ] **Step 5: Generate the Gradle wrapper (pinned to 8.10.2)**
+- [ ] **Step 5: Bootstrap Gradle 8.10.2 (no system install) and generate the wrapper**
 
-Requires a Gradle install or Android Studio's bundled Gradle on PATH. Run from the repo root:
+This machine has JDK 21 but no Gradle on PATH. Download the pinned Gradle distribution to a temp location and use it once to generate the committed wrapper (so CI and future runs use `./gradlew`).
 
-Run: `cd V:/src/demo0902 && gradle wrapper --gradle-version 8.10.2 --distribution-type bin`
-Expected: creates `gradlew`, `gradlew.bat`, and `gradle/wrapper/gradle-wrapper.{jar,properties}`.
-
-If `gradle` is not on PATH, install Gradle 8.10.2 (e.g. `winget install Gradle.Gradle` or SDKMAN) first, then re-run. Do not hand-edit the wrapper jar.
+Run (Git Bash):
+```bash
+cd V:/src/demo0902
+curl -L -o /tmp/gradle-8.10.2-bin.zip https://services.gradle.org/distributions/gradle-8.10.2-bin.zip
+unzip -q -o /tmp/gradle-8.10.2-bin.zip -d "$HOME/.gradle-dist"
+"$HOME/.gradle-dist/gradle-8.10.2/bin/gradle" wrapper --gradle-version 8.10.2 --distribution-type bin
+```
+Expected: creates `gradlew`, `gradlew.bat`, and `gradle/wrapper/gradle-wrapper.{jar,properties}`. Do not hand-edit the wrapper jar.
 
 - [ ] **Step 6: Verify the wrapper works**
 
@@ -215,8 +221,15 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
 }
 
+// Build on the installed JDK (21) but emit Java 17-compatible bytecode (no toolchain pin).
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
 kotlin {
-    jvmToolchain(17)
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
 }
 
 tasks.test {
@@ -387,8 +400,15 @@ dependencies {
     implementation("com.badlogicgames.gdx:gdx-platform:1.13.1:natives-desktop")
 }
 
+// Build on the installed JDK (21) but emit Java 17-compatible bytecode (no toolchain pin).
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
 kotlin {
-    jvmToolchain(17)
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
 }
 
 application {
