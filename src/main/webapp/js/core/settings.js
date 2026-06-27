@@ -9,7 +9,6 @@ export const DEFAULTS = {
   scale: 1.0,       // コントロールのサイズ倍率 0.8..1.4
   autoFire: false,  // 自動射撃（最寄りの敵にオート照準して発射）
   haptics: true,    // ボタン操作時の触覚フィードバック（対応端末のみ）
-  zoom: 1.0,        // カメラズーム（<1で視界が広い）。CONFIG.camera の範囲にクランプ
   layout: {},       // ボタンの自由配置 { ボタンキー: {left, top} }（編集モードで保存）
 };
 
