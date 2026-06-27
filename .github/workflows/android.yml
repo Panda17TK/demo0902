@@ -1,0 +1,78 @@
+name: android-apk
+
+# Capacitor で Web アセットを同梱した Android デバッグAPK（サイドロード用）をビルドする。
+# - workflow_dispatch: 任意で release_tag を指定すると、その Release に APK を添付。
+# - v* タグ push: そのタグの Release に APK を添付。
+# - claude/android-apk ブランチ push: 動作確認用（マージ前にこのトリガーは削除する）。
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "APKを添付する Release タグ（任意・例: v1.1.0）。空ならアーティファクトのみ"
+        required: false
+  push:
+    tags: ["v*"]
+    branches: ["claude/android-apk"]
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 依存インストール
+        working-directory: mobile
+        run: npm install
+
+      - name: Web アセットを www/ に組み立て
+        working-directory: mobile
+        run: npm run assemble
+
+      - name: Android プラットフォームを生成
+        working-directory: mobile
+        run: npx cap add android
+
+      - name: Web アセットを同期
+        working-directory: mobile
+        run: npx cap sync android
+
+      - name: デバッグAPKをビルド
+        working-directory: mobile/android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: APK を取り出し
+        run: cp mobile/android/app/build/outputs/apk/debug/app-debug.apk arpg-${{ github.sha }}-debug.apk
+
+      - name: APK アーティファクトをアップロード
+        uses: actions/upload-artifact@v4
+        with:
+          name: arpg-debug-apk
+          path: arpg-*-debug.apk
+          if-no-files-found: error
+
+      - name: Release に APK を添付（タグpush or release_tag指定時）
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') || github.event.inputs.release_tag != '' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || github.event.inputs.release_tag }}
+          files: arpg-*-debug.apk
