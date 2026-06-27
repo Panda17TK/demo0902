@@ -1,3 +1,5 @@
+import { CONFIG } from '../core/config.js';
+
 export function mountHUD(hud, toast, state, bus) {
   // 静的な構造を一度だけ構築（バーは width だけ毎フレーム更新）
   hud.innerHTML =
@@ -29,7 +31,14 @@ export function mountHUD(hud, toast, state, bus) {
 
     const sta = Math.max(0, Math.min(100, Math.round(p.sta)));
     staFill.style.width = sta + '%';
-    staLab.textContent = 'STA ' + sta;
+    // スタミナ段階で近接が変わることを可視化（剣／剣・低下／拳）
+    const pc = CONFIG.player;
+    const staR = p.staMax > 0 ? p.sta / p.staMax : 1;
+    let staTag = '', staColor = '';
+    if (staR <= pc.meleeStaSwordMin)      { staTag = ' ✊拳';   staColor = '#ff6b6b'; }
+    else if (staR < pc.meleeStaWeakBelow) { staTag = ' 🗡低下'; staColor = '#ffcf6b'; }
+    staFill.style.background = staColor;   // 空文字で CSS 既定色に戻る
+    staLab.textContent = 'STA ' + sta + staTag;
 
     const elapsed = state.gameOver ? (state.stats.timeMs || 0)
                                    : (performance.now() - (state.runStart || performance.now()));

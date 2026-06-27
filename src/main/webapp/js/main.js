@@ -7,7 +7,7 @@ import { createAudio } from './services/audio.js';
 import { createStorage } from './services/storage.js';
 import { createInitialState, resetState } from './state/state.js';
 import { setupMap } from './state/map.js';
-import { randomMapId } from './state/maps.js';
+import { randomMapId, getMap } from './state/maps.js';
 import { bindHotkeys } from './state/binds.js';
 import { rebuildFlowField } from './systems/flowfield.js';
 import { buildMobGrid } from './systems/spatial.js';
@@ -92,6 +92,10 @@ if (!canvas) {
   const devBtn = document.getElementById('dev-btn');
   if (devBtn) devBtn.addEventListener('click', () => bus.emit('dev:toggle'));
 
+  // 開始ステージ名を通知（HUD のトーストリスナ登録後に emit）
+  const stageToast = () => { try { bus.emit('ui:toast', 'STAGE: ' + getMap(state.mapId).name); } catch (_e) {} };
+  stageToast();
+
   // --- ホットキー（保存/読込） ---
   bindHotkeys(state, bus, input, {
     save: () => saveChooser(state, null, bus),
@@ -131,6 +135,18 @@ if (!canvas) {
   window.addEventListener('pointerdown', resumeAudio);
   window.addEventListener('keydown', resumeAudio);
 
+  // --- バックグラウンド（アプリ切替・タブ非表示）で自動ポーズ ---
+  // スマホで通知やアプリ切替の間にゲームが進行して死ぬのを防ぐ。
+  let pausedByHidden = false;
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      if (!state.gameOver && !state.paused) { state.paused = true; pausedByHidden = true; }
+    } else if (pausedByHidden) {
+      if (!state.gameOver) state.paused = false;
+      pausedByHidden = false;
+    }
+  });
+
   // --- エラーをトーストにも表示 ---
   addEventListener('error', (ev) => {
     const msg = 'Error: ' + (ev && ev.message ? ev.message : 'unknown');
@@ -158,7 +174,7 @@ if (!canvas) {
     state.runStart = performance.now();
     state.gameOver = false;
     state.paused   = false;
-    bus.emit('ui:toast', 'Restart');
+    stageToast();
   });
 
   // --- ループ ---
