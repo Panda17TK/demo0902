@@ -29,13 +29,15 @@ object Fonts {
             if (handle.exists()) {
                 val gen = FreeTypeFontGenerator(handle)
                 generator = gen
-                ui = gen.generateFont(param((20f * uiScale).toInt().coerceAtLeast(12)))
-                title = gen.generateFont(param((44f * uiScale).toInt().coerceAtLeast(24)))
+                // Bake hi-res for crispness, but scale down so the font *measures* its base size
+                // in the dp-unit HUD (the viewport re-applies density). Avoids double-scaling.
+                ui = gen.generateFont(param((20f * uiScale).toInt().coerceAtLeast(12))).apply { data.setScale(1f / uiScale) }
+                title = gen.generateFont(param((44f * uiScale).toInt().coerceAtLeast(24))).apply { data.setScale(1f / uiScale) }
                 return
             }
         } catch (_: Throwable) { /* no freetype native / no TTF → ASCII fallback */ }
-        ui = BitmapFont().apply { data.setScale(uiScale) }
-        title = BitmapFont().apply { data.setScale(uiScale * 2.2f) }
+        ui = BitmapFont()
+        title = BitmapFont().apply { data.setScale(2f) }
     }
 
     private fun param(sz: Int) = FreeTypeFontParameter().apply {
