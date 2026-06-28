@@ -12,16 +12,15 @@ class TouchLayout(var screenW: Float = 0f, var screenH: Float = 0f) {
     val stickRadius get() = minDim * 0.14f
     val stickCx get() = screenW * 0.20f
     val stickCy get() = screenH * 0.16f
-    val buttonRadius get() = minDim * 0.075f
+    val buttonRadius get() = minDim * 0.062f
 
-    /** JS-style: move stick bottom-left, action buttons in a bottom-right cluster. (button, fx, fy). */
+    /** Twin-stick: fire is the right aim stick, so only secondary actions are buttons (top-right). */
     private val buttons = listOf(
-        Triple(TouchButton.FIRE, 0.92f, 0.22f),
-        Triple(TouchButton.RELOAD, 0.76f, 0.22f),
-        Triple(TouchButton.MELEE, 0.60f, 0.22f),
-        Triple(TouchButton.DASH, 0.92f, 0.09f),
-        Triple(TouchButton.WEAPON, 0.76f, 0.09f),
-        Triple(TouchButton.WALL, 0.60f, 0.09f),
+        Triple(TouchButton.DASH, 0.93f, 0.88f),
+        Triple(TouchButton.MELEE, 0.80f, 0.88f),
+        Triple(TouchButton.RELOAD, 0.93f, 0.74f),
+        Triple(TouchButton.WALL, 0.80f, 0.74f),
+        Triple(TouchButton.WEAPON, 0.865f, 0.60f),
     )
 
     fun all(): List<TouchButton> = buttons.map { it.first }

@@ -380,6 +380,15 @@ class GameScreen : ScreenAdapter() {
             if (len > max) { kx = kx / len * max; ky = ky / len * max }
             shapes.circle(l.stickCx + kx, l.stickCy + ky, l.stickRadius * 0.42f, 18)
         }
+        // right aim+fire stick — floats at the thumb, reddish = firing
+        if (touch.aimActive) {
+            shapes.color = Color(1f, 0.5f, 0.4f, 0.16f); shapes.circle(touch.aimBaseX, touch.aimBaseY, l.stickRadius, 28)
+            shapes.color = Color(1f, 0.5f, 0.4f, 0.5f)
+            var ax = touch.aimKnobX - touch.aimBaseX; var ay = touch.aimKnobY - touch.aimBaseY
+            val al = hypot(ax, ay); val am = l.stickRadius
+            if (al > am) { ax = ax / al * am; ay = ay / al * am }
+            shapes.circle(touch.aimBaseX + ax, touch.aimBaseY + ay, l.stickRadius * 0.42f, 18)
+        }
         shapes.color = Color(1f, 1f, 1f, 0.14f)
         for (b in l.all()) shapes.circle(l.centerX(b), l.centerY(b), l.buttonRadius, 22)
         shapes.end()

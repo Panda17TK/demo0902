@@ -46,7 +46,8 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         val r = Collision.moveAndCollide(map, t.x, t.y, b.halfW, b.halfH, dx + v.vx * dt, dy + v.vy * dt)
         t.x = r.x
         t.y = r.y
-        if (mv.isMoving) { f.x = mv.dirX; f.y = mv.dirY }
+        if (input.aiming) { f.x = input.aimX; f.y = input.aimY } // right stick aims independent of movement
+        else if (mv.isMoving) { f.x = mv.dirX; f.y = mv.dirY }
         s.value = Locomotion.nextStamina(s.value, dashing, dt, config.player)
     }
 }

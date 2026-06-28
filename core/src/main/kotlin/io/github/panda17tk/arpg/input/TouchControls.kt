@@ -3,21 +3,34 @@ package io.github.panda17tk.arpg.input
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.utils.viewport.Viewport
+import kotlin.math.hypot
 
 /**
- * Maps multi-touch into [InputState] and tracks the virtual stick knob for rendering (Phase 8).
- * OR-merges into InputState after the keyboard poll, so a held finger never clears a key. Edge
- * buttons (melee/reload/wall/weapon) keep their own previous-frame state to fire once per tap.
+ * Twin-stick touch (left hand moves, right hand aims+fires):
+ *  - Left side  → move stick (8-way into InputState).
+ *  - Right side → aim+fire stick: push the right thumb toward where you want to shoot; while held
+ *    past the dead-zone the player faces that way and auto-fires.
+ *  - A small top-right cluster keeps the secondary actions (dash/melee/reload/wall/weapon).
+ * Pointers are locked to their role on touch-down, so dragging one stick across the screen never
+ * leaks into the other zone. Coordinates come unprojected through the HUD viewport (dp space).
  */
 class TouchControls {
     val layout = TouchLayout()
+
     var stickActive = false; private set
     var baseX = 0f; private set
     var baseY = 0f; private set
     var knobX = 0f; private set
     var knobY = 0f; private set
 
+    var aimActive = false; private set
+    var aimBaseX = 0f; private set
+    var aimBaseY = 0f; private set
+    var aimKnobX = 0f; private set
+    var aimKnobY = 0f; private set
+
     private var stickPointer = -1
+    private var aimPointer = -1
     private var prevMelee = false
     private var prevReload = false
     private var prevWall = false
@@ -26,32 +39,37 @@ class TouchControls {
     private val tmpVec = Vector3()
 
     fun poll(input: InputState, viewport: Viewport) {
-        val screenW = viewport.worldWidth; val screenH = viewport.worldHeight
-        layout.screenW = screenW; layout.screenH = screenH
-        var stick = false
-        var fire = false; var dash = false
-        var melee = false; var reload = false; var wall = false; var weapon = false
+        layout.screenW = viewport.worldWidth; layout.screenH = viewport.worldHeight
+        input.aiming = false
+        var stick = false; var aim = false
+        var dash = false; var melee = false; var reload = false; var wall = false; var weapon = false
 
         for (i in 0 until MAX_POINTERS) {
             if (!Gdx.input.isTouched(i)) continue
             tmpVec.set(Gdx.input.getX(i).toFloat(), Gdx.input.getY(i).toFloat(), 0f)
             viewport.unproject(tmpVec)
-            val x = tmpVec.x; val y = tmpVec.y // unprojected into HUD world coords (y-up)
-            if (layout.isInStickZone(x, y)) {
-                if (stickPointer == -1) { stickPointer = i; baseX = x; baseY = y }
-                if (stickPointer == i) { knobX = x; knobY = y; stick = true }
-            } else when (layout.button(x, y)) {
-                TouchButton.FIRE -> fire = true
-                TouchButton.DASH -> dash = true
-                TouchButton.MELEE -> melee = true
-                TouchButton.RELOAD -> reload = true
-                TouchButton.WALL -> wall = true
-                TouchButton.WEAPON -> weapon = true
-                null -> {}
+            val x = tmpVec.x; val y = tmpVec.y
+            when {
+                i == stickPointer -> { knobX = x; knobY = y; stick = true }
+                i == aimPointer -> { aimKnobX = x; aimKnobY = y; aim = true }
+                layout.isInStickZone(x, y) && stickPointer == -1 -> {
+                    stickPointer = i; baseX = x; baseY = y; knobX = x; knobY = y; stick = true
+                }
+                else -> when (layout.button(x, y)) {
+                    TouchButton.DASH -> dash = true
+                    TouchButton.MELEE -> melee = true
+                    TouchButton.RELOAD -> reload = true
+                    TouchButton.WALL -> wall = true
+                    TouchButton.WEAPON -> weapon = true
+                    else -> if (aimPointer == -1 && !layout.isInStickZone(x, y)) {
+                        aimPointer = i; aimBaseX = x; aimBaseY = y; aimKnobX = x; aimKnobY = y; aim = true
+                    }
+                }
             }
         }
         if (!stick) stickPointer = -1
-        stickActive = stick
+        if (!aim) aimPointer = -1
+        stickActive = stick; aimActive = aim
 
         if (stick) {
             val dead = layout.stickRadius * 0.30f
@@ -61,7 +79,15 @@ class TouchControls {
             if (dy > dead) input.up = true   // finger pushed up the screen == keyboard W
             if (dy < -dead) input.down = true
         }
-        if (fire) input.fire = true
+        if (aim) {
+            val dx = aimKnobX - aimBaseX; val dy = aimKnobY - aimBaseY
+            val len = hypot(dx, dy)
+            if (len > layout.stickRadius * 0.22f) {
+                input.aiming = true
+                input.aimX = dx / len; input.aimY = dy / len
+                input.fire = true
+            }
+        }
         if (dash) input.dash = true
         if (melee && !prevMelee) input.melee = true
         if (reload && !prevReload) input.reload = true
