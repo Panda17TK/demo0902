@@ -9,19 +9,19 @@ enum class TouchButton { FIRE, MELEE, DASH, RELOAD, WALL, WEAPON }
  */
 class TouchLayout(var screenW: Float = 0f, var screenH: Float = 0f) {
     private val minDim get() = minOf(screenW, screenH)
-    val stickRadius get() = minDim * 0.16f
-    val stickCx get() = screenW * 0.18f
-    val stickCy get() = screenH * 0.26f
-    val buttonRadius get() = minDim * 0.085f
+    val stickRadius get() = minDim * 0.14f
+    val stickCx get() = screenW * 0.20f
+    val stickCy get() = screenH * 0.16f
+    val buttonRadius get() = minDim * 0.075f
 
-    /** (button, fractionX, fractionY) of the screen. */
+    /** JS-style: move stick bottom-left, action buttons in a bottom-right cluster. (button, fx, fy). */
     private val buttons = listOf(
-        Triple(TouchButton.FIRE, 0.88f, 0.20f),
-        Triple(TouchButton.MELEE, 0.72f, 0.16f),
-        Triple(TouchButton.DASH, 0.88f, 0.42f),
-        Triple(TouchButton.RELOAD, 0.72f, 0.40f),
-        Triple(TouchButton.WALL, 0.62f, 0.62f),
-        Triple(TouchButton.WEAPON, 0.50f, 0.72f),
+        Triple(TouchButton.FIRE, 0.92f, 0.22f),
+        Triple(TouchButton.RELOAD, 0.76f, 0.22f),
+        Triple(TouchButton.MELEE, 0.60f, 0.22f),
+        Triple(TouchButton.DASH, 0.92f, 0.09f),
+        Triple(TouchButton.WEAPON, 0.76f, 0.09f),
+        Triple(TouchButton.WALL, 0.60f, 0.09f),
     )
 
     fun all(): List<TouchButton> = buttons.map { it.first }
@@ -29,11 +29,11 @@ class TouchLayout(var screenW: Float = 0f, var screenH: Float = 0f) {
     fun centerY(b: TouchButton): Float = buttons.first { it.first == b }.third * screenH
 
     /** Left half of the screen is the movement-stick zone. */
-    fun isInStickZone(x: Float, y: Float): Boolean = x < screenW * 0.5f
+    fun isInStickZone(x: Float, y: Float): Boolean = x < screenW * 0.45f
 
     /** Which action button (if any) contains the point. Returns null inside the stick zone. */
     fun button(x: Float, y: Float): TouchButton? {
-        if (x < screenW * 0.5f) return null
+        if (x < screenW * 0.45f) return null
         val r2 = buttonRadius * buttonRadius
         for ((b, fx, fy) in buttons) {
             val dx = x - fx * screenW; val dy = y - fy * screenH

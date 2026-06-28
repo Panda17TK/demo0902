@@ -12,7 +12,7 @@ import com.badlogic.gdx.graphics.g2d.GlyphLayout
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.utils.ScreenUtils
-import com.badlogic.gdx.utils.viewport.FitViewport
+import com.badlogic.gdx.utils.viewport.ExtendViewport
 import com.badlogic.gdx.utils.viewport.ScreenViewport
 import io.github.panda17tk.arpg.audio.Sfx
 import io.github.panda17tk.arpg.config.ConfigStore
@@ -66,7 +66,7 @@ class GameScreen : ScreenAdapter() {
     private lateinit var batch: SpriteBatch
     private lateinit var font: BitmapFont
     private lateinit var camera: OrthographicCamera
-    private lateinit var worldViewport: FitViewport
+    private lateinit var worldViewport: ExtendViewport
     private lateinit var hudViewport: ScreenViewport
 
     private var accumulator = 0f
@@ -118,7 +118,7 @@ class GameScreen : ScreenAdapter() {
         Fonts.load(uiScale)
         font = Fonts.ui
         camera = OrthographicCamera().apply { setToOrtho(true, Tuning.VIEW_W, Tuning.VIEW_H) } // y-down
-        worldViewport = FitViewport(Tuning.VIEW_W, Tuning.VIEW_H, camera)
+        worldViewport = ExtendViewport(Tuning.VIEW_H, Tuning.VIEW_H, camera) // square min, extends to fill (portrait/landscape)
         hudViewport = ScreenViewport()
         hudViewport.setUnitsPerPixel(1f / uiScale)
         Sfx.init()
@@ -260,7 +260,7 @@ class GameScreen : ScreenAdapter() {
         batch.projectionMatrix = hudViewport.camera.combined
         batch.begin()
         font.draw(batch, "ウェーブ ${gw.waveState.num}    残り $foes    ${w.def.name} $magStr", 14f, hudH - 16f)
-        font.draw(batch, "予備  9mm ${ammo.ammo9}  12g ${ammo.ammo12}  ﾋﾞｰﾑ ${ammo.ammoBeam}  榴弾 ${ammo.ammoNade}", 14f, hudH - 44f)
+        font.draw(batch, "予備 9mm${ammo.ammo9} 12g${ammo.ammo12} ﾋﾞｰﾑ${ammo.ammoBeam} 榴${ammo.ammoNade}", 14f, hudH - 44f)
         font.draw(batch, "時間 %d:%02d    撃破 %d    資材 %d".format(mins, secs, gw.gameOver.kills, blocks), 14f, hudH - 70f)
         font.draw(batch, "スタ", 18f + barW, hudH - 86f)
         font.draw(batch, "HP ${hp.toInt()}/${hpMax.toInt()}", 18f + barW, hudH - 102f)
