@@ -1,60 +1,67 @@
-# ARPG サバイバル
+# ARPG サバイバル (Android / Kotlin + libGDX)
 
-見下ろし型のサバイバル・アクションシューター（ウェーブ制ローグライト）。
-Java サーブレット/JSP をホストに、ゲーム本体は Canvas + JavaScript（ES Modules）で実装。
-(2025年度研修用)
-![build](https://github.com/Panda17TK/demo0902/actions/workflows/build.yml/badge.svg)
+見下ろし型・ウェーブ制ローグライトのサバイバルシューターを、**Android専用ネイティブゲーム**として
+Kotlin + libGDX で再実装するプロジェクト。
 
-## 特徴
+> 旧 Web 版（Java/Servlet + Canvas/JS + Capacitor）は git タグ `legacy-web-v1.1.1` に保存されています。
+> 現行ブランチには旧コードは含まれません（Phase 0 でクリーンに再スキャフォールド済み）。
+> 設計の経緯は [docs/superpowers/specs/2026-06-28-android-native-redesign-design.md](docs/superpowers/specs/2026-06-28-android-native-redesign-design.md) を参照。
 
-- **ウェーブ制ローグライト**: 波を殲滅 → 強化カードを3択（恒久強化）→ 次の波。中ボス/ボスも登場。
-- **データ駆動の敵 & 攻撃**: `core/config.js` の定義から敵・攻撃を生成。攻撃タイプは
-  近接/射撃/突進/溜め近接/縮地/全方位弾/召喚/突撃/ホーミング/狂乱… と多彩。
-- **開発者モード**（`` ` `` キー）: 波スケール・強化倍率・ドロップ率・敵パラメータ（速度/攻撃頻度/
-  攻撃種類）をGUIでライブ編集。保存/リセット/エクスポート/インポート、ゴッドモード等。
-- **モバイル対応**: 画面上ツインスティック（アナログ移動・自動射撃・左右入替/透明度/サイズ設定）。
-- **演出**: ヒットストップ、画面シェイク、ダメージ数字、被弾方向インジケータ、ボス撃破スロー、
-  種類別の凝った敵スプライト、パララックス背景。
-- **永続化**: スコア（ランキング）とスロットセーブをファイル（JSON）に保存。DB 不要。
-- **PWA**: インストール／オフライン起動対応。
+## モジュール構成
 
-## クイックスタート
+- `core/` — ゲームロジック（プラットフォーム非依存・Kotlin + libGDX + Fleks ECS）
+- `desktop/` — LWJGL3 ランチャー（**開発専用**：PCで高速反復）
+- `android/` — 配布対象の Android アプリ（APK）
 
-```bash
-# WAR をビルド（テスト込み）
-mvn -B -ntp clean package          # → target/demo0902.war
+## ゲーム内容
 
-# CLI から Tomcat 9 を起動して実行
-mvn -B -ntp clean package cargo:run
-# → http://localhost:8080/demo0902/
-```
-
-詳しいビルド・実行・永続化・PWA は **[BUILD.md](BUILD.md)** を参照。
+- 5 種の武器（ピストル / ショットガン / マシンガン / ビーム / グレネード）と近接・ダッシュ・設置壁
+- 通常敵 3 種（ゾンビ / スピッター / ストーカー）＋ 中ボス 2 種・ボス 1 種（全 11 種の攻撃ハンドラ）
+- エスカレートするウェーブ（5 の倍数で中ボス、10 の倍数でボス）とスコア
+- ウェーブ間の 3 択強化カード（恒久強化・ラン中持続）
+- 撃破/被弾の演出（破片・画面シェイク）とゲームオーバー＋リスタート
+- タッチ操作（左：移動スティック / 右：アクションボタン）・効果音・ハプティクス
+- ハイスコア永続化（最高ウェーブ / 撃破数）
 
 ## 操作
 
-| 操作 | キー |
-|---|---|
-| 移動 | WASD / 矢印 |
-| 近接 | J |
-| 射撃/投擲 | K |
-| リロード | R |
-| 武器切替 | 1–5 |
-| ダッシュ | Shift |
-| 壁設置 | F / ドア | E |
-| セーブ/ロード | P / L |
-| ポーズ | Esc |
-| 開発者モード | `` ` `` |
+| 操作 | キーボード（開発） | タッチ（Android） |
+|------|----|----|
+| 移動 | WASD / 矢印 | 左スティック |
+| 射撃 | K（押しっぱなし） | FIRE |
+| 近接 | J | ML |
+| ダッシュ | Shift | DASH |
+| リロード | R | RL |
+| 壁設置 | F | WALL |
+| 武器切替 | 1〜5 | WPN（順送り） |
+| 強化カード選択 | 1 / 2 / 3 | （数字キー） |
+| リスタート | R（ゲームオーバー時） | — |
 
-スマホ/タブレットでは画面上のツインスティックが自動表示されます。
+## 開発
 
-## ドキュメント
+```bash
+# 前提: JDK 17 以上（JDK 21 で動作確認済み）, Android SDK (local.properties に sdk.dir)
 
-- **[DESIGN.md](DESIGN.md)** — 全体像・機能/非機能要件・各システムの設計・変更履歴。
-- **[BUILD.md](BUILD.md)** — CLI ビルド/実行、永続化、テスト、PWA。
+# デスクトップで起動（開発用）
+./gradlew :desktop:run
+
+# ユニットテスト
+./gradlew :core:test
+
+# デバッグ APK をビルド
+./gradlew :android:assembleDebug   # → android/build/outputs/apk/debug/
+```
 
 ## 技術スタック
 
-- サーバ: Java 17 / Servlet 4.0（Tomcat 9）/ JSP、永続化はファイル（JSON、`-Darpg.persistence=memory` で揮発切替）
-- クライアント: Canvas 2D + ES Modules（ビルドレス）
-- テスト: JUnit 5 + Mockito（`mvn test`）/ CI: GitHub Actions
+Kotlin 2.1 / libGDX 1.13 / Fleks (ECS) / kotlinx.serialization / Gradle 8.10 / AGP 8.7 / minSdk 24・targetSdk 35
+
+## 実装状況
+
+Phase 0〜9 完了（コアシム / ワールド / 戦闘 / config / 敵 / ウェーブ / 強化カード / ボス /
+演出・ゲームオーバー / タッチ・音・ハプティクス / 永続化）。
+
+残タスク（要バイナリアセット・要実機確認）:
+
+- 日本語フォント描画（`gdx-freetype` + `.ttf` 同梱が必要。現状 UI は ASCII ラベル）
+- 録音された効果音アセット（現状は手続き生成のブリープ音）

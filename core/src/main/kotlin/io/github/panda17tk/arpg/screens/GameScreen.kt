@@ -1,0 +1,390 @@
+package io.github.panda17tk.arpg.screens
+
+import com.badlogic.gdx.Application
+import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.Input
+import com.badlogic.gdx.ScreenAdapter
+import com.badlogic.gdx.graphics.Color
+import com.badlogic.gdx.graphics.GL20
+import com.badlogic.gdx.graphics.OrthographicCamera
+import com.badlogic.gdx.graphics.g2d.BitmapFont
+import com.badlogic.gdx.graphics.g2d.SpriteBatch
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer
+import com.badlogic.gdx.utils.ScreenUtils
+import com.badlogic.gdx.utils.viewport.FitViewport
+import com.badlogic.gdx.utils.viewport.ScreenViewport
+import io.github.panda17tk.arpg.audio.Sfx
+import io.github.panda17tk.arpg.config.ConfigStore
+import io.github.panda17tk.arpg.core.Constants
+import io.github.panda17tk.arpg.ecs.components.Ammo
+import io.github.panda17tk.arpg.ecs.components.Arsenal
+import io.github.panda17tk.arpg.ecs.components.Bullet
+import io.github.panda17tk.arpg.ecs.components.EBullet
+import io.github.panda17tk.arpg.ecs.components.Facing
+import io.github.panda17tk.arpg.ecs.components.Grenade
+import io.github.panda17tk.arpg.ecs.components.Health
+import io.github.panda17tk.arpg.ecs.components.Materials
+import io.github.panda17tk.arpg.ecs.components.Mob
+import io.github.panda17tk.arpg.ecs.components.MobAction
+import io.github.panda17tk.arpg.ecs.components.Mods
+import io.github.panda17tk.arpg.ecs.components.Stamina
+import io.github.panda17tk.arpg.ecs.components.Transform
+import io.github.panda17tk.arpg.ecs.world.GameWorld
+import io.github.panda17tk.arpg.ecs.world.WorldFactory
+import io.github.panda17tk.arpg.input.Haptics
+import io.github.panda17tk.arpg.input.InputState
+import io.github.panda17tk.arpg.input.KeyboardInput
+import io.github.panda17tk.arpg.input.TouchButton
+import io.github.panda17tk.arpg.input.TouchControls
+import io.github.panda17tk.arpg.map.Tile
+import io.github.panda17tk.arpg.math.Rng
+import io.github.panda17tk.arpg.save.Scores
+import io.github.panda17tk.arpg.sim.Tuning
+import io.github.panda17tk.arpg.upgrade.Upgrade
+import io.github.panda17tk.arpg.upgrade.Upgrades
+import kotlin.math.hypot
+import kotlin.math.pow
+
+/**
+ * Fixed-timestep simulation + render interpolation, porting the legacy main.js loop.
+ * World is y-down, so the world camera is set up y-down to match.
+ */
+class GameScreen : ScreenAdapter() {
+    private val input = InputState()
+    private val configStore = ConfigStore()
+    // Built in show() (not the constructor) so any future libGDX resource access
+    // inside the ECS world happens after Gdx.app is available on Android.
+    private lateinit var gw: GameWorld
+
+    private lateinit var shapes: ShapeRenderer
+    private lateinit var batch: SpriteBatch
+    private lateinit var font: BitmapFont
+    private lateinit var camera: OrthographicCamera
+    private lateinit var worldViewport: FitViewport
+    private lateinit var hudViewport: ScreenViewport
+
+    private var accumulator = 0f
+    private var camX = Tuning.VIEW_W / 2f
+    private var camY = Tuning.VIEW_H / 2f
+    private var camInit = false
+
+    // Phase 6b: between-wave upgrade selection (modal — sim freezes until a card is picked).
+    private val upgradeRng = Rng(System.nanoTime())
+    private var choosing = false
+    private var offered = false
+    private var choices: List<Upgrade> = emptyList()
+
+    // Phase 7: screen-shake trigger — compare HP frame-to-frame to detect the player taking damage.
+    private var lastHp = Float.NaN
+    private var lastKills = 0
+    private var prevOver = false
+    private var newBest = false
+
+    // Phase 8: on-screen controls (Android only) + audio service.
+    private val touch = TouchControls()
+    private var touchEnabled = false
+
+    override fun show() {
+        configStore.loadFromDisk()
+        shapes = ShapeRenderer()
+        batch = SpriteBatch()
+        font = BitmapFont()
+        camera = OrthographicCamera().apply { setToOrtho(true, Tuning.VIEW_W, Tuning.VIEW_H) } // y-down
+        worldViewport = FitViewport(Tuning.VIEW_W, Tuning.VIEW_H, camera)
+        hudViewport = ScreenViewport()
+        Sfx.init()
+        Scores.load()
+        touchEnabled = Gdx.app.type == Application.ApplicationType.Android
+        newRun()
+    }
+
+    /** Build (or rebuild) the run and reset per-run screen state (Phase 7 restart). */
+    private fun newRun() {
+        gw = WorldFactory.create(input, configStore.config)
+        accumulator = 0f
+        camInit = false
+        choosing = false
+        offered = false
+        choices = emptyList()
+        lastHp = Float.NaN
+        lastKills = 0
+        prevOver = false
+        newBest = false
+    }
+
+    override fun render(delta: Float) {
+        KeyboardInput.poll(input)
+        if (touchEnabled) touch.poll(input, hudViewport.worldWidth, hudViewport.worldHeight)
+        if (gw.gameOver.isOver) {
+            accumulator = 0f
+            if (!prevOver) {
+                newBest = Scores.record(gw.waveState.num, gw.gameOver.kills)
+                Sfx.play("dead"); Haptics.buzz(140)
+            }
+            if (Gdx.input.isKeyJustPressed(Input.Keys.R)) { newRun(); return }
+        } else {
+            updateUpgradeFlow(delta)
+            trackPlayerHitShake()
+        }
+        prevOver = gw.gameOver.isOver
+        gw.fx.update(delta)
+        val alpha = (accumulator / Constants.FIXED_DT).coerceIn(0f, 1f)
+
+        // interpolated player position
+        val px: Float; val py: Float; val fx: Float; val fy: Float; val sta: Float; val staMax: Float
+        with(gw.world) {
+            val t = gw.player[Transform]; val f = gw.player[Facing]; val s = gw.player[Stamina]
+            px = t.prevX + (t.x - t.prevX) * alpha
+            py = t.prevY + (t.y - t.prevY) * alpha
+            fx = f.x; fy = f.y; sta = s.value; staMax = s.max
+        }
+
+        updateCamera(delta, px, py, fx, fy)
+        if (gw.fx.shakeMag > 0f) { camera.position.add(gw.fx.shakeX(), gw.fx.shakeY(), 0f); camera.update() }
+
+        ScreenUtils.clear(0.06f, 0.07f, 0.10f, 1f)
+
+        // world
+        worldViewport.apply()
+        shapes.projectionMatrix = camera.combined
+
+        // tiles (filled)
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
+        val m = gw.map
+        for (ty in 0 until m.height) for (tx in 0 until m.width) {
+            val t = m.tileAt(tx, ty)
+            if (t == Tile.FLOOR) continue
+            shapes.color = if (t == Tile.DOOR) Color(0.30f, 0.22f, 0.12f, 1f)
+                           else Color(0.22f, 0.24f, 0.32f, 1f)
+            shapes.rect(tx * Tuning.TILE, ty * Tuning.TILE, Tuning.TILE, Tuning.TILE)
+        }
+        // mobs
+        with(gw.world) {
+            gw.world.family { all(Mob, Transform, Health) }.forEach { e ->
+                val mt = e[Transform]; val mm = e[Mob]; val mh = e[Health]
+                shapes.color = if (mh.hitFlash > 0f) Color.WHITE else Color.valueOf(mm.def.color)
+                shapes.circle(mt.x, mt.y, mm.def.w / 2f, 16)
+            }
+        }
+        // player
+        shapes.color = Color(0.45f, 0.85f, 0.95f, 1f)
+        shapes.circle(px, py, Tuning.PLAYER_RADIUS, 24)
+        // bullets (yellow) + grenades (red)
+        with(gw.world) {
+            gw.world.family { all(Bullet, Transform) }.forEach { e ->
+                val bt = e[Transform]; shapes.color = Color(1f, 0.95f, 0.5f, 1f); shapes.circle(bt.x, bt.y, 3f, 8)
+            }
+            gw.world.family { all(Grenade, Transform) }.forEach { e ->
+                val gt = e[Transform]; shapes.color = Color(1f, 0.5f, 0.4f, 1f); shapes.circle(gt.x, gt.y, 5f, 10)
+            }
+            gw.world.family { all(EBullet, Transform) }.forEach { e ->
+                val et = e[Transform]; shapes.color = Color(1f, 0.4f, 0.7f, 1f); shapes.circle(et.x, et.y, 3f, 8)
+            }
+        }
+        // Phase 7: death-burst particles (gibs shrink as they expire)
+        gw.fx.particles.forEach { p ->
+            val k = 1f - p.t / p.life
+            if (k > 0f) { shapes.color = p.color; shapes.circle(p.x, p.y, p.size * k, 8) }
+        }
+        shapes.end()
+
+        shapes.begin(ShapeRenderer.ShapeType.Line)
+        shapes.color = Color.WHITE
+        shapes.line(px, py, px + fx * Tuning.PLAYER_RADIUS * 1.8f, py + fy * Tuning.PLAYER_RADIUS * 1.8f)
+        with(gw.world) {
+            gw.world.family { all(Mob, Transform, MobAction) }.forEach { e ->
+                val mt = e[Transform]; val ma = e[MobAction]
+                if (ma.charging) { shapes.color = Color(1f, 0.3f, 0.2f, 1f); shapes.circle(mt.x, mt.y, 14f + ma.chargeT * 30f, 16) }
+            }
+        }
+        shapes.end()
+
+        // HUD (screen space)
+        hudViewport.apply()
+        batch.projectionMatrix = hudViewport.camera.combined
+        batch.begin()
+        val blocks = with(gw.world) { gw.player[Materials].blocks }
+        val arsenal = with(gw.world) { gw.player[Arsenal] }
+        val ammo = with(gw.world) { gw.player[Ammo] }
+        val hp = with(gw.world) { gw.player[Health].hp }
+        val w = arsenal.current
+        val magStr = w.def.magSize?.let { "${w.mag}/$it" } ?: "∞"
+        val reserve = ammo.get(w.def.ammoType)
+        font.draw(batch, "WAVE ${gw.waveState.num}  ${w.def.name} $magStr (res $reserve)  STA ${sta.toInt()}  blk $blocks  HP ${hp.toInt()}  [WASD/J/K/R/1-5/F]", 16f, 28f)
+        batch.end()
+        shapes.projectionMatrix = hudViewport.camera.combined
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
+        shapes.color = Color(0.2f, 0.2f, 0.25f, 1f)
+        shapes.rect(16f, 40f, 200f, 10f)
+        shapes.color = Color(0.95f, 0.8f, 0.3f, 1f)
+        shapes.rect(16f, 40f, 200f * (sta / staMax), 10f)
+        shapes.end()
+
+        if (touchEnabled && !choosing && !gw.gameOver.isOver) drawTouchControls()
+        if (choosing) drawUpgradeCards()
+        if (gw.gameOver.isOver) drawGameOver()
+    }
+
+    private fun trackPlayerHitShake() {
+        val hp = with(gw.world) { gw.player[Health].hp }
+        if (!lastHp.isNaN() && hp < lastHp - 0.01f) { gw.fx.addShake(0.18f, 6f); Sfx.play("hit"); Haptics.buzz(25) }
+        lastHp = hp
+        val kills = gw.gameOver.kills
+        if (kills > lastKills) Sfx.play("kill")
+        lastKills = kills
+    }
+
+    /**
+     * Phase 6b: when a wave is cleared the sim enters "intermission"; we freeze it and offer
+     * 3 random upgrade cards. Number keys 1/2/3 pick one, apply it permanently, then resume.
+     */
+    private fun updateUpgradeFlow(delta: Float) {
+        if (choosing) {
+            accumulator = 0f // keep the sim frozen while the player chooses
+            val sel = when {
+                Gdx.input.isKeyJustPressed(Input.Keys.NUM_1) -> 0
+                Gdx.input.isKeyJustPressed(Input.Keys.NUM_2) -> 1
+                Gdx.input.isKeyJustPressed(Input.Keys.NUM_3) -> 2
+                else -> -1
+            }
+            if (sel in choices.indices) { applyUpgrade(choices[sel]); choosing = false; offered = true }
+        } else {
+            step(delta)
+            if (gw.waveState.phase == "intermission") {
+                if (!offered) { choices = Upgrades.pick(3, upgradeRng); choosing = true }
+            } else {
+                offered = false
+            }
+        }
+    }
+
+    private fun applyUpgrade(u: Upgrade) {
+        val cfg = configStore.config.upgrades
+        with(gw.world) {
+            Upgrades.apply(u.id, cfg, gw.player[Mods], gw.player[Health], gw.player[Ammo], gw.player[Materials])
+        }
+        Sfx.play("levelup")
+    }
+
+    private fun drawUpgradeCards() {
+        if (choices.isEmpty()) return
+        val cfg = configStore.config.upgrades
+        val w = hudViewport.worldWidth
+        val h = hudViewport.worldHeight
+        val cardW = minOf(360f, w * 0.85f)
+        val cardH = 64f
+        val gap = 16f
+        val totalH = choices.size * cardH + (choices.size - 1) * gap
+        val x = (w - cardW) / 2f
+        val top = (h + totalH) / 2f - cardH // bottom-left y of the first (top) card
+
+        Gdx.gl.glEnable(GL20.GL_BLEND)
+        shapes.projectionMatrix = hudViewport.camera.combined
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
+        shapes.color = Color(0f, 0f, 0f, 0.6f)
+        shapes.rect(0f, 0f, w, h)
+        shapes.color = Color(0.16f, 0.17f, 0.22f, 1f)
+        choices.indices.forEach { i -> shapes.rect(x, top - i * (cardH + gap), cardW, cardH) }
+        shapes.end()
+
+        batch.projectionMatrix = hudViewport.camera.combined
+        batch.begin()
+        font.draw(batch, "WAVE ${gw.waveState.num} CLEAR  -  pick an upgrade (press 1/2/3)", x, top + cardH + 28f)
+        choices.forEachIndexed { i, u ->
+            val cy = top - i * (cardH + gap)
+            font.draw(batch, "${i + 1}) ${u.label}", x + 14f, cy + cardH - 16f)
+            font.draw(batch, Upgrades.desc(u, cfg), x + 14f, cy + 22f)
+        }
+        batch.end()
+    }
+
+    private fun drawGameOver() {
+        val w = hudViewport.worldWidth
+        val h = hudViewport.worldHeight
+        Gdx.gl.glEnable(GL20.GL_BLEND)
+        shapes.projectionMatrix = hudViewport.camera.combined
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
+        shapes.color = Color(0f, 0f, 0f, 0.72f)
+        shapes.rect(0f, 0f, w, h)
+        shapes.end()
+        batch.projectionMatrix = hudViewport.camera.combined
+        batch.begin()
+        font.draw(batch, "GAME OVER", w / 2f - 36f, h / 2f + 56f)
+        font.draw(batch, "WAVE ${gw.waveState.num}    KILLS ${gw.gameOver.kills}", w / 2f - 80f, h / 2f + 26f)
+        font.draw(
+            batch,
+            if (newBest) "NEW BEST!  WAVE ${Scores.bestWave}" else "BEST  WAVE ${Scores.bestWave}  KILLS ${Scores.bestKills}",
+            w / 2f - 92f, h / 2f - 2f,
+        )
+        font.draw(batch, "press R to restart", w / 2f - 58f, h / 2f - 30f)
+        batch.end()
+    }
+
+    private fun drawTouchControls() {
+        val l = touch.layout
+        Gdx.gl.glEnable(GL20.GL_BLEND)
+        shapes.projectionMatrix = hudViewport.camera.combined
+        shapes.begin(ShapeRenderer.ShapeType.Line)
+        shapes.color = Color(1f, 1f, 1f, 0.35f)
+        shapes.circle(l.stickCx, l.stickCy, l.stickRadius, 24)
+        for (b in l.all()) shapes.circle(l.centerX(b), l.centerY(b), l.buttonRadius, 18)
+        shapes.end()
+        if (touch.stickActive) {
+            shapes.begin(ShapeRenderer.ShapeType.Filled)
+            shapes.color = Color(1f, 1f, 1f, 0.45f)
+            var kx = touch.knobX - touch.baseX; var ky = touch.knobY - touch.baseY
+            val len = hypot(kx, ky); val max = l.stickRadius
+            if (len > max) { kx = kx / len * max; ky = ky / len * max }
+            shapes.circle(l.stickCx + kx, l.stickCy + ky, l.stickRadius * 0.4f, 16)
+            shapes.end()
+        }
+        batch.projectionMatrix = hudViewport.camera.combined
+        batch.begin()
+        for (b in l.all()) font.draw(batch, labelOf(b), l.centerX(b) - 14f, l.centerY(b) + 6f)
+        batch.end()
+    }
+
+    private fun labelOf(b: TouchButton): String = when (b) {
+        TouchButton.FIRE -> "FIRE"
+        TouchButton.MELEE -> "ML"
+        TouchButton.DASH -> "DASH"
+        TouchButton.RELOAD -> "RL"
+        TouchButton.WALL -> "WALL"
+        TouchButton.WEAPON -> "WPN"
+    }
+
+    private fun step(delta: Float) {
+        val dt = minOf(Constants.MAX_DT, delta)
+        accumulator += dt
+        var steps = 0
+        while (accumulator >= Constants.FIXED_DT && steps < Constants.MAX_STEPS) {
+            gw.world.update(Constants.FIXED_DT)
+            accumulator -= Constants.FIXED_DT
+            steps++
+        }
+        if (steps >= Constants.MAX_STEPS) accumulator = 0f
+    }
+
+    private fun updateCamera(delta: Float, px: Float, py: Float, fx: Float, fy: Float) {
+        val tgX = px + fx * Tuning.CAM_LOOK_AHEAD
+        val tgY = py + fy * Tuning.CAM_LOOK_AHEAD
+        if (!camInit) { camX = tgX; camY = tgY; camInit = true }
+        val k = 1f - 0.0001f.pow(delta) // legacy smoothing
+        camX += (tgX - camX) * k
+        camY += (tgY - camY) * k
+        camera.position.set(camX, camY, 0f)
+        camera.update()
+    }
+
+    override fun resize(width: Int, height: Int) {
+        worldViewport.update(width, height)
+        hudViewport.update(width, height, true)
+    }
+
+    override fun dispose() {
+        shapes.dispose()
+        batch.dispose()
+        font.dispose()
+        Sfx.dispose()
+    }
+}

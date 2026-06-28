@@ -1,12 +1,18 @@
-# Maven
-/target/
-
-# Cargo (Tomcat 自動ダウンロード先)
-/.cargo/
-
-# OS / editor
+# Gradle / build
+.gradle/
+build/
+*/build/
+# Android
+local.properties
+*/src/main/jniLibs/
+*.apk
+*.aab
+*.keystore
+# IDE
+.idea/
+*.iml
+*.iws
+.vscode/
+# OS
 .DS_Store
-*.swp
-
-# Eclipse WTP のコンパイル出力（自動生成）
-/build/
+Thumbs.db
