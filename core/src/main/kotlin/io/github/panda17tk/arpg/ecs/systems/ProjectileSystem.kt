@@ -12,11 +12,13 @@ import io.github.panda17tk.arpg.ecs.components.Bullet
 import io.github.panda17tk.arpg.ecs.components.Grenade
 import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Mob
+import io.github.panda17tk.arpg.ecs.components.MobAction
 import io.github.panda17tk.arpg.ecs.components.PlayerTag
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.ecs.components.Velocity
 import io.github.panda17tk.arpg.map.TileMap
 import io.github.panda17tk.arpg.map.Tiles
+import io.github.panda17tk.arpg.math.Rng
 import io.github.panda17tk.arpg.pathfinding.FlowField
 import io.github.panda17tk.arpg.pathfinding.SpatialGrid
 import io.github.panda17tk.arpg.sim.Tuning
@@ -24,13 +26,14 @@ import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.hypot
 
-/** Advances player bullets and grenades; breaks walls; explodes grenades; damages mobs. */
+/** Advances player bullets and grenades; breaks walls; explodes grenades; damages mobs (with dodge). */
 class ProjectileSystem(private val mobGrid: SpatialGrid<Entity>) :
     IteratingSystem(family { any(Bullet, Grenade) }) {
 
     private val map: TileMap = world.inject()
     private val flow: FlowField = world.inject()
     private val config: GameConfig = world.inject()
+    private val rng: Rng = world.inject()
 
     private var pPlayerX = 0
     private var pPlayerY = 0
@@ -39,7 +42,6 @@ class ProjectileSystem(private val mobGrid: SpatialGrid<Entity>) :
     private fun playerTileY(): Int = pPlayerY
 
     override fun onTick() {
-        // Cache the player tile once per frame so wall-break rebuilds use it
         world.family { all(PlayerTag, Transform) }.forEach { e ->
             val t = e[Transform]
             pPlayerX = floor(t.x / Tuning.TILE).toInt()
@@ -64,11 +66,13 @@ class ProjectileSystem(private val mobGrid: SpatialGrid<Entity>) :
                 if (abs(mobT.x - t.x) < mobB.halfW && abs(mobT.y - t.y) < mobB.halfH) {
                     val mobH = with(world) { mobEntity[Health] }
                     val mobV = with(world) { mobEntity[Velocity] }
+                    val mobA = with(world) { mobEntity[MobAction] }
+                    val mobDodge = with(world) { mobEntity[Mob].def.dodge }
                     val ddx = mobT.x - t.x; val ddy = mobT.y - t.y
                     val dist = hypot(ddx, ddy)
                     val nx = if (dist > 0f) ddx / dist else 1f
                     val ny = if (dist > 0f) ddy / dist else 0f
-                    MobDamage.hurt(mobH, mobV, b.dmg, nx, ny, 160f)
+                    MobDamage.hurt(mobH, mobV, mobA, mobDodge, b.dmg, nx, ny, 160f, rng.nextFloat())
                     mobHit = true
                 }
             }
@@ -105,9 +109,11 @@ class ProjectileSystem(private val mobGrid: SpatialGrid<Entity>) :
                         if (dmg > 0f) {
                             val mobH = with(world) { mobEntity[Health] }
                             val mobV = with(world) { mobEntity[Velocity] }
+                            val mobA = with(world) { mobEntity[MobAction] }
+                            val mobDodge = with(world) { mobEntity[Mob].def.dodge }
                             val nx = if (dist > 0f) ddx / dist else 1f
                             val ny = if (dist > 0f) ddy / dist else 0f
-                            MobDamage.hurt(mobH, mobV, dmg, nx, ny, 280f * fall)
+                            MobDamage.hurt(mobH, mobV, mobA, mobDodge, dmg, nx, ny, 280f * fall, rng.nextFloat())
                         }
                     }
                 }

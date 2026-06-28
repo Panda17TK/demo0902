@@ -15,6 +15,8 @@ import io.github.panda17tk.arpg.ecs.components.Cooldowns
 import io.github.panda17tk.arpg.ecs.components.Facing
 import io.github.panda17tk.arpg.ecs.components.Grenade
 import io.github.panda17tk.arpg.ecs.components.Health
+import io.github.panda17tk.arpg.ecs.components.Mob
+import io.github.panda17tk.arpg.ecs.components.MobAction
 import io.github.panda17tk.arpg.ecs.components.PlayerTag
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.ecs.components.Velocity
@@ -56,22 +58,21 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
                 val hit = BeamRay.cast(map, t.x, t.y, dirX, dirY, 700f)
 
                 // --- Beam vs mob: query mobs near the ray, check projection + perpendicular distance ---
-                // Port of legacy combat.js beam mob loop (lines ~185-205)
+                // Port of legacy combat.js beam mob loop (lines ~185-205). Single hit (multi-hit is a later refinement).
                 mobGrid.forNearby(t.x, t.y, hit.reach + 32f) { mobEntity ->
                     val mobT = with(world) { mobEntity[Transform] }
                     val mobB = with(world) { mobEntity[Body] }
                     val rx = mobT.x - t.x; val ry = mobT.y - t.y
-                    // Projection along ray direction
                     val s = rx * dirX + ry * dirY
                     val mobHalf = (mobB.halfW + mobB.halfH) * 0.5f
                     if (s < -mobHalf || s > hit.reach + mobHalf) return@forNearby
-                    // Perpendicular distance from ray line
                     val perp = abs(rx * dirY - ry * dirX)
                     if (perp > mobHalf) return@forNearby
-                    // Single hit in 5a (multi-hit is 5b)
                     val mobH = with(world) { mobEntity[Health] }
                     val mobV = with(world) { mobEntity[Velocity] }
-                    MobDamage.hurt(mobH, mobV, def.dmg, 0f, 0f, 0f)
+                    val mobA = with(world) { mobEntity[MobAction] }
+                    val mobDodge = with(world) { mobEntity[Mob].def.dodge }
+                    MobDamage.hurt(mobH, mobV, mobA, mobDodge, def.dmg, 0f, 0f, 0f, rng.nextFloat())
                 }
             }
             "grenade" -> {
