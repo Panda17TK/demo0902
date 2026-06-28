@@ -1,5 +1,6 @@
 package io.github.panda17tk.arpg.ecs.world
 
+import io.github.panda17tk.arpg.ecs.components.Facing
 import io.github.panda17tk.arpg.ecs.components.Materials
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.input.InputState
@@ -28,10 +29,11 @@ class WorldWallTest {
         val endBlocks = with(gw.world) { gw.player[Materials].blocks }
         // a free tile is in front (player faces +x after moving right), so one material is spent
         assertEquals(startBlocks - 1, endBlocks)
-        // the tile in front is now a WALL
+        // the tile in front (using BuildSystem's exact front-offset formula) is now a WALL
         val t = with(gw.world) { gw.player[Transform] }
-        val tx = floor((t.x + Tuning.TILE) / Tuning.TILE).toInt()
-        val ty = floor(t.y / Tuning.TILE).toInt()
-        assertTrue(gw.map.tileAt(tx, ty) == Tile.WALL || endBlocks == startBlocks - 1)
+        val f = with(gw.world) { gw.player[Facing] }
+        val tx = floor((t.x + f.x * 18f) / Tuning.TILE).toInt()
+        val ty = floor((t.y + f.y * 18f) / Tuning.TILE).toInt()
+        assertEquals(Tile.WALL, gw.map.tileAt(tx, ty))
     }
 }

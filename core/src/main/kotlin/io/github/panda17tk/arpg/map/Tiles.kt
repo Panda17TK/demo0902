@@ -12,7 +12,7 @@ object Tiles {
         if (map.tileAt(tx, ty) != Tile.WALL) return TileDamage(false)
         val i = map.index(tx, ty)
         if (map.hp[i].isInfinite()) return TileDamage(false)
-        map.hp[i] -= dmg
+        map.hp[i] = maxOf(0f, map.hp[i] - dmg)
         if (map.hp[i] <= 0f) {
             clearWall(map, tx, ty)
             return TileDamage(true)

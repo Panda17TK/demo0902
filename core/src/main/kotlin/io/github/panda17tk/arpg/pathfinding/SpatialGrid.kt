@@ -9,7 +9,8 @@ import kotlin.math.floor
 class SpatialGrid<T>(private val cell: Float) {
     private val buckets = HashMap<Long, MutableList<T>>()
 
-    private fun key(cx: Int, cy: Int): Long = (cx.toLong() + ORIGIN) * STRIDE + (cy.toLong() + ORIGIN)
+    // Bijective key for 32-bit cell coords (collision-free including negative coordinates).
+    private fun key(cx: Int, cy: Int): Long = (cx.toLong() shl 32) or (cy.toLong() and 0xFFFFFFFFL)
 
     fun clear() = buckets.clear()
 
@@ -26,10 +27,5 @@ class SpatialGrid<T>(private val cell: Float) {
         for (cy in mincy..maxcy) for (cx in mincx..maxcx) {
             buckets[key(cx, cy)]?.forEach(action)
         }
-    }
-
-    companion object {
-        private const val ORIGIN = 1L shl 14
-        private const val STRIDE = 1L shl 15
     }
 }
