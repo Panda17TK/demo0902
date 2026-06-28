@@ -11,6 +11,7 @@ import io.github.panda17tk.arpg.ecs.components.Facing
 import io.github.panda17tk.arpg.ecs.components.GameOver
 import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Materials
+import io.github.panda17tk.arpg.ecs.components.Mods
 import io.github.panda17tk.arpg.ecs.components.PlayerTag
 import io.github.panda17tk.arpg.ecs.components.Stamina
 import io.github.panda17tk.arpg.ecs.components.Transform
@@ -94,6 +95,7 @@ object WorldFactory {
             it += Stamina(config.player.staMax, config.player.staMax)
             it += Body(Tuning.PLAYER_HALF, Tuning.PLAYER_HALF)
             it += Materials()
+            it += Mods()
             it += Arsenal(config.weapons.map { d -> WeaponRuntime(d, d.magSize ?: 0) })
             it += Ammo()
             it += Cooldowns()

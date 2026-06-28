@@ -12,6 +12,7 @@ import io.github.panda17tk.arpg.ecs.components.Facing
 import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Mob
 import io.github.panda17tk.arpg.ecs.components.MobAction
+import io.github.panda17tk.arpg.ecs.components.Mods
 import io.github.panda17tk.arpg.ecs.components.PlayerTag
 import io.github.panda17tk.arpg.ecs.components.Stamina
 import io.github.panda17tk.arpg.ecs.components.Transform
@@ -30,7 +31,7 @@ import kotlin.math.floor
 import kotlin.math.hypot
 
 class MeleeSystem(private val mobGrid: SpatialGrid<Entity>) :
-    IteratingSystem(family { all(PlayerTag, Transform, Facing, Stamina, Cooldowns) }) {
+    IteratingSystem(family { all(PlayerTag, Transform, Facing, Stamina, Cooldowns, Mods) }) {
 
     private val input: InputState = world.inject()
     private val map: TileMap = world.inject()
@@ -42,7 +43,7 @@ class MeleeSystem(private val mobGrid: SpatialGrid<Entity>) :
         if (cd.melee > 0f) cd.melee -= deltaTime
         if (!input.melee || cd.melee > 0f) return
 
-        val t = entity[Transform]; val f = entity[Facing]; val s = entity[Stamina]
+        val t = entity[Transform]; val f = entity[Facing]; val s = entity[Stamina]; val mods = entity[Mods]
         cd.melee = config.player.meleeCd
         val outcome = MeleeResolve.resolve(if (s.max > 0f) s.value / s.max else 1f, config.player)
 
@@ -74,7 +75,7 @@ class MeleeSystem(private val mobGrid: SpatialGrid<Entity>) :
                     val mobDodge = with(world) { mobEntity[Mob].def.dodge }
                     val nx = if (dist > 0f) ddx / dist else 1f
                     val ny = if (dist > 0f) ddy / dist else 0f
-                    MobDamage.hurt(mobH, mobV, mobA, mobDodge, outcome.dmg, nx, ny, 240f, rng.nextFloat())
+                    MobDamage.hurt(mobH, mobV, mobA, mobDodge, outcome.dmg * mods.meleeMul, nx, ny, 240f, rng.nextFloat())
                 }
             }
         }

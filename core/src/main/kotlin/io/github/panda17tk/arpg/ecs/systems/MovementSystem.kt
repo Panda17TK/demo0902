@@ -6,6 +6,7 @@ import com.github.quillraven.fleks.World.Companion.family
 import io.github.panda17tk.arpg.config.GameConfig
 import io.github.panda17tk.arpg.ecs.components.Body
 import io.github.panda17tk.arpg.ecs.components.Facing
+import io.github.panda17tk.arpg.ecs.components.Mods
 import io.github.panda17tk.arpg.ecs.components.PlayerTag
 import io.github.panda17tk.arpg.ecs.components.Stamina
 import io.github.panda17tk.arpg.ecs.components.Transform
@@ -16,7 +17,7 @@ import io.github.panda17tk.arpg.sim.Collision
 import io.github.panda17tk.arpg.sim.Locomotion
 import kotlin.math.pow
 
-class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing, Stamina, Body, Velocity) }) {
+class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing, Stamina, Body, Velocity, Mods) }) {
     private val input: InputState = world.inject()
     private val map: TileMap = world.inject()
     private val config: GameConfig = world.inject()
@@ -27,11 +28,12 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         val s = entity[Stamina]
         val b = entity[Body]
         val v = entity[Velocity]
+        val mods = entity[Mods]
         val dt = deltaTime
 
         val mv = Locomotion.keyboardDirection(input.left, input.right, input.up, input.down)
         val dashing = Locomotion.isDashing(input.dash, mv.isMoving, s.value)
-        val spd = Locomotion.speed(dashing, config.player)
+        val spd = Locomotion.speed(dashing, config.player) * mods.moveMul
 
         val dx = mv.dirX * spd * mv.speedScale * dt
         val dy = mv.dirY * spd * mv.speedScale * dt

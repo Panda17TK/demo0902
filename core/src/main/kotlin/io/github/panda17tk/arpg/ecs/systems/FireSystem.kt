@@ -17,6 +17,7 @@ import io.github.panda17tk.arpg.ecs.components.Grenade
 import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Mob
 import io.github.panda17tk.arpg.ecs.components.MobAction
+import io.github.panda17tk.arpg.ecs.components.Mods
 import io.github.panda17tk.arpg.ecs.components.PlayerTag
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.ecs.components.Velocity
@@ -32,7 +33,7 @@ import kotlin.math.hypot
 import kotlin.math.sin
 
 class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
-    IteratingSystem(family { all(PlayerTag, Transform, Facing, Arsenal, Ammo, Cooldowns) }) {
+    IteratingSystem(family { all(PlayerTag, Transform, Facing, Arsenal, Ammo, Cooldowns, Mods) }) {
 
     private val input: InputState = world.inject()
     private val map: TileMap = world.inject()
@@ -45,7 +46,7 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
         if (!input.fire || cd.shoot > 0f) return
 
         val t = entity[Transform]; val f = entity[Facing]
-        val arsenal = entity[Arsenal]; val ammo = entity[Ammo]
+        val arsenal = entity[Arsenal]; val ammo = entity[Ammo]; val mods = entity[Mods]
         val w = arsenal.current; val def = w.def
         val aim = atan2(f.y, f.x)
         val dirX = cos(aim); val dirY = sin(aim)
@@ -54,7 +55,7 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
             "beam" -> {
                 if (ammo.ammoBeam <= 0) return
                 ammo.ammoBeam--
-                cd.shoot = def.fireRate
+                cd.shoot = def.fireRate * mods.fireMul
                 val hit = BeamRay.cast(map, t.x, t.y, dirX, dirY, 700f)
 
                 // --- Beam vs mob: query mobs near the ray, check projection + perpendicular distance ---
@@ -72,12 +73,12 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
                     val mobV = with(world) { mobEntity[Velocity] }
                     val mobA = with(world) { mobEntity[MobAction] }
                     val mobDodge = with(world) { mobEntity[Mob].def.dodge }
-                    MobDamage.hurt(mobH, mobV, mobA, mobDodge, def.dmg, 0f, 0f, 0f, rng.nextFloat())
+                    MobDamage.hurt(mobH, mobV, mobA, mobDodge, def.dmg * mods.gunMul, 0f, 0f, 0f, rng.nextFloat())
                 }
             }
             "grenade" -> {
                 if (w.mag <= 0) return
-                w.mag--; cd.shoot = def.fireRate
+                w.mag--; cd.shoot = def.fireRate * mods.fireMul
                 world.entity {
                     it += Transform(x = t.x + dirX * Tuning.MUZZLE_OFFSET, y = t.y + dirY * Tuning.MUZZLE_OFFSET)
                     it += Grenade(dirX * config.player.grenadeSpeed, dirY * config.player.grenadeSpeed, config.player.grenadeFuse)
@@ -85,13 +86,13 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
             }
             else -> {
                 if (w.mag <= 0) return
-                w.mag--; cd.shoot = def.fireRate
+                w.mag--; cd.shoot = def.fireRate * mods.fireMul
                 val angles = Firing.bulletAngles(aim, def.spread, def.pellets, rng)
                 for (a in angles) {
                     val vx = cos(a) * config.player.bulletSpeed; val vy = sin(a) * config.player.bulletSpeed
                     world.entity {
                         it += Transform(x = t.x + cos(a) * Tuning.MUZZLE_OFFSET, y = t.y + sin(a) * Tuning.MUZZLE_OFFSET)
-                        it += Bullet(vx, vy, config.player.bulletLife, def.dmg)
+                        it += Bullet(vx, vy, config.player.bulletLife, def.dmg * mods.gunMul)
                     }
                 }
             }

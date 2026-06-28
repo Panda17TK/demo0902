@@ -1,5 +1,7 @@
 package io.github.panda17tk.arpg.screens
 
+import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.Input
 import com.badlogic.gdx.ScreenAdapter
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.OrthographicCamera
@@ -21,6 +23,7 @@ import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Materials
 import io.github.panda17tk.arpg.ecs.components.Mob
 import io.github.panda17tk.arpg.ecs.components.MobAction
+import io.github.panda17tk.arpg.ecs.components.Mods
 import io.github.panda17tk.arpg.ecs.components.Stamina
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.ecs.world.GameWorld
@@ -28,7 +31,10 @@ import io.github.panda17tk.arpg.ecs.world.WorldFactory
 import io.github.panda17tk.arpg.input.InputState
 import io.github.panda17tk.arpg.input.KeyboardInput
 import io.github.panda17tk.arpg.map.Tile
+import io.github.panda17tk.arpg.math.Rng
 import io.github.panda17tk.arpg.sim.Tuning
+import io.github.panda17tk.arpg.upgrade.Upgrade
+import io.github.panda17tk.arpg.upgrade.Upgrades
 import kotlin.math.pow
 
 /**
@@ -54,6 +60,12 @@ class GameScreen : ScreenAdapter() {
     private var camY = Tuning.VIEW_H / 2f
     private var camInit = false
 
+    // Phase 6b: between-wave upgrade selection (modal — sim freezes until a card is picked).
+    private val upgradeRng = Rng(System.nanoTime())
+    private var choosing = false
+    private var offered = false
+    private var choices: List<Upgrade> = emptyList()
+
     override fun show() {
         configStore.loadFromDisk()
         gw = WorldFactory.create(input, configStore.config)
@@ -67,7 +79,7 @@ class GameScreen : ScreenAdapter() {
 
     override fun render(delta: Float) {
         KeyboardInput.poll(input)
-        step(delta)
+        updateUpgradeFlow(delta)
         val alpha = (accumulator / Constants.FIXED_DT).coerceIn(0f, 1f)
 
         // interpolated player position
@@ -153,6 +165,70 @@ class GameScreen : ScreenAdapter() {
         shapes.color = Color(0.95f, 0.8f, 0.3f, 1f)
         shapes.rect(16f, 40f, 200f * (sta / staMax), 10f)
         shapes.end()
+
+        if (choosing) drawUpgradeCards()
+    }
+
+    /**
+     * Phase 6b: when a wave is cleared the sim enters "intermission"; we freeze it and offer
+     * 3 random upgrade cards. Number keys 1/2/3 pick one, apply it permanently, then resume.
+     */
+    private fun updateUpgradeFlow(delta: Float) {
+        if (choosing) {
+            accumulator = 0f // keep the sim frozen while the player chooses
+            val sel = when {
+                Gdx.input.isKeyJustPressed(Input.Keys.NUM_1) -> 0
+                Gdx.input.isKeyJustPressed(Input.Keys.NUM_2) -> 1
+                Gdx.input.isKeyJustPressed(Input.Keys.NUM_3) -> 2
+                else -> -1
+            }
+            if (sel in choices.indices) { applyUpgrade(choices[sel]); choosing = false; offered = true }
+        } else {
+            step(delta)
+            if (gw.waveState.phase == "intermission") {
+                if (!offered) { choices = Upgrades.pick(3, upgradeRng); choosing = true }
+            } else {
+                offered = false
+            }
+        }
+    }
+
+    private fun applyUpgrade(u: Upgrade) {
+        val cfg = configStore.config.upgrades
+        with(gw.world) {
+            Upgrades.apply(u.id, cfg, gw.player[Mods], gw.player[Health], gw.player[Ammo], gw.player[Materials])
+        }
+    }
+
+    private fun drawUpgradeCards() {
+        if (choices.isEmpty()) return
+        val cfg = configStore.config.upgrades
+        val w = hudViewport.worldWidth
+        val h = hudViewport.worldHeight
+        val cardW = minOf(360f, w * 0.85f)
+        val cardH = 64f
+        val gap = 16f
+        val totalH = choices.size * cardH + (choices.size - 1) * gap
+        val x = (w - cardW) / 2f
+        val top = (h + totalH) / 2f - cardH // bottom-left y of the first (top) card
+
+        shapes.projectionMatrix = hudViewport.camera.combined
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
+        shapes.color = Color(0f, 0f, 0f, 0.6f)
+        shapes.rect(0f, 0f, w, h)
+        shapes.color = Color(0.16f, 0.17f, 0.22f, 1f)
+        choices.indices.forEach { i -> shapes.rect(x, top - i * (cardH + gap), cardW, cardH) }
+        shapes.end()
+
+        batch.projectionMatrix = hudViewport.camera.combined
+        batch.begin()
+        font.draw(batch, "WAVE ${gw.waveState.num} CLEAR  -  pick an upgrade (press 1/2/3)", x, top + cardH + 28f)
+        choices.forEachIndexed { i, u ->
+            val cy = top - i * (cardH + gap)
+            font.draw(batch, "${i + 1}) ${u.label}", x + 14f, cy + cardH - 16f)
+            font.draw(batch, Upgrades.desc(u, cfg), x + 14f, cy + 22f)
+        }
+        batch.end()
     }
 
     private fun step(delta: Float) {

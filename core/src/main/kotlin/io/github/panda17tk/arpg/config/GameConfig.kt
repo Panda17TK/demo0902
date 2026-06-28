@@ -11,6 +11,7 @@ data class GameConfig(
     val weapons: List<WeaponDef> = Weapons.ALL,
     val ai: AiConfig = AiConfig(),
     val waves: WaveConfig = WaveConfig(),
+    val upgrades: UpgradesConfig = UpgradesConfig(),
     val enemies: Map<String, EnemyDef> = defaultEnemies(),
 )
 
