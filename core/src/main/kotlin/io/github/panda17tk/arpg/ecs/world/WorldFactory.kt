@@ -8,6 +8,7 @@ import io.github.panda17tk.arpg.ecs.components.Arsenal
 import io.github.panda17tk.arpg.ecs.components.Body
 import io.github.panda17tk.arpg.ecs.components.Cooldowns
 import io.github.panda17tk.arpg.ecs.components.Facing
+import io.github.panda17tk.arpg.ecs.components.Fx
 import io.github.panda17tk.arpg.ecs.components.GameOver
 import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Materials
@@ -23,6 +24,7 @@ import io.github.panda17tk.arpg.ecs.systems.BuildSystem
 import io.github.panda17tk.arpg.ecs.systems.EBulletSystem
 import io.github.panda17tk.arpg.ecs.systems.FireSystem
 import io.github.panda17tk.arpg.ecs.systems.FlowRebuildSystem
+import io.github.panda17tk.arpg.ecs.systems.GameOverSystem
 import io.github.panda17tk.arpg.ecs.systems.MeleeSystem
 import io.github.panda17tk.arpg.ecs.systems.MobActionSystem
 import io.github.panda17tk.arpg.ecs.systems.MobDamageSystem
@@ -52,6 +54,7 @@ object WorldFactory {
 
         val mobGrid = SpatialGrid<Entity>(Tuning.TILE)
         val gameOver = GameOver()
+        val fx = Fx(Rng(seed xor 0x123456789L))
         val waveState = WaveState(
             num = 1,
             phase = "active",
@@ -69,10 +72,12 @@ object WorldFactory {
                 add(mobGrid)
                 add(gameOver)
                 add(waveState)
+                add(fx)
             }
             systems {
                 add(SnapshotSystem())
                 add(MobDamageSystem(mobGrid))
+                add(GameOverSystem())
                 add(MovementSystem())
                 add(BuildSystem())
                 add(WeaponSwitchSystem())
@@ -114,6 +119,8 @@ object WorldFactory {
             it.map = map
             it.flow = flow
             it.waveState = waveState
+            it.gameOver = gameOver
+            it.fx = fx
         }
     }
 }

@@ -4,6 +4,7 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
 import com.badlogic.gdx.ScreenAdapter
 import com.badlogic.gdx.graphics.Color
+import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.OrthographicCamera
 import com.badlogic.gdx.graphics.g2d.BitmapFont
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
@@ -66,20 +67,41 @@ class GameScreen : ScreenAdapter() {
     private var offered = false
     private var choices: List<Upgrade> = emptyList()
 
+    // Phase 7: screen-shake trigger — compare HP frame-to-frame to detect the player taking damage.
+    private var lastHp = Float.NaN
+
     override fun show() {
         configStore.loadFromDisk()
-        gw = WorldFactory.create(input, configStore.config)
         shapes = ShapeRenderer()
         batch = SpriteBatch()
         font = BitmapFont()
         camera = OrthographicCamera().apply { setToOrtho(true, Tuning.VIEW_W, Tuning.VIEW_H) } // y-down
         worldViewport = FitViewport(Tuning.VIEW_W, Tuning.VIEW_H, camera)
         hudViewport = ScreenViewport()
+        newRun()
+    }
+
+    /** Build (or rebuild) the run and reset per-run screen state (Phase 7 restart). */
+    private fun newRun() {
+        gw = WorldFactory.create(input, configStore.config)
+        accumulator = 0f
+        camInit = false
+        choosing = false
+        offered = false
+        choices = emptyList()
+        lastHp = Float.NaN
     }
 
     override fun render(delta: Float) {
         KeyboardInput.poll(input)
-        updateUpgradeFlow(delta)
+        if (gw.gameOver.isOver) {
+            accumulator = 0f
+            if (Gdx.input.isKeyJustPressed(Input.Keys.R)) { newRun(); return }
+        } else {
+            updateUpgradeFlow(delta)
+            trackPlayerHitShake()
+        }
+        gw.fx.update(delta)
         val alpha = (accumulator / Constants.FIXED_DT).coerceIn(0f, 1f)
 
         // interpolated player position
@@ -92,6 +114,7 @@ class GameScreen : ScreenAdapter() {
         }
 
         updateCamera(delta, px, py, fx, fy)
+        if (gw.fx.shakeMag > 0f) { camera.position.add(gw.fx.shakeX(), gw.fx.shakeY(), 0f); camera.update() }
 
         ScreenUtils.clear(0.06f, 0.07f, 0.10f, 1f)
 
@@ -132,6 +155,11 @@ class GameScreen : ScreenAdapter() {
                 val et = e[Transform]; shapes.color = Color(1f, 0.4f, 0.7f, 1f); shapes.circle(et.x, et.y, 3f, 8)
             }
         }
+        // Phase 7: death-burst particles (gibs shrink as they expire)
+        gw.fx.particles.forEach { p ->
+            val k = 1f - p.t / p.life
+            if (k > 0f) { shapes.color = p.color; shapes.circle(p.x, p.y, p.size * k, 8) }
+        }
         shapes.end()
 
         shapes.begin(ShapeRenderer.ShapeType.Line)
@@ -167,6 +195,13 @@ class GameScreen : ScreenAdapter() {
         shapes.end()
 
         if (choosing) drawUpgradeCards()
+        if (gw.gameOver.isOver) drawGameOver()
+    }
+
+    private fun trackPlayerHitShake() {
+        val hp = with(gw.world) { gw.player[Health].hp }
+        if (!lastHp.isNaN() && hp < lastHp - 0.01f) gw.fx.addShake(0.18f, 6f)
+        lastHp = hp
     }
 
     /**
@@ -212,6 +247,7 @@ class GameScreen : ScreenAdapter() {
         val x = (w - cardW) / 2f
         val top = (h + totalH) / 2f - cardH // bottom-left y of the first (top) card
 
+        Gdx.gl.glEnable(GL20.GL_BLEND)
         shapes.projectionMatrix = hudViewport.camera.combined
         shapes.begin(ShapeRenderer.ShapeType.Filled)
         shapes.color = Color(0f, 0f, 0f, 0.6f)
@@ -228,6 +264,23 @@ class GameScreen : ScreenAdapter() {
             font.draw(batch, "${i + 1}) ${u.label}", x + 14f, cy + cardH - 16f)
             font.draw(batch, Upgrades.desc(u, cfg), x + 14f, cy + 22f)
         }
+        batch.end()
+    }
+
+    private fun drawGameOver() {
+        val w = hudViewport.worldWidth
+        val h = hudViewport.worldHeight
+        Gdx.gl.glEnable(GL20.GL_BLEND)
+        shapes.projectionMatrix = hudViewport.camera.combined
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
+        shapes.color = Color(0f, 0f, 0f, 0.72f)
+        shapes.rect(0f, 0f, w, h)
+        shapes.end()
+        batch.projectionMatrix = hudViewport.camera.combined
+        batch.begin()
+        font.draw(batch, "GAME OVER", w / 2f - 36f, h / 2f + 42f)
+        font.draw(batch, "WAVE ${gw.waveState.num}    KILLS ${gw.gameOver.kills}", w / 2f - 80f, h / 2f + 10f)
+        font.draw(batch, "press R to restart", w / 2f - 58f, h / 2f - 22f)
         batch.end()
     }
 

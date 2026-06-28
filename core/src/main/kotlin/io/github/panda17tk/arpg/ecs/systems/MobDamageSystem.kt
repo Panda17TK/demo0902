@@ -1,8 +1,10 @@
 package io.github.panda17tk.arpg.ecs.systems
 
+import com.badlogic.gdx.graphics.Color
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.IteratingSystem
 import com.github.quillraven.fleks.World.Companion.family
+import io.github.panda17tk.arpg.ecs.components.Fx
 import io.github.panda17tk.arpg.ecs.components.GameOver
 import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Mob
@@ -16,6 +18,7 @@ class MobDamageSystem(private val grid: SpatialGrid<Entity>) :
     IteratingSystem(family { all(Mob, Transform, Health) }) {
 
     private val gameOver: GameOver = world.inject()
+    private val fx: Fx = world.inject()
     private val players by lazy { world.family { all(PlayerTag, Health, Mods) } }
 
     override fun onTick() {
@@ -28,6 +31,10 @@ class MobDamageSystem(private val grid: SpatialGrid<Entity>) :
         if (entity[Health].hp <= 0f) {
             gameOver.kills++
             healOnKill()
+            val mob = entity[Mob]
+            val big = mob.tier != "normal"
+            fx.spawnDeath(t.x, t.y, Color.valueOf(mob.def.color.removePrefix("#")), big)
+            fx.addShake(if (big) 0.25f else 0.08f, if (big) 9f else 3.5f)
             world -= entity
             return
         }
