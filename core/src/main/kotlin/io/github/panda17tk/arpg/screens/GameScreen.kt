@@ -14,11 +14,13 @@ import io.github.panda17tk.arpg.core.Constants
 import io.github.panda17tk.arpg.ecs.components.Ammo
 import io.github.panda17tk.arpg.ecs.components.Arsenal
 import io.github.panda17tk.arpg.ecs.components.Bullet
+import io.github.panda17tk.arpg.ecs.components.EBullet
 import io.github.panda17tk.arpg.ecs.components.Facing
 import io.github.panda17tk.arpg.ecs.components.Grenade
 import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Materials
 import io.github.panda17tk.arpg.ecs.components.Mob
+import io.github.panda17tk.arpg.ecs.components.MobAction
 import io.github.panda17tk.arpg.ecs.components.Stamina
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.ecs.world.GameWorld
@@ -114,12 +116,21 @@ class GameScreen : ScreenAdapter() {
             gw.world.family { all(Grenade, Transform) }.forEach { e ->
                 val gt = e[Transform]; shapes.color = Color(1f, 0.5f, 0.4f, 1f); shapes.circle(gt.x, gt.y, 5f, 10)
             }
+            gw.world.family { all(EBullet, Transform) }.forEach { e ->
+                val et = e[Transform]; shapes.color = Color(1f, 0.4f, 0.7f, 1f); shapes.circle(et.x, et.y, 3f, 8)
+            }
         }
         shapes.end()
 
         shapes.begin(ShapeRenderer.ShapeType.Line)
         shapes.color = Color.WHITE
         shapes.line(px, py, px + fx * Tuning.PLAYER_RADIUS * 1.8f, py + fy * Tuning.PLAYER_RADIUS * 1.8f)
+        with(gw.world) {
+            gw.world.family { all(Mob, Transform, MobAction) }.forEach { e ->
+                val mt = e[Transform]; val ma = e[MobAction]
+                if (ma.charging) { shapes.color = Color(1f, 0.3f, 0.2f, 1f); shapes.circle(mt.x, mt.y, 14f + ma.chargeT * 30f, 16) }
+            }
+        }
         shapes.end()
 
         // HUD (screen space)

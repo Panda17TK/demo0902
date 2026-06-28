@@ -18,9 +18,11 @@ import io.github.panda17tk.arpg.ecs.components.Velocity
 import io.github.panda17tk.arpg.ecs.components.WeaponRuntime
 import io.github.panda17tk.arpg.ecs.systems.AISystem
 import io.github.panda17tk.arpg.ecs.systems.BuildSystem
+import io.github.panda17tk.arpg.ecs.systems.EBulletSystem
 import io.github.panda17tk.arpg.ecs.systems.FireSystem
 import io.github.panda17tk.arpg.ecs.systems.FlowRebuildSystem
 import io.github.panda17tk.arpg.ecs.systems.MeleeSystem
+import io.github.panda17tk.arpg.ecs.systems.MobActionSystem
 import io.github.panda17tk.arpg.ecs.systems.MobDamageSystem
 import io.github.panda17tk.arpg.ecs.systems.MovementSystem
 import io.github.panda17tk.arpg.ecs.systems.ProjectileSystem
@@ -72,8 +74,10 @@ object WorldFactory {
                 add(FireSystem(mobGrid))
                 add(ReloadSystem())
                 add(ProjectileSystem(mobGrid))
+                add(EBulletSystem())
                 add(FlowRebuildSystem())
                 add(AISystem(mobGrid))
+                add(MobActionSystem())
             }
         }
 
