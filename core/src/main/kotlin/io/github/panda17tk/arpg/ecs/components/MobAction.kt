@@ -12,6 +12,7 @@ class MobAction(
     var blinkTotal: Float = 0f,
     var blinkDx: Float = 0f,
     var blinkDy: Float = 0f,
+    var blinkChargeT: Float = 0f,
     var dodgeT: Float = 0f,
     var dodgeCd: Float = 0f,
     var enrageT: Float = 0f,
@@ -20,7 +21,7 @@ class MobAction(
     var guardMul: Float = 1f,
 ) : Component<MobAction> {
     val charging: Boolean get() = chargeT > 0f
-    val blinking: Boolean get() = blinkT > 0f
+    val blinking: Boolean get() = blinkT > 0f || blinkChargeT > 0f
     override fun type() = MobAction
     companion object : ComponentType<MobAction>()
 }

@@ -1,10 +1,12 @@
 package io.github.panda17tk.arpg.ecs.systems
 
+import com.badlogic.gdx.graphics.Color
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.IteratingSystem
 import com.github.quillraven.fleks.World.Companion.family
 import io.github.panda17tk.arpg.config.GameConfig
 import io.github.panda17tk.arpg.ecs.components.Body
+import io.github.panda17tk.arpg.ecs.components.Fx
 import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Mob
 import io.github.panda17tk.arpg.ecs.components.MobAction
@@ -20,6 +22,7 @@ import kotlin.math.min
 class MobActionSystem : IteratingSystem(family { all(Mob, Transform, MobAction, Body) }) {
     private val map: TileMap = world.inject()
     private val config: GameConfig = world.inject()
+    private val fx: Fx = world.inject()
     private val players by lazy { world.family { all(PlayerTag, Transform, Health, Velocity) } }
 
     override fun onTickEntity(entity: Entity) {
@@ -48,8 +51,14 @@ class MobActionSystem : IteratingSystem(family { all(Mob, Transform, MobAction, 
             }
         }
 
-        // blink: timed teleport (wall-stopped)
+        // blink charge: brief telegraph windup, then begin the teleport
+        if (a.blinkChargeT > 0f) {
+            a.blinkChargeT -= dt
+            if (a.blinkChargeT <= 0f) { a.blinkChargeT = 0f; a.blinkT = a.blinkTotal }
+        }
+        // blink: timed teleport (wall-stopped) + trailing afterimages
         if (a.blinkT > 0f) {
+            fx.spawnAfterimage(t.x, t.y, m.def.w, m.def.h, Color.valueOf(m.def.color.removePrefix("#")))
             val step = min(dt, a.blinkT)
             val frac = if (a.blinkTotal > 0f) step / a.blinkTotal else 1f
             val r1 = Collision.moveAndCollide(map, t.x, t.y, b.halfW, b.halfH, a.blinkDx * frac, 0f)

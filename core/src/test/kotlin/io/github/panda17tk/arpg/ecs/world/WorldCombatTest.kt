@@ -29,8 +29,9 @@ class WorldCombatTest {
         input.fire = false
         val magLow = with(gw.world) { gw.player[Arsenal].current.mag }
         input.reload = true
-        gw.world.update(1f / 60f)
+        gw.world.update(1f / 60f) // start the (timed) reload
         input.reload = false
+        repeat(150) { gw.world.update(1f / 60f) } // let the manual reload finish (~1.35s)
         val magFull = with(gw.world) { gw.player[Arsenal].current.mag }
         assertTrue(magFull > magLow, "reload should refill: $magLow -> $magFull")
     }

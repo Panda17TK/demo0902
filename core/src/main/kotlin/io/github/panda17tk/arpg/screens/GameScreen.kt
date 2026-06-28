@@ -28,6 +28,7 @@ import io.github.panda17tk.arpg.ecs.components.Materials
 import io.github.panda17tk.arpg.ecs.components.Mob
 import io.github.panda17tk.arpg.ecs.components.MobAction
 import io.github.panda17tk.arpg.ecs.components.Mods
+import io.github.panda17tk.arpg.ecs.components.Pickup
 import io.github.panda17tk.arpg.ecs.components.Stamina
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.ecs.components.Velocity
@@ -48,8 +49,10 @@ import io.github.panda17tk.arpg.save.Scores
 import io.github.panda17tk.arpg.sim.Tuning
 import io.github.panda17tk.arpg.upgrade.Upgrade
 import io.github.panda17tk.arpg.upgrade.Upgrades
+import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.pow
+import kotlin.math.sin
 
 /**
  * Fixed-timestep simulation + render interpolation, porting the legacy main.js loop.
@@ -109,6 +112,14 @@ class GameScreen : ScreenAdapter() {
     private val cHpLo = Color.valueOf("e0786a")
     private val glyphLayout = GlyphLayout()
     private var uiScale = 1f
+    private val tmpC = Color()
+    private val cBlink = Color(0.72f, 0.52f, 1f, 0.9f)
+    private val cAmmo9 = Color.valueOf("ffe066")
+    private val cAmmo12 = Color.valueOf("ff9a4d")
+    private val cAmmoBeam = Color.valueOf("66e0ff")
+    private val cAmmoNade = Color.valueOf("ff6b6b")
+    private val cBlocks = Color.valueOf("b48a5a")
+    private val cMed = Color.valueOf("7fe08a")
 
     override fun show() {
         configStore.loadFromDisk()
@@ -222,6 +233,26 @@ class GameScreen : ScreenAdapter() {
             val k = 1f - p.t / p.life
             if (k > 0f) { shapes.color = p.color; shapes.circle(p.x, p.y, p.size * k, 8) }
         }
+        gw.fx.afters.forEach { a ->
+            val k = 1f - a.t / a.life
+            if (k > 0f) { tmpC.set(a.color); tmpC.a = 0.3f * k; shapes.color = tmpC; Draw.roundedRect(shapes, a.x - a.w / 2f, a.y - a.h / 2f, a.w, a.h, 5f) }
+        }
+        gw.fx.beams.forEach { bm ->
+            val dx = bm.ex - bm.sx; val dy = bm.ey - bm.sy
+            val len = hypot(dx, dy).let { if (it == 0f) 1f else it }
+            val ux = dx / len; val uy = dy / len
+            val k = 1f - bm.t / bm.life
+            shapes.color = tmpC.set(0.5f, 0.85f, 1f, 0.32f * k); Draw.orientedRect(shapes, bm.sx, bm.sy, ux, uy, 0f, len, 6f)
+            shapes.color = tmpC.set(0.92f, 0.98f, 1f, 0.9f * k); Draw.orientedRect(shapes, bm.sx, bm.sy, ux, uy, 0f, len, 1.8f)
+        }
+        with(gw.world) {
+            gw.world.family { all(Pickup, Transform) }.forEach { e ->
+                val pt = e[Transform]; val pk = e[Pickup]
+                val bob = sin(animTime * 4f + pt.x * 0.05f) * 2f
+                shapes.color = pickupColor(pk.kind)
+                shapes.circle(pt.x, pt.y + bob, 4f, 10)
+            }
+        }
         shapes.end()
 
         // charge-melee telegraph rings
@@ -230,6 +261,16 @@ class GameScreen : ScreenAdapter() {
             gw.world.family { all(Mob, Transform, MobAction) }.forEach { e ->
                 val mt = e[Transform]; val ma = e[MobAction]
                 if (ma.charging) { shapes.color = cTelegraph; shapes.circle(mt.x, mt.y, 14f + ma.chargeT * 30f, 16) }
+                if (ma.blinkChargeT > 0f) { shapes.color = cBlink; shapes.circle(mt.x, mt.y, 10f + ma.blinkChargeT * 50f, 14) }
+            }
+        }
+        gw.fx.slashes.forEach { sl ->
+            val k = 1f - sl.t / sl.life
+            shapes.color = tmpC.set(1f, 1f, 1f, 0.75f * k)
+            val a0 = sl.ang - 1.0f; val a1 = sl.ang + 1.0f; val r = 32f; val steps = 8
+            for (i in 0 until steps) {
+                val b0 = a0 + (a1 - a0) * i / steps; val b1 = a0 + (a1 - a0) * (i + 1) / steps
+                shapes.line(sl.x + cos(b0) * r, sl.y + sin(b0) * r, sl.x + cos(b1) * r, sl.y + sin(b1) * r)
             }
         }
         shapes.end()
@@ -259,7 +300,7 @@ class GameScreen : ScreenAdapter() {
 
         batch.projectionMatrix = hudViewport.camera.combined
         batch.begin()
-        font.draw(batch, "ウェーブ ${gw.waveState.num}    残り $foes    ${w.def.name} $magStr", 14f, hudH - 16f)
+        font.draw(batch, "ウェーブ ${gw.waveState.num}    残り $foes    ${w.def.name} $magStr${if (w.reloadT > 0f) "  装填中…" else ""}", 14f, hudH - 16f)
         font.draw(batch, "予備 9mm${ammo.ammo9} 12g${ammo.ammo12} ﾋﾞｰﾑ${ammo.ammoBeam} 榴${ammo.ammoNade}", 14f, hudH - 44f)
         font.draw(batch, "時間 %d:%02d    撃破 %d    資材 %d".format(mins, secs, gw.gameOver.kills, blocks), 14f, hudH - 70f)
         font.draw(batch, "スタ", 18f + barW, hudH - 86f)
@@ -405,6 +446,16 @@ class GameScreen : ScreenAdapter() {
         TouchButton.RELOAD -> "装填"
         TouchButton.WALL -> "壁"
         TouchButton.WEAPON -> "武器"
+    }
+
+    private fun pickupColor(kind: String): Color = when (kind) {
+        "ammo9" -> cAmmo9
+        "ammo12" -> cAmmo12
+        "ammoBeam" -> cAmmoBeam
+        "ammoNade" -> cAmmoNade
+        "blocks" -> cBlocks
+        "med" -> cMed
+        else -> Color.WHITE
     }
 
     private fun step(delta: Float) {

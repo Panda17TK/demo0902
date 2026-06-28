@@ -29,8 +29,9 @@ class BuildSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing, B
         val b = entity[Body]
         if (mats.blocks <= 0) return
 
-        val frontX = t.x + f.x * 18f
-        val frontY = t.y + f.y * 18f
+        // Place on the next tile in the facing/aim direction so it never overlaps the player (no stuck).
+        val frontX = t.x + f.x * (Tuning.TILE * 0.9f)
+        val frontY = t.y + f.y * (Tuning.TILE * 0.9f)
         val tx = floor(frontX / Tuning.TILE).toInt()
         val ty = floor(frontY / Tuning.TILE).toInt()
         if (Tiles.canPlaceWall(map, tx, ty, t.x, t.y, b.halfW)) {

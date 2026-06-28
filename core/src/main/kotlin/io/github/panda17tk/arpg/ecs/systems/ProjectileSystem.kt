@@ -1,5 +1,6 @@
 package io.github.panda17tk.arpg.ecs.systems
 
+import com.badlogic.gdx.graphics.Color
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.IteratingSystem
 import com.github.quillraven.fleks.World.Companion.family
@@ -9,6 +10,7 @@ import io.github.panda17tk.arpg.combat.MobDamage
 import io.github.panda17tk.arpg.config.GameConfig
 import io.github.panda17tk.arpg.ecs.components.Body
 import io.github.panda17tk.arpg.ecs.components.Bullet
+import io.github.panda17tk.arpg.ecs.components.Fx
 import io.github.panda17tk.arpg.ecs.components.Grenade
 import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Mob
@@ -16,6 +18,7 @@ import io.github.panda17tk.arpg.ecs.components.MobAction
 import io.github.panda17tk.arpg.ecs.components.PlayerTag
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.ecs.components.Velocity
+import io.github.panda17tk.arpg.ecs.world.Pickups
 import io.github.panda17tk.arpg.map.TileMap
 import io.github.panda17tk.arpg.map.Tiles
 import io.github.panda17tk.arpg.math.Rng
@@ -34,6 +37,7 @@ class ProjectileSystem(private val mobGrid: SpatialGrid<Entity>) :
     private val flow: FlowField = world.inject()
     private val config: GameConfig = world.inject()
     private val rng: Rng = world.inject()
+    private val fx: Fx = world.inject()
 
     private var pPlayerX = 0
     private var pPlayerY = 0
@@ -80,8 +84,10 @@ class ProjectileSystem(private val mobGrid: SpatialGrid<Entity>) :
 
             val wall = step.wallTile
             if (wall != null) {
-                val broke = Tiles.damageTile(map, wall.first, wall.second, b.dmg).broke
-                if (broke) flow.rebuild(map, playerTileX(), playerTileY())
+                if (Tiles.damageTile(map, wall.first, wall.second, b.dmg).broke) {
+                    flow.rebuild(map, playerTileX(), playerTileY())
+                    Pickups.dropOnWall(world, rng, (wall.first + 0.5f) * Tuning.TILE, (wall.second + 0.5f) * Tuning.TILE)
+                }
                 world -= entity
                 return
             }
@@ -91,35 +97,44 @@ class ProjectileSystem(private val mobGrid: SpatialGrid<Entity>) :
             val g = entity[Grenade]
             t.x += g.vx * deltaTime; t.y += g.vy * deltaTime; g.fuse -= deltaTime
             val tx = floor(t.x / Tuning.TILE).toInt(); val ty = floor(t.y / Tuning.TILE).toInt()
-            if (map.solidAt(tx, ty) || g.fuse <= 0f) {
-                Explosion.applyWallDamage(map, t.x, t.y, config.player)
-                flow.rebuild(map, playerTileX(), playerTileY())
-
-                // --- Grenade explosion vs mobs ---
-                val r = config.player.explodeRadius
-                val maxDmg = config.player.explodeDmg
-                val ex = t.x; val ey = t.y
-                mobGrid.forNearby(ex, ey, r + 24f) { mobEntity ->
-                    val mobT = with(world) { mobEntity[Transform] }
-                    val ddx = mobT.x - ex; val ddy = mobT.y - ey
-                    val dist = hypot(ddx, ddy)
-                    if (dist < r) {
-                        val fall = 1f - dist / r
-                        val dmg = maxDmg * fall
-                        if (dmg > 0f) {
-                            val mobH = with(world) { mobEntity[Health] }
-                            val mobV = with(world) { mobEntity[Velocity] }
-                            val mobA = with(world) { mobEntity[MobAction] }
-                            val mobDodge = with(world) { mobEntity[Mob].def.dodge }
-                            val nx = if (dist > 0f) ddx / dist else 1f
-                            val ny = if (dist > 0f) ddy / dist else 0f
-                            MobDamage.hurt(mobH, mobV, mobA, mobDodge, dmg, nx, ny, 280f * fall, rng.nextFloat())
-                        }
-                    }
+            // proximity: an enemy within ~1 tile triggers a bigger (2-tile) blast immediately
+            var prox = false
+            mobGrid.forNearby(t.x, t.y, Tuning.TILE) { mobEntity ->
+                if (!prox) {
+                    val mt = with(world) { mobEntity[Transform] }
+                    if (hypot(mt.x - t.x, mt.y - t.y) <= Tuning.TILE) prox = true
                 }
-
+            }
+            if (map.solidAt(tx, ty) || g.fuse <= 0f || prox) {
+                detonate(t.x, t.y, if (prox) Tuning.TILE * 2f else config.player.explodeRadius)
                 world -= entity
             }
         }
+    }
+
+    private fun detonate(ex: Float, ey: Float, r: Float) {
+        Explosion.applyWallDamage(map, ex, ey, config.player)
+        flow.rebuild(map, playerTileX(), playerTileY())
+        val maxDmg = config.player.explodeDmg
+        mobGrid.forNearby(ex, ey, r + 24f) { mobEntity ->
+            val mobT = with(world) { mobEntity[Transform] }
+            val ddx = mobT.x - ex; val ddy = mobT.y - ey
+            val dist = hypot(ddx, ddy)
+            if (dist < r) {
+                val fall = 1f - dist / r
+                val dmg = maxDmg * fall
+                if (dmg > 0f) {
+                    val mobH = with(world) { mobEntity[Health] }
+                    val mobV = with(world) { mobEntity[Velocity] }
+                    val mobA = with(world) { mobEntity[MobAction] }
+                    val mobDodge = with(world) { mobEntity[Mob].def.dodge }
+                    val nx = if (dist > 0f) ddx / dist else 1f
+                    val ny = if (dist > 0f) ddy / dist else 0f
+                    MobDamage.hurt(mobH, mobV, mobA, mobDodge, dmg, nx, ny, 280f * fall, rng.nextFloat())
+                }
+            }
+        }
+        fx.addShake(0.22f, 8f)
+        fx.spawnSparks(ex, ey, 14, Color.valueOf("ffb060"))
     }
 }

@@ -60,9 +60,9 @@ object MobAttacks {
         "charge_melee" -> if (action.charging || !see || dist > spec.range) false else {
             action.chargeT = spec.windup; action.chargeDx = toPx; action.chargeDy = toPy; true
         }
-        "blink" -> if (!see || dist < spec.minDist) false else {
+        "blink" -> if (action.blinkChargeT > 0f || action.blinkT > 0f || !see || dist < spec.minDist) false else {
             val want = (dist - spec.standoff).coerceIn(0f, spec.maxTiles * Tuning.TILE)
-            action.blinkT = spec.dur; action.blinkTotal = spec.dur
+            action.blinkChargeT = 0.25f; action.blinkTotal = spec.dur // visible charge windup before teleport
             action.blinkDx = toPx * want; action.blinkDy = toPy * want; true
         }
         // --- Phase 6c boss attacks ---

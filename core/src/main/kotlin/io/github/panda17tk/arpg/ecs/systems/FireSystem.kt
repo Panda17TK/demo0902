@@ -13,6 +13,7 @@ import io.github.panda17tk.arpg.ecs.components.Body
 import io.github.panda17tk.arpg.ecs.components.Bullet
 import io.github.panda17tk.arpg.ecs.components.Cooldowns
 import io.github.panda17tk.arpg.ecs.components.Facing
+import io.github.panda17tk.arpg.ecs.components.Fx
 import io.github.panda17tk.arpg.ecs.components.Grenade
 import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Mob
@@ -39,6 +40,7 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
     private val map: TileMap = world.inject()
     private val rng: Rng = world.inject()
     private val config: GameConfig = world.inject()
+    private val fx: Fx = world.inject()
 
     override fun onTickEntity(entity: Entity) {
         val cd = entity[Cooldowns]
@@ -48,6 +50,7 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
         val t = entity[Transform]; val f = entity[Facing]
         val arsenal = entity[Arsenal]; val ammo = entity[Ammo]; val mods = entity[Mods]
         val w = arsenal.current; val def = w.def
+        if (w.reloadT > 0f) return // can't fire mid-reload
         val aim = atan2(f.y, f.x)
         val dirX = cos(aim); val dirY = sin(aim)
 
@@ -57,6 +60,7 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
                 ammo.ammoBeam--
                 cd.shoot = def.fireRate * mods.fireMul
                 val hit = BeamRay.cast(map, t.x, t.y, dirX, dirY, 700f)
+                fx.spawnBeam(t.x, t.y, t.x + dirX * hit.reach, t.y + dirY * hit.reach)
 
                 // --- Beam vs mob: query mobs near the ray, check projection + perpendicular distance ---
                 // Port of legacy combat.js beam mob loop (lines ~185-205). Single hit (multi-hit is a later refinement).

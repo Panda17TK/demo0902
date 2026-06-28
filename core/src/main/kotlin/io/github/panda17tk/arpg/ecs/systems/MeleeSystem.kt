@@ -9,6 +9,7 @@ import io.github.panda17tk.arpg.config.GameConfig
 import io.github.panda17tk.arpg.ecs.components.Body
 import io.github.panda17tk.arpg.ecs.components.Cooldowns
 import io.github.panda17tk.arpg.ecs.components.Facing
+import io.github.panda17tk.arpg.ecs.components.Fx
 import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Mob
 import io.github.panda17tk.arpg.ecs.components.MobAction
@@ -17,6 +18,7 @@ import io.github.panda17tk.arpg.ecs.components.PlayerTag
 import io.github.panda17tk.arpg.ecs.components.Stamina
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.ecs.components.Velocity
+import io.github.panda17tk.arpg.ecs.world.Pickups
 import io.github.panda17tk.arpg.input.InputState
 import io.github.panda17tk.arpg.map.Tile
 import io.github.panda17tk.arpg.map.TileMap
@@ -37,6 +39,7 @@ class MeleeSystem(private val mobGrid: SpatialGrid<Entity>) :
     private val map: TileMap = world.inject()
     private val config: GameConfig = world.inject()
     private val rng: Rng = world.inject()
+    private val fx: Fx = world.inject()
 
     override fun onTickEntity(entity: Entity) {
         val cd = entity[Cooldowns]
@@ -45,6 +48,7 @@ class MeleeSystem(private val mobGrid: SpatialGrid<Entity>) :
 
         val t = entity[Transform]; val f = entity[Facing]; val s = entity[Stamina]; val mods = entity[Mods]
         cd.melee = config.player.meleeCd
+        fx.spawnSlash(t.x, t.y, atan2(f.y, f.x))
         val outcome = MeleeResolve.resolve(if (s.max > 0f) s.value / s.max else 1f, config.player)
 
         // Break destructible walls in the front 3x3 (legacy melee.js)
@@ -52,7 +56,9 @@ class MeleeSystem(private val mobGrid: SpatialGrid<Entity>) :
         val fty = floor((t.y + f.y * Tuning.MELEE_WALL_OFFSET) / Tuning.TILE).toInt()
         for (oy in -1..1) for (ox in -1..1) {
             val tx = ftx + ox; val ty = fty + oy
-            if (map.tileAt(tx, ty) == Tile.WALL) Tiles.damageTile(map, tx, ty, outcome.dmg)
+            if (map.tileAt(tx, ty) == Tile.WALL && Tiles.damageTile(map, tx, ty, outcome.dmg).broke) {
+                Pickups.dropOnWall(world, rng, (tx + 0.5f) * Tuning.TILE, (ty + 0.5f) * Tuning.TILE)
+            }
         }
 
         // --- Melee vs mob: 180° arc at meleeReach (legacy melee.js meleeHit) ---
