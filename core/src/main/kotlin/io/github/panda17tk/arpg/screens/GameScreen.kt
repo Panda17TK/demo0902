@@ -442,7 +442,7 @@ class GameScreen : ScreenAdapter() {
     private fun labelOf(b: TouchButton): String = when (b) {
         TouchButton.FIRE -> "射撃"
         TouchButton.MELEE -> "近接"
-        TouchButton.DASH -> "回避"
+        TouchButton.DASH -> "ダッシュ"
         TouchButton.RELOAD -> "装填"
         TouchButton.WALL -> "壁"
         TouchButton.WEAPON -> "武器"

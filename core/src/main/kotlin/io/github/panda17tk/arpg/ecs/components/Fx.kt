@@ -62,6 +62,14 @@ class Fx(private val rng: Rng = Rng(0x5DEECE66DL)) {
     fun spawnBeam(sx: Float, sy: Float, ex: Float, ey: Float) { beams.add(Beam(sx, sy, ex, ey, 0f, 0.12f)) }
     fun spawnSlash(x: Float, y: Float, ang: Float) { slashes.add(Slash(x, y, ang, 0f, 0.18f)) }
     fun spawnAfterimage(x: Float, y: Float, w: Float, h: Float, color: Color) { afters.add(After(x, y, w, h, color, 0f, 0.25f)) }
+    /** Rock chips flung from a struck wall (gravity gibs). */
+    fun spawnChips(x: Float, y: Float, n: Int, color: Color) {
+        repeat(n) {
+            val a = rng.nextFloat() * TWO_PI
+            val sp = 50f + rng.nextFloat() * 90f
+            add(x, y, cos(a) * sp, sin(a) * sp - 30f, 0.3f + rng.nextFloat() * 0.22f, 1.4f + rng.nextFloat() * 1.6f, color, gravity = true)
+        }
+    }
 
     private fun add(x: Float, y: Float, vx: Float, vy: Float, life: Float, size: Float, color: Color, gravity: Boolean) {
         particles.add(Particle(x, y, vx, vy, 0f, life, size, color, gravity))

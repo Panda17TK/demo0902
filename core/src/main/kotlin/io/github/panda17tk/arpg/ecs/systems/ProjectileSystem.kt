@@ -38,6 +38,7 @@ class ProjectileSystem(private val mobGrid: SpatialGrid<Entity>) :
     private val config: GameConfig = world.inject()
     private val rng: Rng = world.inject()
     private val fx: Fx = world.inject()
+    private val chipColor = Color.valueOf("8a8076")
 
     private var pPlayerX = 0
     private var pPlayerY = 0
@@ -84,6 +85,7 @@ class ProjectileSystem(private val mobGrid: SpatialGrid<Entity>) :
 
             val wall = step.wallTile
             if (wall != null) {
+                fx.spawnChips(t.x, t.y, 5, chipColor)
                 if (Tiles.damageTile(map, wall.first, wall.second, b.dmg).broke) {
                     flow.rebuild(map, playerTileX(), playerTileY())
                     Pickups.dropOnWall(world, rng, (wall.first + 0.5f) * Tuning.TILE, (wall.second + 0.5f) * Tuning.TILE)
