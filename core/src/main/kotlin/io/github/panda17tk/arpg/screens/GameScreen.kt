@@ -10,7 +10,11 @@ import com.badlogic.gdx.utils.ScreenUtils
 import com.badlogic.gdx.utils.viewport.FitViewport
 import com.badlogic.gdx.utils.viewport.ScreenViewport
 import io.github.panda17tk.arpg.core.Constants
+import io.github.panda17tk.arpg.ecs.components.Ammo
+import io.github.panda17tk.arpg.ecs.components.Arsenal
+import io.github.panda17tk.arpg.ecs.components.Bullet
 import io.github.panda17tk.arpg.ecs.components.Facing
+import io.github.panda17tk.arpg.ecs.components.Grenade
 import io.github.panda17tk.arpg.ecs.components.Materials
 import io.github.panda17tk.arpg.ecs.components.Stamina
 import io.github.panda17tk.arpg.ecs.components.Transform
@@ -89,6 +93,15 @@ class GameScreen : ScreenAdapter() {
         // player
         shapes.color = Color(0.45f, 0.85f, 0.95f, 1f)
         shapes.circle(px, py, Tuning.PLAYER_RADIUS, 24)
+        // bullets (yellow) + grenades (red)
+        with(gw.world) {
+            gw.world.family { all(Bullet, Transform) }.forEach { e ->
+                val bt = e[Transform]; shapes.color = Color(1f, 0.95f, 0.5f, 1f); shapes.circle(bt.x, bt.y, 3f, 8)
+            }
+            gw.world.family { all(Grenade, Transform) }.forEach { e ->
+                val gt = e[Transform]; shapes.color = Color(1f, 0.5f, 0.4f, 1f); shapes.circle(gt.x, gt.y, 5f, 10)
+            }
+        }
         shapes.end()
 
         shapes.begin(ShapeRenderer.ShapeType.Line)
@@ -101,7 +114,12 @@ class GameScreen : ScreenAdapter() {
         batch.projectionMatrix = hudViewport.camera.combined
         batch.begin()
         val blocks = with(gw.world) { gw.player[Materials].blocks }
-        font.draw(batch, "WASD move  Shift dash  F wall($blocks)  STA ${sta.toInt()}/${Tuning.STA_MAX.toInt()}", 16f, 28f)
+        val arsenal = with(gw.world) { gw.player[Arsenal] }
+        val ammo = with(gw.world) { gw.player[Ammo] }
+        val w = arsenal.current
+        val magStr = w.def.magSize?.let { "${w.mag}/$it" } ?: "∞"
+        val reserve = ammo.get(w.def.ammoType)
+        font.draw(batch, "${w.def.name} $magStr (res $reserve)  STA ${sta.toInt()}  blk $blocks  [WASD/J/K/R/1-5/F]", 16f, 28f)
         batch.end()
         shapes.projectionMatrix = hudViewport.camera.combined
         shapes.begin(ShapeRenderer.ShapeType.Filled)
