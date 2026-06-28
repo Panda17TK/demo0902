@@ -108,6 +108,7 @@ class GameScreen : ScreenAdapter() {
     private val cPanel = Color(0.05f, 0.07f, 0.10f, 0.72f)
     private val cBarBg = Color(0.2f, 0.2f, 0.25f, 0.9f)
     private val cSta = Color.valueOf("4da6ff")
+    private val cOverheat = Color.valueOf("ff5a3a")
     private val cHpHi = Color.valueOf("7fe08a")
     private val cHpLo = Color.valueOf("e0786a")
     private val glyphLayout = GlyphLayout()
@@ -173,12 +174,12 @@ class GameScreen : ScreenAdapter() {
         val alpha = (accumulator / Constants.FIXED_DT).coerceIn(0f, 1f)
 
         // interpolated player position + state
-        val px: Float; val py: Float; val fx: Float; val fy: Float; val sta: Float; val staMax: Float; val pit: Float
+        val px: Float; val py: Float; val fx: Float; val fy: Float; val sta: Float; val staMax: Float; val pit: Float; val overheat: Boolean
         with(gw.world) {
             val t = gw.player[Transform]; val f = gw.player[Facing]; val s = gw.player[Stamina]
             px = t.prevX + (t.x - t.prevX) * alpha
             py = t.prevY + (t.y - t.prevY) * alpha
-            fx = f.x; fy = f.y; sta = s.value; staMax = s.max; pit = gw.player[Health].iTime
+            fx = f.x; fy = f.y; sta = s.value; staMax = s.max; pit = gw.player[Health].iTime; overheat = s.overheat
         }
         val playerHit = pit > 0f && ((pit * 20f).toInt() % 2 == 0)
         val dashing = input.dash && sta > 0f
@@ -196,7 +197,14 @@ class GameScreen : ScreenAdapter() {
         // world (procedural sprites — ported from legacy renderer.js + enemy-sprites.js)
         Gdx.gl.glEnable(GL20.GL_BLEND)
         shapes.begin(ShapeRenderer.ShapeType.Filled)
-        WorldView.draw(shapes, gw.map)
+        // cull tiles to the visible camera region (big maps)
+        val vt = Tuning.TILE
+        val vhw = camera.viewportWidth / 2f + vt; val vhh = camera.viewportHeight / 2f + vt
+        val minTx = maxOf(0, ((camera.position.x - vhw) / vt).toInt())
+        val maxTx = minOf(gw.map.width - 1, ((camera.position.x + vhw) / vt).toInt())
+        val minTy = maxOf(0, ((camera.position.y - vhh) / vt).toInt())
+        val maxTy = minOf(gw.map.height - 1, ((camera.position.y + vhh) / vt).toInt())
+        WorldView.draw(shapes, gw.map, minTx, maxTx, minTy, maxTy)
         with(gw.world) {
             gw.world.family { all(Mob, Transform, Health, Facing, Velocity, MobAction) }.forEach { e ->
                 val mt = e[Transform]; val mm = e[Mob]; val mh = e[Health]; val mf = e[Facing]; val mv = e[Velocity]; val ma = e[MobAction]
@@ -293,7 +301,7 @@ class GameScreen : ScreenAdapter() {
         shapes.begin(ShapeRenderer.ShapeType.Filled)
         shapes.color = cPanel; shapes.rect(8f, hudH - 120f, minOf(420f, hudW - 16f), 112f)
         shapes.color = cBarBg; shapes.rect(12f, hudH - 88f, barW, 9f)
-        shapes.color = cSta; shapes.rect(12f, hudH - 88f, barW * (if (staMax > 0f) (sta / staMax).coerceIn(0f, 1f) else 0f), 9f)
+        shapes.color = if (overheat) cOverheat else cSta; shapes.rect(12f, hudH - 88f, barW * (if (staMax > 0f) (sta / staMax).coerceIn(0f, 1f) else 0f), 9f)
         shapes.color = cBarBg; shapes.rect(12f, hudH - 104f, barW, 9f)
         shapes.color = if (hp > hpMax * 0.3f) cHpHi else cHpLo; shapes.rect(12f, hudH - 104f, barW * (if (hpMax > 0f) (hp / hpMax).coerceIn(0f, 1f) else 0f), 9f)
         shapes.end()
@@ -303,7 +311,7 @@ class GameScreen : ScreenAdapter() {
         font.draw(batch, "ウェーブ ${gw.waveState.num}    残り $foes    ${w.def.name} $magStr${if (w.reloadT > 0f) "  装填中…" else ""}", 14f, hudH - 16f)
         font.draw(batch, "予備 9mm${ammo.ammo9} 12g${ammo.ammo12} ﾋﾞｰﾑ${ammo.ammoBeam} 榴${ammo.ammoNade}", 14f, hudH - 44f)
         font.draw(batch, "時間 %d:%02d    撃破 %d    資材 %d".format(mins, secs, gw.gameOver.kills, blocks), 14f, hudH - 70f)
-        font.draw(batch, "スタ", 18f + barW, hudH - 86f)
+        font.draw(batch, if (overheat) "過熱!" else "スタ", 18f + barW, hudH - 86f)
         font.draw(batch, "HP ${hp.toInt()}/${hpMax.toInt()}", 18f + barW, hudH - 102f)
         batch.end()
 
@@ -431,7 +439,7 @@ class GameScreen : ScreenAdapter() {
             shapes.circle(touch.aimBaseX + ax, touch.aimBaseY + ay, l.stickRadius * 0.42f, 18)
         }
         shapes.color = Color(1f, 1f, 1f, 0.14f)
-        for (b in l.all()) shapes.circle(l.centerX(b), l.centerY(b), l.buttonRadius, 22)
+        for (b in l.all()) shapes.circle(l.centerX(b), l.centerY(b), l.radiusOf(b), 22)
         shapes.end()
         batch.projectionMatrix = hudViewport.camera.combined
         batch.begin()

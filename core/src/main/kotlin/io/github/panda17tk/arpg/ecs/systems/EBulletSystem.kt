@@ -1,15 +1,18 @@
 package io.github.panda17tk.arpg.ecs.systems
 
+import com.badlogic.gdx.graphics.Color
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.IteratingSystem
 import com.github.quillraven.fleks.World.Companion.family
 import io.github.panda17tk.arpg.ecs.components.Body
 import io.github.panda17tk.arpg.ecs.components.EBullet
+import io.github.panda17tk.arpg.ecs.components.Fx
 import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.PlayerTag
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.ecs.components.Velocity
 import io.github.panda17tk.arpg.map.TileMap
+import io.github.panda17tk.arpg.math.Rng
 import io.github.panda17tk.arpg.sim.Tuning
 import kotlin.math.abs
 import kotlin.math.atan2
@@ -21,6 +24,9 @@ import kotlin.math.sin
 /** Enemy bullet update (legacy updateEnemyBullets): homing/move, despawn on wall/expiry, damage the player. */
 class EBulletSystem : IteratingSystem(family { all(EBullet, Transform) }) {
     private val map: TileMap = world.inject()
+    private val rng: Rng = world.inject()
+    private val fx: Fx = world.inject()
+    private val deflectColor = Color.valueOf("9ec5ff")
     private val players by lazy { world.family { all(PlayerTag, Transform, Health, Velocity, Body) } }
 
     override fun onTickEntity(entity: Entity) {
@@ -28,8 +34,8 @@ class EBulletSystem : IteratingSystem(family { all(EBullet, Transform) }) {
         val b = entity[EBullet]
         val dt = deltaTime
 
-        var pt: Transform? = null; var ph: Health? = null; var pv: Velocity? = null; var pb: Body? = null
-        players.forEach { e -> pt = e[Transform]; ph = e[Health]; pv = e[Velocity]; pb = e[Body] }
+        var pt: Transform? = null; var ph: Health? = null; var pv: Velocity? = null; var pb: Body? = null; var pdash = false
+        players.forEach { e -> pt = e[Transform]; ph = e[Health]; pv = e[Velocity]; pb = e[Body]; pdash = e[PlayerTag].dashing }
 
         if (b.homing > 0f && pt != null) {
             val twoPi = (Math.PI * 2.0).toFloat()
@@ -52,6 +58,15 @@ class EBulletSystem : IteratingSystem(family { all(EBullet, Transform) }) {
         if (p != null && h != null && vel != null && body != null) {
             val hitR = if (b.mine) 14f else 3f
             if (abs(p.x - t.x) < body.halfW + hitR && abs(p.y - t.y) < body.halfH + hitR) {
+                if (pdash && rng.nextFloat() < 0.30f) { // dashing → 30% chance to deflect (no damage)
+                    val d = hypot(t.x - p.x, t.y - p.y).coerceAtLeast(0.0001f)
+                    val nx = (t.x - p.x) / d; val ny = (t.y - p.y) / d
+                    val sp = hypot(b.vx, b.vy).coerceAtLeast(220f) * 1.3f
+                    b.vx = nx * sp; b.vy = ny * sp; b.homing = 0f
+                    t.x += nx * 10f; t.y += ny * 10f
+                    fx.spawnSparks(t.x, t.y, 6, deflectColor)
+                    return
+                }
                 if (h.iTime <= 0f) {
                     h.hp -= b.dmg; h.iTime = 0.8f
                     val d = hypot(p.x - t.x, p.y - t.y).coerceAtLeast(0.0001f)

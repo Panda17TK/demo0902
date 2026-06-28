@@ -9,6 +9,7 @@ import io.github.panda17tk.arpg.combat.MobDamage
 import io.github.panda17tk.arpg.config.GameConfig
 import io.github.panda17tk.arpg.ecs.components.Body
 import io.github.panda17tk.arpg.ecs.components.Cooldowns
+import io.github.panda17tk.arpg.ecs.components.EBullet
 import io.github.panda17tk.arpg.ecs.components.Facing
 import io.github.panda17tk.arpg.ecs.components.Fx
 import io.github.panda17tk.arpg.ecs.components.Health
@@ -42,6 +43,8 @@ class MeleeSystem(private val mobGrid: SpatialGrid<Entity>) :
     private val rng: Rng = world.inject()
     private val fx: Fx = world.inject()
     private val chipColor = Color.valueOf("8a8076")
+    private val deflectColor = Color.valueOf("9ec5ff")
+    private val ebullets by lazy { world.family { all(EBullet, Transform) } }
 
     override fun onTickEntity(entity: Entity) {
         val cd = entity[Cooldowns]
@@ -49,6 +52,7 @@ class MeleeSystem(private val mobGrid: SpatialGrid<Entity>) :
         if (!input.melee || cd.melee > 0f) return
 
         val t = entity[Transform]; val f = entity[Facing]; val s = entity[Stamina]; val mods = entity[Mods]
+        if (s.overheat) return // no stamina actions while overheated
         cd.melee = config.player.meleeCd
         fx.spawnSlash(t.x, t.y, atan2(f.y, f.x))
         val outcome = MeleeResolve.resolve(if (s.max > 0f) s.value / s.max else 1f, config.player)
@@ -86,8 +90,19 @@ class MeleeSystem(private val mobGrid: SpatialGrid<Entity>) :
                     val mobDodge = with(world) { mobEntity[Mob].def.dodge }
                     val nx = if (dist > 0f) ddx / dist else 1f
                     val ny = if (dist > 0f) ddy / dist else 0f
-                    MobDamage.hurt(mobH, mobV, mobA, mobDodge, outcome.dmg * mods.meleeMul, nx, ny, 240f, rng.nextFloat())
+                    MobDamage.hurt(mobH, mobV, mobA, mobDodge, outcome.dmg * mods.meleeMul, nx, ny, 450f, rng.nextFloat())
                 }
+            }
+        }
+        // deflect enemy bullets caught in the swing arc
+        ebullets.forEach { be ->
+            val bt = with(world) { be[Transform] }
+            val bdx = bt.x - t.x; val bdy = bt.y - t.y
+            val bdist = hypot(bdx, bdy)
+            if (bdist < reach + 8f) {
+                val bang = atan2(bdy, bdx) - faceAng
+                val ba = abs(((bang + 3f * PI.toFloat()) % (2f * PI.toFloat())) - PI.toFloat())
+                if (ba <= arc / 2f) { world -= be; fx.spawnSparks(bt.x, bt.y, 6, deflectColor) }
             }
         }
     }

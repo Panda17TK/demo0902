@@ -148,9 +148,9 @@ object Stages {
 
     // --- Space / asteroid-belt stages (large open arenas strewn with rocks). Gameplay uses these. ---
     private val SPACE: List<StageDef> = listOf(
-        asteroid("belt1", "アステロイドベルト α", 58, 58, 1L),
-        asteroid("belt2", "アステロイドベルト β", 66, 50, 2L),
-        asteroid("belt3", "アステロイドベルト γ", 50, 66, 3L),
+        asteroid("belt1", "アステロイドベルト α", 232, 232, 1L), // ~16x area
+        asteroid("belt2", "アステロイドベルト β", 264, 200, 2L),
+        asteroid("belt3", "アステロイドベルト γ", 200, 264, 3L),
     )
 
     fun byId(id: String?): StageDef = (ALL + SPACE).firstOrNull { it.id == id } ?: SPACE[0]
@@ -179,7 +179,7 @@ object Stages {
             }
         }
         g[pcy][pcx] = 'P'
-        repeat((w * h) / 240) {
+        repeat(14 + rng.nextInt(8)) { // cap initial enemies regardless of map size (waves add more)
             val ex = 2 + rng.nextInt(w - 4); val ey = 2 + rng.nextInt(h - 4)
             if (g[ey][ex] == '.' && (abs(ex - pcx) > 7 || abs(ey - pcy) > 7)) g[ey][ex] = if (rng.nextFloat() < 0.5f) 'Z' else 'T'
         }

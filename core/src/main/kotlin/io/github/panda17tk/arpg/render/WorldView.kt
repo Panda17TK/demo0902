@@ -23,10 +23,10 @@ object WorldView {
     private val DOOR = Color.valueOf("3b2a1a")
     private val DOOR_FRAME = Color.valueOf("6b4c2b")
 
-    fun draw(s: ShapeRenderer, map: TileMap) {
+    fun draw(s: ShapeRenderer, map: TileMap, minTx: Int, maxTx: Int, minTy: Int, maxTy: Int) {
         val t = Tuning.TILE
         val ti = t.toInt()
-        for (ty in 0 until map.height) for (tx in 0 until map.width) {
+        for (ty in minTy..maxTy) for (tx in minTx..maxTx) {
             val px = tx * t; val py = ty * t
             val hsh = (tx * 73856093) xor (ty * 19349663)
             when (map.tileAt(tx, ty)) {

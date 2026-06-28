@@ -31,12 +31,16 @@ class TouchLayout(var screenW: Float = 0f, var screenH: Float = 0f) {
     fun isInStickZone(x: Float, y: Float): Boolean = x < screenW * 0.45f
 
     /** Which action button (if any) contains the point. Returns null inside the stick zone. */
+    /** Dash / weapon / reload are a touch larger for easier tapping. */
+    fun radiusOf(b: TouchButton): Float =
+        buttonRadius * if (b == TouchButton.DASH || b == TouchButton.WEAPON || b == TouchButton.RELOAD) 1.18f else 1f
+
     fun button(x: Float, y: Float): TouchButton? {
         if (x < screenW * 0.45f) return null
-        val r2 = buttonRadius * buttonRadius
         for ((b, fx, fy) in buttons) {
+            val rr = radiusOf(b)
             val dx = x - fx * screenW; val dy = y - fy * screenH
-            if (dx * dx + dy * dy <= r2) return b
+            if (dx * dx + dy * dy <= rr * rr) return b
         }
         return null
     }
