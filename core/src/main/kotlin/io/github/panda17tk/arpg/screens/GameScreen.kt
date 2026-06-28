@@ -16,7 +16,9 @@ import io.github.panda17tk.arpg.ecs.components.Arsenal
 import io.github.panda17tk.arpg.ecs.components.Bullet
 import io.github.panda17tk.arpg.ecs.components.Facing
 import io.github.panda17tk.arpg.ecs.components.Grenade
+import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Materials
+import io.github.panda17tk.arpg.ecs.components.Mob
 import io.github.panda17tk.arpg.ecs.components.Stamina
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.ecs.world.GameWorld
@@ -93,6 +95,14 @@ class GameScreen : ScreenAdapter() {
                            else Color(0.22f, 0.24f, 0.32f, 1f)
             shapes.rect(tx * Tuning.TILE, ty * Tuning.TILE, Tuning.TILE, Tuning.TILE)
         }
+        // mobs
+        with(gw.world) {
+            gw.world.family { all(Mob, Transform, Health) }.forEach { e ->
+                val mt = e[Transform]; val mm = e[Mob]; val mh = e[Health]
+                shapes.color = if (mh.hitFlash > 0f) Color.WHITE else Color.valueOf(mm.def.color)
+                shapes.circle(mt.x, mt.y, mm.def.w / 2f, 16)
+            }
+        }
         // player
         shapes.color = Color(0.45f, 0.85f, 0.95f, 1f)
         shapes.circle(px, py, Tuning.PLAYER_RADIUS, 24)
@@ -119,10 +129,11 @@ class GameScreen : ScreenAdapter() {
         val blocks = with(gw.world) { gw.player[Materials].blocks }
         val arsenal = with(gw.world) { gw.player[Arsenal] }
         val ammo = with(gw.world) { gw.player[Ammo] }
+        val hp = with(gw.world) { gw.player[Health].hp }
         val w = arsenal.current
         val magStr = w.def.magSize?.let { "${w.mag}/$it" } ?: "∞"
         val reserve = ammo.get(w.def.ammoType)
-        font.draw(batch, "${w.def.name} $magStr (res $reserve)  STA ${sta.toInt()}  blk $blocks  [WASD/J/K/R/1-5/F]", 16f, 28f)
+        font.draw(batch, "${w.def.name} $magStr (res $reserve)  STA ${sta.toInt()}  blk $blocks  HP ${hp.toInt()}  [WASD/J/K/R/1-5/F]", 16f, 28f)
         batch.end()
         shapes.projectionMatrix = hudViewport.camera.combined
         shapes.begin(ShapeRenderer.ShapeType.Filled)
