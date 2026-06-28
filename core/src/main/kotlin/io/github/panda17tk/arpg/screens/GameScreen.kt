@@ -1,5 +1,6 @@
 package io.github.panda17tk.arpg.screens
 
+import com.badlogic.gdx.Application
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
 import com.badlogic.gdx.ScreenAdapter
@@ -12,6 +13,7 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.utils.ScreenUtils
 import com.badlogic.gdx.utils.viewport.FitViewport
 import com.badlogic.gdx.utils.viewport.ScreenViewport
+import io.github.panda17tk.arpg.audio.Sfx
 import io.github.panda17tk.arpg.config.ConfigStore
 import io.github.panda17tk.arpg.core.Constants
 import io.github.panda17tk.arpg.ecs.components.Ammo
@@ -29,13 +31,17 @@ import io.github.panda17tk.arpg.ecs.components.Stamina
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.ecs.world.GameWorld
 import io.github.panda17tk.arpg.ecs.world.WorldFactory
+import io.github.panda17tk.arpg.input.Haptics
 import io.github.panda17tk.arpg.input.InputState
 import io.github.panda17tk.arpg.input.KeyboardInput
+import io.github.panda17tk.arpg.input.TouchButton
+import io.github.panda17tk.arpg.input.TouchControls
 import io.github.panda17tk.arpg.map.Tile
 import io.github.panda17tk.arpg.math.Rng
 import io.github.panda17tk.arpg.sim.Tuning
 import io.github.panda17tk.arpg.upgrade.Upgrade
 import io.github.panda17tk.arpg.upgrade.Upgrades
+import kotlin.math.hypot
 import kotlin.math.pow
 
 /**
@@ -69,6 +75,12 @@ class GameScreen : ScreenAdapter() {
 
     // Phase 7: screen-shake trigger — compare HP frame-to-frame to detect the player taking damage.
     private var lastHp = Float.NaN
+    private var lastKills = 0
+    private var prevOver = false
+
+    // Phase 8: on-screen controls (Android only) + audio service.
+    private val touch = TouchControls()
+    private var touchEnabled = false
 
     override fun show() {
         configStore.loadFromDisk()
@@ -78,6 +90,8 @@ class GameScreen : ScreenAdapter() {
         camera = OrthographicCamera().apply { setToOrtho(true, Tuning.VIEW_W, Tuning.VIEW_H) } // y-down
         worldViewport = FitViewport(Tuning.VIEW_W, Tuning.VIEW_H, camera)
         hudViewport = ScreenViewport()
+        Sfx.init()
+        touchEnabled = Gdx.app.type == Application.ApplicationType.Android
         newRun()
     }
 
@@ -90,17 +104,22 @@ class GameScreen : ScreenAdapter() {
         offered = false
         choices = emptyList()
         lastHp = Float.NaN
+        lastKills = 0
+        prevOver = false
     }
 
     override fun render(delta: Float) {
         KeyboardInput.poll(input)
+        if (touchEnabled) touch.poll(input, hudViewport.worldWidth, hudViewport.worldHeight)
         if (gw.gameOver.isOver) {
             accumulator = 0f
+            if (!prevOver) { Sfx.play("dead"); Haptics.buzz(140) }
             if (Gdx.input.isKeyJustPressed(Input.Keys.R)) { newRun(); return }
         } else {
             updateUpgradeFlow(delta)
             trackPlayerHitShake()
         }
+        prevOver = gw.gameOver.isOver
         gw.fx.update(delta)
         val alpha = (accumulator / Constants.FIXED_DT).coerceIn(0f, 1f)
 
@@ -194,14 +213,18 @@ class GameScreen : ScreenAdapter() {
         shapes.rect(16f, 40f, 200f * (sta / staMax), 10f)
         shapes.end()
 
+        if (touchEnabled && !choosing && !gw.gameOver.isOver) drawTouchControls()
         if (choosing) drawUpgradeCards()
         if (gw.gameOver.isOver) drawGameOver()
     }
 
     private fun trackPlayerHitShake() {
         val hp = with(gw.world) { gw.player[Health].hp }
-        if (!lastHp.isNaN() && hp < lastHp - 0.01f) gw.fx.addShake(0.18f, 6f)
+        if (!lastHp.isNaN() && hp < lastHp - 0.01f) { gw.fx.addShake(0.18f, 6f); Sfx.play("hit"); Haptics.buzz(25) }
         lastHp = hp
+        val kills = gw.gameOver.kills
+        if (kills > lastKills) Sfx.play("kill")
+        lastKills = kills
     }
 
     /**
@@ -233,6 +256,7 @@ class GameScreen : ScreenAdapter() {
         with(gw.world) {
             Upgrades.apply(u.id, cfg, gw.player[Mods], gw.player[Health], gw.player[Ammo], gw.player[Materials])
         }
+        Sfx.play("levelup")
     }
 
     private fun drawUpgradeCards() {
@@ -284,6 +308,39 @@ class GameScreen : ScreenAdapter() {
         batch.end()
     }
 
+    private fun drawTouchControls() {
+        val l = touch.layout
+        Gdx.gl.glEnable(GL20.GL_BLEND)
+        shapes.projectionMatrix = hudViewport.camera.combined
+        shapes.begin(ShapeRenderer.ShapeType.Line)
+        shapes.color = Color(1f, 1f, 1f, 0.35f)
+        shapes.circle(l.stickCx, l.stickCy, l.stickRadius, 24)
+        for (b in l.all()) shapes.circle(l.centerX(b), l.centerY(b), l.buttonRadius, 18)
+        shapes.end()
+        if (touch.stickActive) {
+            shapes.begin(ShapeRenderer.ShapeType.Filled)
+            shapes.color = Color(1f, 1f, 1f, 0.45f)
+            var kx = touch.knobX - touch.baseX; var ky = touch.knobY - touch.baseY
+            val len = hypot(kx, ky); val max = l.stickRadius
+            if (len > max) { kx = kx / len * max; ky = ky / len * max }
+            shapes.circle(l.stickCx + kx, l.stickCy + ky, l.stickRadius * 0.4f, 16)
+            shapes.end()
+        }
+        batch.projectionMatrix = hudViewport.camera.combined
+        batch.begin()
+        for (b in l.all()) font.draw(batch, labelOf(b), l.centerX(b) - 14f, l.centerY(b) + 6f)
+        batch.end()
+    }
+
+    private fun labelOf(b: TouchButton): String = when (b) {
+        TouchButton.FIRE -> "FIRE"
+        TouchButton.MELEE -> "ML"
+        TouchButton.DASH -> "DASH"
+        TouchButton.RELOAD -> "RL"
+        TouchButton.WALL -> "WALL"
+        TouchButton.WEAPON -> "WPN"
+    }
+
     private fun step(delta: Float) {
         val dt = minOf(Constants.MAX_DT, delta)
         accumulator += dt
@@ -316,5 +373,6 @@ class GameScreen : ScreenAdapter() {
         shapes.dispose()
         batch.dispose()
         font.dispose()
+        Sfx.dispose()
     }
 }
