@@ -7,6 +7,7 @@ import io.github.panda17tk.arpg.ecs.components.Body
 import io.github.panda17tk.arpg.ecs.components.Facing
 import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Mob
+import io.github.panda17tk.arpg.ecs.components.MobAction
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.ecs.components.Velocity
 
@@ -23,9 +24,10 @@ object MobFactory {
             it += Velocity()
             it += Facing()
             it += Mob(
-                kind = "${def.name}", def = def, speed = def.speed * ss,
+                kind = def.name, def = def, speed = def.speed * ss,
                 attackCd = FloatArray(def.attacks.size),
             )
+            it += MobAction()
         }
     }
 }

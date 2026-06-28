@@ -11,6 +11,15 @@ data class AttackSpec(
     val range: Float = 0f,
     val arc: Float = 360f,
     val speed: Float = 0f,
+    val power: Float = 0f,
+    val windup: Float = 0.7f,
+    val reach: Float = 0f,
+    val maxTiles: Int = 5,
+    val dur: Float = 0.1f,
+    val minDist: Float = 60f,
+    val standoff: Float = 28f,
+    val kb: Float = 240f,
+    val life: Float = 1.6f,
 )
 
 /** Enemy archetype (legacy CONFIG.enemies entry). tier: normal/midboss/boss. */
@@ -26,4 +35,5 @@ data class EnemyDef(
     val seeRange: Float = 240f,
     val contactKB: Float = 220f,
     val attacks: List<AttackSpec> = emptyList(),
+    val dodge: DodgeSpec? = null,
 )
