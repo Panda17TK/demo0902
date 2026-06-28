@@ -7,47 +7,48 @@ import io.github.panda17tk.arpg.map.TileMap
 import io.github.panda17tk.arpg.sim.Tuning
 
 /**
- * Procedural floor/wall rendering ported from legacy renderer.js tile loop. Call inside a Filled
- * pass with GL blending enabled (the floor edges/specks use alpha). World is y-down.
+ * Space / asteroid-belt world rendering: a dark deterministic starfield floor and rocky asteroid
+ * walls (rounded rock per tile + craters, mottled by a per-tile hash). Call inside a Filled pass
+ * with GL blending enabled. World is y-down.
  */
 object WorldView {
-    private val FLOOR_A = Color.valueOf("141b25")
-    private val FLOOR_B = Color.valueOf("121823")
-    private val WALL_OUT = Color.valueOf("1b2735")
-    private val WALL_IN = Color.valueOf("0f1620")
+    private val SPACE_A = Color.valueOf("070a12")
+    private val SPACE_B = Color.valueOf("0a0e18")
+    private val STARS = arrayOf(Color.valueOf("ffffff"), Color.valueOf("9ec5ff"), Color.valueOf("ffe6b0"), Color.valueOf("cbb8ff"))
+    private val ROCKS = arrayOf(Color.valueOf("6b6358"), Color.valueOf("5d564c"), Color.valueOf("776c5d"), Color.valueOf("534b42"))
+    private val CRATER = Color.valueOf("38322b")
     private val DOOR = Color.valueOf("3b2a1a")
     private val DOOR_FRAME = Color.valueOf("6b4c2b")
-    private val EDGE = Color(0f, 0f, 0f, 0.22f)
-    private val SPECK = Color(1f, 1f, 1f, 0.05f)
 
     fun draw(s: ShapeRenderer, map: TileMap) {
         val t = Tuning.TILE
         val ti = t.toInt()
         for (ty in 0 until map.height) for (tx in 0 until map.width) {
             val px = tx * t; val py = ty * t
+            val hsh = (tx * 73856093) xor (ty * 19349663)
             when (map.tileAt(tx, ty)) {
                 Tile.WALL -> {
-                    s.color = WALL_OUT; s.rect(px, py, t, t)
-                    s.color = WALL_IN; s.rect(px + 2f, py + 2f, t - 4f, t - 4f)
+                    s.color = ROCKS[Math.floorMod(hsh, ROCKS.size)]
+                    Draw.roundedRect(s, px + 1f, py + 1f, t - 2f, t - 2f, 7f)
+                    s.color = CRATER
+                    s.circle(px + 7f + Math.floorMod(hsh, 12).toFloat(), py + 7f + Math.floorMod(hsh ushr 3, 12).toFloat(), 2.6f, 7)
+                    if (Math.floorMod(hsh, 3) == 0) {
+                        s.circle(px + t - 9f - Math.floorMod(hsh ushr 5, 5).toFloat(), py + t - 9f - Math.floorMod(hsh ushr 7, 5).toFloat(), 1.7f, 6)
+                    }
                 }
                 Tile.DOOR -> {
                     s.color = DOOR; s.rect(px, py, t, t)
                     s.color = DOOR_FRAME
-                    s.rect(px + 6f, py + 4f, t - 12f, 1.5f)
-                    s.rect(px + 6f, py + t - 5.5f, t - 12f, 1.5f)
-                    s.rect(px + 6f, py + 4f, 1.5f, t - 8f)
-                    s.rect(px + t - 7.5f, py + 4f, 1.5f, t - 8f)
+                    s.rect(px + 6f, py + 4f, t - 12f, 1.5f); s.rect(px + 6f, py + t - 5.5f, t - 12f, 1.5f)
+                    s.rect(px + 6f, py + 4f, 1.5f, t - 8f); s.rect(px + t - 7.5f, py + 4f, 1.5f, t - 8f)
                 }
                 else -> {
-                    s.color = if (((tx + ty) and 1) == 0) FLOOR_A else FLOOR_B
+                    s.color = if (((tx + ty) and 1) == 0) SPACE_A else SPACE_B
                     s.rect(px, py, t, t)
-                    s.color = EDGE
-                    s.rect(px, py, t, 1f)
-                    s.rect(px, py, 1f, t)
-                    val hsh = (tx * 73856093) xor (ty * 19349663)
-                    if (Math.floorMod(hsh, 7) == 0) {
-                        s.color = SPECK
-                        s.rect(px + Math.floorMod(hsh, ti).toFloat(), py + Math.floorMod(hsh shr 3, ti).toFloat(), 2f, 2f)
+                    if (Math.floorMod(hsh, 9) == 0) {
+                        s.color = STARS[Math.floorMod(hsh ushr 4, STARS.size)]
+                        val sz = if (Math.floorMod(hsh, 47) == 0) 2.4f else 1.3f
+                        s.circle(px + Math.floorMod(hsh, ti).toFloat(), py + Math.floorMod(hsh ushr 3, ti).toFloat(), sz, 6)
                     }
                 }
             }

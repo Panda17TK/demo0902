@@ -14,13 +14,13 @@ class TouchLayout(var screenW: Float = 0f, var screenH: Float = 0f) {
     val stickCy get() = screenH * 0.16f
     val buttonRadius get() = minDim * 0.062f
 
-    /** Twin-stick: fire is the right aim stick, so only secondary actions are buttons (top-right). */
+    /** Twin-stick: fire is the right aim stick; secondary actions in a bottom-right grid (thumb-reach). */
     private val buttons = listOf(
-        Triple(TouchButton.DASH, 0.93f, 0.88f),
-        Triple(TouchButton.MELEE, 0.80f, 0.88f),
-        Triple(TouchButton.RELOAD, 0.93f, 0.74f),
-        Triple(TouchButton.WALL, 0.80f, 0.74f),
-        Triple(TouchButton.WEAPON, 0.865f, 0.60f),
+        Triple(TouchButton.DASH, 0.93f, 0.10f),
+        Triple(TouchButton.RELOAD, 0.78f, 0.10f),
+        Triple(TouchButton.WEAPON, 0.93f, 0.23f),
+        Triple(TouchButton.MELEE, 0.78f, 0.23f),
+        Triple(TouchButton.WALL, 0.855f, 0.36f),
     )
 
     fun all(): List<TouchButton> = buttons.map { it.first }

@@ -1,6 +1,7 @@
 package io.github.panda17tk.arpg.map
 
 import io.github.panda17tk.arpg.math.Rng
+import kotlin.math.abs
 
 object Stages {
     private val DEFAULT_LEGEND: Map<Char, LegendEntry> = mapOf(
@@ -145,12 +146,43 @@ object Stages {
         ),
     )
 
-    fun byId(id: String?): StageDef = ALL.firstOrNull { it.id == id } ?: ALL[0]
+    // --- Space / asteroid-belt stages (large open arenas strewn with rocks). Gameplay uses these. ---
+    private val SPACE: List<StageDef> = listOf(
+        asteroid("belt1", "アステロイドベルト α", 58, 58, 1L),
+        asteroid("belt2", "アステロイドベルト β", 66, 50, 2L),
+        asteroid("belt3", "アステロイドベルト γ", 50, 66, 3L),
+    )
 
-    /** Random stage, avoiding [avoid] when possible (legacy randomMapId). */
+    fun byId(id: String?): StageDef = (ALL + SPACE).firstOrNull { it.id == id } ?: SPACE[0]
+
+    /** Random space stage (used in-game), avoiding [avoid] when possible. */
     fun random(rng: Rng, avoid: String? = null): StageDef {
-        if (ALL.size <= 1) return ALL[0]
-        val pool = if (avoid != null) ALL.filter { it.id != avoid }.ifEmpty { ALL } else ALL
+        if (SPACE.size <= 1) return SPACE[0]
+        val pool = if (avoid != null) SPACE.filter { it.id != avoid }.ifEmpty { SPACE } else SPACE
         return pool[rng.nextInt(pool.size)]
+    }
+
+    /** Procedurally build a large open arena scattered with asteroid clusters + enemies (deterministic). */
+    private fun asteroid(id: String, name: String, w: Int, h: Int, seed: Long): StageDef {
+        val rng = Rng(seed)
+        val g = Array(h) { CharArray(w) { '.' } }
+        for (x in 0 until w) { g[0][x] = '#'; g[h - 1][x] = '#' }
+        for (y in 0 until h) { g[y][0] = '#'; g[y][w - 1] = '#' }
+        val pcx = w / 2; val pcy = h / 2
+        repeat((w * h) / 70) {
+            val cx = 2 + rng.nextInt(w - 4); val cy = 2 + rng.nextInt(h - 4)
+            if (abs(cx - pcx) < 6 && abs(cy - pcy) < 6) return@repeat // keep the spawn area clear
+            val r = 1 + rng.nextInt(3)
+            for (dy in -r..r) for (dx in -r..r) {
+                val nx = cx + dx; val ny = cy + dy
+                if (nx in 1 until w - 1 && ny in 1 until h - 1 && dx * dx + dy * dy <= r * r && rng.nextFloat() < 0.82f) g[ny][nx] = '#'
+            }
+        }
+        g[pcy][pcx] = 'P'
+        repeat((w * h) / 240) {
+            val ex = 2 + rng.nextInt(w - 4); val ey = 2 + rng.nextInt(h - 4)
+            if (g[ey][ex] == '.' && (abs(ex - pcx) > 7 || abs(ey - pcy) > 7)) g[ey][ex] = if (rng.nextFloat() < 0.5f) 'Z' else 'T'
+        }
+        return StageDef(id, name, wallHp = 130f, rows = g.map { String(it) }, legend = DEFAULT_LEGEND)
     }
 }

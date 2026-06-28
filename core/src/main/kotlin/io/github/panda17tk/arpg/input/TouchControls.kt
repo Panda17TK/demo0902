@@ -84,7 +84,7 @@ class TouchControls {
             val len = hypot(dx, dy)
             if (len > layout.stickRadius * 0.22f) {
                 input.aiming = true
-                input.aimX = dx / len; input.aimY = dy / len
+                input.aimX = dx / len; input.aimY = -dy / len // touch is y-up, world is y-down → flip Y
                 input.fire = true
             }
         }
