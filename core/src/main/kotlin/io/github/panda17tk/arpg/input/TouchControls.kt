@@ -1,6 +1,8 @@
 package io.github.panda17tk.arpg.input
 
 import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.math.Vector3
+import com.badlogic.gdx.utils.viewport.Viewport
 
 /**
  * Maps multi-touch into [InputState] and tracks the virtual stick knob for rendering (Phase 8).
@@ -21,8 +23,10 @@ class TouchControls {
     private var prevWall = false
     private var prevWeapon = false
     private var weaponIdx = 0
+    private val tmpVec = Vector3()
 
-    fun poll(input: InputState, screenW: Float, screenH: Float) {
+    fun poll(input: InputState, viewport: Viewport) {
+        val screenW = viewport.worldWidth; val screenH = viewport.worldHeight
         layout.screenW = screenW; layout.screenH = screenH
         var stick = false
         var fire = false; var dash = false
@@ -30,8 +34,9 @@ class TouchControls {
 
         for (i in 0 until MAX_POINTERS) {
             if (!Gdx.input.isTouched(i)) continue
-            val x = Gdx.input.getX(i).toFloat()
-            val y = screenH - Gdx.input.getY(i).toFloat() // libGDX getY is top-down; HUD is y-up
+            tmpVec.set(Gdx.input.getX(i).toFloat(), Gdx.input.getY(i).toFloat(), 0f)
+            viewport.unproject(tmpVec)
+            val x = tmpVec.x; val y = tmpVec.y // unprojected into HUD world coords (y-up)
             if (layout.isInStickZone(x, y)) {
                 if (stickPointer == -1) { stickPointer = i; baseX = x; baseY = y }
                 if (stickPointer == i) { knobX = x; knobY = y; stick = true }

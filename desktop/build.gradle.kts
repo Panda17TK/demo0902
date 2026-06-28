@@ -7,6 +7,14 @@ dependencies {
     implementation(project(":core"))
     implementation("com.badlogicgames.gdx:gdx-backend-lwjgl3:1.13.1")
     implementation("com.badlogicgames.gdx:gdx-platform:1.13.1:natives-desktop")
+    implementation("com.badlogicgames.gdx:gdx-freetype-platform:1.13.1:natives-desktop")
+}
+
+// Expose the bundled assets (fonts, etc.) on the desktop runtime classpath.
+sourceSets {
+    main {
+        resources.srcDir(rootProject.file("android/src/main/assets"))
+    }
 }
 
 // Build on the installed JDK (21) but emit Java 17-compatible bytecode (no toolchain pin).

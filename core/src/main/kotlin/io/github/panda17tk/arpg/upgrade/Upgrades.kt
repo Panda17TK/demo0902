@@ -62,14 +62,14 @@ object Upgrades {
 
     /** ASCII card description with the actual magnitudes (numbers render with the default font). */
     fun desc(u: Upgrade, cfg: UpgradesConfig): String = when (u.id) {
-        "gun_dmg" -> "shot dmg x${cfg.gunMul}"
-        "fire_rate" -> "fire interval x${cfg.fireMul}"
-        "melee" -> "melee dmg x${cfg.meleeMul}"
-        "max_hp" -> "max HP +${cfg.maxHpAdd.toInt()}, full heal"
-        "speed" -> "move speed x${cfg.moveMul}"
-        "ammo" -> "resupply, drops x${cfg.ammoMul}"
-        "lifesteal" -> "+${cfg.lifestealAdd.toInt()} HP per kill"
-        "engineer" -> "blocks +${cfg.blocksAdd}, tougher walls"
+        "gun_dmg" -> "射撃ダメージ ×${cfg.gunMul}"
+        "fire_rate" -> "発射間隔 ×${cfg.fireMul}"
+        "melee" -> "近接ダメージ ×${cfg.meleeMul}"
+        "max_hp" -> "最大HP +${cfg.maxHpAdd.toInt()}・全回復"
+        "speed" -> "移動速度 ×${cfg.moveMul}"
+        "ammo" -> "弾薬補給・ドロップ ×${cfg.ammoMul}"
+        "lifesteal" -> "撃破ごとに HP +${cfg.lifestealAdd.toInt()}"
+        "engineer" -> "資材 +${cfg.blocksAdd}・壁を強化"
         else -> ""
     }
 }
