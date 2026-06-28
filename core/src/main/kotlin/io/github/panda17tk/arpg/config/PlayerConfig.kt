@@ -20,6 +20,8 @@ data class PlayerConfig(
     val meleeStaSwordMin: Float = 0.20f,
     val meleeWeakMul: Float = 0.6f,
     val fistDmg: Float = 8f,
+    val meleeStaCost: Float = 18f,   // stamina drained per melee swing
+    val dashThrust: Float = 520f,    // space dash inertia: accel added to drift while dashing
     val bulletSpeed: Float = 360f,
     val bulletLife: Float = 0.9f,
     val grenadeSpeed: Float = 280f,

@@ -15,6 +15,7 @@ import io.github.panda17tk.arpg.input.InputState
 import io.github.panda17tk.arpg.map.TileMap
 import io.github.panda17tk.arpg.sim.Collision
 import io.github.panda17tk.arpg.sim.Locomotion
+import kotlin.math.hypot
 import kotlin.math.pow
 
 class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing, Stamina, Body, Velocity, Mods) }) {
@@ -38,12 +39,20 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         val dx = mv.dirX * spd * mv.speedScale * dt
         val dy = mv.dirY * spd * mv.speedScale * dt
 
-        // Decay knockback velocity (very fast decay: 0.0001^dt ≈ gone in ~0.1s)
+        // Decay knockback velocity (very fast: gone in ~0.1s) — keeps hits punchy.
         v.vx *= 0.0001f.pow(dt)
         v.vy *= 0.0001f.pow(dt)
+        // Space dash inertia: a separate drift that builds while dashing and coasts (slow decay).
+        if (dashing && mv.isMoving) {
+            v.driftX += mv.dirX * config.player.dashThrust * dt
+            v.driftY += mv.dirY * config.player.dashThrust * dt
+        }
+        v.driftX *= 0.5f.pow(dt); v.driftY *= 0.5f.pow(dt)
+        val dsp = hypot(v.driftX, v.driftY)
+        if (dsp > 220f) { v.driftX = v.driftX / dsp * 220f; v.driftY = v.driftY / dsp * 220f }
 
-        // Integrate input movement + knockback together through collision
-        val r = Collision.moveAndCollide(map, t.x, t.y, b.halfW, b.halfH, dx + v.vx * dt, dy + v.vy * dt)
+        // Integrate input movement + knockback + dash drift through collision
+        val r = Collision.moveAndCollide(map, t.x, t.y, b.halfW, b.halfH, dx + (v.vx + v.driftX) * dt, dy + (v.vy + v.driftY) * dt)
         t.x = r.x
         t.y = r.y
         if (input.aiming) { f.x = input.aimX; f.y = input.aimY } // right stick aims independent of movement

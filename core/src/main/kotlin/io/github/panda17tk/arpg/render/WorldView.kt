@@ -5,6 +5,8 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import io.github.panda17tk.arpg.map.Tile
 import io.github.panda17tk.arpg.map.TileMap
 import io.github.panda17tk.arpg.sim.Tuning
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * Space / asteroid-belt world rendering: a dark deterministic starfield floor and rocky asteroid
@@ -17,6 +19,7 @@ object WorldView {
     private val STARS = arrayOf(Color.valueOf("ffffff"), Color.valueOf("9ec5ff"), Color.valueOf("ffe6b0"), Color.valueOf("cbb8ff"))
     private val ROCKS = arrayOf(Color.valueOf("6b6358"), Color.valueOf("5d564c"), Color.valueOf("776c5d"), Color.valueOf("534b42"))
     private val CRATER = Color.valueOf("38322b")
+    private val CRACK = Color.valueOf("17130d")
     private val DOOR = Color.valueOf("3b2a1a")
     private val DOOR_FRAME = Color.valueOf("6b4c2b")
 
@@ -35,6 +38,12 @@ object WorldView {
                     if (Math.floorMod(hsh, 3) == 0) {
                         s.circle(px + t - 9f - Math.floorMod(hsh ushr 5, 5).toFloat(), py + t - 9f - Math.floorMod(hsh ushr 7, 5).toFloat(), 1.7f, 6)
                     }
+                    // damage cracks: more/wider as HP drops (destructible asteroids only)
+                    val mi = map.index(tx, ty); val mh = map.maxHp[mi]
+                    if (mh.isFinite()) {
+                        val dmg = (1f - map.hp[mi] / mh).coerceIn(0f, 1f)
+                        if (dmg > 0.05f) cracks(s, px, py, t, hsh, dmg)
+                    }
                 }
                 Tile.DOOR -> {
                     s.color = DOOR; s.rect(px, py, t, t)
@@ -52,6 +61,18 @@ object WorldView {
                     }
                 }
             }
+        }
+    }
+
+    /** Fracture lines radiating from a damaged asteroid tile (count + width scale with damage). */
+    private fun cracks(s: ShapeRenderer, px: Float, py: Float, t: Float, hsh: Int, dmg: Float) {
+        s.color = CRACK
+        val cx = px + t / 2f; val cy = py + t / 2f
+        val n = 1 + (dmg * 3f).toInt()
+        for (k in 0 until n) {
+            val ang = Math.floorMod(hsh + k * 53, 360).toFloat() * (Math.PI.toFloat() / 180f)
+            val len = t * 0.30f + dmg * (t * 0.28f)
+            Draw.orientedRect(s, cx, cy, cos(ang), sin(ang), -len * 0.35f, len, 0.9f + dmg)
         }
     }
 }

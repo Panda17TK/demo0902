@@ -1,5 +1,6 @@
 package io.github.panda17tk.arpg.ecs.systems
 
+import com.badlogic.gdx.graphics.Color
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.IteratingSystem
 import com.github.quillraven.fleks.World.Companion.family
@@ -40,6 +41,7 @@ class MeleeSystem(private val mobGrid: SpatialGrid<Entity>) :
     private val config: GameConfig = world.inject()
     private val rng: Rng = world.inject()
     private val fx: Fx = world.inject()
+    private val chipColor = Color.valueOf("8a8076")
 
     override fun onTickEntity(entity: Entity) {
         val cd = entity[Cooldowns]
@@ -50,14 +52,17 @@ class MeleeSystem(private val mobGrid: SpatialGrid<Entity>) :
         cd.melee = config.player.meleeCd
         fx.spawnSlash(t.x, t.y, atan2(f.y, f.x))
         val outcome = MeleeResolve.resolve(if (s.max > 0f) s.value / s.max else 1f, config.player)
+        s.value = maxOf(0f, s.value - config.player.meleeStaCost) // melee drains stamina
 
         // Break destructible walls in the front 3x3 (legacy melee.js)
         val ftx = floor((t.x + f.x * Tuning.MELEE_WALL_OFFSET) / Tuning.TILE).toInt()
         val fty = floor((t.y + f.y * Tuning.MELEE_WALL_OFFSET) / Tuning.TILE).toInt()
         for (oy in -1..1) for (ox in -1..1) {
             val tx = ftx + ox; val ty = fty + oy
-            if (map.tileAt(tx, ty) == Tile.WALL && Tiles.damageTile(map, tx, ty, outcome.dmg).broke) {
-                Pickups.dropOnWall(world, rng, (tx + 0.5f) * Tuning.TILE, (ty + 0.5f) * Tuning.TILE)
+            if (map.tileAt(tx, ty) == Tile.WALL) {
+                val broke = Tiles.damageTile(map, tx, ty, outcome.dmg).broke
+                fx.spawnChips((tx + 0.5f) * Tuning.TILE, (ty + 0.5f) * Tuning.TILE, 2, chipColor)
+                if (broke) Pickups.dropOnWall(world, rng, (tx + 0.5f) * Tuning.TILE, (ty + 0.5f) * Tuning.TILE)
             }
         }
 
