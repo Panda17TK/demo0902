@@ -5,24 +5,33 @@ import com.github.quillraven.fleks.IteratingSystem
 import com.github.quillraven.fleks.World.Companion.family
 import io.github.panda17tk.arpg.combat.BeamRay
 import io.github.panda17tk.arpg.combat.Firing
+import io.github.panda17tk.arpg.combat.MobDamage
 import io.github.panda17tk.arpg.config.GameConfig
 import io.github.panda17tk.arpg.ecs.components.Ammo
 import io.github.panda17tk.arpg.ecs.components.Arsenal
+import io.github.panda17tk.arpg.ecs.components.Body
 import io.github.panda17tk.arpg.ecs.components.Bullet
 import io.github.panda17tk.arpg.ecs.components.Cooldowns
 import io.github.panda17tk.arpg.ecs.components.Facing
 import io.github.panda17tk.arpg.ecs.components.Grenade
+import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.PlayerTag
 import io.github.panda17tk.arpg.ecs.components.Transform
+import io.github.panda17tk.arpg.ecs.components.Velocity
 import io.github.panda17tk.arpg.input.InputState
 import io.github.panda17tk.arpg.map.TileMap
 import io.github.panda17tk.arpg.math.Rng
+import io.github.panda17tk.arpg.pathfinding.SpatialGrid
 import io.github.panda17tk.arpg.sim.Tuning
+import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.hypot
 import kotlin.math.sin
 
-class FireSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing, Arsenal, Ammo, Cooldowns) }) {
+class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
+    IteratingSystem(family { all(PlayerTag, Transform, Facing, Arsenal, Ammo, Cooldowns) }) {
+
     private val input: InputState = world.inject()
     private val map: TileMap = world.inject()
     private val rng: Rng = world.inject()
@@ -44,7 +53,26 @@ class FireSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing, Ar
                 if (ammo.ammoBeam <= 0) return
                 ammo.ammoBeam--
                 cd.shoot = def.fireRate
-                BeamRay.cast(map, t.x, t.y, dirX, dirY, 700f) // mob hits land here in Phase 5
+                val hit = BeamRay.cast(map, t.x, t.y, dirX, dirY, 700f)
+
+                // --- Beam vs mob: query mobs near the ray, check projection + perpendicular distance ---
+                // Port of legacy combat.js beam mob loop (lines ~185-205)
+                mobGrid.forNearby(t.x, t.y, hit.reach + 32f) { mobEntity ->
+                    val mobT = with(world) { mobEntity[Transform] }
+                    val mobB = with(world) { mobEntity[Body] }
+                    val rx = mobT.x - t.x; val ry = mobT.y - t.y
+                    // Projection along ray direction
+                    val s = rx * dirX + ry * dirY
+                    val mobHalf = (mobB.halfW + mobB.halfH) * 0.5f
+                    if (s < -mobHalf || s > hit.reach + mobHalf) return@forNearby
+                    // Perpendicular distance from ray line
+                    val perp = abs(rx * dirY - ry * dirX)
+                    if (perp > mobHalf) return@forNearby
+                    // Single hit in 5a (multi-hit is 5b)
+                    val mobH = with(world) { mobEntity[Health] }
+                    val mobV = with(world) { mobEntity[Velocity] }
+                    MobDamage.hurt(mobH, mobV, def.dmg, 0f, 0f, 0f)
+                }
             }
             "grenade" -> {
                 if (w.mag <= 0) return
