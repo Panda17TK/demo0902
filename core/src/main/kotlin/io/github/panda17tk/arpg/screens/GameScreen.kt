@@ -11,12 +11,14 @@ import com.badlogic.gdx.utils.viewport.FitViewport
 import com.badlogic.gdx.utils.viewport.ScreenViewport
 import io.github.panda17tk.arpg.core.Constants
 import io.github.panda17tk.arpg.ecs.components.Facing
+import io.github.panda17tk.arpg.ecs.components.Materials
 import io.github.panda17tk.arpg.ecs.components.Stamina
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.ecs.world.GameWorld
 import io.github.panda17tk.arpg.ecs.world.WorldFactory
 import io.github.panda17tk.arpg.input.InputState
 import io.github.panda17tk.arpg.input.KeyboardInput
+import io.github.panda17tk.arpg.map.Tile
 import io.github.panda17tk.arpg.sim.Tuning
 import kotlin.math.pow
 
@@ -73,14 +75,22 @@ class GameScreen : ScreenAdapter() {
         // world
         worldViewport.apply()
         shapes.projectionMatrix = camera.combined
-        shapes.begin(ShapeRenderer.ShapeType.Line)
-        shapes.color = Color(0.16f, 0.18f, 0.24f, 1f)
-        drawGrid()
-        shapes.end()
+
+        // tiles (filled)
         shapes.begin(ShapeRenderer.ShapeType.Filled)
+        val m = gw.map
+        for (ty in 0 until m.height) for (tx in 0 until m.width) {
+            val t = m.tileAt(tx, ty)
+            if (t == Tile.FLOOR) continue
+            shapes.color = if (t == Tile.DOOR) Color(0.30f, 0.22f, 0.12f, 1f)
+                           else Color(0.22f, 0.24f, 0.32f, 1f)
+            shapes.rect(tx * Tuning.TILE, ty * Tuning.TILE, Tuning.TILE, Tuning.TILE)
+        }
+        // player
         shapes.color = Color(0.45f, 0.85f, 0.95f, 1f)
         shapes.circle(px, py, Tuning.PLAYER_RADIUS, 24)
         shapes.end()
+
         shapes.begin(ShapeRenderer.ShapeType.Line)
         shapes.color = Color.WHITE
         shapes.line(px, py, px + fx * Tuning.PLAYER_RADIUS * 1.8f, py + fy * Tuning.PLAYER_RADIUS * 1.8f)
@@ -90,7 +100,8 @@ class GameScreen : ScreenAdapter() {
         hudViewport.apply()
         batch.projectionMatrix = hudViewport.camera.combined
         batch.begin()
-        font.draw(batch, "WASD/Arrows: move   Shift: dash   STA ${sta.toInt()}/${Tuning.STA_MAX.toInt()}", 16f, 28f)
+        val blocks = with(gw.world) { gw.player[Materials].blocks }
+        font.draw(batch, "WASD move  Shift dash  F wall($blocks)  STA ${sta.toInt()}/${Tuning.STA_MAX.toInt()}", 16f, 28f)
         batch.end()
         shapes.projectionMatrix = hudViewport.camera.combined
         shapes.begin(ShapeRenderer.ShapeType.Filled)
@@ -122,17 +133,6 @@ class GameScreen : ScreenAdapter() {
         camY += (tgY - camY) * k
         camera.position.set(camX, camY, 0f)
         camera.update()
-    }
-
-    private fun drawGrid() {
-        val t = Tuning.TILE
-        var gx = camX - Tuning.VIEW_W
-        val endX = camX + Tuning.VIEW_W
-        gx = (gx / t).toInt() * t
-        while (gx < endX) { shapes.line(gx, camY - Tuning.VIEW_H, gx, camY + Tuning.VIEW_H); gx += t }
-        var gy = ((camY - Tuning.VIEW_H) / t).toInt() * t
-        val endY = camY + Tuning.VIEW_H
-        while (gy < endY) { shapes.line(camX - Tuning.VIEW_W, gy, camX + Tuning.VIEW_W, gy); gy += t }
     }
 
     override fun resize(width: Int, height: Int) {
