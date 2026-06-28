@@ -14,6 +14,10 @@ class MobAction(
     var blinkDy: Float = 0f,
     var dodgeT: Float = 0f,
     var dodgeCd: Float = 0f,
+    var enrageT: Float = 0f,
+    var enrageMul: Float = 1f,
+    var guardT: Float = 0f,
+    var guardMul: Float = 1f,
 ) : Component<MobAction> {
     val charging: Boolean get() = chargeT > 0f
     val blinking: Boolean get() = blinkT > 0f

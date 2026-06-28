@@ -25,7 +25,8 @@ object MobDamage {
             action.dodgeCd = dodge.cd
             return false
         }
-        health.hp -= dmg
+        val realDmg = if (action.guardT > 0f) dmg * action.guardMul else dmg
+        health.hp -= realDmg
         if (kb != 0f) { vel.vx += nx * kb; vel.vy += ny * kb }
         health.hitFlash = 0.12f
         return true

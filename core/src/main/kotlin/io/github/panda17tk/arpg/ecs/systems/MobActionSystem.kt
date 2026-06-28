@@ -59,8 +59,11 @@ class MobActionSystem : IteratingSystem(family { all(Mob, Transform, MobAction, 
             if (a.blinkT <= 0f) a.blinkT = 0f
         }
 
-        // dodge timers (passive activation deferred to 5c)
+        // dodge timers
         if (a.dodgeT > 0f) a.dodgeT -= dt
         if (a.dodgeCd > 0f) a.dodgeCd -= dt
+        // boss enrage / guard timers (Phase 6c)
+        if (a.enrageT > 0f) a.enrageT -= dt
+        if (a.guardT > 0f) a.guardT -= dt
     }
 }

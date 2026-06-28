@@ -20,6 +20,14 @@ data class AttackSpec(
     val standoff: Float = 28f,
     val kb: Float = 240f,
     val life: Float = 1.6f,
+    // Boss attack fields (legacy attacks.js): fans/radials, summon, heal, enrage/guard, homing.
+    val count: Int = 0,
+    val spread: Float = 0f,
+    val amount: Float = 0f,
+    val mul: Float = 1f,
+    val minion: String = "",
+    val turn: Float = 0f,
+    val duration: Float = 0f,
 )
 
 /** Enemy archetype (legacy CONFIG.enemies entry). tier: normal/midboss/boss. */

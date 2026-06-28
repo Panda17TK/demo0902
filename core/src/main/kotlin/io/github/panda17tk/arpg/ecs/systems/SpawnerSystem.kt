@@ -27,6 +27,8 @@ class SpawnerSystem : IteratingSystem(family { all(PlayerTag, Transform) }) {
 
     private val mobs by lazy { world.family { all(Mob) } }
     private val normalKeys: List<String> = config.enemies.filterValues { it.tier == "normal" }.keys.toList()
+    private val midBossKeys: List<String> = config.enemies.filterValues { it.tier == "midboss" }.keys.toList()
+    private val bossKeys: List<String> = config.enemies.filterValues { it.tier == "boss" }.keys.toList()
 
     override fun onTickEntity(entity: Entity) {
         val pt = entity[Transform]
@@ -49,16 +51,28 @@ class SpawnerSystem : IteratingSystem(family { all(PlayerTag, Transform) }) {
             }
         } else {
             w.interT -= dt
-            if (w.interT <= 0f) startWave(w.num + 1)
+            if (w.interT <= 0f) startWave(pt, w.num + 1)
         }
     }
 
-    private fun startWave(n: Int) {
+    private fun startWave(pt: Transform, n: Int) {
         val c = config.waves
         wave.num = n
         wave.phase = "active"
         wave.toSpawn = minOf(c.maxQuota, c.baseQuota + (n - 1) * c.quotaPerWave)
         wave.spawnCd = 0.4f
+        // Boss waves: a boss every bossEvery, else a midboss every midBossEvery (legacy spawner).
+        when {
+            c.bossEvery > 0 && n % c.bossEvery == 0 -> spawnBoss(pt, n, bossKeys)
+            c.midBossEvery > 0 && n % c.midBossEvery == 0 -> spawnBoss(pt, n, midBossKeys)
+        }
+    }
+
+    private fun spawnBoss(pt: Transform, n: Int, keys: List<String>) {
+        if (keys.isEmpty()) return
+        val tile = pickTile(pt) ?: return
+        val def = config.enemies[keys[rng.nextInt(keys.size)]] ?: return
+        MobFactory.spawn(world, def, tile.first, tile.second, n, config.waves.hpScalePerWave, config.waves.speedScalePerWave)
     }
 
     private fun liveCap(n: Int, c: WaveConfig): Int = minOf(c.maxLiveCap, c.liveCapBase + n * c.liveCapPerWave)

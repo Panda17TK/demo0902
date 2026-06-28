@@ -25,7 +25,7 @@ object MobFactory {
             it += Facing()
             it += Mob(
                 kind = def.name, def = def, speed = def.speed * ss,
-                attackCd = FloatArray(def.attacks.size),
+                attackCd = FloatArray(def.attacks.size), waveNum = waveNum,
             )
             it += MobAction()
         }

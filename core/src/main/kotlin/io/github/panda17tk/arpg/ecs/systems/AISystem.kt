@@ -15,6 +15,7 @@ import io.github.panda17tk.arpg.ecs.components.PlayerTag
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.ecs.components.Velocity
 import io.github.panda17tk.arpg.map.TileMap
+import io.github.panda17tk.arpg.math.Rng
 import io.github.panda17tk.arpg.pathfinding.FlowField
 import io.github.panda17tk.arpg.pathfinding.Los
 import io.github.panda17tk.arpg.pathfinding.SpatialGrid
@@ -31,6 +32,7 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
     private val map: TileMap = world.inject()
     private val flow: FlowField = world.inject()
     private val config: GameConfig = world.inject()
+    private val rng: Rng = world.inject()
 
     private val players by lazy { world.family { all(PlayerTag, Transform, Health, Velocity) } }
 
@@ -64,7 +66,8 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         }
 
         val slow = if (m.tier == "normal" && h.hp <= h.hpMax * 0.5f) ai.hpSlowMul else 1f
-        val eff = m.speed * slow
+        val enrage = if (action.enrageT > 0f) action.enrageMul else 1f
+        val eff = m.speed * slow * enrage
 
         val dx = px - t.x; val dy = py - t.y
         val dist = hypot(dx, dy)
@@ -121,10 +124,12 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
             m.def.attacks.forEachIndexed { i, atk ->
                 if (m.attackCd[i] <= 0f) {
                     val executed = MobAttacks.tryAttack(
-                        world, atk, m.def, t, f, v, action, ph, pv,
+                        world, atk, m.def, t, f, v, action, h, ph, pv,
                         dist, toPx, toPy, see, ai.iFrameContact,
+                        config, m.waveNum, rng,
                     )
-                    if (executed) m.attackCd[i] = atk.cd
+                    // Enraged bosses attack faster too (legacy cdScale = 1/enrageMul).
+                    if (executed) m.attackCd[i] = atk.cd * if (action.enrageT > 0f) 1f / action.enrageMul else 1f
                 }
             }
         }

@@ -10,6 +10,7 @@ class Mob(
     val def: EnemyDef,
     var speed: Float,
     val attackCd: FloatArray,
+    val waveNum: Int = 1,
     var bumpCd: Float = 0f,
 ) : Component<Mob> {
     val tier: String get() = def.tier
