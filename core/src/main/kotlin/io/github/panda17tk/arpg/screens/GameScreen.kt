@@ -38,6 +38,7 @@ import io.github.panda17tk.arpg.input.TouchButton
 import io.github.panda17tk.arpg.input.TouchControls
 import io.github.panda17tk.arpg.map.Tile
 import io.github.panda17tk.arpg.math.Rng
+import io.github.panda17tk.arpg.save.Scores
 import io.github.panda17tk.arpg.sim.Tuning
 import io.github.panda17tk.arpg.upgrade.Upgrade
 import io.github.panda17tk.arpg.upgrade.Upgrades
@@ -77,6 +78,7 @@ class GameScreen : ScreenAdapter() {
     private var lastHp = Float.NaN
     private var lastKills = 0
     private var prevOver = false
+    private var newBest = false
 
     // Phase 8: on-screen controls (Android only) + audio service.
     private val touch = TouchControls()
@@ -91,6 +93,7 @@ class GameScreen : ScreenAdapter() {
         worldViewport = FitViewport(Tuning.VIEW_W, Tuning.VIEW_H, camera)
         hudViewport = ScreenViewport()
         Sfx.init()
+        Scores.load()
         touchEnabled = Gdx.app.type == Application.ApplicationType.Android
         newRun()
     }
@@ -106,6 +109,7 @@ class GameScreen : ScreenAdapter() {
         lastHp = Float.NaN
         lastKills = 0
         prevOver = false
+        newBest = false
     }
 
     override fun render(delta: Float) {
@@ -113,7 +117,10 @@ class GameScreen : ScreenAdapter() {
         if (touchEnabled) touch.poll(input, hudViewport.worldWidth, hudViewport.worldHeight)
         if (gw.gameOver.isOver) {
             accumulator = 0f
-            if (!prevOver) { Sfx.play("dead"); Haptics.buzz(140) }
+            if (!prevOver) {
+                newBest = Scores.record(gw.waveState.num, gw.gameOver.kills)
+                Sfx.play("dead"); Haptics.buzz(140)
+            }
             if (Gdx.input.isKeyJustPressed(Input.Keys.R)) { newRun(); return }
         } else {
             updateUpgradeFlow(delta)
@@ -302,9 +309,14 @@ class GameScreen : ScreenAdapter() {
         shapes.end()
         batch.projectionMatrix = hudViewport.camera.combined
         batch.begin()
-        font.draw(batch, "GAME OVER", w / 2f - 36f, h / 2f + 42f)
-        font.draw(batch, "WAVE ${gw.waveState.num}    KILLS ${gw.gameOver.kills}", w / 2f - 80f, h / 2f + 10f)
-        font.draw(batch, "press R to restart", w / 2f - 58f, h / 2f - 22f)
+        font.draw(batch, "GAME OVER", w / 2f - 36f, h / 2f + 56f)
+        font.draw(batch, "WAVE ${gw.waveState.num}    KILLS ${gw.gameOver.kills}", w / 2f - 80f, h / 2f + 26f)
+        font.draw(
+            batch,
+            if (newBest) "NEW BEST!  WAVE ${Scores.bestWave}" else "BEST  WAVE ${Scores.bestWave}  KILLS ${Scores.bestKills}",
+            w / 2f - 92f, h / 2f - 2f,
+        )
+        font.draw(batch, "press R to restart", w / 2f - 58f, h / 2f - 30f)
         batch.end()
     }
 
