@@ -6,6 +6,7 @@ import com.github.quillraven.fleks.World.Companion.family
 import io.github.panda17tk.arpg.config.GameConfig
 import io.github.panda17tk.arpg.ecs.components.Body
 import io.github.panda17tk.arpg.ecs.components.Facing
+import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Mods
 import io.github.panda17tk.arpg.ecs.components.PlayerTag
 import io.github.panda17tk.arpg.ecs.components.Stamina
@@ -18,7 +19,7 @@ import io.github.panda17tk.arpg.sim.Locomotion
 import kotlin.math.hypot
 import kotlin.math.pow
 
-class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing, Stamina, Body, Velocity, Mods) }) {
+class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing, Stamina, Body, Velocity, Mods, Health) }) {
     private val input: InputState = world.inject()
     private val map: TileMap = world.inject()
     private val config: GameConfig = world.inject()
@@ -30,10 +31,15 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         val b = entity[Body]
         val v = entity[Velocity]
         val mods = entity[Mods]
+        val h = entity[Health]
+        val tag = entity[PlayerTag]
         val dt = deltaTime
+        if (h.iTime > 0f) h.iTime -= dt // tick down invuln (fixes stuck pink/invincible)
+        if (h.hitFlash > 0f) h.hitFlash -= dt
 
         val mv = Locomotion.keyboardDirection(input.left, input.right, input.up, input.down)
-        val dashing = Locomotion.isDashing(input.dash, mv.isMoving, s.value)
+        val dashing = !s.overheat && Locomotion.isDashing(input.dash, mv.isMoving, s.value)
+        tag.dashing = dashing
         val spd = Locomotion.speed(dashing, config.player) * mods.moveMul
 
         val dx = mv.dirX * spd * mv.speedScale * dt
@@ -55,8 +61,12 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         val r = Collision.moveAndCollide(map, t.x, t.y, b.halfW, b.halfH, dx + (v.vx + v.driftX) * dt, dy + (v.vy + v.driftY) * dt)
         t.x = r.x
         t.y = r.y
+        if (r.hitX) { v.vx = 0f; v.driftX = 0f } // stop shoving into a wall (fixes edge stick)
+        if (r.hitY) { v.vy = 0f; v.driftY = 0f }
         if (input.aiming) { f.x = input.aimX; f.y = input.aimY } // right stick aims independent of movement
         else if (mv.isMoving) { f.x = mv.dirX; f.y = mv.dirY }
         s.value = Locomotion.nextStamina(s.value, dashing, dt, config.player)
+        if (s.value <= 0.05f) s.overheat = true            // fully drained → overheat (no stamina actions)
+        if (s.value >= s.max - 0.05f) s.overheat = false   // fully recovered → clear overheat
     }
 }
