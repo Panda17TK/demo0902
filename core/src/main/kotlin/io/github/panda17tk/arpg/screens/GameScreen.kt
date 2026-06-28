@@ -9,6 +9,7 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.utils.ScreenUtils
 import com.badlogic.gdx.utils.viewport.FitViewport
 import com.badlogic.gdx.utils.viewport.ScreenViewport
+import io.github.panda17tk.arpg.config.ConfigStore
 import io.github.panda17tk.arpg.core.Constants
 import io.github.panda17tk.arpg.ecs.components.Ammo
 import io.github.panda17tk.arpg.ecs.components.Arsenal
@@ -32,6 +33,7 @@ import kotlin.math.pow
  */
 class GameScreen : ScreenAdapter() {
     private val input = InputState()
+    private val configStore = ConfigStore()
     // Built in show() (not the constructor) so any future libGDX resource access
     // inside the ECS world happens after Gdx.app is available on Android.
     private lateinit var gw: GameWorld
@@ -49,7 +51,8 @@ class GameScreen : ScreenAdapter() {
     private var camInit = false
 
     override fun show() {
-        gw = WorldFactory.create(input)
+        configStore.loadFromDisk()
+        gw = WorldFactory.create(input, configStore.config)
         shapes = ShapeRenderer()
         batch = SpriteBatch()
         font = BitmapFont()
