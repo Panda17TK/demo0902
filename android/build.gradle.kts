@@ -39,6 +39,10 @@ dependencies {
     natives("com.badlogicgames.gdx:gdx-platform:1.13.1:natives-arm64-v8a")
     natives("com.badlogicgames.gdx:gdx-platform:1.13.1:natives-x86")
     natives("com.badlogicgames.gdx:gdx-platform:1.13.1:natives-x86_64")
+    natives("com.badlogicgames.gdx:gdx-freetype-platform:1.13.1:natives-armeabi-v7a")
+    natives("com.badlogicgames.gdx:gdx-freetype-platform:1.13.1:natives-arm64-v8a")
+    natives("com.badlogicgames.gdx:gdx-freetype-platform:1.13.1:natives-x86")
+    natives("com.badlogicgames.gdx:gdx-freetype-platform:1.13.1:natives-x86_64")
 }
 
 // Extract libGDX .so natives from the platform jars into src/main/jniLibs/<abi>

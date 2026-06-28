@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.OrthographicCamera
 import com.badlogic.gdx.graphics.g2d.BitmapFont
+import com.badlogic.gdx.graphics.g2d.GlyphLayout
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.utils.ScreenUtils
@@ -41,6 +42,7 @@ import io.github.panda17tk.arpg.map.Tile
 import io.github.panda17tk.arpg.math.Rng
 import io.github.panda17tk.arpg.render.Actors
 import io.github.panda17tk.arpg.render.Draw
+import io.github.panda17tk.arpg.render.Fonts
 import io.github.panda17tk.arpg.render.WorldView
 import io.github.panda17tk.arpg.save.Scores
 import io.github.panda17tk.arpg.sim.Tuning
@@ -105,15 +107,20 @@ class GameScreen : ScreenAdapter() {
     private val cSta = Color.valueOf("4da6ff")
     private val cHpHi = Color.valueOf("7fe08a")
     private val cHpLo = Color.valueOf("e0786a")
+    private val glyphLayout = GlyphLayout()
+    private var uiScale = 1f
 
     override fun show() {
         configStore.loadFromDisk()
+        uiScale = Gdx.graphics.density.coerceIn(1f, 4f)
         shapes = ShapeRenderer()
         batch = SpriteBatch()
-        font = BitmapFont()
+        Fonts.load(uiScale)
+        font = Fonts.ui
         camera = OrthographicCamera().apply { setToOrtho(true, Tuning.VIEW_W, Tuning.VIEW_H) } // y-down
         worldViewport = FitViewport(Tuning.VIEW_W, Tuning.VIEW_H, camera)
         hudViewport = ScreenViewport()
+        hudViewport.setUnitsPerPixel(1f / uiScale)
         Sfx.init()
         Scores.load()
         touchEnabled = Gdx.app.type == Application.ApplicationType.Android
@@ -136,7 +143,7 @@ class GameScreen : ScreenAdapter() {
 
     override fun render(delta: Float) {
         KeyboardInput.poll(input)
-        if (touchEnabled) touch.poll(input, hudViewport.worldWidth, hudViewport.worldHeight)
+        if (touchEnabled) touch.poll(input, hudViewport)
         if (gw.gameOver.isOver) {
             accumulator = 0f
             if (!prevOver) {
@@ -243,20 +250,20 @@ class GameScreen : ScreenAdapter() {
 
         shapes.projectionMatrix = hudViewport.camera.combined
         shapes.begin(ShapeRenderer.ShapeType.Filled)
-        shapes.color = cPanel; shapes.rect(8f, hudH - 96f, minOf(392f, hudW - 16f), 88f)
-        shapes.color = cBarBg; shapes.rect(12f, hudH - 80f, barW, 8f)
-        shapes.color = cSta; shapes.rect(12f, hudH - 80f, barW * (if (staMax > 0f) (sta / staMax).coerceIn(0f, 1f) else 0f), 8f)
-        shapes.color = cBarBg; shapes.rect(12f, hudH - 92f, barW, 8f)
-        shapes.color = if (hp > hpMax * 0.3f) cHpHi else cHpLo; shapes.rect(12f, hudH - 92f, barW * (if (hpMax > 0f) (hp / hpMax).coerceIn(0f, 1f) else 0f), 8f)
+        shapes.color = cPanel; shapes.rect(8f, hudH - 120f, minOf(420f, hudW - 16f), 112f)
+        shapes.color = cBarBg; shapes.rect(12f, hudH - 88f, barW, 9f)
+        shapes.color = cSta; shapes.rect(12f, hudH - 88f, barW * (if (staMax > 0f) (sta / staMax).coerceIn(0f, 1f) else 0f), 9f)
+        shapes.color = cBarBg; shapes.rect(12f, hudH - 104f, barW, 9f)
+        shapes.color = if (hp > hpMax * 0.3f) cHpHi else cHpLo; shapes.rect(12f, hudH - 104f, barW * (if (hpMax > 0f) (hp / hpMax).coerceIn(0f, 1f) else 0f), 9f)
         shapes.end()
 
         batch.projectionMatrix = hudViewport.camera.combined
         batch.begin()
-        font.draw(batch, "WAVE ${gw.waveState.num}    foes $foes    ${w.def.id.uppercase()} $magStr", 14f, hudH - 14f)
-        font.draw(batch, "9mm ${ammo.ammo9}   12g ${ammo.ammo12}   Beam ${ammo.ammoBeam}   Nade ${ammo.ammoNade}", 14f, hudH - 32f)
-        font.draw(batch, "Time %d:%02d    Kills %d    Mat %d".format(mins, secs, gw.gameOver.kills, blocks), 14f, hudH - 50f)
-        font.draw(batch, "STA", 16f + barW, hudH - 73f)
-        font.draw(batch, "HP ${hp.toInt()}/${hpMax.toInt()}", 16f + barW, hudH - 85f)
+        font.draw(batch, "ウェーブ ${gw.waveState.num}    残り $foes    ${w.def.name} $magStr", 14f, hudH - 16f)
+        font.draw(batch, "予備  9mm ${ammo.ammo9}  12g ${ammo.ammo12}  ﾋﾞｰﾑ ${ammo.ammoBeam}  榴弾 ${ammo.ammoNade}", 14f, hudH - 44f)
+        font.draw(batch, "時間 %d:%02d    撃破 %d    資材 %d".format(mins, secs, gw.gameOver.kills, blocks), 14f, hudH - 70f)
+        font.draw(batch, "スタ", 18f + barW, hudH - 86f)
+        font.draw(batch, "HP ${hp.toInt()}/${hpMax.toInt()}", 18f + barW, hudH - 102f)
         batch.end()
 
         if (touchEnabled && !choosing && !gw.gameOver.isOver) drawTouchControls()
@@ -328,13 +335,18 @@ class GameScreen : ScreenAdapter() {
 
         batch.projectionMatrix = hudViewport.camera.combined
         batch.begin()
-        font.draw(batch, "WAVE ${gw.waveState.num} CLEAR  -  pick an upgrade (press 1/2/3)", x, top + cardH + 28f)
+        font.draw(batch, "ウェーブ ${gw.waveState.num} クリア！  強化を選択 (1 / 2 / 3)", x, top + cardH + 28f)
         choices.forEachIndexed { i, u ->
             val cy = top - i * (cardH + gap)
-            font.draw(batch, "${i + 1}) ${u.label}", x + 14f, cy + cardH - 16f)
-            font.draw(batch, Upgrades.desc(u, cfg), x + 14f, cy + 22f)
+            font.draw(batch, "${i + 1})  ${u.name}", x + 14f, cy + cardH - 14f)
+            font.draw(batch, Upgrades.desc(u, cfg), x + 14f, cy + 24f)
         }
         batch.end()
+    }
+
+    private fun center(f: BitmapFont, s: String, screenW: Float, y: Float) {
+        glyphLayout.setText(f, s)
+        f.draw(batch, glyphLayout, (screenW - glyphLayout.width) / 2f, y)
     }
 
     private fun drawGameOver() {
@@ -348,14 +360,10 @@ class GameScreen : ScreenAdapter() {
         shapes.end()
         batch.projectionMatrix = hudViewport.camera.combined
         batch.begin()
-        font.draw(batch, "GAME OVER", w / 2f - 36f, h / 2f + 56f)
-        font.draw(batch, "WAVE ${gw.waveState.num}    KILLS ${gw.gameOver.kills}", w / 2f - 80f, h / 2f + 26f)
-        font.draw(
-            batch,
-            if (newBest) "NEW BEST!  WAVE ${Scores.bestWave}" else "BEST  WAVE ${Scores.bestWave}  KILLS ${Scores.bestKills}",
-            w / 2f - 92f, h / 2f - 2f,
-        )
-        font.draw(batch, "press R to restart", w / 2f - 58f, h / 2f - 30f)
+        center(Fonts.title, "ゲームオーバー", w, h / 2f + 70f)
+        center(font, "ウェーブ ${gw.waveState.num}    撃破 ${gw.gameOver.kills}", w, h / 2f + 24f)
+        center(font, if (newBest) "自己ベスト更新！  ウェーブ ${Scores.bestWave}" else "ベスト  ウェーブ ${Scores.bestWave}  撃破 ${Scores.bestKills}", w, h / 2f - 6f)
+        center(font, "R で再挑戦", w, h / 2f - 36f)
         batch.end()
     }
 
@@ -377,17 +385,17 @@ class GameScreen : ScreenAdapter() {
         shapes.end()
         batch.projectionMatrix = hudViewport.camera.combined
         batch.begin()
-        for (b in l.all()) font.draw(batch, labelOf(b), l.centerX(b) - 14f, l.centerY(b) + 6f)
+        for (b in l.all()) { glyphLayout.setText(font, labelOf(b)); font.draw(batch, glyphLayout, l.centerX(b) - glyphLayout.width / 2f, l.centerY(b) + 7f) }
         batch.end()
     }
 
     private fun labelOf(b: TouchButton): String = when (b) {
-        TouchButton.FIRE -> "FIRE"
-        TouchButton.MELEE -> "ML"
-        TouchButton.DASH -> "DASH"
-        TouchButton.RELOAD -> "RL"
-        TouchButton.WALL -> "WALL"
-        TouchButton.WEAPON -> "WPN"
+        TouchButton.FIRE -> "射撃"
+        TouchButton.MELEE -> "近接"
+        TouchButton.DASH -> "回避"
+        TouchButton.RELOAD -> "装填"
+        TouchButton.WALL -> "壁"
+        TouchButton.WEAPON -> "武器"
     }
 
     private fun step(delta: Float) {
