@@ -23,6 +23,7 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         val dashing = Locomotion.isDashing(input.dash, mv.isMoving, s.value)
         val spd = Locomotion.speed(dashing)
 
+        // speedScale is always 1 for keyboard; it becomes analog (<1) when touch sticks arrive in Phase 8.
         t.x += mv.dirX * spd * mv.speedScale * dt
         t.y += mv.dirY * spd * mv.speedScale * dt
         if (mv.isMoving) { f.x = mv.dirX; f.y = mv.dirY }

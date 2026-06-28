@@ -13,6 +13,7 @@ import io.github.panda17tk.arpg.core.Constants
 import io.github.panda17tk.arpg.ecs.components.Facing
 import io.github.panda17tk.arpg.ecs.components.Stamina
 import io.github.panda17tk.arpg.ecs.components.Transform
+import io.github.panda17tk.arpg.ecs.world.GameWorld
 import io.github.panda17tk.arpg.ecs.world.WorldFactory
 import io.github.panda17tk.arpg.input.InputState
 import io.github.panda17tk.arpg.input.KeyboardInput
@@ -25,7 +26,9 @@ import kotlin.math.pow
  */
 class GameScreen : ScreenAdapter() {
     private val input = InputState()
-    private val gw = WorldFactory.create(input)
+    // Built in show() (not the constructor) so any future libGDX resource access
+    // inside the ECS world happens after Gdx.app is available on Android.
+    private lateinit var gw: GameWorld
 
     private lateinit var shapes: ShapeRenderer
     private lateinit var batch: SpriteBatch
@@ -40,6 +43,7 @@ class GameScreen : ScreenAdapter() {
     private var camInit = false
 
     override fun show() {
+        gw = WorldFactory.create(input)
         shapes = ShapeRenderer()
         batch = SpriteBatch()
         font = BitmapFont()
