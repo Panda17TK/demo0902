@@ -10,4 +10,5 @@ class InputState {
     var up = false
     var down = false
     var dash = false
+    var placeWall = false   // edge-triggered: true only on the frame F transitions down
 }
