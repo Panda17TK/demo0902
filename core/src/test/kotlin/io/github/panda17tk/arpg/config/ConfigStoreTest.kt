@@ -23,7 +23,7 @@ class ConfigStoreTest {
     }
     @Test fun `reset returns to defaults`() {
         val store = ConfigStore()
-        store.import("""{"player":{"baseSpeed":1f}}""")
+        store.import("""{"player":{"baseSpeed":1.0}}""")
         store.reset()
         assertEquals(GameConfig(), store.config)
     }
