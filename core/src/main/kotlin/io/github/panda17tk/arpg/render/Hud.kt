@@ -8,7 +8,9 @@ import com.badlogic.gdx.graphics.g2d.GlyphLayout
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.utils.viewport.Viewport
+import io.github.panda17tk.arpg.ui.HudLayout
 import io.github.panda17tk.arpg.ui.UiButton
+import io.github.panda17tk.arpg.ui.filledSegments
 
 /**
  * Screen-space overlay drawing — the in-play ⏸ button, the upgrade intermission, game over,
@@ -27,6 +29,16 @@ object Hud {
     private val cPill = Color(1f, 1f, 1f, 0.16f)
     private val cFrame = Color(1f, 1f, 1f, 0.45f)
     private val cHint = Color(0.75f, 0.78f, 0.85f, 1f)
+
+    // P2 live-HUD palette (moved out of GameScreen).
+    private val cHudPanel = Color(0.05f, 0.07f, 0.10f, 0.72f)
+    private val cSegEmpty = Color(0.22f, 0.22f, 0.27f, 0.9f)
+    private val cStaFill = Color.valueOf("4da6ff")
+    private val cOver = Color.valueOf("ff5a3a")
+    private val cHpHi = Color.valueOf("7fe08a")
+    private val cHpLo = Color.valueOf("e0786a")
+    private val cHudInk = Color(0.85f, 0.88f, 0.95f, 1f)
+    private val cReload = Color.valueOf("ffd166")
 
     /** Small translucent ⏸ pill in the corner, drawn during play (bars drawn as shapes — no glyph). */
     fun pauseButton(shapes: ShapeRenderer, vp: Viewport, b: UiButton) {
@@ -141,6 +153,98 @@ object Hud {
         for (line in lines) { font.draw(batch, line, left, y); y -= 40f }
         centerLabel(batch, font, back.label, back.centerX, back.centerY)
         batch.end()
+    }
+
+    /**
+     * P2 live HUD distributed across the top band: wave badge (center), HP/stamina icon+segment
+     * stack (left), weapon/ammo panel (right). Icons are ShapeRenderer figures (glyph-independent),
+     * and the segmented bars carry the reading by shape+count+number, not colour alone.
+     */
+    fun liveHud(
+        shapes: ShapeRenderer, batch: SpriteBatch, font: BitmapFont, titleFont: BitmapFont, vp: Viewport,
+        waveNum: Int, foes: Int,
+        hp: Float, hpMax: Float, sta: Float, staMax: Float, overheat: Boolean,
+        weaponName: String, mag: Int, magSize: Int?, reloadFrac: Float,
+        ammo9: Int, ammo12: Int, ammoBeam: Int, ammoNade: Int,
+        timeSec: Float, kills: Int, blocks: Int,
+    ) {
+        val w = vp.worldWidth; val h = vp.worldHeight
+        val l = HudLayout.of(w, h)
+        val seg = 12
+        val hpFrac = if (hpMax > 0f) (hp / hpMax).coerceIn(0f, 1f) else 0f
+        val hpCol = if (hpFrac > 0.3f) cHpHi else cHpLo
+        val staCol = if (overheat) cOver else cStaFill
+
+        Gdx.gl.glEnable(GL20.GL_BLEND)
+        shapes.projectionMatrix = vp.camera.combined
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
+        shapes.color = cHudPanel; shapes.rect(l.wave.x, l.wave.y, l.wave.w, l.wave.h)
+        shapes.color = cHudPanel; shapes.rect(l.ammo.x, l.ammo.y, l.ammo.w, l.ammo.h)
+        heart(shapes, l.hp.x - 11f, l.hp.centerY, 8f, hpCol)
+        segBar(shapes, l.hp, hp, hpMax, seg, hpCol)
+        bolt(shapes, l.stamina.x - 11f, l.stamina.centerY, 8f, staCol)
+        segBar(shapes, l.stamina, sta, staMax, seg, staCol)
+        gun(shapes, l.ammo.x + 15f, l.ammo.centerY, 9f, cHudInk)
+        if (reloadFrac > 0f) {
+            shapes.color = cReload
+            shapes.rect(l.ammo.x + 4f, l.ammo.y + 3f, (l.ammo.w - 8f) * reloadFrac.coerceIn(0f, 1f), 3f)
+        }
+        shapes.end()
+
+        batch.projectionMatrix = vp.camera.combined
+        batch.begin()
+        // wave badge: small label + big right-aligned number, "残り N" centered just below
+        font.draw(batch, "ウェーブ", l.wave.x + 8f, l.wave.y + l.wave.h - 8f)
+        glyph.setText(titleFont, "$waveNum")
+        titleFont.draw(batch, glyph, l.wave.x + l.wave.w - glyph.width - 10f, l.wave.y + l.wave.h - 3f)
+        glyph.setText(font, "残り $foes")
+        font.draw(batch, glyph, l.wave.centerX - glyph.width / 2f, l.wave.y - 2f)
+        // HP / stamina numbers past their bars
+        font.draw(batch, "${hp.toInt()}/${hpMax.toInt()}", l.hp.x + l.hp.w + 6f, l.hp.y + l.hp.h)
+        if (overheat) font.draw(batch, "過熱!", l.stamina.x + l.stamina.w + 6f, l.stamina.y + l.stamina.h)
+        // weapon name + big mag count + reserve / reloading line
+        val magStr = magSize?.let { "$mag/$it" } ?: "INF"
+        font.draw(batch, weaponName, l.ammo.x + 30f, l.ammo.y + l.ammo.h - 4f)
+        glyph.setText(font, magStr)
+        font.draw(batch, glyph, l.ammo.x + l.ammo.w - glyph.width - 6f, l.ammo.y + l.ammo.h - 4f)
+        font.draw(
+            batch,
+            if (reloadFrac > 0f) "装填中" else "予備 $ammo9/$ammo12/$ammoBeam/$ammoNade",
+            l.ammo.x + 6f, l.ammo.y + 14f,
+        )
+        // secondary stats (lowest priority)
+        val mins = (timeSec / 60f).toInt(); val secs = (timeSec % 60f).toInt()
+        font.draw(batch, "時間 %d:%02d  撃破 %d  資材 %d".format(mins, secs, kills, blocks), l.stats.x, l.stats.y + l.stats.h)
+        batch.end()
+    }
+
+    private fun segBar(shapes: ShapeRenderer, b: UiButton, value: Float, max: Float, count: Int, fill: Color) {
+        val lit = filledSegments(value, max, count)
+        val gap = 2f
+        val segW = (b.w - (count - 1) * gap) / count
+        for (i in 0 until count) {
+            shapes.color = if (i < lit) fill else cSegEmpty
+            shapes.rect(b.x + i * (segW + gap), b.y, segW, b.h)
+        }
+    }
+
+    private fun heart(shapes: ShapeRenderer, cx: Float, cy: Float, s: Float, color: Color) {
+        shapes.color = color
+        shapes.circle(cx - s * 0.32f, cy + s * 0.18f, s * 0.36f, 10)
+        shapes.circle(cx + s * 0.32f, cy + s * 0.18f, s * 0.36f, 10)
+        shapes.triangle(cx - s * 0.62f, cy + s * 0.24f, cx + s * 0.62f, cy + s * 0.24f, cx, cy - s * 0.66f)
+    }
+
+    private fun bolt(shapes: ShapeRenderer, cx: Float, cy: Float, s: Float, color: Color) {
+        shapes.color = color
+        shapes.triangle(cx - s * 0.35f, cy + s * 0.7f, cx + s * 0.25f, cy + s * 0.1f, cx - s * 0.05f, cy + s * 0.1f)
+        shapes.triangle(cx + s * 0.35f, cy - s * 0.7f, cx - s * 0.25f, cy - s * 0.1f, cx + s * 0.05f, cy - s * 0.1f)
+    }
+
+    private fun gun(shapes: ShapeRenderer, cx: Float, cy: Float, s: Float, color: Color) {
+        shapes.color = color
+        shapes.rect(cx - s * 0.7f, cy - s * 0.12f, s * 1.4f, s * 0.4f)
+        shapes.rect(cx - s * 0.5f, cy - s * 0.7f, s * 0.32f, s * 0.6f)
     }
 
     private fun frames(shapes: ShapeRenderer, rects: List<UiButton>) {

@@ -129,12 +129,6 @@ class GameScreen : ScreenAdapter() {
     private val cFuseOn = Color.valueOf("ff5a3a")
     private val cFuseOff = Color.valueOf("7a2a1a")
     private val cTelegraph = Color(1f, 0.3f, 0.2f, 0.9f)
-    private val cPanel = Color(0.05f, 0.07f, 0.10f, 0.72f)
-    private val cBarBg = Color(0.2f, 0.2f, 0.25f, 0.9f)
-    private val cSta = Color.valueOf("4da6ff")
-    private val cOverheat = Color.valueOf("ff5a3a")
-    private val cHpHi = Color.valueOf("7fe08a")
-    private val cHpLo = Color.valueOf("e0786a")
     private val glyphLayout = GlyphLayout()
     private var uiScale = 1f
     private val tmpC = Color()
@@ -320,37 +314,24 @@ class GameScreen : ScreenAdapter() {
         }
         shapes.end()
 
-        // HUD (screen space) — panel + bars + stats
+        // HUD (screen space) — P2 live HUD delegated to render/Hud (geometry from ui/HudLayout)
         hudViewport.apply()
         val hudW = hudViewport.worldWidth; val hudH = hudViewport.worldHeight
         val blocks = with(gw.world) { gw.player[Materials].blocks }
-        val arsenal = with(gw.world) { gw.player[Arsenal] }
         val ammo = with(gw.world) { gw.player[Ammo] }
         val hp = with(gw.world) { gw.player[Health].hp }
         val hpMax = with(gw.world) { gw.player[Health].hpMax }
         val foes = gw.world.family { all(Mob) }.numEntities
-        val w = arsenal.current
-        val magStr = w.def.magSize?.let { "${w.mag}/$it" } ?: "INF"
-        val mins = (runTime / 60f).toInt(); val secs = (runTime % 60f).toInt()
-        val barW = minOf(220f, hudW - 70f)
-
-        shapes.projectionMatrix = hudViewport.camera.combined
-        shapes.begin(ShapeRenderer.ShapeType.Filled)
-        shapes.color = cPanel; shapes.rect(8f, hudH - 120f, minOf(420f, hudW - 16f), 112f)
-        shapes.color = cBarBg; shapes.rect(12f, hudH - 88f, barW, 9f)
-        shapes.color = if (overheat) cOverheat else cSta; shapes.rect(12f, hudH - 88f, barW * (if (staMax > 0f) (sta / staMax).coerceIn(0f, 1f) else 0f), 9f)
-        shapes.color = cBarBg; shapes.rect(12f, hudH - 104f, barW, 9f)
-        shapes.color = if (hp > hpMax * 0.3f) cHpHi else cHpLo; shapes.rect(12f, hudH - 104f, barW * (if (hpMax > 0f) (hp / hpMax).coerceIn(0f, 1f) else 0f), 9f)
-        shapes.end()
-
-        batch.projectionMatrix = hudViewport.camera.combined
-        batch.begin()
-        font.draw(batch, "ウェーブ ${gw.waveState.num}    残り $foes    ${w.def.name} $magStr${if (w.reloadT > 0f) "  装填中…" else ""}", 14f, hudH - 16f)
-        font.draw(batch, "予備 9mm${ammo.ammo9} 12g${ammo.ammo12} ﾋﾞｰﾑ${ammo.ammoBeam} 榴${ammo.ammoNade}", 14f, hudH - 44f)
-        font.draw(batch, "時間 %d:%02d    撃破 %d    資材 %d".format(mins, secs, gw.gameOver.kills, blocks), 14f, hudH - 70f)
-        font.draw(batch, if (overheat) "過熱!" else "スタ", 18f + barW, hudH - 86f)
-        font.draw(batch, "HP ${hp.toInt()}/${hpMax.toInt()}", 18f + barW, hudH - 102f)
-        batch.end()
+        val wpn = with(gw.world) { gw.player[Arsenal] }.current
+        val reloadFrac = if (wpn.reloadT > 0f && wpn.def.reloadTime > 0f) (wpn.reloadT / wpn.def.reloadTime).coerceIn(0f, 1f) else 0f
+        Hud.liveHud(
+            shapes, batch, font, Fonts.title, hudViewport,
+            gw.waveState.num, foes,
+            hp, hpMax, sta, staMax, overheat,
+            wpn.def.name, wpn.mag, wpn.def.magSize, reloadFrac,
+            ammo.ammo9, ammo.ammo12, ammo.ammoBeam, ammo.ammoNade,
+            runTime, gw.gameOver.kills, blocks,
+        )
 
         if (touchEnabled && !paused && !choosing && !gw.gameOver.isOver) drawTouchControls()
         if (!paused && !choosing && !gw.gameOver.isOver) Hud.pauseButton(shapes, hudViewport, Modals.pauseButton(hudW, hudH))
