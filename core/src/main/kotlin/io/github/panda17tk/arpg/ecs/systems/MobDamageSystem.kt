@@ -11,6 +11,8 @@ import io.github.panda17tk.arpg.ecs.components.Mob
 import io.github.panda17tk.arpg.ecs.components.Mods
 import io.github.panda17tk.arpg.ecs.components.PlayerTag
 import io.github.panda17tk.arpg.ecs.components.Transform
+import io.github.panda17tk.arpg.ecs.world.Pickups
+import io.github.panda17tk.arpg.math.Rng
 import io.github.panda17tk.arpg.pathfinding.SpatialGrid
 
 /** Rebuilds the mob spatial grid each tick and reaps dead mobs (kills++, lifesteal heal). */
@@ -19,6 +21,7 @@ class MobDamageSystem(private val grid: SpatialGrid<Entity>) :
 
     private val gameOver: GameOver = world.inject()
     private val fx: Fx = world.inject()
+    private val rng: Rng = world.inject()
     private val players by lazy { world.family { all(PlayerTag, Health, Mods) } }
 
     override fun onTick() {
@@ -35,6 +38,7 @@ class MobDamageSystem(private val grid: SpatialGrid<Entity>) :
             val big = mob.tier != "normal"
             fx.spawnDeath(t.x, t.y, Color.valueOf(mob.def.color.removePrefix("#")), big)
             fx.addShake(if (big) 0.25f else 0.08f, if (big) 9f else 3.5f)
+            Pickups.dropOnKill(world, rng, t.x, t.y, big)
             world -= entity
             return
         }

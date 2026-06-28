@@ -13,4 +13,5 @@ data class WeaponDef(
     val spread: Float,
     val pellets: Int,
     val ammoType: String,
+    val reloadTime: Float = 0f, // seconds for an auto reload (manual is faster); 0 = none (beam)
 )

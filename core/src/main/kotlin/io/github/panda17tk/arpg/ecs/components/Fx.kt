@@ -18,6 +18,14 @@ class Fx(private val rng: Rng = Rng(0x5DEECE66DL)) {
     )
 
     val particles = ArrayList<Particle>(256)
+    val beams = ArrayList<Beam>(8)
+    val slashes = ArrayList<Slash>(8)
+    val afters = ArrayList<After>(64)
+
+    class Beam(val sx: Float, val sy: Float, val ex: Float, val ey: Float, var t: Float, val life: Float)
+    class Slash(val x: Float, val y: Float, val ang: Float, var t: Float, val life: Float)
+    class After(val x: Float, val y: Float, val w: Float, val h: Float, val color: Color, var t: Float, val life: Float)
+
     var shakeT = 0f
         private set
     var shakeMag = 0f
@@ -51,6 +59,10 @@ class Fx(private val rng: Rng = Rng(0x5DEECE66DL)) {
         }
     }
 
+    fun spawnBeam(sx: Float, sy: Float, ex: Float, ey: Float) { beams.add(Beam(sx, sy, ex, ey, 0f, 0.12f)) }
+    fun spawnSlash(x: Float, y: Float, ang: Float) { slashes.add(Slash(x, y, ang, 0f, 0.18f)) }
+    fun spawnAfterimage(x: Float, y: Float, w: Float, h: Float, color: Color) { afters.add(After(x, y, w, h, color, 0f, 0.25f)) }
+
     private fun add(x: Float, y: Float, vx: Float, vy: Float, life: Float, size: Float, color: Color, gravity: Boolean) {
         particles.add(Particle(x, y, vx, vy, 0f, life, size, color, gravity))
     }
@@ -68,6 +80,9 @@ class Fx(private val rng: Rng = Rng(0x5DEECE66DL)) {
             p.x += p.vx * dt; p.y += p.vy * dt
             if (p.t >= p.life) particles.removeAt(i)
         }
+        for (i in beams.indices.reversed()) { val b = beams[i]; b.t += dt; if (b.t >= b.life) beams.removeAt(i) }
+        for (i in slashes.indices.reversed()) { val sl = slashes[i]; sl.t += dt; if (sl.t >= sl.life) slashes.removeAt(i) }
+        for (i in afters.indices.reversed()) { val a = afters[i]; a.t += dt; if (a.t >= a.life) afters.removeAt(i) }
     }
 
     companion object {

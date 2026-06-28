@@ -29,6 +29,7 @@ import io.github.panda17tk.arpg.ecs.systems.MeleeSystem
 import io.github.panda17tk.arpg.ecs.systems.MobActionSystem
 import io.github.panda17tk.arpg.ecs.systems.MobDamageSystem
 import io.github.panda17tk.arpg.ecs.systems.MovementSystem
+import io.github.panda17tk.arpg.ecs.systems.PickupSystem
 import io.github.panda17tk.arpg.ecs.systems.ProjectileSystem
 import io.github.panda17tk.arpg.ecs.systems.ReloadSystem
 import io.github.panda17tk.arpg.ecs.systems.SnapshotSystem
@@ -90,6 +91,7 @@ object WorldFactory {
                 add(AISystem(mobGrid))
                 add(MobActionSystem())
                 add(SpawnerSystem())
+                add(PickupSystem())
             }
         }
 
