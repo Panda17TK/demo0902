@@ -15,6 +15,7 @@ import io.github.panda17tk.arpg.ecs.components.PlayerTag
 import io.github.panda17tk.arpg.ecs.components.Stamina
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.ecs.components.Velocity
+import io.github.panda17tk.arpg.ecs.components.WaveState
 import io.github.panda17tk.arpg.ecs.components.WeaponRuntime
 import io.github.panda17tk.arpg.ecs.systems.AISystem
 import io.github.panda17tk.arpg.ecs.systems.BuildSystem
@@ -28,6 +29,7 @@ import io.github.panda17tk.arpg.ecs.systems.MovementSystem
 import io.github.panda17tk.arpg.ecs.systems.ProjectileSystem
 import io.github.panda17tk.arpg.ecs.systems.ReloadSystem
 import io.github.panda17tk.arpg.ecs.systems.SnapshotSystem
+import io.github.panda17tk.arpg.ecs.systems.SpawnerSystem
 import io.github.panda17tk.arpg.ecs.systems.WeaponSwitchSystem
 import io.github.panda17tk.arpg.input.InputState
 import io.github.panda17tk.arpg.map.MapLoader
@@ -47,9 +49,14 @@ object WorldFactory {
         flow.rebuild(map, floor(loaded.playerSpawnX / Tuning.TILE).toInt(), floor(loaded.playerSpawnY / Tuning.TILE).toInt())
         val combatRng = Rng(seed xor 0x9E3779B9L)
 
-        // Mob spatial grid and game-over flag shared across systems
         val mobGrid = SpatialGrid<Entity>(Tuning.TILE)
         val gameOver = GameOver()
+        val waveState = WaveState(
+            num = 1,
+            phase = "active",
+            toSpawn = minOf(config.waves.maxQuota, config.waves.baseQuota),
+            spawnCd = 0.4f,
+        )
 
         val world = configureWorld {
             injectables {
@@ -60,11 +67,9 @@ object WorldFactory {
                 add(config)
                 add(mobGrid)
                 add(gameOver)
+                add(waveState)
             }
             systems {
-                // Order: Snapshot → MobDamageSystem (reap + grid rebuild) → Movement →
-                //        Build → WeaponSwitch → Melee → Fire → Reload → Projectile →
-                //        FlowRebuild → AI
                 add(SnapshotSystem())
                 add(MobDamageSystem(mobGrid))
                 add(MovementSystem())
@@ -78,6 +83,7 @@ object WorldFactory {
                 add(FlowRebuildSystem())
                 add(AISystem(mobGrid))
                 add(MobActionSystem())
+                add(SpawnerSystem())
             }
         }
 
@@ -95,13 +101,17 @@ object WorldFactory {
             it += Velocity()
         }
 
-        // Spawn mobs at enemy markers from the loaded stage
+        // Initial enemies placed at the stage's markers (the wave spawner adds more over time).
         for (marker in loaded.spawns) {
             if (marker.kind != "enemy") continue
             val def = config.enemies[marker.name] ?: continue
             MobFactory.spawn(world, def, marker.worldX, marker.worldY)
         }
 
-        return GameWorld(world, player).also { it.map = map; it.flow = flow }
+        return GameWorld(world, player).also {
+            it.map = map
+            it.flow = flow
+            it.waveState = waveState
+        }
     }
 }

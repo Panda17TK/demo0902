@@ -4,12 +4,13 @@ import io.github.panda17tk.arpg.combat.Weapons
 import io.github.panda17tk.arpg.combat.WeaponDef
 import kotlinx.serialization.Serializable
 
-/** Root editable config. Phases 6 add waves/drops/upgrades sections. */
+/** Root editable config. Phase 6b adds upgrades/drops sections. */
 @Serializable
 data class GameConfig(
     val player: PlayerConfig = PlayerConfig(),
     val weapons: List<WeaponDef> = Weapons.ALL,
     val ai: AiConfig = AiConfig(),
+    val waves: WaveConfig = WaveConfig(),
     val enemies: Map<String, EnemyDef> = defaultEnemies(),
 )
 

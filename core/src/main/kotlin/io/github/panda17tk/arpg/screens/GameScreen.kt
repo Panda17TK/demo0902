@@ -144,7 +144,7 @@ class GameScreen : ScreenAdapter() {
         val w = arsenal.current
         val magStr = w.def.magSize?.let { "${w.mag}/$it" } ?: "∞"
         val reserve = ammo.get(w.def.ammoType)
-        font.draw(batch, "${w.def.name} $magStr (res $reserve)  STA ${sta.toInt()}  blk $blocks  HP ${hp.toInt()}  [WASD/J/K/R/1-5/F]", 16f, 28f)
+        font.draw(batch, "WAVE ${gw.waveState.num}  ${w.def.name} $magStr (res $reserve)  STA ${sta.toInt()}  blk $blocks  HP ${hp.toInt()}  [WASD/J/K/R/1-5/F]", 16f, 28f)
         batch.end()
         shapes.projectionMatrix = hudViewport.camera.combined
         shapes.begin(ShapeRenderer.ShapeType.Filled)
