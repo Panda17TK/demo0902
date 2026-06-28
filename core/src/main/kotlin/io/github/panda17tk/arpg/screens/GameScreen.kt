@@ -118,7 +118,7 @@ class GameScreen : ScreenAdapter() {
         Fonts.load(uiScale)
         font = Fonts.ui
         camera = OrthographicCamera().apply { setToOrtho(true, Tuning.VIEW_W, Tuning.VIEW_H) } // y-down
-        worldViewport = ExtendViewport(Tuning.VIEW_H, Tuning.VIEW_H, camera) // square min, extends to fill (portrait/landscape)
+        worldViewport = ExtendViewport(384f, 384f, camera) // square min (~12 tiles), extends to fill; closer than 480
         hudViewport = ScreenViewport()
         hudViewport.setUnitsPerPixel(1f / uiScale)
         Sfx.init()
