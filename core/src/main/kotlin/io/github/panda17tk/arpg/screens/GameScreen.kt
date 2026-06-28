@@ -29,6 +29,7 @@ import io.github.panda17tk.arpg.ecs.components.MobAction
 import io.github.panda17tk.arpg.ecs.components.Mods
 import io.github.panda17tk.arpg.ecs.components.Stamina
 import io.github.panda17tk.arpg.ecs.components.Transform
+import io.github.panda17tk.arpg.ecs.components.Velocity
 import io.github.panda17tk.arpg.ecs.world.GameWorld
 import io.github.panda17tk.arpg.ecs.world.WorldFactory
 import io.github.panda17tk.arpg.input.Haptics
@@ -38,6 +39,9 @@ import io.github.panda17tk.arpg.input.TouchButton
 import io.github.panda17tk.arpg.input.TouchControls
 import io.github.panda17tk.arpg.map.Tile
 import io.github.panda17tk.arpg.math.Rng
+import io.github.panda17tk.arpg.render.Actors
+import io.github.panda17tk.arpg.render.Draw
+import io.github.panda17tk.arpg.render.WorldView
 import io.github.panda17tk.arpg.save.Scores
 import io.github.panda17tk.arpg.sim.Tuning
 import io.github.panda17tk.arpg.upgrade.Upgrade
@@ -84,6 +88,24 @@ class GameScreen : ScreenAdapter() {
     private val touch = TouchControls()
     private var touchEnabled = false
 
+    // Visual port: animation clock + run timer + cached projectile/UI colors (avoid per-frame alloc).
+    private var animTime = 0f
+    private var runTime = 0f
+    private val cTrail = Color(0.63f, 0.82f, 1f, 0.5f)
+    private val cBulletCore = Color.valueOf("eaf4ff")
+    private val cEbGlow = Color(1f, 0.55f, 0.55f, 0.5f)
+    private val cEbCore = Color.valueOf("ffd0d0")
+    private val cEbMine = Color.valueOf("ff6b6b")
+    private val cGren = Color.valueOf("5b6b3a")
+    private val cFuseOn = Color.valueOf("ff5a3a")
+    private val cFuseOff = Color.valueOf("7a2a1a")
+    private val cTelegraph = Color(1f, 0.3f, 0.2f, 0.9f)
+    private val cPanel = Color(0.05f, 0.07f, 0.10f, 0.72f)
+    private val cBarBg = Color(0.2f, 0.2f, 0.25f, 0.9f)
+    private val cSta = Color.valueOf("4da6ff")
+    private val cHpHi = Color.valueOf("7fe08a")
+    private val cHpLo = Color.valueOf("e0786a")
+
     override fun show() {
         configStore.loadFromDisk()
         shapes = ShapeRenderer()
@@ -128,16 +150,21 @@ class GameScreen : ScreenAdapter() {
         }
         prevOver = gw.gameOver.isOver
         gw.fx.update(delta)
+        animTime += delta
+        if (!gw.gameOver.isOver && !choosing) runTime += delta
         val alpha = (accumulator / Constants.FIXED_DT).coerceIn(0f, 1f)
 
-        // interpolated player position
-        val px: Float; val py: Float; val fx: Float; val fy: Float; val sta: Float; val staMax: Float
+        // interpolated player position + state
+        val px: Float; val py: Float; val fx: Float; val fy: Float; val sta: Float; val staMax: Float; val pit: Float
         with(gw.world) {
             val t = gw.player[Transform]; val f = gw.player[Facing]; val s = gw.player[Stamina]
             px = t.prevX + (t.x - t.prevX) * alpha
             py = t.prevY + (t.y - t.prevY) * alpha
-            fx = f.x; fy = f.y; sta = s.value; staMax = s.max
+            fx = f.x; fy = f.y; sta = s.value; staMax = s.max; pit = gw.player[Health].iTime
         }
+        val playerHit = pit > 0f && ((pit * 20f).toInt() % 2 == 0)
+        val dashing = input.dash && sta > 0f
+        val muzzle = input.fire
 
         updateCamera(delta, px, py, fx, fy)
         if (gw.fx.shakeMag > 0f) { camera.position.add(gw.fx.shakeX(), gw.fx.shakeY(), 0f); camera.update() }
@@ -148,77 +175,89 @@ class GameScreen : ScreenAdapter() {
         worldViewport.apply()
         shapes.projectionMatrix = camera.combined
 
-        // tiles (filled)
+        // world (procedural sprites — ported from legacy renderer.js + enemy-sprites.js)
+        Gdx.gl.glEnable(GL20.GL_BLEND)
         shapes.begin(ShapeRenderer.ShapeType.Filled)
-        val m = gw.map
-        for (ty in 0 until m.height) for (tx in 0 until m.width) {
-            val t = m.tileAt(tx, ty)
-            if (t == Tile.FLOOR) continue
-            shapes.color = if (t == Tile.DOOR) Color(0.30f, 0.22f, 0.12f, 1f)
-                           else Color(0.22f, 0.24f, 0.32f, 1f)
-            shapes.rect(tx * Tuning.TILE, ty * Tuning.TILE, Tuning.TILE, Tuning.TILE)
-        }
-        // mobs
+        WorldView.draw(shapes, gw.map)
         with(gw.world) {
-            gw.world.family { all(Mob, Transform, Health) }.forEach { e ->
-                val mt = e[Transform]; val mm = e[Mob]; val mh = e[Health]
-                shapes.color = if (mh.hitFlash > 0f) Color.WHITE else Color.valueOf(mm.def.color)
-                shapes.circle(mt.x, mt.y, mm.def.w / 2f, 16)
+            gw.world.family { all(Mob, Transform, Health, Facing, Velocity, MobAction) }.forEach { e ->
+                val mt = e[Transform]; val mm = e[Mob]; val mh = e[Health]; val mf = e[Facing]; val mv = e[Velocity]; val ma = e[MobAction]
+                val moving = (mt.x - mt.prevX) * (mt.x - mt.prevX) + (mt.y - mt.prevY) * (mt.y - mt.prevY) > 0.0025f || (mv.vx * mv.vx + mv.vy * mv.vy) > 4f
+                val chargeProg = if (ma.chargeT > 0f) {
+                    val windup = mm.def.attacks.firstOrNull { it.type == "charge_melee" }?.windup ?: 0.7f
+                    (1f - ma.chargeT.coerceAtLeast(0f) / windup).coerceIn(0f, 1f)
+                } else -1f
+                val hpFrac = if (mh.hpMax > 0f) mh.hp / mh.hpMax else 1f
+                Actors.drawMob(shapes, mm.kind, mm.tier, mt.x, mt.y, mm.def.w, mm.def.h, Color.valueOf(mm.def.color), mf.x, mf.y, moving, mh.hitFlash > 0f, ma.dodgeT > 0f, chargeProg, ma.enrageT > 0f, hpFrac, e.id * 1.3f, animTime)
             }
         }
-        // player
-        shapes.color = Color(0.45f, 0.85f, 0.95f, 1f)
-        shapes.circle(px, py, Tuning.PLAYER_RADIUS, 24)
-        // bullets (yellow) + grenades (red)
+        Actors.drawPlayer(shapes, px, py, fx, fy, dashing, playerHit, muzzle)
         with(gw.world) {
             gw.world.family { all(Bullet, Transform) }.forEach { e ->
-                val bt = e[Transform]; shapes.color = Color(1f, 0.95f, 0.5f, 1f); shapes.circle(bt.x, bt.y, 3f, 8)
+                val bt = e[Transform]; val b = e[Bullet]
+                val sp = hypot(b.vx, b.vy).let { if (it == 0f) 1f else it }
+                shapes.color = cTrail; Draw.orientedRect(shapes, bt.x, bt.y, b.vx / sp, b.vy / sp, -8f, 8f, 1.5f)
+                shapes.color = cBulletCore; shapes.circle(bt.x, bt.y, 2f, 8)
             }
             gw.world.family { all(Grenade, Transform) }.forEach { e ->
-                val gt = e[Transform]; shapes.color = Color(1f, 0.5f, 0.4f, 1f); shapes.circle(gt.x, gt.y, 5f, 10)
+                val gt = e[Transform]; shapes.color = cGren; shapes.circle(gt.x, gt.y, 4f, 10)
+                shapes.color = if (((animTime / 0.12f).toInt() % 2) == 0) cFuseOn else cFuseOff; shapes.circle(gt.x, gt.y - 1f, 1.6f, 6)
             }
             gw.world.family { all(EBullet, Transform) }.forEach { e ->
-                val et = e[Transform]; shapes.color = Color(1f, 0.4f, 0.7f, 1f); shapes.circle(et.x, et.y, 3f, 8)
+                val et = e[Transform]; val eb = e[EBullet]
+                val r = if (eb.mine) 6f else 4f
+                shapes.color = cEbGlow; shapes.circle(et.x, et.y, r, 10)
+                shapes.color = if (eb.mine) cEbMine else cEbCore; shapes.circle(et.x, et.y, 2f, 6)
             }
         }
-        // Phase 7: death-burst particles (gibs shrink as they expire)
+        // death-burst particles (gibs shrink as they expire)
         gw.fx.particles.forEach { p ->
             val k = 1f - p.t / p.life
             if (k > 0f) { shapes.color = p.color; shapes.circle(p.x, p.y, p.size * k, 8) }
         }
         shapes.end()
 
+        // charge-melee telegraph rings
         shapes.begin(ShapeRenderer.ShapeType.Line)
-        shapes.color = Color.WHITE
-        shapes.line(px, py, px + fx * Tuning.PLAYER_RADIUS * 1.8f, py + fy * Tuning.PLAYER_RADIUS * 1.8f)
         with(gw.world) {
             gw.world.family { all(Mob, Transform, MobAction) }.forEach { e ->
                 val mt = e[Transform]; val ma = e[MobAction]
-                if (ma.charging) { shapes.color = Color(1f, 0.3f, 0.2f, 1f); shapes.circle(mt.x, mt.y, 14f + ma.chargeT * 30f, 16) }
+                if (ma.charging) { shapes.color = cTelegraph; shapes.circle(mt.x, mt.y, 14f + ma.chargeT * 30f, 16) }
             }
         }
         shapes.end()
 
-        // HUD (screen space)
+        // HUD (screen space) — panel + bars + stats
         hudViewport.apply()
-        batch.projectionMatrix = hudViewport.camera.combined
-        batch.begin()
+        val hudW = hudViewport.worldWidth; val hudH = hudViewport.worldHeight
         val blocks = with(gw.world) { gw.player[Materials].blocks }
         val arsenal = with(gw.world) { gw.player[Arsenal] }
         val ammo = with(gw.world) { gw.player[Ammo] }
         val hp = with(gw.world) { gw.player[Health].hp }
+        val hpMax = with(gw.world) { gw.player[Health].hpMax }
+        val foes = gw.world.family { all(Mob) }.numEntities
         val w = arsenal.current
-        val magStr = w.def.magSize?.let { "${w.mag}/$it" } ?: "∞"
-        val reserve = ammo.get(w.def.ammoType)
-        font.draw(batch, "WAVE ${gw.waveState.num}  ${w.def.name} $magStr (res $reserve)  STA ${sta.toInt()}  blk $blocks  HP ${hp.toInt()}  [WASD/J/K/R/1-5/F]", 16f, 28f)
-        batch.end()
+        val magStr = w.def.magSize?.let { "${w.mag}/$it" } ?: "INF"
+        val mins = (runTime / 60f).toInt(); val secs = (runTime % 60f).toInt()
+        val barW = minOf(220f, hudW - 70f)
+
         shapes.projectionMatrix = hudViewport.camera.combined
         shapes.begin(ShapeRenderer.ShapeType.Filled)
-        shapes.color = Color(0.2f, 0.2f, 0.25f, 1f)
-        shapes.rect(16f, 40f, 200f, 10f)
-        shapes.color = Color(0.95f, 0.8f, 0.3f, 1f)
-        shapes.rect(16f, 40f, 200f * (sta / staMax), 10f)
+        shapes.color = cPanel; shapes.rect(8f, hudH - 96f, minOf(392f, hudW - 16f), 88f)
+        shapes.color = cBarBg; shapes.rect(12f, hudH - 80f, barW, 8f)
+        shapes.color = cSta; shapes.rect(12f, hudH - 80f, barW * (if (staMax > 0f) (sta / staMax).coerceIn(0f, 1f) else 0f), 8f)
+        shapes.color = cBarBg; shapes.rect(12f, hudH - 92f, barW, 8f)
+        shapes.color = if (hp > hpMax * 0.3f) cHpHi else cHpLo; shapes.rect(12f, hudH - 92f, barW * (if (hpMax > 0f) (hp / hpMax).coerceIn(0f, 1f) else 0f), 8f)
         shapes.end()
+
+        batch.projectionMatrix = hudViewport.camera.combined
+        batch.begin()
+        font.draw(batch, "WAVE ${gw.waveState.num}    foes $foes    ${w.def.id.uppercase()} $magStr", 14f, hudH - 14f)
+        font.draw(batch, "9mm ${ammo.ammo9}   12g ${ammo.ammo12}   Beam ${ammo.ammoBeam}   Nade ${ammo.ammoNade}", 14f, hudH - 32f)
+        font.draw(batch, "Time %d:%02d    Kills %d    Mat %d".format(mins, secs, gw.gameOver.kills, blocks), 14f, hudH - 50f)
+        font.draw(batch, "STA", 16f + barW, hudH - 73f)
+        font.draw(batch, "HP ${hp.toInt()}/${hpMax.toInt()}", 16f + barW, hudH - 85f)
+        batch.end()
 
         if (touchEnabled && !choosing && !gw.gameOver.isOver) drawTouchControls()
         if (choosing) drawUpgradeCards()
@@ -324,20 +363,18 @@ class GameScreen : ScreenAdapter() {
         val l = touch.layout
         Gdx.gl.glEnable(GL20.GL_BLEND)
         shapes.projectionMatrix = hudViewport.camera.combined
-        shapes.begin(ShapeRenderer.ShapeType.Line)
-        shapes.color = Color(1f, 1f, 1f, 0.35f)
-        shapes.circle(l.stickCx, l.stickCy, l.stickRadius, 24)
-        for (b in l.all()) shapes.circle(l.centerX(b), l.centerY(b), l.buttonRadius, 18)
-        shapes.end()
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
+        shapes.color = Color(1f, 1f, 1f, 0.10f); shapes.circle(l.stickCx, l.stickCy, l.stickRadius, 28)
         if (touch.stickActive) {
-            shapes.begin(ShapeRenderer.ShapeType.Filled)
-            shapes.color = Color(1f, 1f, 1f, 0.45f)
+            shapes.color = Color(1f, 1f, 1f, 0.30f)
             var kx = touch.knobX - touch.baseX; var ky = touch.knobY - touch.baseY
             val len = hypot(kx, ky); val max = l.stickRadius
             if (len > max) { kx = kx / len * max; ky = ky / len * max }
-            shapes.circle(l.stickCx + kx, l.stickCy + ky, l.stickRadius * 0.4f, 16)
-            shapes.end()
+            shapes.circle(l.stickCx + kx, l.stickCy + ky, l.stickRadius * 0.42f, 18)
         }
+        shapes.color = Color(1f, 1f, 1f, 0.14f)
+        for (b in l.all()) shapes.circle(l.centerX(b), l.centerY(b), l.buttonRadius, 22)
+        shapes.end()
         batch.projectionMatrix = hudViewport.camera.combined
         batch.begin()
         for (b in l.all()) font.draw(batch, labelOf(b), l.centerX(b) - 14f, l.centerY(b) + 6f)
