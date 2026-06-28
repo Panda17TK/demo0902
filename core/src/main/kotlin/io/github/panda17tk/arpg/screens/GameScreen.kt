@@ -11,6 +11,7 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont
 import com.badlogic.gdx.graphics.g2d.GlyphLayout
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
+import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.utils.ScreenUtils
 import com.badlogic.gdx.utils.viewport.ExtendViewport
 import com.badlogic.gdx.utils.viewport.ScreenViewport
@@ -44,9 +45,14 @@ import io.github.panda17tk.arpg.math.Rng
 import io.github.panda17tk.arpg.render.Actors
 import io.github.panda17tk.arpg.render.Draw
 import io.github.panda17tk.arpg.render.Fonts
+import io.github.panda17tk.arpg.render.Hud
 import io.github.panda17tk.arpg.render.WorldView
 import io.github.panda17tk.arpg.save.Scores
 import io.github.panda17tk.arpg.sim.Tuning
+import io.github.panda17tk.arpg.ui.Modals
+import io.github.panda17tk.arpg.ui.Overlay
+import io.github.panda17tk.arpg.ui.PauseAction
+import io.github.panda17tk.arpg.ui.PauseFlow
 import io.github.panda17tk.arpg.upgrade.Upgrade
 import io.github.panda17tk.arpg.upgrade.Upgrades
 import kotlin.math.cos
@@ -92,6 +98,24 @@ class GameScreen : ScreenAdapter() {
     // Phase 8: on-screen controls (Android only) + audio service.
     private val touch = TouchControls()
     private var touchEnabled = false
+
+    // P1: blocking overlay (pause / help) + the per-frame HUD tap, unprojected into dp space.
+    private var overlay = Overlay.NONE
+    private var tapped = false
+    private var tapX = 0f
+    private var tapY = 0f
+    private val tmpTap = Vector3()
+
+    // Static help text shown on the pause → 操作説明 overlay (keyboard + touch bindings).
+    private val HELP_LINES = listOf(
+        "移動：左スティック / WASD",
+        "エイム＆射撃：右スティック / 矢印 + K",
+        "ダッシュ：ボタン / Shift",
+        "近接：ボタン / J",
+        "リロード：ボタン / R",
+        "武器切替・壁設置：ボタン / 数字",
+        "ポーズ：右上ボタン / Esc・P",
+    )
 
     // Visual port: animation clock + run timer + cached projectile/UI colors (avoid per-frame alloc).
     private var animTime = 0f
@@ -147,6 +171,7 @@ class GameScreen : ScreenAdapter() {
         choosing = false
         offered = false
         choices = emptyList()
+        overlay = Overlay.NONE
         lastHp = Float.NaN
         lastKills = 0
         prevOver = false
@@ -155,14 +180,26 @@ class GameScreen : ScreenAdapter() {
 
     override fun render(delta: Float) {
         KeyboardInput.poll(input)
-        if (touchEnabled) touch.poll(input, hudViewport)
+        pollTap()
+        if ((Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE) || Gdx.input.isKeyJustPressed(Input.Keys.P)) &&
+            !choosing && !gw.gameOver.isOver) overlay = PauseFlow.toggle(overlay)
+        handlePauseTaps()
+        val paused = overlay != Overlay.NONE
+
+        // Gameplay touch (twin-stick / fire) runs only when no modal blocks it (spec §5.2).
+        if (touchEnabled && !paused && !choosing && !gw.gameOver.isOver) touch.poll(input, hudViewport)
+
         if (gw.gameOver.isOver) {
             accumulator = 0f
             if (!prevOver) {
                 newBest = Scores.record(gw.waveState.num, gw.gameOver.kills)
                 Sfx.play("dead"); Haptics.buzz(140)
             }
-            if (Gdx.input.isKeyJustPressed(Input.Keys.R)) { newRun(); return }
+            val restartTapped = tapped &&
+                Modals.hitModal(Modals.gameOverButtons(hudViewport.worldWidth, hudViewport.worldHeight), tapX, tapY) != null
+            if (Gdx.input.isKeyJustPressed(Input.Keys.R) || restartTapped) { newRun(); return }
+        } else if (paused) {
+            accumulator = 0f // freeze the sim while paused; skip stepping & the upgrade flow
         } else {
             updateUpgradeFlow(delta)
             trackPlayerHitShake()
@@ -170,7 +207,7 @@ class GameScreen : ScreenAdapter() {
         prevOver = gw.gameOver.isOver
         gw.fx.update(delta)
         animTime += delta
-        if (!gw.gameOver.isOver && !choosing) runTime += delta
+        if (!gw.gameOver.isOver && !choosing && !paused) runTime += delta
         val alpha = (accumulator / Constants.FIXED_DT).coerceIn(0f, 1f)
 
         // interpolated player position + state
@@ -315,9 +352,26 @@ class GameScreen : ScreenAdapter() {
         font.draw(batch, "HP ${hp.toInt()}/${hpMax.toInt()}", 18f + barW, hudH - 102f)
         batch.end()
 
-        if (touchEnabled && !choosing && !gw.gameOver.isOver) drawTouchControls()
-        if (choosing) drawUpgradeCards()
-        if (gw.gameOver.isOver) drawGameOver()
+        if (touchEnabled && !paused && !choosing && !gw.gameOver.isOver) drawTouchControls()
+        if (!paused && !choosing && !gw.gameOver.isOver) Hud.pauseButton(shapes, hudViewport, Modals.pauseButton(hudW, hudH))
+        if (choosing) {
+            val cfg = configStore.config.upgrades
+            Hud.upgradeCards(
+                shapes, batch, font, hudViewport, gw.waveState.num,
+                Modals.upgradeCards(hudW, hudH, choices.size),
+                choices.map { it.name }, choices.map { Upgrades.desc(it, cfg) },
+            )
+        }
+        if (gw.gameOver.isOver) {
+            val bestText = if (newBest) "自己ベスト更新！  ウェーブ ${Scores.bestWave}"
+                else "ベスト  ウェーブ ${Scores.bestWave}  撃破 ${Scores.bestKills}"
+            Hud.gameOver(
+                shapes, batch, font, Fonts.title, hudViewport,
+                gw.waveState.num, gw.gameOver.kills, bestText, Modals.gameOverButtons(hudW, hudH).first(),
+            )
+        }
+        if (overlay == Overlay.PAUSE) Hud.pause(shapes, batch, font, Fonts.title, hudViewport, Modals.pauseButtons(hudW, hudH))
+        if (overlay == Overlay.HELP) Hud.help(shapes, batch, font, Fonts.title, hudViewport, Modals.helpButtons(hudW, hudH).first(), HELP_LINES)
     }
 
     private fun trackPlayerHitShake() {
@@ -340,6 +394,9 @@ class GameScreen : ScreenAdapter() {
                 Gdx.input.isKeyJustPressed(Input.Keys.NUM_1) -> 0
                 Gdx.input.isKeyJustPressed(Input.Keys.NUM_2) -> 1
                 Gdx.input.isKeyJustPressed(Input.Keys.NUM_3) -> 2
+                tapped -> Modals.hitModal(
+                    Modals.upgradeCards(hudViewport.worldWidth, hudViewport.worldHeight, choices.size), tapX, tapY,
+                ) ?: -1
                 else -> -1
             }
             if (sel in choices.indices) { applyUpgrade(choices[sel]); choosing = false; offered = true }
@@ -361,59 +418,31 @@ class GameScreen : ScreenAdapter() {
         Sfx.play("levelup")
     }
 
-    private fun drawUpgradeCards() {
-        if (choices.isEmpty()) return
-        val cfg = configStore.config.upgrades
-        val w = hudViewport.worldWidth
-        val h = hudViewport.worldHeight
-        val cardW = minOf(360f, w * 0.85f)
-        val cardH = 64f
-        val gap = 16f
-        val totalH = choices.size * cardH + (choices.size - 1) * gap
-        val x = (w - cardW) / 2f
-        val top = (h + totalH) / 2f - cardH // bottom-left y of the first (top) card
-
-        Gdx.gl.glEnable(GL20.GL_BLEND)
-        shapes.projectionMatrix = hudViewport.camera.combined
-        shapes.begin(ShapeRenderer.ShapeType.Filled)
-        shapes.color = Color(0f, 0f, 0f, 0.6f)
-        shapes.rect(0f, 0f, w, h)
-        shapes.color = Color(0.16f, 0.17f, 0.22f, 1f)
-        choices.indices.forEach { i -> shapes.rect(x, top - i * (cardH + gap), cardW, cardH) }
-        shapes.end()
-
-        batch.projectionMatrix = hudViewport.camera.combined
-        batch.begin()
-        font.draw(batch, "ウェーブ ${gw.waveState.num} クリア！  強化を選択 (1 / 2 / 3)", x, top + cardH + 28f)
-        choices.forEachIndexed { i, u ->
-            val cy = top - i * (cardH + gap)
-            font.draw(batch, "${i + 1})  ${u.name}", x + 14f, cy + cardH - 14f)
-            font.draw(batch, Upgrades.desc(u, cfg), x + 14f, cy + 24f)
+    /** Capture this frame's HUD tap (a desktop mouse click counts too), unprojected into dp space. */
+    private fun pollTap() {
+        tapped = Gdx.input.justTouched()
+        if (tapped) {
+            tmpTap.set(Gdx.input.x.toFloat(), Gdx.input.y.toFloat(), 0f)
+            hudViewport.unproject(tmpTap)
+            tapX = tmpTap.x; tapY = tmpTap.y
         }
-        batch.end()
     }
 
-    private fun center(f: BitmapFont, s: String, screenW: Float, y: Float) {
-        glyphLayout.setText(f, s)
-        f.draw(batch, glyphLayout, (screenW - glyphLayout.width) / 2f, y)
-    }
-
-    private fun drawGameOver() {
-        val w = hudViewport.worldWidth
-        val h = hudViewport.worldHeight
-        Gdx.gl.glEnable(GL20.GL_BLEND)
-        shapes.projectionMatrix = hudViewport.camera.combined
-        shapes.begin(ShapeRenderer.ShapeType.Filled)
-        shapes.color = Color(0f, 0f, 0f, 0.72f)
-        shapes.rect(0f, 0f, w, h)
-        shapes.end()
-        batch.projectionMatrix = hudViewport.camera.combined
-        batch.begin()
-        center(Fonts.title, "ゲームオーバー", w, h / 2f + 70f)
-        center(font, "ウェーブ ${gw.waveState.num}    撃破 ${gw.gameOver.kills}", w, h / 2f + 24f)
-        center(font, if (newBest) "自己ベスト更新！  ウェーブ ${Scores.bestWave}" else "ベスト  ウェーブ ${Scores.bestWave}  撃破 ${Scores.bestKills}", w, h / 2f - 6f)
-        center(font, "R で再挑戦", w, h / 2f - 36f)
-        batch.end()
+    /** Route a tap to the pause/help overlays, or open pause from the in-play ⏸ button (spec §5.2). */
+    private fun handlePauseTaps() {
+        if (!tapped) return
+        val w = hudViewport.worldWidth; val h = hudViewport.worldHeight
+        when (overlay) {
+            Overlay.PAUSE -> when (PauseFlow.action(Modals.hitModal(Modals.pauseButtons(w, h), tapX, tapY) ?: -1)) {
+                PauseAction.RESUME -> overlay = Overlay.NONE
+                PauseAction.RESTART -> { newRun(); overlay = Overlay.NONE }
+                PauseAction.HELP -> overlay = Overlay.HELP
+                null -> {}
+            }
+            Overlay.HELP -> if (Modals.hitModal(Modals.helpButtons(w, h), tapX, tapY) != null) overlay = Overlay.PAUSE
+            Overlay.NONE -> if (!choosing && !gw.gameOver.isOver &&
+                Modals.hitModal(listOf(Modals.pauseButton(w, h)), tapX, tapY) != null) overlay = Overlay.PAUSE
+        }
     }
 
     private fun drawTouchControls() {

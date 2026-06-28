@@ -16,3 +16,7 @@ local.properties
 # OS
 .DS_Store
 Thumbs.db
+# Superpowers brainstorm scratch
+.superpowers/
+# Runtime-generated procedural SFX cache
+desktop/sfx/
