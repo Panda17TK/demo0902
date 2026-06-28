@@ -1,15 +1,25 @@
 package io.github.panda17tk.arpg.ecs.world
 
 import com.github.quillraven.fleks.configureWorld
+import io.github.panda17tk.arpg.combat.Weapons
+import io.github.panda17tk.arpg.ecs.components.Ammo
+import io.github.panda17tk.arpg.ecs.components.Arsenal
 import io.github.panda17tk.arpg.ecs.components.Body
+import io.github.panda17tk.arpg.ecs.components.Cooldowns
 import io.github.panda17tk.arpg.ecs.components.Facing
 import io.github.panda17tk.arpg.ecs.components.Materials
 import io.github.panda17tk.arpg.ecs.components.PlayerTag
 import io.github.panda17tk.arpg.ecs.components.Stamina
 import io.github.panda17tk.arpg.ecs.components.Transform
+import io.github.panda17tk.arpg.ecs.components.WeaponRuntime
 import io.github.panda17tk.arpg.ecs.systems.BuildSystem
+import io.github.panda17tk.arpg.ecs.systems.FireSystem
+import io.github.panda17tk.arpg.ecs.systems.MeleeSystem
 import io.github.panda17tk.arpg.ecs.systems.MovementSystem
+import io.github.panda17tk.arpg.ecs.systems.ProjectileSystem
+import io.github.panda17tk.arpg.ecs.systems.ReloadSystem
 import io.github.panda17tk.arpg.ecs.systems.SnapshotSystem
+import io.github.panda17tk.arpg.ecs.systems.WeaponSwitchSystem
 import io.github.panda17tk.arpg.input.InputState
 import io.github.panda17tk.arpg.map.MapLoader
 import io.github.panda17tk.arpg.map.Stages
@@ -25,17 +35,24 @@ object WorldFactory {
         val map = loaded.tileMap
         val flow = FlowField(map.width, map.height)
         flow.rebuild(map, floor(loaded.playerSpawnX / Tuning.TILE).toInt(), floor(loaded.playerSpawnY / Tuning.TILE).toInt())
+        val combatRng = Rng(seed xor 0x9E3779B9L)
 
         val world = configureWorld {
             injectables {
                 add(input)
                 add(map)
                 add(flow)
+                add(combatRng)
             }
             systems {
                 add(SnapshotSystem())
                 add(MovementSystem())
                 add(BuildSystem())
+                add(WeaponSwitchSystem())
+                add(MeleeSystem())
+                add(FireSystem())
+                add(ReloadSystem())
+                add(ProjectileSystem())
             }
         }
         val player = world.entity {
@@ -45,6 +62,9 @@ object WorldFactory {
             it += Stamina()
             it += Body(Tuning.PLAYER_HALF, Tuning.PLAYER_HALF)
             it += Materials()
+            it += Arsenal(Weapons.ALL.map { d -> WeaponRuntime(d, d.magSize ?: 0) })
+            it += Ammo()
+            it += Cooldowns()
         }
         return GameWorld(world, player).also { it.map = map; it.flow = flow }
     }
