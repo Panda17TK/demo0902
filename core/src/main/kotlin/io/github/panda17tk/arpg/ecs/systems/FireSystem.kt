@@ -5,6 +5,7 @@ import com.github.quillraven.fleks.IteratingSystem
 import com.github.quillraven.fleks.World.Companion.family
 import io.github.panda17tk.arpg.combat.BeamRay
 import io.github.panda17tk.arpg.combat.Firing
+import io.github.panda17tk.arpg.config.GameConfig
 import io.github.panda17tk.arpg.ecs.components.Ammo
 import io.github.panda17tk.arpg.ecs.components.Arsenal
 import io.github.panda17tk.arpg.ecs.components.Bullet
@@ -25,6 +26,7 @@ class FireSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing, Ar
     private val input: InputState = world.inject()
     private val map: TileMap = world.inject()
     private val rng: Rng = world.inject()
+    private val config: GameConfig = world.inject()
 
     override fun onTickEntity(entity: Entity) {
         val cd = entity[Cooldowns]
@@ -49,7 +51,7 @@ class FireSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing, Ar
                 w.mag--; cd.shoot = def.fireRate
                 world.entity {
                     it += Transform(x = t.x + dirX * Tuning.MUZZLE_OFFSET, y = t.y + dirY * Tuning.MUZZLE_OFFSET)
-                    it += Grenade(dirX * Tuning.GRENADE_SPEED, dirY * Tuning.GRENADE_SPEED, Tuning.GRENADE_FUSE)
+                    it += Grenade(dirX * config.player.grenadeSpeed, dirY * config.player.grenadeSpeed, config.player.grenadeFuse)
                 }
             }
             else -> {
@@ -57,10 +59,10 @@ class FireSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing, Ar
                 w.mag--; cd.shoot = def.fireRate
                 val angles = Firing.bulletAngles(aim, def.spread, def.pellets, rng)
                 for (a in angles) {
-                    val vx = cos(a) * Tuning.BULLET_SPEED; val vy = sin(a) * Tuning.BULLET_SPEED
+                    val vx = cos(a) * config.player.bulletSpeed; val vy = sin(a) * config.player.bulletSpeed
                     world.entity {
                         it += Transform(x = t.x + cos(a) * Tuning.MUZZLE_OFFSET, y = t.y + sin(a) * Tuning.MUZZLE_OFFSET)
-                        it += Bullet(vx, vy, Tuning.BULLET_LIFE, def.dmg)
+                        it += Bullet(vx, vy, config.player.bulletLife, def.dmg)
                     }
                 }
             }

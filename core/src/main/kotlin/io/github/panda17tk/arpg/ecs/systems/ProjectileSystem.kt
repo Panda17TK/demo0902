@@ -5,6 +5,7 @@ import com.github.quillraven.fleks.IteratingSystem
 import com.github.quillraven.fleks.World.Companion.family
 import io.github.panda17tk.arpg.combat.Ballistics
 import io.github.panda17tk.arpg.combat.Explosion
+import io.github.panda17tk.arpg.config.GameConfig
 import io.github.panda17tk.arpg.ecs.components.Bullet
 import io.github.panda17tk.arpg.ecs.components.Grenade
 import io.github.panda17tk.arpg.ecs.components.PlayerTag
@@ -19,6 +20,7 @@ import kotlin.math.floor
 class ProjectileSystem : IteratingSystem(family { any(Bullet, Grenade) }) {
     private val map: TileMap = world.inject()
     private val flow: FlowField = world.inject()
+    private val config: GameConfig = world.inject()
 
     private var pPlayerX = 0
     private var pPlayerY = 0
@@ -55,7 +57,7 @@ class ProjectileSystem : IteratingSystem(family { any(Bullet, Grenade) }) {
             t.x += g.vx * deltaTime; t.y += g.vy * deltaTime; g.fuse -= deltaTime
             val tx = floor(t.x / Tuning.TILE).toInt(); val ty = floor(t.y / Tuning.TILE).toInt()
             if (map.solidAt(tx, ty) || g.fuse <= 0f) {
-                Explosion.applyWallDamage(map, t.x, t.y) // player self-damage + mob damage: Phase 5
+                Explosion.applyWallDamage(map, t.x, t.y, config.player) // player self-damage + mob damage: Phase 5
                 flow.rebuild(map, playerTileX(), playerTileY())
                 world -= entity
             }

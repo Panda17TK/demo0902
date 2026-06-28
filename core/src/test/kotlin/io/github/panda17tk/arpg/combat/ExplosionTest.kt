@@ -1,5 +1,6 @@
 package io.github.panda17tk.arpg.combat
 
+import io.github.panda17tk.arpg.config.PlayerConfig
 import io.github.panda17tk.arpg.map.MapLoader
 import io.github.panda17tk.arpg.map.Stages
 import io.github.panda17tk.arpg.map.Tile
@@ -21,7 +22,7 @@ class ExplosionTest {
         loop@ for (ty in 1 until m.height - 1) for (tx in 1 until m.width - 1) {
             if (m.tileAt(tx, ty) == Tile.WALL && m.hp[m.index(tx, ty)].isFinite()) { wx = tx; wy = ty; break@loop }
         }
-        Explosion.applyWallDamage(m, wx * Tuning.TILE + 16f, wy * Tuning.TILE + 16f)
+        Explosion.applyWallDamage(m, wx * Tuning.TILE + 16f, wy * Tuning.TILE + 16f, PlayerConfig())
         assertEquals(Tile.FLOOR, m.tileAt(wx, wy)) // 120 dmg at center > 90 HP -> broken
     }
 }

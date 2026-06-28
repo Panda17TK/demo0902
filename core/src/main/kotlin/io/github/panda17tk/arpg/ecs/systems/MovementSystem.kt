@@ -3,6 +3,7 @@ package io.github.panda17tk.arpg.ecs.systems
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.IteratingSystem
 import com.github.quillraven.fleks.World.Companion.family
+import io.github.panda17tk.arpg.config.GameConfig
 import io.github.panda17tk.arpg.ecs.components.Body
 import io.github.panda17tk.arpg.ecs.components.Facing
 import io.github.panda17tk.arpg.ecs.components.PlayerTag
@@ -16,6 +17,7 @@ import io.github.panda17tk.arpg.sim.Locomotion
 class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing, Stamina, Body) }) {
     private val input: InputState = world.inject()
     private val map: TileMap = world.inject()
+    private val config: GameConfig = world.inject()
 
     override fun onTickEntity(entity: Entity) {
         val t = entity[Transform]
@@ -26,7 +28,7 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
 
         val mv = Locomotion.keyboardDirection(input.left, input.right, input.up, input.down)
         val dashing = Locomotion.isDashing(input.dash, mv.isMoving, s.value)
-        val spd = Locomotion.speed(dashing)
+        val spd = Locomotion.speed(dashing, config.player)
 
         val dx = mv.dirX * spd * mv.speedScale * dt
         val dy = mv.dirY * spd * mv.speedScale * dt
@@ -34,6 +36,6 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         t.x = r.x
         t.y = r.y
         if (mv.isMoving) { f.x = mv.dirX; f.y = mv.dirY }
-        s.value = Locomotion.nextStamina(s.value, dashing, dt)
+        s.value = Locomotion.nextStamina(s.value, dashing, dt, config.player)
     }
 }

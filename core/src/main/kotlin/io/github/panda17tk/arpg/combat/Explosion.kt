@@ -1,5 +1,6 @@
 package io.github.panda17tk.arpg.combat
 
+import io.github.panda17tk.arpg.config.PlayerConfig
 import io.github.panda17tk.arpg.map.Tile
 import io.github.panda17tk.arpg.map.TileMap
 import io.github.panda17tk.arpg.map.Tiles
@@ -12,9 +13,9 @@ object Explosion {
     /** Linear falloff: 1 at center, 0 at [radius]. */
     fun falloff(dist: Float, radius: Float): Float = (1f - dist / radius).coerceIn(0f, 1f)
 
-    /** Damage destructible WALL tiles within EXPLODE_RADIUS of (x,y) with 120*(1-d/r) (legacy). */
-    fun applyWallDamage(map: TileMap, x: Float, y: Float) {
-        val r = Tuning.EXPLODE_RADIUS
+    /** Damage destructible WALL tiles within explodeRadius of (x,y) with wallDmg*(1-d/r) (legacy). */
+    fun applyWallDamage(map: TileMap, x: Float, y: Float, cfg: PlayerConfig) {
+        val r = cfg.explodeRadius
         val tx0 = maxOf(1, floor((x - r) / Tuning.TILE).toInt())
         val ty0 = maxOf(1, floor((y - r) / Tuning.TILE).toInt())
         val tx1 = minOf(map.width - 2, floor((x + r) / Tuning.TILE).toInt())
@@ -24,7 +25,7 @@ object Explosion {
             val cx = tx * Tuning.TILE + Tuning.TILE / 2f
             val cy = ty * Tuning.TILE + Tuning.TILE / 2f
             val d = hypot(cx - x, cy - y)
-            if (d <= r) Tiles.damageTile(map, tx, ty, Tuning.EXPLODE_WALL_DMG * (1f - d / r))
+            if (d <= r) Tiles.damageTile(map, tx, ty, cfg.explodeWallDmg * (1f - d / r))
         }
     }
 }

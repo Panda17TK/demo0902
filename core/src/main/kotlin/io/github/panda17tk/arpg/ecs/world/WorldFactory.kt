@@ -1,7 +1,7 @@
 package io.github.panda17tk.arpg.ecs.world
 
 import com.github.quillraven.fleks.configureWorld
-import io.github.panda17tk.arpg.combat.Weapons
+import io.github.panda17tk.arpg.config.GameConfig
 import io.github.panda17tk.arpg.ecs.components.Ammo
 import io.github.panda17tk.arpg.ecs.components.Arsenal
 import io.github.panda17tk.arpg.ecs.components.Body
@@ -30,7 +30,7 @@ import kotlin.math.floor
 
 object WorldFactory {
     /** [seed] keeps stage selection deterministic for tests. */
-    fun create(input: InputState, seed: Long = 1L): GameWorld {
+    fun create(input: InputState, config: GameConfig = GameConfig(), seed: Long = 1L): GameWorld {
         val loaded = MapLoader.load(Stages.random(Rng(seed)))
         val map = loaded.tileMap
         val flow = FlowField(map.width, map.height)
@@ -43,6 +43,7 @@ object WorldFactory {
                 add(map)
                 add(flow)
                 add(combatRng)
+                add(config)
             }
             systems {
                 add(SnapshotSystem())
@@ -59,10 +60,10 @@ object WorldFactory {
             it += Transform(x = loaded.playerSpawnX, y = loaded.playerSpawnY)
             it += PlayerTag()
             it += Facing()
-            it += Stamina()
+            it += Stamina(config.player.staMax, config.player.staMax)
             it += Body(Tuning.PLAYER_HALF, Tuning.PLAYER_HALF)
             it += Materials()
-            it += Arsenal(Weapons.ALL.map { d -> WeaponRuntime(d, d.magSize ?: 0) })
+            it += Arsenal(config.weapons.map { d -> WeaponRuntime(d, d.magSize ?: 0) })
             it += Ammo()
             it += Cooldowns()
         }

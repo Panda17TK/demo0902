@@ -1,5 +1,6 @@
 package io.github.panda17tk.arpg.sim
 
+import io.github.panda17tk.arpg.config.PlayerConfig
 import kotlin.math.sqrt
 
 /** Resolved movement direction + analog scale (0 = not moving). */
@@ -25,10 +26,10 @@ object Locomotion {
     fun isDashing(dashHeld: Boolean, moving: Boolean, sta: Float): Boolean =
         dashHeld && moving && sta > 0f
 
-    fun speed(dashing: Boolean): Float =
-        Tuning.BASE_SPEED * Tuning.SPEED_MUL * (if (dashing) Tuning.DASH_MUL else 1f)
+    fun speed(dashing: Boolean, cfg: PlayerConfig): Float =
+        cfg.baseSpeed * cfg.speedMul * (if (dashing) cfg.dashMul else 1f)
 
-    fun nextStamina(sta: Float, dashing: Boolean, dt: Float): Float =
-        if (dashing) (sta - Tuning.STA_DRAIN * dt).coerceAtLeast(0f)
-        else (sta + Tuning.STA_REGEN * dt).coerceAtMost(Tuning.STA_MAX)
+    fun nextStamina(sta: Float, dashing: Boolean, dt: Float, cfg: PlayerConfig): Float =
+        if (dashing) (sta - cfg.staDrain * dt).coerceAtLeast(0f)
+        else (sta + cfg.staRegen * dt).coerceAtMost(cfg.staMax)
 }

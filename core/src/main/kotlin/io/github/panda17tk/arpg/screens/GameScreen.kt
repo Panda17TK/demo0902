@@ -64,12 +64,12 @@ class GameScreen : ScreenAdapter() {
         val alpha = (accumulator / Constants.FIXED_DT).coerceIn(0f, 1f)
 
         // interpolated player position
-        val px: Float; val py: Float; val fx: Float; val fy: Float; val sta: Float
+        val px: Float; val py: Float; val fx: Float; val fy: Float; val sta: Float; val staMax: Float
         with(gw.world) {
             val t = gw.player[Transform]; val f = gw.player[Facing]; val s = gw.player[Stamina]
             px = t.prevX + (t.x - t.prevX) * alpha
             py = t.prevY + (t.y - t.prevY) * alpha
-            fx = f.x; fy = f.y; sta = s.value
+            fx = f.x; fy = f.y; sta = s.value; staMax = s.max
         }
 
         updateCamera(delta, px, py, fx, fy)
@@ -126,7 +126,7 @@ class GameScreen : ScreenAdapter() {
         shapes.color = Color(0.2f, 0.2f, 0.25f, 1f)
         shapes.rect(16f, 40f, 200f, 10f)
         shapes.color = Color(0.95f, 0.8f, 0.3f, 1f)
-        shapes.rect(16f, 40f, 200f * (sta / Tuning.STA_MAX), 10f)
+        shapes.rect(16f, 40f, 200f * (sta / staMax), 10f)
         shapes.end()
     }
 

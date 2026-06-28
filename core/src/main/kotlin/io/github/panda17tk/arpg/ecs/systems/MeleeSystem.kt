@@ -4,6 +4,7 @@ import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.IteratingSystem
 import com.github.quillraven.fleks.World.Companion.family
 import io.github.panda17tk.arpg.combat.MeleeResolve
+import io.github.panda17tk.arpg.config.GameConfig
 import io.github.panda17tk.arpg.ecs.components.Cooldowns
 import io.github.panda17tk.arpg.ecs.components.Facing
 import io.github.panda17tk.arpg.ecs.components.PlayerTag
@@ -19,6 +20,7 @@ import kotlin.math.floor
 class MeleeSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing, Stamina, Cooldowns) }) {
     private val input: InputState = world.inject()
     private val map: TileMap = world.inject()
+    private val config: GameConfig = world.inject()
 
     override fun onTickEntity(entity: Entity) {
         val cd = entity[Cooldowns]
@@ -26,8 +28,8 @@ class MeleeSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing, S
         if (!input.melee || cd.melee > 0f) return
 
         val t = entity[Transform]; val f = entity[Facing]; val s = entity[Stamina]
-        cd.melee = Tuning.MELEE_CD
-        val outcome = MeleeResolve.resolve(if (s.max > 0f) s.value / s.max else 1f) // mob hits: Phase 5
+        cd.melee = config.player.meleeCd
+        val outcome = MeleeResolve.resolve(if (s.max > 0f) s.value / s.max else 1f, config.player) // mob hits: Phase 5
 
         // break destructible walls in the front 3x3 (legacy melee.js)
         val ftx = floor((t.x + f.x * Tuning.MELEE_WALL_OFFSET) / Tuning.TILE).toInt()
