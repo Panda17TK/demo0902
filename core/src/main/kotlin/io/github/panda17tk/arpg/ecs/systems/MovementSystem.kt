@@ -18,6 +18,7 @@ import io.github.panda17tk.arpg.map.Biome
 import io.github.panda17tk.arpg.map.Biomes
 import io.github.panda17tk.arpg.map.TileMap
 import io.github.panda17tk.arpg.sim.Collision
+import io.github.panda17tk.arpg.sim.Inertia
 import io.github.panda17tk.arpg.sim.Locomotion
 import io.github.panda17tk.arpg.sim.Tuning
 import kotlin.math.floor
@@ -61,13 +62,15 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         val maxV = Locomotion.speed(dashing, config.player) * mods.moveMul *
             (if (bf.dashUpT > 0f) DASH_UP_MUL else 1f) * (if (snow) SNOW_SLOW else 1f)
         val accel = if (dashing) DASH_ACCEL else MOVE_ACCEL
-        val friction = if (mv.isMoving) MOVE_FRICTION else STOP_FRICTION
 
         // Knockback decays fast and stays separate from movement (keeps hits punchy).
         v.vx *= 0.0001f.pow(dt)
         v.vy *= 0.0001f.pow(dt)
-        // Acceleration-based movement: input/dash push acceleration; drift ramps to a capped max + coasts.
-        val (nvx, nvy) = Locomotion.applyMove(v.driftX, v.driftY, mv.dirX, mv.dirY, mv.isMoving, accel, friction, maxV, dt)
+        // Newtonian-ish momentum: input/dash accelerate the drift; light space-drag lets it coast (space inertia).
+        val thrustX = if (mv.isMoving) mv.dirX * accel else 0f
+        val thrustY = if (mv.isMoving) mv.dirY * accel else 0f
+        val decay = if (mv.isMoving) MOVE_DECAY else COAST_DECAY
+        val (nvx, nvy) = Inertia.step(v.driftX, v.driftY, thrustX, thrustY, decay, maxV, dt)
         v.driftX = nvx; v.driftY = nvy
 
         // Axis-separated collision so the player slides/crawls along walls instead of catching on edges.
@@ -94,8 +97,8 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         private const val DASH_UP_MUL = 1.5f // dash-speed pickup buff
         private const val MOVE_ACCEL = 480f // walk acceleration — heavier: ramps up over ~0.2s
         private const val DASH_ACCEL = 1600f // dash acceleration — beefier dash
-        private const val MOVE_FRICTION = 0.6f // light drag while moving (still reaches the cap)
-        private const val STOP_FRICTION = 0.08f // firmer drag when stopping (short coast)
+        private const val MOVE_DECAY = 0.6f // light drag while thrusting (still reaches the cap)
+        private const val COAST_DECAY = 0.5f // space glide on release — momentum lingers (~halves in 1s); main feel tunable
         private const val SNOW_SLOW = 0.62f // snow block underfoot → slower
         private const val MAGMA_DPS = 8f // magma block burns HP/sec
         private const val GRASS_STA = 16f // grass block restores stamina/sec
