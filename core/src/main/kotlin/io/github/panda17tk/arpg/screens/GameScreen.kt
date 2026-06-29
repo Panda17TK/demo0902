@@ -274,6 +274,19 @@ class GameScreen : ScreenAdapter() {
         val minTy = maxOf(0, ((camera.position.y - vhh) / vt).toInt())
         val maxTy = minOf(gw.map.height - 1, ((camera.position.y + vhh) / vt).toInt())
         WorldView.draw(shapes, gw.map, minTx, maxTx, minTy, maxTy)
+        // Living Planets: wash a planet surface in its biome colour (atmosphere/ground tint), under the actors.
+        if (gw.worldState.mode == WorldMode.SURFACE) gw.worldState.biome?.let { b ->
+            when (b) {
+                PlanetBiome.NATURE -> tmpC.set(0.20f, 0.45f, 0.22f, 0.16f)
+                PlanetBiome.MAGMA -> tmpC.set(0.55f, 0.16f, 0.08f, 0.18f)
+                PlanetBiome.ICE -> tmpC.set(0.70f, 0.82f, 0.95f, 0.16f)
+                PlanetBiome.GAS -> tmpC.set(0.62f, 0.55f, 0.32f, 0.16f)
+                PlanetBiome.DEAD -> tmpC.set(0.30f, 0.28f, 0.26f, 0.18f)
+                PlanetBiome.LONELY -> tmpC.set(0.16f, 0.16f, 0.22f, 0.20f)
+            }
+            shapes.color = tmpC
+            shapes.rect(camera.position.x - vhw, camera.position.y - vhh, vhw * 2f, vhh * 2f)
+        }
         with(gw.world) {
             gw.world.family { all(Mob, Transform, Health, Facing, Velocity, MobAction) }.forEach { e ->
                 val mt = e[Transform]; val mm = e[Mob]; val mh = e[Health]; val mf = e[Facing]; val mv = e[Velocity]; val ma = e[MobAction]
@@ -345,18 +358,64 @@ class GameScreen : ScreenAdapter() {
                 }
             }
         }
-        // planets — large solid bodies tinted by their ecological biome
+        // planets — biome-flavoured bodies: a halo/ring, the body, then surface features (spots/caps/bands/craters),
+        // all built from circles kept inside the silhouette so each planet type reads at a glance.
+        fun feature(cx: Float, cy: Float, r: Float, fx: Float, fy: Float, fr: Float, cr: Float, cg: Float, cb: Float, ca: Float) {
+            tmpC.set(cr, cg, cb, ca); shapes.color = tmpC
+            shapes.circle(cx + fx * r, cy + fy * r, fr * r, 22)
+        }
         for (p in gw.planets) {
+            val r = p.radius
+            // halo / ring behind the body (translucent; none for the dead/lonely rocks)
             when (p.biome) {
-                PlanetBiome.NATURE -> tmpC.set(0.28f, 0.52f, 0.30f, 1f)
-                PlanetBiome.MAGMA -> tmpC.set(0.62f, 0.24f, 0.18f, 1f)
-                PlanetBiome.ICE -> tmpC.set(0.82f, 0.88f, 0.95f, 1f)
+                PlanetBiome.MAGMA -> { tmpC.set(0.95f, 0.32f, 0.12f, 0.22f); shapes.color = tmpC; shapes.circle(p.cx, p.cy, r * 1.30f, 40) }
+                PlanetBiome.ICE -> { tmpC.set(0.60f, 0.92f, 0.96f, 0.18f); shapes.color = tmpC; shapes.circle(p.cx, p.cy, r * 1.30f, 40) }
+                PlanetBiome.GAS -> { tmpC.set(0.82f, 0.70f, 0.45f, 0.18f); shapes.color = tmpC; shapes.circle(p.cx, p.cy, r * 1.34f, 40) }
+                PlanetBiome.NATURE -> { tmpC.set(0.42f, 0.72f, 0.96f, 0.14f); shapes.color = tmpC; shapes.circle(p.cx, p.cy, r * 1.22f, 40) }
+                else -> {}
+            }
+            // body
+            when (p.biome) {
+                PlanetBiome.NATURE -> tmpC.set(0.20f, 0.44f, 0.62f, 1f)   // blue-green ocean world
+                PlanetBiome.MAGMA -> tmpC.set(0.24f, 0.10f, 0.09f, 1f)    // near-black, molten crust
+                PlanetBiome.ICE -> tmpC.set(0.82f, 0.90f, 0.96f, 1f)
                 PlanetBiome.GAS -> tmpC.set(0.74f, 0.62f, 0.40f, 1f)
                 PlanetBiome.DEAD -> tmpC.set(0.42f, 0.40f, 0.38f, 1f)
-                PlanetBiome.LONELY -> tmpC.set(0.30f, 0.30f, 0.34f, 1f)
+                PlanetBiome.LONELY -> tmpC.set(0.26f, 0.26f, 0.30f, 1f)
             }
             shapes.color = tmpC
-            shapes.circle(p.cx, p.cy, p.radius, 44)
+            shapes.circle(p.cx, p.cy, r, 44)
+            // surface features
+            when (p.biome) {
+                PlanetBiome.NATURE -> {
+                    feature(p.cx, p.cy, r, -0.25f, 0.18f, 0.28f, 0.24f, 0.52f, 0.26f, 1f)   // continents
+                    feature(p.cx, p.cy, r, 0.30f, -0.20f, 0.20f, 0.24f, 0.52f, 0.26f, 1f)
+                    feature(p.cx, p.cy, r, 0.06f, 0.42f, 0.16f, 0.86f, 0.92f, 0.96f, 0.7f)   // cloud band
+                }
+                PlanetBiome.MAGMA -> {
+                    feature(p.cx, p.cy, r, -0.20f, -0.10f, 0.16f, 0.96f, 0.55f, 0.12f, 1f)   // lava pools / eruptions
+                    feature(p.cx, p.cy, r, 0.28f, 0.22f, 0.12f, 1f, 0.72f, 0.22f, 1f)
+                    feature(p.cx, p.cy, r, 0.05f, -0.34f, 0.09f, 1f, 0.45f, 0.10f, 1f)
+                }
+                PlanetBiome.ICE -> {
+                    feature(p.cx, p.cy, r, 0f, -0.46f, 0.40f, 0.96f, 0.98f, 1f, 1f)          // polar cap
+                    feature(p.cx, p.cy, r, 0.26f, 0.30f, 0.16f, 0.70f, 0.82f, 0.92f, 1f)
+                }
+                PlanetBiome.GAS -> {
+                    feature(p.cx, p.cy, r, 0f, 0.30f, 0.42f, 0.66f, 0.54f, 0.34f, 1f)        // darker band
+                    feature(p.cx, p.cy, r, 0f, -0.28f, 0.40f, 0.86f, 0.74f, 0.50f, 1f)       // lighter band
+                    feature(p.cx, p.cy, r, -0.22f, 0.06f, 0.16f, 0.88f, 0.42f, 0.20f, 1f)    // the great storm
+                }
+                PlanetBiome.DEAD -> {
+                    feature(p.cx, p.cy, r, -0.20f, 0.20f, 0.14f, 0.30f, 0.29f, 0.27f, 1f)    // craters
+                    feature(p.cx, p.cy, r, 0.25f, -0.15f, 0.10f, 0.30f, 0.29f, 0.27f, 1f)
+                    feature(p.cx, p.cy, r, 0.02f, -0.30f, 0.08f, 0.30f, 0.29f, 0.27f, 1f)
+                }
+                PlanetBiome.LONELY -> {
+                    feature(p.cx, p.cy, r, 0.04f, 0f, 0.62f, 0.34f, 0.34f, 0.40f, 1f)        // a small rocky body
+                    feature(p.cx, p.cy, r, 0.18f, -0.12f, 0.08f, 0.98f, 0.90f, 0.55f, 1f)    // a lone artificial light
+                }
+            }
         }
         // tribe strongholds ("stars") — a tribe-coloured aura + pulsing core
         for (base in gw.bases) {
