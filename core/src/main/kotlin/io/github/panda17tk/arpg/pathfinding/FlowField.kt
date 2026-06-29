@@ -12,7 +12,7 @@ class FlowField(val width: Int, val height: Int) {
     fun distAt(tx: Int, ty: Int): Int =
         if (tx in 0 until width && ty in 0 until height) dist[ty * width + tx] else UNREACHABLE
 
-    fun rebuild(map: TileMap, startTileX: Int, startTileY: Int) {
+    fun rebuild(map: TileMap, startTileX: Int, startTileY: Int, maxDist: Int = Int.MAX_VALUE) {
         dist.fill(UNREACHABLE)
         if (startTileX !in 0 until width || startTileY !in 0 until height) return
         val queue = ArrayDeque<Int>()
@@ -29,7 +29,7 @@ class FlowField(val width: Int, val height: Int) {
                 if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
                 if (map.solidAt(nx, ny)) continue
                 val ni = ny * width + nx
-                if (dist[ni] > d + 1) { dist[ni] = d + 1; queue.addLast(ni) }
+                if (d + 1 <= maxDist && dist[ni] > d + 1) { dist[ni] = d + 1; queue.addLast(ni) }
             }
         }
     }

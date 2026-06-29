@@ -6,6 +6,7 @@ import io.github.panda17tk.arpg.config.GameConfig
 import io.github.panda17tk.arpg.ecs.components.Ammo
 import io.github.panda17tk.arpg.ecs.components.Arsenal
 import io.github.panda17tk.arpg.ecs.components.Body
+import io.github.panda17tk.arpg.ecs.components.Buff
 import io.github.panda17tk.arpg.ecs.components.Cooldowns
 import io.github.panda17tk.arpg.ecs.components.Facing
 import io.github.panda17tk.arpg.ecs.components.Fx
@@ -25,6 +26,7 @@ import io.github.panda17tk.arpg.ecs.systems.EBulletSystem
 import io.github.panda17tk.arpg.ecs.systems.FireSystem
 import io.github.panda17tk.arpg.ecs.systems.FlowRebuildSystem
 import io.github.panda17tk.arpg.ecs.systems.GameOverSystem
+import io.github.panda17tk.arpg.ecs.systems.GravitySystem
 import io.github.panda17tk.arpg.ecs.systems.MeleeSystem
 import io.github.panda17tk.arpg.ecs.systems.MobActionSystem
 import io.github.panda17tk.arpg.ecs.systems.MobDamageSystem
@@ -32,6 +34,7 @@ import io.github.panda17tk.arpg.ecs.systems.MovementSystem
 import io.github.panda17tk.arpg.ecs.systems.PickupSystem
 import io.github.panda17tk.arpg.ecs.systems.ProjectileSystem
 import io.github.panda17tk.arpg.ecs.systems.ReloadSystem
+import io.github.panda17tk.arpg.ecs.systems.SmokeSystem
 import io.github.panda17tk.arpg.ecs.systems.SnapshotSystem
 import io.github.panda17tk.arpg.ecs.systems.SpawnerSystem
 import io.github.panda17tk.arpg.ecs.systems.WeaponSwitchSystem
@@ -50,7 +53,7 @@ object WorldFactory {
         val loaded = MapLoader.load(Stages.random(Rng(seed)))
         val map = loaded.tileMap
         val flow = FlowField(map.width, map.height)
-        flow.rebuild(map, floor(loaded.playerSpawnX / Tuning.TILE).toInt(), floor(loaded.playerSpawnY / Tuning.TILE).toInt())
+        flow.rebuild(map, floor(loaded.playerSpawnX / Tuning.TILE).toInt(), floor(loaded.playerSpawnY / Tuning.TILE).toInt(), FlowRebuildSystem.MAX_DIST)
         val combatRng = Rng(seed xor 0x9E3779B9L)
 
         val mobGrid = SpatialGrid<Entity>(Tuning.TILE)
@@ -80,6 +83,7 @@ object WorldFactory {
                 add(MobDamageSystem(mobGrid))
                 add(GameOverSystem())
                 add(MovementSystem())
+                add(GravitySystem())
                 add(BuildSystem())
                 add(WeaponSwitchSystem())
                 add(MeleeSystem(mobGrid))
@@ -87,6 +91,7 @@ object WorldFactory {
                 add(ReloadSystem())
                 add(ProjectileSystem(mobGrid))
                 add(EBulletSystem())
+                add(SmokeSystem())
                 add(FlowRebuildSystem())
                 add(AISystem(mobGrid))
                 add(MobActionSystem())
@@ -103,6 +108,7 @@ object WorldFactory {
             it += Body(Tuning.PLAYER_HALF, Tuning.PLAYER_HALF)
             it += Materials()
             it += Mods()
+            it += Buff()
             it += Arsenal(config.weapons.map { d -> WeaponRuntime(d, d.magSize ?: 0) })
             it += Ammo()
             it += Cooldowns()

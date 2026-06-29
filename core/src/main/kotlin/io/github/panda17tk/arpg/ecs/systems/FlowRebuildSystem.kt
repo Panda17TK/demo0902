@@ -31,6 +31,11 @@ class FlowRebuildSystem : IteratingSystem(family { all(PlayerTag, Transform) }) 
 
     override fun onTickEntity(entity: Entity) {
         val t = entity[Transform]
-        flow.rebuild(map, floor(t.x / Tuning.TILE).toInt(), floor(t.y / Tuning.TILE).toInt())
+        // Cap BFS radius so pathfinding cost stays O(MAX_DIST²) even on the huge 32× maps.
+        flow.rebuild(map, floor(t.x / Tuning.TILE).toInt(), floor(t.y / Tuning.TILE).toInt(), MAX_DIST)
+    }
+
+    companion object {
+        const val MAX_DIST = 70
     }
 }

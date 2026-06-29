@@ -31,11 +31,11 @@ object Pickups {
         if (boss || rng.nextFloat() < 0.15f) spawn(world, "blocks", if (boss) 4 else 1, x, y)
     }
 
-    /** Wall/asteroid break loot: materials + sometimes ammo or a medkit. */
+    /** Wall/asteroid break loot: many varied drops (materials/ammo/med + rare consumables) via [Loot]. */
     fun dropOnWall(world: World, rng: Rng, x: Float, y: Float) {
-        spawn(world, "blocks", 1, x, y)
-        val r = rng.nextFloat()
-        if (r < 0.30f) { val (kind, amt) = AMMO[rng.nextInt(AMMO.size)]; spawn(world, kind, amt, x, y) }
-        else if (r < 0.37f) spawn(world, "med", 20, x, y)
+        for ((kind, amt) in Loot.wallDrops(rng)) {
+            val a = rng.nextFloat() * TAU; val r = rng.nextFloat() * 12f
+            spawn(world, kind, amt, x + cos(a) * r, y + sin(a) * r)
+        }
     }
 }
