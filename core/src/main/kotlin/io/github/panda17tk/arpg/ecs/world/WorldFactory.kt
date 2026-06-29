@@ -41,8 +41,10 @@ import io.github.panda17tk.arpg.ecs.systems.SnapshotSystem
 import io.github.panda17tk.arpg.ecs.systems.SpawnerSystem
 import io.github.panda17tk.arpg.ecs.systems.WeaponSwitchSystem
 import io.github.panda17tk.arpg.input.InputState
+import io.github.panda17tk.arpg.map.Biome
 import io.github.panda17tk.arpg.map.MapLoader
 import io.github.panda17tk.arpg.map.Stages
+import io.github.panda17tk.arpg.map.SurfaceStages
 import io.github.panda17tk.arpg.math.Rng
 import io.github.panda17tk.arpg.pathfinding.FlowField
 import io.github.panda17tk.arpg.pathfinding.SpatialGrid
@@ -55,13 +57,19 @@ import io.github.panda17tk.arpg.sim.Planets
 import io.github.panda17tk.arpg.sim.Tribes
 import io.github.panda17tk.arpg.sim.Tuning
 import io.github.panda17tk.arpg.sim.WallGravity
+import io.github.panda17tk.arpg.sim.WorldMode
 import io.github.panda17tk.arpg.sim.WorldState
 import kotlin.math.floor
 
 object WorldFactory {
     /** [seed] keeps stage selection deterministic for tests. */
-    fun create(input: InputState, config: GameConfig = GameConfig(), seed: Long = 1L): GameWorld {
-        val loaded = MapLoader.load(Stages.random(Rng(seed)))
+    fun create(
+        input: InputState, config: GameConfig = GameConfig(), seed: Long = 1L,
+        mode: WorldMode = WorldMode.SPACE, biome: Biome? = null, carry: PlayerCarry? = null,
+    ): GameWorld {
+        val loaded = MapLoader.load(
+            if (mode == WorldMode.SURFACE) SurfaceStages.forBiome(biome, seed) else Stages.random(Rng(seed)),
+        )
         val map = loaded.tileMap
         val flow = FlowField(map.width, map.height)
         flow.rebuild(map, floor(loaded.playerSpawnX / Tuning.TILE).toInt(), floor(loaded.playerSpawnY / Tuning.TILE).toInt(), FlowRebuildSystem.MAX_DIST)
@@ -83,12 +91,13 @@ object WorldFactory {
         // Discrete planets: 2..4 per stage, deterministic from the seed, clear of the player spawn.
         val planetCount = 2 + Rng(seed xor 0x50A4E70BL).nextInt(3)
         val planetField = PlanetField(
-            Planets.place(
+            if (mode == WorldMode.SURFACE) emptyList()
+            else Planets.place(
                 map.width * Tuning.TILE, map.height * Tuning.TILE,
                 loaded.playerSpawnX, loaded.playerSpawnY, planetCount, Rng(seed xor 0x91A2B3C4L),
             ),
         )
-        val worldState = WorldState()
+        val worldState = WorldState(mode = mode, biome = biome)
         val waveState = WaveState(
             num = 1,
             phase = "active",
@@ -152,6 +161,7 @@ object WorldFactory {
             it += Health(config.player.hpMax, config.player.hpMax)
             it += Velocity()
         }
+        carry?.applyTo(world, player) // carry HP/ammo/upgrades across a SPACE⇄SURFACE landing
 
         // Initial enemies placed at the stage's markers (the wave spawner adds more over time).
         for (marker in loaded.spawns) {

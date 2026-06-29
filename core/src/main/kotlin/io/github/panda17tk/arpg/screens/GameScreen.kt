@@ -36,6 +36,7 @@ import io.github.panda17tk.arpg.ecs.components.Stamina
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.ecs.components.Velocity
 import io.github.panda17tk.arpg.ecs.world.GameWorld
+import io.github.panda17tk.arpg.ecs.world.PlayerCarry
 import io.github.panda17tk.arpg.ecs.world.WorldFactory
 import io.github.panda17tk.arpg.input.Haptics
 import io.github.panda17tk.arpg.input.InputState
@@ -52,6 +53,7 @@ import io.github.panda17tk.arpg.render.Hud
 import io.github.panda17tk.arpg.render.WorldView
 import io.github.panda17tk.arpg.save.Scores
 import io.github.panda17tk.arpg.sim.Tuning
+import io.github.panda17tk.arpg.sim.WorldMode
 import io.github.panda17tk.arpg.ui.Modals
 import io.github.panda17tk.arpg.ui.Overlay
 import io.github.panda17tk.arpg.ui.PauseAction
@@ -178,6 +180,28 @@ class GameScreen : ScreenAdapter() {
         newBest = false
     }
 
+    private var landSeed = 100L
+
+    /** Land on the hovered planet (SPACE) or take off back to space (SURFACE), carrying run state across the rebuild. */
+    private fun handleLanding() {
+        val ws = gw.worldState
+        if (ws.mode == WorldMode.SPACE) {
+            val cand = ws.landingCandidate ?: return
+            transitionWorld(WorldMode.SURFACE, cand.biome)
+        } else {
+            transitionWorld(WorldMode.SPACE, null)
+        }
+    }
+
+    private fun transitionWorld(mode: WorldMode, biome: Biome?) {
+        val carry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
+        landSeed += 1
+        gw = WorldFactory.create(input, configStore.config, landSeed, mode, biome, carry)
+        gw.waveState.num = carry.wave
+        accumulator = 0f; camInit = false; overlay = Overlay.NONE
+        choosing = false; offered = false; choices = emptyList(); lastHp = Float.NaN
+    }
+
     override fun render(delta: Float) {
         KeyboardInput.poll(input)
         pollTap()
@@ -185,6 +209,8 @@ class GameScreen : ScreenAdapter() {
             !choosing && !gw.gameOver.isOver) overlay = PauseFlow.toggle(overlay)
         handlePauseTaps()
         val paused = overlay != Overlay.NONE
+        // Living Planets: land on / leave a planet with L (rebuilds the world for the surface stage).
+        if (!paused && !choosing && !gw.gameOver.isOver && Gdx.input.isKeyJustPressed(Input.Keys.L)) handleLanding()
 
         // Gameplay touch (twin-stick / fire) runs only when no modal blocks it (spec §5.2).
         // Pass the player context so the action buttons can show/hide by relevance (P3).
@@ -408,6 +434,27 @@ class GameScreen : ScreenAdapter() {
             wpn.def.name, wpn.mag, wpn.def.magSize, reloadFrac, reserveStr,
             runTime, gw.gameOver.kills, blocks,
         )
+        // Living Planets: landing / takeoff prompt (HUD space).
+        run {
+            val ws = gw.worldState
+            val hint = when {
+                ws.mode == WorldMode.SURFACE -> "[L] 離陸して宇宙へ"
+                ws.landingCandidate != null -> {
+                    val bn = when (ws.landingCandidate!!.biome) {
+                        Biome.ROCK -> "岩石"; Biome.GRASS -> "草原"; Biome.SNOW -> "氷雪"; Biome.MAGMA -> "溶岩"
+                    }
+                    "[L] 着陸: $bn"
+                }
+                else -> null
+            }
+            if (hint != null && !paused && !choosing) {
+                batch.projectionMatrix = hudViewport.camera.combined
+                batch.begin()
+                glyphLayout.setText(font, hint)
+                font.draw(batch, glyphLayout, (hudW - glyphLayout.width) / 2f, hudH - 12f)
+                batch.end()
+            }
+        }
 
         if (touchEnabled && !paused && !choosing && !gw.gameOver.isOver) drawTouchControls()
         if (!paused && !choosing && !gw.gameOver.isOver) Hud.pauseButton(shapes, hudViewport, Modals.pauseButton(hudW, hudH))
