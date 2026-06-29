@@ -20,6 +20,8 @@ import io.github.panda17tk.arpg.pathfinding.FlowField
 import io.github.panda17tk.arpg.pathfinding.Los
 import io.github.panda17tk.arpg.pathfinding.SpatialGrid
 import io.github.panda17tk.arpg.sim.Collision
+import io.github.panda17tk.arpg.sim.Tribes
+import io.github.panda17tk.arpg.sim.Tuning
 import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.pow
@@ -33,6 +35,7 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
     private val flow: FlowField = world.inject()
     private val config: GameConfig = world.inject()
     private val rng: Rng = world.inject()
+    private val tribes: Tribes = world.inject()
 
     private val players by lazy { world.family { all(PlayerTag, Transform, Health, Velocity) } }
 
@@ -75,31 +78,51 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         val toPx = if (dist > 0f) dx / dist else 1f
         val toPy = if (dist > 0f) dy / dist else 0f
 
-        // Separation
+        // Neighbour scan (one pass): separation (any mob) + same-tribe cohesion + nearest hostile-tribe mob.
+        val myTribe = m.tribe
         var sepX = 0f; var sepY = 0f
-        mobGrid.forNearby(t.x, t.y, ai.sepRadius) { other ->
+        var cohX = 0f; var cohY = 0f; var cohN = 0
+        var hostX = 0f; var hostY = 0f; var hostD = Float.MAX_VALUE; var hostFound = false
+        var hostHp: Health? = null; var hostV: Velocity? = null
+        mobGrid.forNearby(t.x, t.y, COH_RADIUS) { other ->
             if (other == entity) return@forNearby
-            val ot = with(world) { other[Transform] }
-            val ddx = t.x - ot.x; val ddy = t.y - ot.y
-            val d = hypot(ddx, ddy)
-            if (d in 0.0001f..ai.sepRadius) {
-                val w = (ai.sepRadius - d) / ai.sepRadius
-                sepX += ddx / d * w; sepY += ddy / d * w
+            with(world) {
+                val ot = other[Transform]; val om = other[Mob]
+                val ddx = t.x - ot.x; val ddy = t.y - ot.y
+                val d = hypot(ddx, ddy)
+                if (d < 0.0001f) return@forNearby
+                if (d <= ai.sepRadius) { val w = (ai.sepRadius - d) / ai.sepRadius; sepX += ddx / d * w; sepY += ddy / d * w }
+                if (tribes.areHostile(myTribe, om.tribe)) {
+                    if (d < hostD) { hostD = d; hostX = ot.x; hostY = ot.y; hostFound = true; hostHp = other[Health]; hostV = other[Velocity] }
+                } else if (om.tribe == myTribe) {
+                    cohX += ot.x; cohY += ot.y; cohN++
+                }
             }
         }
         if (sepX != 0f || sepY != 0f) {
             val l = sqrt(sepX * sepX + sepY * sepY)
             v.vx += sepX / l * eff * 0.5f; v.vy += sepY / l * eff * 0.5f
         }
+        // Cohesion: drift toward the same-tribe centroid when it isn't already crowding us (herding).
+        if (cohN > 0) {
+            val ccx = cohX / cohN - t.x; val ccy = cohY / cohN - t.y
+            val cl = hypot(ccx, ccy)
+            if (cl > ai.sepRadius) { v.vx += ccx / cl * eff * COH_W; v.vy += ccy / cl * eff * COH_W }
+        }
 
-        // Movement: flow-field follow, else LOS-direct
+        // Target a nearby hostile-tribe mob (brawl), else chase the player.
+        val brawl = hostFound && hostD <= HOSTILE_RANGE
         var mvx = 0f; var mvy = 0f
-        val (fx, fy) = AiMove.followDir(map, flow, t.x, t.y)
-        if (fx != 0f || fy != 0f) {
-            mvx = fx * eff * dt; mvy = fy * eff * dt; f.x = fx; f.y = fy
-        } else if (see && dist > 0f) {
-            mvx = dx / dist * eff * dt; mvy = dy / dist * eff * dt
-            f.x = dx / dist; f.y = dy / dist
+        if (brawl) {
+            val bdx = hostX - t.x; val bdy = hostY - t.y; val bd = hypot(bdx, bdy)
+            if (bd > 0f) { mvx = bdx / bd * eff * dt; mvy = bdy / bd * eff * dt; f.x = bdx / bd; f.y = bdy / bd }
+        } else {
+            val (fx, fy) = AiMove.followDir(map, flow, t.x, t.y)
+            if (fx != 0f || fy != 0f) {
+                mvx = fx * eff * dt; mvy = fy * eff * dt; f.x = fx; f.y = fy
+            } else if (see && dist > 0f) {
+                mvx = dx / dist * eff * dt; mvy = dy / dist * eff * dt; f.x = dx / dist; f.y = dy / dist
+            }
         }
         val r1 = Collision.moveAndCollide(map, t.x, t.y, b.halfW, b.halfH, mvx + v.vx * dt, 0f)
         val r2 = Collision.moveAndCollide(map, r1.x, r1.y, b.halfW, b.halfH, 0f, mvy + v.vy * dt)
@@ -107,8 +130,17 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
 
         val pt = playerT; val ph = playerH; val pv = playerV
 
-        // Contact damage + knockback
-        if (pt != null && ph != null && pv != null && m.bumpCd <= 0f) {
+        // Contact damage: brawl a hostile-tribe mob if we're locked onto one, else bump the player.
+        if (brawl && m.bumpCd <= 0f) {
+            val hh = hostHp; val hv = hostV
+            if (hh != null && hv != null && hostD < (b.halfW + 14f)) {
+                val nl = hostD.coerceAtLeast(0.0001f)
+                hh.hp -= MOB_VS_MOB_DMG
+                hv.vx += (hostX - t.x) / nl * m.def.contactKB; hv.vy += (hostY - t.y) / nl * m.def.contactKB
+                v.vx -= (hostX - t.x) / nl * m.def.contactKB * 0.5f; v.vy -= (hostY - t.y) / nl * m.def.contactKB * 0.5f
+                m.bumpCd = 0.4f
+            }
+        } else if (pt != null && ph != null && pv != null && m.bumpCd <= 0f) {
             if (abs(t.x - pt.x) < (b.halfW + 11f) && abs(t.y - pt.y) < (b.halfH + 11f)) {
                 val nx = if (dist > 0f) (pt.x - t.x) / dist else 1f
                 val ny = if (dist > 0f) (pt.y - t.y) / dist else 0f
@@ -133,5 +165,12 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
                 }
             }
         }
+    }
+
+    companion object {
+        private val COH_RADIUS = Tuning.TILE * 5f // same-tribe cohesion + hostile-scan radius
+        private val HOSTILE_RANGE = Tuning.TILE * 7f // lock onto a hostile-tribe mob within this range
+        private const val COH_W = 0.22f // herd cohesion weight (< separation's 0.5 so herds don't collapse)
+        private const val MOB_VS_MOB_DMG = 14f // contact damage between hostile tribes
     }
 }

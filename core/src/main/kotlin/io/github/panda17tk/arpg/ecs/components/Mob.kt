@@ -12,6 +12,7 @@ class Mob(
     val attackCd: FloatArray,
     val waveNum: Int = 1,
     var bumpCd: Float = 0f,
+    var tribe: Int = 0,
 ) : Component<Mob> {
     val tier: String get() = def.tier
     override fun type() = Mob

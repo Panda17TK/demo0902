@@ -12,6 +12,7 @@ import io.github.panda17tk.arpg.ecs.components.WaveState
 import io.github.panda17tk.arpg.ecs.world.MobFactory
 import io.github.panda17tk.arpg.map.TileMap
 import io.github.panda17tk.arpg.math.Rng
+import io.github.panda17tk.arpg.sim.Tribes
 import io.github.panda17tk.arpg.sim.Tuning
 
 /**
@@ -24,6 +25,7 @@ class SpawnerSystem : IteratingSystem(family { all(PlayerTag, Transform) }) {
     private val config: GameConfig = world.inject()
     private val map: TileMap = world.inject()
     private val rng: Rng = world.inject()
+    private val tribes: Tribes = world.inject()
 
     private val mobs by lazy { world.family { all(Mob) } }
     private val normalKeys: List<String> = config.enemies.filterValues { it.tier == "normal" }.keys.toList()
@@ -72,7 +74,7 @@ class SpawnerSystem : IteratingSystem(family { all(PlayerTag, Transform) }) {
         if (keys.isEmpty()) return
         val tile = pickTile(pt) ?: return
         val def = config.enemies[keys[rng.nextInt(keys.size)]] ?: return
-        MobFactory.spawn(world, def, tile.first, tile.second, n, config.waves.hpScalePerWave, config.waves.speedScalePerWave)
+        MobFactory.spawn(world, def, tile.first, tile.second, n, config.waves.hpScalePerWave, config.waves.speedScalePerWave, tribe = tribes.tribeOf(tile.first, tile.second))
     }
 
     private fun liveCap(n: Int, c: WaveConfig): Int = minOf(c.maxLiveCap, c.liveCapBase + n * c.liveCapPerWave)
@@ -83,7 +85,7 @@ class SpawnerSystem : IteratingSystem(family { all(PlayerTag, Transform) }) {
         val tile = pickTile(pt) ?: return false
         val key = normalKeys[rng.nextInt(normalKeys.size)]
         val def = config.enemies[key] ?: return false
-        MobFactory.spawn(world, def, tile.first, tile.second, waveNum, config.waves.hpScalePerWave, config.waves.speedScalePerWave)
+        MobFactory.spawn(world, def, tile.first, tile.second, waveNum, config.waves.hpScalePerWave, config.waves.speedScalePerWave, tribe = tribes.tribeOf(tile.first, tile.second))
         return true
     }
 
