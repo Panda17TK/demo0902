@@ -1,6 +1,7 @@
 package io.github.panda17tk.arpg.sim
 
 import io.github.panda17tk.arpg.math.Rng
+import io.github.panda17tk.arpg.planet.PlanetBiome
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -29,5 +30,11 @@ class PlanetsTest {
         val a = Planets.place(4000f, 4000f, 200f, 200f, 4, Rng(7))
         val b = Planets.place(4000f, 4000f, 200f, 200f, 4, Rng(7))
         assertEquals(a, b)
+    }
+
+    @Test fun `each placed planet carries a planet biome`() {
+        val ps = Planets.place(4000f, 4000f, 200f, 200f, count = 5, rng = Rng(11))
+        assertTrue(ps.isNotEmpty())
+        for (p in ps) assertTrue(p.biome in PlanetBiome.values(), "unexpected biome ${p.biome}")
     }
 }

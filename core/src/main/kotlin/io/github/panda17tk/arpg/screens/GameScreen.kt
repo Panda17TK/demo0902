@@ -43,9 +43,9 @@ import io.github.panda17tk.arpg.input.InputState
 import io.github.panda17tk.arpg.input.KeyboardInput
 import io.github.panda17tk.arpg.input.TouchButton
 import io.github.panda17tk.arpg.input.TouchControls
-import io.github.panda17tk.arpg.map.Biome
 import io.github.panda17tk.arpg.map.Tile
 import io.github.panda17tk.arpg.math.Rng
+import io.github.panda17tk.arpg.planet.PlanetBiome
 import io.github.panda17tk.arpg.render.Actors
 import io.github.panda17tk.arpg.render.Draw
 import io.github.panda17tk.arpg.render.Fonts
@@ -193,7 +193,7 @@ class GameScreen : ScreenAdapter() {
         }
     }
 
-    private fun transitionWorld(mode: WorldMode, biome: Biome?) {
+    private fun transitionWorld(mode: WorldMode, biome: PlanetBiome?) {
         val carry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
         landSeed += 1
         gw = WorldFactory.create(input, configStore.config, landSeed, mode, biome, carry)
@@ -344,13 +344,15 @@ class GameScreen : ScreenAdapter() {
                 }
             }
         }
-        // planets — large solid bodies tinted by biome
+        // planets — large solid bodies tinted by their ecological biome
         for (p in gw.planets) {
             when (p.biome) {
-                Biome.ROCK -> tmpC.set(0.42f, 0.40f, 0.38f, 1f)
-                Biome.GRASS -> tmpC.set(0.28f, 0.52f, 0.30f, 1f)
-                Biome.SNOW -> tmpC.set(0.82f, 0.88f, 0.95f, 1f)
-                Biome.MAGMA -> tmpC.set(0.62f, 0.24f, 0.18f, 1f)
+                PlanetBiome.NATURE -> tmpC.set(0.28f, 0.52f, 0.30f, 1f)
+                PlanetBiome.MAGMA -> tmpC.set(0.62f, 0.24f, 0.18f, 1f)
+                PlanetBiome.ICE -> tmpC.set(0.82f, 0.88f, 0.95f, 1f)
+                PlanetBiome.GAS -> tmpC.set(0.74f, 0.62f, 0.40f, 1f)
+                PlanetBiome.DEAD -> tmpC.set(0.42f, 0.40f, 0.38f, 1f)
+                PlanetBiome.LONELY -> tmpC.set(0.30f, 0.30f, 0.34f, 1f)
             }
             shapes.color = tmpC
             shapes.circle(p.cx, p.cy, p.radius, 44)
@@ -439,12 +441,7 @@ class GameScreen : ScreenAdapter() {
             val ws = gw.worldState
             val hint = when {
                 ws.mode == WorldMode.SURFACE -> "[L] 離陸して宇宙へ"
-                ws.landingCandidate != null -> {
-                    val bn = when (ws.landingCandidate!!.biome) {
-                        Biome.ROCK -> "岩石"; Biome.GRASS -> "草原"; Biome.SNOW -> "氷雪"; Biome.MAGMA -> "溶岩"
-                    }
-                    "[L] 着陸: $bn"
-                }
+                ws.landingCandidate != null -> "[L] 着陸: ${ws.landingCandidate!!.biome.displayName}"
                 else -> null
             }
             if (hint != null && !paused && !choosing) {

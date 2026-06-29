@@ -1,17 +1,17 @@
 package io.github.panda17tk.arpg.sim
 
-import io.github.panda17tk.arpg.map.Biome
 import io.github.panda17tk.arpg.math.Rng
+import io.github.panda17tk.arpg.planet.PlanetBiome
 import kotlin.math.hypot
 
-/** A discrete planet: world-space centre, solid radius, gravity strength (mass) and reach, biome tint. */
+/** A discrete planet: world-space centre, solid radius, gravity strength (mass) and reach, ecological biome. */
 data class PlanetBody(
     val cx: Float,
     val cy: Float,
     val radius: Float,
     val mass: Float,
     val gravityRange: Float,
-    val biome: Biome,
+    val biome: PlanetBiome,
 )
 
 /**
@@ -25,7 +25,7 @@ object Planets {
         minRadius: Float = 64f, maxRadius: Float = 160f, margin: Float = 96f, minPlayerDist: Float = 320f,
     ): List<PlanetBody> {
         val out = ArrayList<PlanetBody>()
-        val biomes = Biome.values()
+        val biomes = PlanetBiome.values()
         var attempts = 0
         while (out.size < count && attempts < count * 40) {
             attempts++

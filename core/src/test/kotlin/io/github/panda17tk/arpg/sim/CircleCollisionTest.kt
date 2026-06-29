@@ -1,13 +1,13 @@
 package io.github.panda17tk.arpg.sim
 
-import io.github.panda17tk.arpg.map.Biome
+import io.github.panda17tk.arpg.planet.PlanetBiome
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class CircleCollisionTest {
-    private val planet = PlanetBody(0f, 0f, 50f, 100f, 400f, Biome.ROCK)
+    private val planet = PlanetBody(0f, 0f, 50f, 100f, 400f, PlanetBiome.DEAD)
 
     @Test fun `no collision when outside the planet`() {
         val r = CircleCollision.resolve(200f, 0f, 10f, -100f, 0f, listOf(planet))

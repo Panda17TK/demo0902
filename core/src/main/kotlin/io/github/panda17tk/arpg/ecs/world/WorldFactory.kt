@@ -41,13 +41,13 @@ import io.github.panda17tk.arpg.ecs.systems.SnapshotSystem
 import io.github.panda17tk.arpg.ecs.systems.SpawnerSystem
 import io.github.panda17tk.arpg.ecs.systems.WeaponSwitchSystem
 import io.github.panda17tk.arpg.input.InputState
-import io.github.panda17tk.arpg.map.Biome
 import io.github.panda17tk.arpg.map.MapLoader
 import io.github.panda17tk.arpg.map.Stages
 import io.github.panda17tk.arpg.map.SurfaceStages
 import io.github.panda17tk.arpg.math.Rng
 import io.github.panda17tk.arpg.pathfinding.FlowField
 import io.github.panda17tk.arpg.pathfinding.SpatialGrid
+import io.github.panda17tk.arpg.planet.PlanetBiome
 import io.github.panda17tk.arpg.sim.Base
 import io.github.panda17tk.arpg.sim.BaseField
 import io.github.panda17tk.arpg.sim.Bases
@@ -65,7 +65,7 @@ object WorldFactory {
     /** [seed] keeps stage selection deterministic for tests. */
     fun create(
         input: InputState, config: GameConfig = GameConfig(), seed: Long = 1L,
-        mode: WorldMode = WorldMode.SPACE, biome: Biome? = null, carry: PlayerCarry? = null,
+        mode: WorldMode = WorldMode.SPACE, biome: PlanetBiome? = null, carry: PlayerCarry? = null,
     ): GameWorld {
         val loaded = MapLoader.load(
             if (mode == WorldMode.SURFACE) SurfaceStages.forBiome(biome, seed) else Stages.random(Rng(seed)),
