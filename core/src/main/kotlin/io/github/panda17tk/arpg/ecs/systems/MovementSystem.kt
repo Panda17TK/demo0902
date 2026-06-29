@@ -14,9 +14,13 @@ import io.github.panda17tk.arpg.ecs.components.Stamina
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.ecs.components.Velocity
 import io.github.panda17tk.arpg.input.InputState
+import io.github.panda17tk.arpg.map.Biome
+import io.github.panda17tk.arpg.map.Biomes
 import io.github.panda17tk.arpg.map.TileMap
 import io.github.panda17tk.arpg.sim.Collision
 import io.github.panda17tk.arpg.sim.Locomotion
+import io.github.panda17tk.arpg.sim.Tuning
+import kotlin.math.floor
 import kotlin.math.pow
 
 class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing, Stamina, Body, Velocity, Mods, Health, Buff) }) {
@@ -44,24 +48,34 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         val mv = Locomotion.keyboardDirection(input.left, input.right, input.up, input.down)
         val dashing = (staInf || !s.overheat) && Locomotion.isDashing(input.dash, mv.isMoving, if (staInf) 1f else s.value)
         tag.dashing = dashing
-        val maxV = Locomotion.speed(dashing, config.player) * mods.moveMul * (if (bf.dashUpT > 0f) DASH_UP_MUL else 1f)
+        // Block biomes around the player drive terrain effects (magma burns, snow slows, grass restores).
+        val ptx = floor(t.x / Tuning.TILE).toInt(); val pty = floor(t.y / Tuning.TILE).toInt()
+        var magma = false; var snow = false; var grass = false
+        for (oy in -1..1) for (ox in -1..1) {
+            if (!map.solidAt(ptx + ox, pty + oy)) continue
+            when (Biomes.of(ptx + ox, pty + oy)) {
+                Biome.MAGMA -> magma = true; Biome.SNOW -> snow = true; Biome.GRASS -> grass = true; else -> {}
+            }
+        }
+
+        val maxV = Locomotion.speed(dashing, config.player) * mods.moveMul *
+            (if (bf.dashUpT > 0f) DASH_UP_MUL else 1f) * (if (snow) SNOW_SLOW else 1f)
         val accel = if (dashing) DASH_ACCEL else MOVE_ACCEL
         val friction = if (mv.isMoving) MOVE_FRICTION else STOP_FRICTION
 
         // Knockback decays fast and stays separate from movement (keeps hits punchy).
         v.vx *= 0.0001f.pow(dt)
         v.vy *= 0.0001f.pow(dt)
-        // Acceleration-based movement: input/dash push acceleration in the move direction; the movement
-        // velocity (drift) ramps up to a capped max and coasts to a stop via friction (heavier feel).
+        // Acceleration-based movement: input/dash push acceleration; drift ramps to a capped max + coasts.
         val (nvx, nvy) = Locomotion.applyMove(v.driftX, v.driftY, mv.dirX, mv.dirY, mv.isMoving, accel, friction, maxV, dt)
         v.driftX = nvx; v.driftY = nvy
 
-        // Integrate movement velocity + knockback through collision
-        val r = Collision.moveAndCollide(map, t.x, t.y, b.halfW, b.halfH, (v.vx + v.driftX) * dt, (v.vy + v.driftY) * dt)
-        t.x = r.x
-        t.y = r.y
-        if (r.hitX) { v.vx = 0f; v.driftX = 0f } // stop shoving into a wall (fixes edge stick)
-        if (r.hitY) { v.vy = 0f; v.driftY = 0f }
+        // Axis-separated collision so the player slides/crawls along walls instead of catching on edges.
+        val r1 = Collision.moveAndCollide(map, t.x, t.y, b.halfW, b.halfH, (v.vx + v.driftX) * dt, 0f)
+        val r2 = Collision.moveAndCollide(map, r1.x, r1.y, b.halfW, b.halfH, 0f, (v.vy + v.driftY) * dt)
+        t.x = r2.x; t.y = r2.y
+        if (r1.hitX) { v.vx = 0f; v.driftX = 0f }
+        if (r2.hitY) { v.vy = 0f; v.driftY = 0f }
         if (input.aiming) { f.x = input.aimX; f.y = input.aimY } // right stick aims independent of movement
         else if (mv.isMoving) { f.x = mv.dirX; f.y = mv.dirY }
         if (staInf) {
@@ -71,13 +85,19 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
             if (s.value <= 0.05f) s.overheat = true            // fully drained → overheat (no stamina actions)
             if (s.value >= s.max - 0.05f) s.overheat = false   // fully recovered → clear overheat
         }
+        // Terrain effects: magma block burns HP; grass block restores stamina.
+        if (magma) h.hp = (h.hp - MAGMA_DPS * dt).coerceAtLeast(0f)
+        if (grass) s.value = (s.value + GRASS_STA * dt).coerceAtMost(s.max)
     }
 
     companion object {
         private const val DASH_UP_MUL = 1.5f // dash-speed pickup buff
         private const val MOVE_ACCEL = 480f // walk acceleration — heavier: ramps up over ~0.2s
-        private const val DASH_ACCEL = 1000f // dash acceleration
+        private const val DASH_ACCEL = 1600f // dash acceleration — beefier dash
         private const val MOVE_FRICTION = 0.6f // light drag while moving (still reaches the cap)
         private const val STOP_FRICTION = 0.08f // firmer drag when stopping (short coast)
+        private const val SNOW_SLOW = 0.62f // snow block underfoot → slower
+        private const val MAGMA_DPS = 8f // magma block burns HP/sec
+        private const val GRASS_STA = 16f // grass block restores stamina/sec
     }
 }

@@ -328,6 +328,13 @@ class GameScreen : ScreenAdapter() {
 
         // charge-melee telegraph rings
         shapes.begin(ShapeRenderer.ShapeType.Line)
+        // gravity wells: concentric procedural rings around each wall cluster's gravity centre
+        for (c in gw.gravityField.clusters) {
+            tmpC.set(0.55f, 0.52f, 0.66f, 0.45f); shapes.color = tmpC
+            for (k in 1..3) shapes.circle(c.cx, c.cy, c.radius * k / 3f, 30)
+            tmpC.set(0.45f, 0.5f, 0.72f, 0.16f); shapes.color = tmpC
+            shapes.circle(c.cx, c.cy, c.radius + Tuning.TILE * 1.4f, 36)
+        }
         with(gw.world) {
             gw.world.family { all(Mob, Transform, MobAction) }.forEach { e ->
                 val mt = e[Transform]; val ma = e[MobAction]

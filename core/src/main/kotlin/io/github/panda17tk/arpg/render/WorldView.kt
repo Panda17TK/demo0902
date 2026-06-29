@@ -2,6 +2,8 @@ package io.github.panda17tk.arpg.render
 
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
+import io.github.panda17tk.arpg.map.Biome
+import io.github.panda17tk.arpg.map.Biomes
 import io.github.panda17tk.arpg.map.Tile
 import io.github.panda17tk.arpg.map.TileMap
 import io.github.panda17tk.arpg.sim.Tuning
@@ -23,6 +25,9 @@ object WorldView {
     private val NEBULA_FLOOR = arrayOf(SPACE_A, SPACE_A, SPACE_B, SPACE_A, SPACE_A, SPACE_A, NEB_P, NEB_B, NEB_T)
     private val STARS = arrayOf(Color.valueOf("ffffff"), Color.valueOf("9ec5ff"), Color.valueOf("ffe6b0"), Color.valueOf("cbb8ff"))
     private val ROCKS = arrayOf(Color.valueOf("6b6358"), Color.valueOf("5d564c"), Color.valueOf("776c5d"), Color.valueOf("534b42"))
+    private val GRASS_ROCK = arrayOf(Color.valueOf("3e5a2e"), Color.valueOf("4a6b34"), Color.valueOf("355026"))
+    private val SNOW_ROCK = arrayOf(Color.valueOf("c4d2e0"), Color.valueOf("aebfd2"), Color.valueOf("d6e2ee"))
+    private val MAGMA_ROCK = arrayOf(Color.valueOf("8a2f1c"), Color.valueOf("b3441f"), Color.valueOf("d65a22"))
     private val CRATER = Color.valueOf("38322b")
     private val CRACK = Color.valueOf("17130d")
     private val DOOR = Color.valueOf("3b2a1a")
@@ -36,7 +41,12 @@ object WorldView {
             val hsh = (tx * 73856093) xor (ty * 19349663)
             when (map.tileAt(tx, ty)) {
                 Tile.WALL -> {
-                    s.color = ROCKS[Math.floorMod(hsh, ROCKS.size)]
+                    s.color = when (Biomes.of(tx, ty)) {
+                        Biome.GRASS -> GRASS_ROCK[Math.floorMod(hsh, GRASS_ROCK.size)]
+                        Biome.SNOW -> SNOW_ROCK[Math.floorMod(hsh, SNOW_ROCK.size)]
+                        Biome.MAGMA -> MAGMA_ROCK[Math.floorMod(hsh, MAGMA_ROCK.size)]
+                        else -> ROCKS[Math.floorMod(hsh, ROCKS.size)]
+                    }
                     Draw.roundedRect(s, px + 1f, py + 1f, t - 2f, t - 2f, 7f)
                     s.color = CRATER
                     s.circle(px + 7f + Math.floorMod(hsh, 12).toFloat(), py + 7f + Math.floorMod(hsh ushr 3, 12).toFloat(), 2.6f, 7)

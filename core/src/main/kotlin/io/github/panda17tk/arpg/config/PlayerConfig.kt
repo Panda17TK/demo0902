@@ -7,9 +7,9 @@ import kotlinx.serialization.Serializable
 data class PlayerConfig(
     val baseSpeed: Float = 85f,
     val speedMul: Float = 1.2f,
-    val dashMul: Float = 2f,
+    val dashMul: Float = 2.5f,
     val hpMax: Float = 100f,
-    val staMax: Float = 100f,
+    val staMax: Float = 150f,
     val staDrain: Float = 35f,
     val staRegen: Float = 22f,
     val meleeDmg: Float = 22f,

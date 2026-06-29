@@ -10,6 +10,7 @@ import io.github.panda17tk.arpg.ecs.components.PlayerTag
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.map.TileMap
 import io.github.panda17tk.arpg.sim.Cluster
+import io.github.panda17tk.arpg.sim.GravityField
 import io.github.panda17tk.arpg.sim.Tuning
 import io.github.panda17tk.arpg.sim.WallGravity
 import kotlin.math.floor
@@ -22,6 +23,7 @@ import kotlin.math.floor
  */
 class GravitySystem : IntervalSystem() {
     private val map: TileMap = world.inject()
+    private val gravityField: GravityField = world.inject()
     private var timer = 0f
     private var clusters: List<Cluster> = emptyList()
     private val players by lazy { world.family { all(PlayerTag, Transform) } }
@@ -45,6 +47,7 @@ class GravitySystem : IntervalSystem() {
                         maxOf(0, pty - WIN), minOf(map.height - 1, pty + WIN), map::destructibleAt,
                     )
                     clusters = raw.map { Cluster(it.cx * TILE, it.cy * TILE, it.radius * TILE, it.count) }
+                    gravityField.clusters = clusters
                 }
             }
             if (clusters.isEmpty()) return
@@ -68,6 +71,6 @@ class GravitySystem : IntervalSystem() {
         private const val WIN = 50
         private const val RECOMPUTE = 1.5f
         private val RANGE = Tuning.TILE * 12f // influence reaches 12 blocks, decaying per block
-        private const val STRENGTH = 38f
+        private const val STRENGTH = 13f // ~1/3 of the previous pull
     }
 }
