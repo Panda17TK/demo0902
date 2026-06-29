@@ -52,6 +52,7 @@ import io.github.panda17tk.arpg.render.Fonts
 import io.github.panda17tk.arpg.render.Hud
 import io.github.panda17tk.arpg.render.WorldView
 import io.github.panda17tk.arpg.save.Scores
+import io.github.panda17tk.arpg.sim.SurfaceObjective
 import io.github.panda17tk.arpg.sim.Tuning
 import io.github.panda17tk.arpg.sim.WorldMode
 import io.github.panda17tk.arpg.ui.Modals
@@ -454,10 +455,16 @@ class GameScreen : ScreenAdapter() {
             wpn.def.name, wpn.mag, wpn.def.magSize, reloadFrac, reserveStr,
             runTime, gw.gameOver.kills, blocks,
         )
-        // Living Planets: landing / takeoff prompt (HUD space).
+        // Living Planets: surface exploration objective, or the landing prompt in space (HUD space).
         run {
             val ws = gw.worldState
+            var elites = 0
+            if (ws.mode == WorldMode.SURFACE) with(gw.world) {
+                gw.world.family { all(Mob) }.forEach { if (it[Mob].def.tier != "normal") elites++ }
+            }
+            val biome = ws.biome
             val hint = when {
+                ws.mode == WorldMode.SURFACE && biome != null -> SurfaceObjective.hudLine(biome, elites)
                 ws.mode == WorldMode.SURFACE -> "[L] 離陸して宇宙へ"
                 ws.landingCandidate != null -> "[L] 着陸: ${ws.landingCandidate!!.biome.displayName}"
                 else -> null
