@@ -36,4 +36,9 @@ class TribesTest {
         val t = Tribes.build(4, 100f, 100f, 0f, Rng(3L))
         for (a in 0 until 4) for (b in 0 until 4) assertFalse(t.areHostile(a, b))
     }
+
+    @Test fun `every tribe gets an intelligence in 0 to 1`() {
+        val t = Tribes.build(5, 100f, 100f, 0.3f, Rng(11L))
+        for (i in 0 until t.count) assertTrue(t.intelligenceOf(i) in 0f..1f)
+    }
 }

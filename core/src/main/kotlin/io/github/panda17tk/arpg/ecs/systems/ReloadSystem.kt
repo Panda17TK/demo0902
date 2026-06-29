@@ -23,12 +23,16 @@ class ReloadSystem : IteratingSystem(family { all(PlayerTag, Arsenal, Ammo) }) {
             w.reloadT -= deltaTime
             if (w.reloadT <= 0f) {
                 w.reloadT = 0f
-                val r = Reload.reload(size, w.mag, ammo.get(w.def.ammoType))
-                w.mag = r.newMag; ammo.set(w.def.ammoType, r.newReserve)
+                if (w.def.infiniteAmmo) {
+                    w.mag = size // infinite reserve: top off the magazine, never spend reserve
+                } else {
+                    val r = Reload.reload(size, w.mag, ammo.get(w.def.ammoType))
+                    w.mag = r.newMag; ammo.set(w.def.ammoType, r.newReserve)
+                }
             }
             return
         }
-        if (w.mag >= size || ammo.get(w.def.ammoType) <= 0) { w.autoReloadTimer = 0f; return }
+        if (w.mag >= size || (!w.def.infiniteAmmo && ammo.get(w.def.ammoType) <= 0)) { w.autoReloadTimer = 0f; return }
         val time = if (w.def.reloadTime > 0f) w.def.reloadTime else config.player.autoReloadDelay
         if (input.reload) { w.reloadT = time * MANUAL_MUL; w.autoReloadTimer = 0f; return } // manual: faster
         if (!input.fire) { // auto-reload after a quiet delay

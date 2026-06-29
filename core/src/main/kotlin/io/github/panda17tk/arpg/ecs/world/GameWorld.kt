@@ -7,6 +7,7 @@ import io.github.panda17tk.arpg.ecs.components.GameOver
 import io.github.panda17tk.arpg.ecs.components.WaveState
 import io.github.panda17tk.arpg.map.TileMap
 import io.github.panda17tk.arpg.pathfinding.FlowField
+import io.github.panda17tk.arpg.sim.Base
 
 class GameWorld(val world: World, val player: Entity) {
     lateinit var map: TileMap
@@ -14,4 +15,5 @@ class GameWorld(val world: World, val player: Entity) {
     lateinit var waveState: WaveState
     lateinit var gameOver: GameOver
     lateinit var fx: Fx
+    var bases: List<Base> = emptyList()
 }

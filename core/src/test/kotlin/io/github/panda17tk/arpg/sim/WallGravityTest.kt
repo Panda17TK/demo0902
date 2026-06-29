@@ -37,4 +37,10 @@ class WallGravityTest {
         assertEquals(0f, ax, 0.001f)
         assertEquals(0f, ay, 0.001f)
     }
+
+    @Test fun `a bigger cluster pulls harder at the same distance`() {
+        val small = WallGravity.gravityAt(listOf(Cluster(0f, 0f, 3f, 4)), 10f, 0f, 40f, 50f)
+        val big = WallGravity.gravityAt(listOf(Cluster(0f, 0f, 3f, 100)), 10f, 0f, 40f, 50f)
+        assertTrue(kotlin.math.abs(big.first) > kotlin.math.abs(small.first))
+    }
 }

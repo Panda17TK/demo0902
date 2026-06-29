@@ -20,11 +20,15 @@ import io.github.panda17tk.arpg.pathfinding.FlowField
 import io.github.panda17tk.arpg.pathfinding.Los
 import io.github.panda17tk.arpg.pathfinding.SpatialGrid
 import io.github.panda17tk.arpg.sim.Collision
+import io.github.panda17tk.arpg.sim.Leveling
 import io.github.panda17tk.arpg.sim.Tribes
 import io.github.panda17tk.arpg.sim.Tuning
 import kotlin.math.abs
+import kotlin.math.atan2
+import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.pow
+import kotlin.math.sin
 import kotlin.math.sqrt
 
 /** Enemy AI: flow-field chase + separation + contact + data-driven attack dispatch (legacy ai.js + runAttacks). */
@@ -110,12 +114,22 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
             if (cl > ai.sepRadius) { v.vx += ccx / cl * eff * COH_W; v.vy += ccy / cl * eff * COH_W }
         }
 
-        // Target a nearby hostile-tribe mob (brawl), else chase the player.
+        // Tactics scale with smarts (tribe intelligence + level): smart tribes take cover + kite.
+        val smarts = Leveling.smarts(tribes.intelligenceOf(myTribe), m.level)
+        val hasRanged = m.def.attacks.any { it.type == "shot" }
         val brawl = hostFound && hostD <= HOSTILE_RANGE
+        val cover = if (!brawl && smarts > COVER_SMARTS && see) coverDir(t.x, t.y, px, py) else null
         var mvx = 0f; var mvy = 0f
         if (brawl) {
+            // Frontline: charge the rival-tribe mob.
             val bdx = hostX - t.x; val bdy = hostY - t.y; val bd = hypot(bdx, bdy)
             if (bd > 0f) { mvx = bdx / bd * eff * dt; mvy = bdy / bd * eff * dt; f.x = bdx / bd; f.y = bdy / bd }
+        } else if (cover != null) {
+            // Smart: slip toward a wall to shield from the player, still facing them to fire.
+            mvx = cover[0] * eff * dt; mvy = cover[1] * eff * dt; f.x = toPx; f.y = toPy
+        } else if (smarts > KITE_SMARTS && hasRanged && see && dist in 1f..KITE_DIST) {
+            // Ranged support kites: back off and support from behind the frontline.
+            mvx = -toPx * eff * dt; mvy = -toPy * eff * dt; f.x = toPx; f.y = toPy
         } else {
             val (fx, fy) = AiMove.followDir(map, flow, t.x, t.y)
             if (fx != 0f || fy != 0f) {
@@ -139,6 +153,10 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
                 hv.vx += (hostX - t.x) / nl * m.def.contactKB; hv.vy += (hostY - t.y) / nl * m.def.contactKB
                 v.vx -= (hostX - t.x) / nl * m.def.contactKB * 0.5f; v.vy -= (hostY - t.y) / nl * m.def.contactKB * 0.5f
                 m.bumpCd = 0.4f
+                if (hh.hp <= 0f) { // killing blow on a rival tribe → gain XP, level up past the threshold
+                    m.xp += Leveling.xpForKill(m.level)
+                    while (m.xp >= Leveling.threshold(m.level)) { m.xp -= Leveling.threshold(m.level); m.level++ }
+                }
             }
         } else if (pt != null && ph != null && pv != null && m.bumpCd <= 0f) {
             if (abs(t.x - pt.x) < (b.halfW + 11f) && abs(t.y - pt.y) < (b.halfH + 11f)) {
@@ -153,8 +171,9 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
 
         // Data-driven attack dispatch (legacy runAttacks). melee/shot/lunge/charge_melee/blink in 5b.
         if (pt != null && ph != null && pv != null) {
+            val usable = Leveling.attacksForLevel(m.level, m.def.attacks.size) // level unlocks more skills
             m.def.attacks.forEachIndexed { i, atk ->
-                if (m.attackCd[i] <= 0f) {
+                if (i < usable && m.attackCd[i] <= 0f) {
                     val executed = MobAttacks.tryAttack(
                         world, atk, m.def, t, f, v, action, h, ph, pv,
                         dist, toPx, toPy, see, ai.iFrameContact,
@@ -167,10 +186,26 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         }
     }
 
+    /** A step direction (away-ish from the player) that breaks the player's line of sight → wall cover. */
+    private fun coverDir(x: Float, y: Float, px: Float, py: Float): FloatArray? {
+        val away = atan2(y - py, x - px)
+        val step = Tuning.TILE * 1.5f
+        for (off in COVER_OFFSETS) {
+            val a = away + off
+            val nx = x + cos(a) * step; val ny = y + sin(a) * step
+            if (!Los.hasLineOfSight(map, nx, ny, px, py)) return floatArrayOf(cos(a), sin(a))
+        }
+        return null
+    }
+
     companion object {
         private val COH_RADIUS = Tuning.TILE * 5f // same-tribe cohesion + hostile-scan radius
         private val HOSTILE_RANGE = Tuning.TILE * 7f // lock onto a hostile-tribe mob within this range
         private const val COH_W = 0.22f // herd cohesion weight (< separation's 0.5 so herds don't collapse)
         private const val MOB_VS_MOB_DMG = 14f // contact damage between hostile tribes
+        private const val COVER_SMARTS = 0.55f // smarts above this → seek wall cover
+        private const val KITE_SMARTS = 0.40f // smarts above this → ranged mobs kite
+        private val KITE_DIST = Tuning.TILE * 5f // back off when the player is closer than this
+        private val COVER_OFFSETS = floatArrayOf(0f, 0.6f, -0.6f, 1.2f, -1.2f) // away ± up to ~70°
     }
 }

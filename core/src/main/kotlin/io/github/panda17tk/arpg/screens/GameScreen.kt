@@ -140,6 +140,9 @@ class GameScreen : ScreenAdapter() {
     private val cAmmoNade = Color.valueOf("ff6b6b")
     private val cBlocks = Color.valueOf("b48a5a")
     private val cMed = Color.valueOf("7fe08a")
+    private val tribeColors = arrayOf(
+        Color.valueOf("ff6b6b"), Color.valueOf("66e0ff"), Color.valueOf("7fe08a"), Color.valueOf("ffd166"), Color.valueOf("c08bff"),
+    )
 
     override fun show() {
         configStore.loadFromDisk()
@@ -312,6 +315,14 @@ class GameScreen : ScreenAdapter() {
                     shapes.circle(st.x + cos(ang) * rr, st.y + sin(ang) * rr, sm.radius * 0.5f, 14)
                 }
             }
+        }
+        // tribe strongholds ("stars") — a tribe-coloured aura + pulsing core
+        for (base in gw.bases) {
+            val col = tribeColors[base.tribe % tribeColors.size]
+            tmpC.set(col.r, col.g, col.b, 0.16f); shapes.color = tmpC
+            shapes.circle(base.x, base.y, base.radius + 8f, 28)
+            tmpC.set(col.r, col.g, col.b, 0.5f + 0.25f * sin(animTime * 2.2f)); shapes.color = tmpC
+            shapes.circle(base.x, base.y, 7f, 12)
         }
         shapes.end()
 

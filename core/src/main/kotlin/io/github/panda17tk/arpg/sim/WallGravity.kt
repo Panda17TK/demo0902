@@ -1,6 +1,7 @@
 package io.github.panda17tk.arpg.sim
 
 import kotlin.math.hypot
+import kotlin.math.sqrt
 
 /**
  * A connected blob of destructible wall tiles. Coordinates are in whatever unit [WallGravity.detect]
@@ -64,7 +65,8 @@ object WallGravity {
             val dx = c.cx - x; val dy = c.cy - y
             val d = hypot(dx, dy)
             if (d > range || d < 1e-3f) continue
-            val m = strength * (1f - d / range) / d
+            // Bigger clusters pull harder (∝ √blocks, so it grows but stays sane on huge stars).
+            val m = strength * sqrt(c.count.toFloat()) * (1f - d / range) / d
             ax += dx * m; ay += dy * m
         }
         return ax to ay

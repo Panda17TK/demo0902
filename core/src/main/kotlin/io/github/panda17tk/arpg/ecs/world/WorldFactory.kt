@@ -21,6 +21,7 @@ import io.github.panda17tk.arpg.ecs.components.Velocity
 import io.github.panda17tk.arpg.ecs.components.WaveState
 import io.github.panda17tk.arpg.ecs.components.WeaponRuntime
 import io.github.panda17tk.arpg.ecs.systems.AISystem
+import io.github.panda17tk.arpg.ecs.systems.BaseSystem
 import io.github.panda17tk.arpg.ecs.systems.BuildSystem
 import io.github.panda17tk.arpg.ecs.systems.EBulletSystem
 import io.github.panda17tk.arpg.ecs.systems.FireSystem
@@ -44,8 +45,12 @@ import io.github.panda17tk.arpg.map.Stages
 import io.github.panda17tk.arpg.math.Rng
 import io.github.panda17tk.arpg.pathfinding.FlowField
 import io.github.panda17tk.arpg.pathfinding.SpatialGrid
+import io.github.panda17tk.arpg.sim.Base
+import io.github.panda17tk.arpg.sim.BaseField
+import io.github.panda17tk.arpg.sim.Bases
 import io.github.panda17tk.arpg.sim.Tribes
 import io.github.panda17tk.arpg.sim.Tuning
+import io.github.panda17tk.arpg.sim.WallGravity
 import kotlin.math.floor
 
 object WorldFactory {
@@ -62,6 +67,13 @@ object WorldFactory {
         val fx = Fx(Rng(seed xor 0x123456789L))
         // Per-run enemy tribes: 5 spatial tribes, ~35% of pairs mutually hostile (they brawl on sight).
         val tribes = Tribes.build(5, map.width * Tuning.TILE, map.height * Tuning.TILE, 0.35f, Rng(seed xor 0x7A3B1C9DL))
+        // Strongholds ("stars"): the biggest block clusters near spawn become tribe bases (reinforce from them).
+        val baseField = run {
+            val ctx = floor(loaded.playerSpawnX / Tuning.TILE).toInt(); val cty = floor(loaded.playerSpawnY / Tuning.TILE).toInt()
+            val win = 120
+            val clusters = WallGravity.detect(maxOf(0, ctx - win), minOf(map.width - 1, ctx + win), maxOf(0, cty - win), minOf(map.height - 1, cty + win), map::destructibleAt)
+            BaseField(Bases.pickLargest(clusters, 6, 18).map { Base(it.cx * Tuning.TILE, it.cy * Tuning.TILE, tribes.tribeOf(it.cx * Tuning.TILE, it.cy * Tuning.TILE), it.radius * Tuning.TILE) })
+        }
         val waveState = WaveState(
             num = 1,
             phase = "active",
@@ -81,6 +93,7 @@ object WorldFactory {
                 add(waveState)
                 add(fx)
                 add(tribes)
+                add(baseField)
             }
             systems {
                 add(SnapshotSystem())
@@ -100,6 +113,7 @@ object WorldFactory {
                 add(AISystem(mobGrid))
                 add(MobActionSystem())
                 add(SpawnerSystem())
+                add(BaseSystem())
                 add(PickupSystem())
             }
         }
@@ -133,6 +147,7 @@ object WorldFactory {
             it.waveState = waveState
             it.gameOver = gameOver
             it.fx = fx
+            it.bases = baseField.bases
         }
     }
 }

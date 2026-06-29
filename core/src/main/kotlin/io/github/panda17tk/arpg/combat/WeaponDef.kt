@@ -14,4 +14,5 @@ data class WeaponDef(
     val pellets: Int,
     val ammoType: String,
     val reloadTime: Float = 0f, // seconds for an auto reload (manual is faster); 0 = none (beam)
+    val infiniteAmmo: Boolean = false, // reload refills the mag without ever depleting reserve
 )

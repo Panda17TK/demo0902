@@ -4,10 +4,14 @@ import io.github.panda17tk.arpg.math.Rng
 
 /**
  * Per-run enemy tribes (pure). Each mob belongs to the tribe of its **nearest centre** (so
- * spatially-close spawns herd together), and a symmetric **hostility matrix** decides which tribe
- * pairs fight on sight. Built once per run from the deterministic [Rng].
+ * spatially-close spawns herd together), a symmetric **hostility matrix** decides which tribe
+ * pairs fight on sight, and each tribe has an **intelligence** (0..1) feeding tactical AI.
  */
-class Tribes(val centers: List<FloatArray>, private val hostile: Array<BooleanArray>) {
+class Tribes(
+    val centers: List<FloatArray>,
+    private val hostile: Array<BooleanArray>,
+    private val intel: FloatArray = FloatArray(centers.size),
+) {
     val count: Int get() = centers.size
 
     fun tribeOf(x: Float, y: Float): Int {
@@ -24,6 +28,8 @@ class Tribes(val centers: List<FloatArray>, private val hostile: Array<BooleanAr
     fun areHostile(a: Int, b: Int): Boolean =
         a != b && a in hostile.indices && b in hostile.indices && hostile[a][b]
 
+    fun intelligenceOf(tribe: Int): Float = if (tribe in intel.indices) intel[tribe] else 0f
+
     companion object {
         fun build(numTribes: Int, worldW: Float, worldH: Float, hostileChance: Float, rng: Rng): Tribes {
             val n = numTribes.coerceAtLeast(1)
@@ -33,7 +39,8 @@ class Tribes(val centers: List<FloatArray>, private val hostile: Array<BooleanAr
                 val h = rng.nextFloat() < hostileChance
                 hostile[a][b] = h; hostile[b][a] = h
             }
-            return Tribes(centers, hostile)
+            val intel = FloatArray(n) { rng.nextFloat() }
+            return Tribes(centers, hostile, intel)
         }
     }
 }
