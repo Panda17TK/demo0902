@@ -11,8 +11,8 @@ android {
         applicationId = "io.github.panda17tk.arpg"
         minSdk = 24
         targetSdk = 35
-        versionCode = 16
-        versionName = "2.10.0"
+        versionCode = 17
+        versionName = "2.11.0"
     }
 
     compileOptions {

@@ -48,6 +48,7 @@ import io.github.panda17tk.arpg.pathfinding.SpatialGrid
 import io.github.panda17tk.arpg.sim.Base
 import io.github.panda17tk.arpg.sim.BaseField
 import io.github.panda17tk.arpg.sim.Bases
+import io.github.panda17tk.arpg.sim.GravityField
 import io.github.panda17tk.arpg.sim.Tribes
 import io.github.panda17tk.arpg.sim.Tuning
 import io.github.panda17tk.arpg.sim.WallGravity
@@ -74,6 +75,7 @@ object WorldFactory {
             val clusters = WallGravity.detect(maxOf(0, ctx - win), minOf(map.width - 1, ctx + win), maxOf(0, cty - win), minOf(map.height - 1, cty + win), map::destructibleAt)
             BaseField(Bases.pickLargest(clusters, 6, 18).map { Base(it.cx * Tuning.TILE, it.cy * Tuning.TILE, tribes.tribeOf(it.cx * Tuning.TILE, it.cy * Tuning.TILE), it.radius * Tuning.TILE) })
         }
+        val gravityField = GravityField()
         val waveState = WaveState(
             num = 1,
             phase = "active",
@@ -94,6 +96,7 @@ object WorldFactory {
                 add(fx)
                 add(tribes)
                 add(baseField)
+                add(gravityField)
             }
             systems {
                 add(SnapshotSystem())
@@ -148,6 +151,7 @@ object WorldFactory {
             it.gameOver = gameOver
             it.fx = fx
             it.bases = baseField.bases
+            it.gravityField = gravityField
         }
     }
 }

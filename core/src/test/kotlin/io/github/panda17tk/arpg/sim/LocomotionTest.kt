@@ -30,10 +30,10 @@ class LocomotionTest {
         assertFalse(Locomotion.isDashing(dashHeld = true, moving = false, sta = 50f))
         assertFalse(Locomotion.isDashing(dashHeld = false, moving = true, sta = 50f))
     }
-    @Test fun `speed is the capped walk value, doubled when dashing`() {
-        // baseSpeed 85 * speedMul 1.2 = 102 walk; dashMul 2 → 204 (this is the movement speed cap).
+    @Test fun `speed is the capped walk value, faster when dashing`() {
+        // baseSpeed 85 * speedMul 1.2 = 102 walk; dashMul 2.5 → 255 (this is the movement speed cap).
         assertEquals(102f, Locomotion.speed(dashing = false, cfg = cfg), 1e-3f)
-        assertEquals(204f, Locomotion.speed(dashing = true, cfg = cfg), 1e-3f)
+        assertEquals(255f, Locomotion.speed(dashing = true, cfg = cfg), 1e-3f)
     }
     @Test fun `stamina drains while dashing and clamps at zero`() {
         assertEquals(65f, Locomotion.nextStamina(100f, dashing = true, dt = 1f, cfg = cfg), 1e-3f)
@@ -41,6 +41,6 @@ class LocomotionTest {
     }
     @Test fun `stamina regens while not dashing and clamps at max`() {
         assertEquals(72f, Locomotion.nextStamina(50f, dashing = false, dt = 1f, cfg = cfg), 1e-3f)
-        assertEquals(100f, Locomotion.nextStamina(95f, dashing = false, dt = 1f, cfg = cfg), 1e-3f)
+        assertEquals(150f, Locomotion.nextStamina(145f, dashing = false, dt = 1f, cfg = cfg), 1e-3f) // clamps at staMax 150
     }
 }
