@@ -13,6 +13,7 @@ import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Mob
 import io.github.panda17tk.arpg.ecs.components.MobAction
 import io.github.panda17tk.arpg.ecs.components.PlayerTag
+import io.github.panda17tk.arpg.ecs.components.Speech
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.ecs.components.Velocity
 import io.github.panda17tk.arpg.map.TileMap
@@ -27,6 +28,7 @@ import io.github.panda17tk.arpg.sim.CreatureAI
 import io.github.panda17tk.arpg.sim.CreatureState
 import io.github.panda17tk.arpg.sim.Leveling
 import io.github.panda17tk.arpg.sim.PlanetField
+import io.github.panda17tk.arpg.sim.SpeechLines
 import io.github.panda17tk.arpg.sim.Tribes
 import io.github.panda17tk.arpg.sim.Tuning
 import kotlin.math.abs
@@ -39,7 +41,7 @@ import kotlin.math.sqrt
 
 /** Enemy AI: flow-field chase + separation + contact + data-driven attack dispatch (legacy ai.js + runAttacks). */
 class AISystem(private val mobGrid: SpatialGrid<Entity>) :
-    IteratingSystem(family { all(Mob, Transform, Velocity, Body, Health, Facing, MobAction, CreatureMind) }) {
+    IteratingSystem(family { all(Mob, Transform, Velocity, Body, Health, Facing, MobAction, CreatureMind, Speech) }) {
 
     private val map: TileMap = world.inject()
     private val flow: FlowField = world.inject()
@@ -58,6 +60,7 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         val f = entity[Facing]
         val h = entity[Health]
         val action = entity[MobAction]
+        val speech = entity[Speech]
         val dt = deltaTime
         val ai = config.ai
 
@@ -67,6 +70,8 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         // Decay gravity/crash momentum (drift) lightly so flung mobs coast, then AI reasserts control.
         val driftDecay = MOB_DRIFT_DECAY.pow(dt)
         v.driftX *= driftDecay; v.driftY *= driftDecay
+        if (speech.cooldown > 0f) speech.cooldown -= dt
+        if (speech.remaining > 0f) speech.remaining -= dt
         if (m.bumpCd > 0f) m.bumpCd -= dt
         if (h.hitFlash > 0f) h.hitFlash -= dt
         for (i in m.attackCd.indices) if (m.attackCd[i] > 0f) m.attackCd[i] -= dt
@@ -94,8 +99,17 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
 
         // Living Planets: advance the creature's behavioural state, then decide if it still fights.
         val mind = entity[CreatureMind]
+        val prevState = mind.state
         updateMind(mind, h, dist, dt)
         val aggressive = mind.state == CreatureState.Hostile || mind.state == CreatureState.Protect
+        // Intelligent creatures announce a state change (flee/beg/hide) with a brief bubble.
+        if (speech.canSpeak && mind.state != prevState && speech.cooldown <= 0f) {
+            val trig = SpeechLines.forState(mind.state)
+            if (trig != null) {
+                val line = SpeechLines.pick(trig, rng.nextInt(1000))
+                if (line != null) { speech.text = line; speech.remaining = BUBBLE_TIME; speech.cooldown = SPEECH_CD }
+            }
+        }
 
         // Neighbour scan (one pass): separation (any mob) + same-tribe cohesion + nearest hostile-tribe mob.
         val myTribe = m.tribe
@@ -283,6 +297,8 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         private const val REST_HEAL = 14f // HP/sec regained while resting
         private const val REST_RECOVER = 0.85f // rested back to this HP fraction → rejoin the fight
         private val REST_INTERRUPT = Tuning.TILE * 4f // player this close interrupts hide/rest
+        private const val BUBBLE_TIME = 2.2f // seconds a speech bubble stays up
+        private const val SPEECH_CD = 4f // minimum seconds between a creature's lines
         private val COVER_OFFSETS = floatArrayOf(0f, 0.6f, -0.6f, 1.2f, -1.2f) // away ± up to ~70°
     }
 }

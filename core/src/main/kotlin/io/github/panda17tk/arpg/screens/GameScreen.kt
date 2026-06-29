@@ -31,6 +31,7 @@ import io.github.panda17tk.arpg.ecs.components.MobAction
 import io.github.panda17tk.arpg.ecs.components.Mods
 import io.github.panda17tk.arpg.ecs.components.Pickup
 import io.github.panda17tk.arpg.ecs.components.Smoke
+import io.github.panda17tk.arpg.ecs.components.Speech
 import io.github.panda17tk.arpg.ecs.components.Stamina
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.ecs.components.Velocity
@@ -370,6 +371,24 @@ class GameScreen : ScreenAdapter() {
             }
         }
         shapes.end()
+
+        // speech bubbles — short lines above creatures (world space; y-down → negative scaleY flips glyphs upright)
+        batch.projectionMatrix = camera.combined
+        batch.begin()
+        val bubScaleX = font.data.scaleX; val bubScaleY = font.data.scaleY
+        font.data.setScale(0.2f, -0.2f) // small world-unit text; tune on device
+        with(gw.world) {
+            gw.world.family { all(Mob, Transform, Speech) }.forEach { e ->
+                val sp = e[Speech]
+                if (sp.remaining > 0f && sp.text.isNotEmpty()) {
+                    val mt = e[Transform]
+                    glyphLayout.setText(font, sp.text)
+                    font.draw(batch, glyphLayout, mt.x - glyphLayout.width / 2f, mt.y - 20f)
+                }
+            }
+        }
+        font.data.setScale(bubScaleX, bubScaleY)
+        batch.end()
 
         // HUD (screen space) — P2 live HUD delegated to render/Hud (geometry from ui/HudLayout)
         hudViewport.apply()

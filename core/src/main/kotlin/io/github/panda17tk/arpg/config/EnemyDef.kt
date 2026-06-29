@@ -50,6 +50,7 @@ data class EnemyDef(
     val mercyThreshold: Float = 0f,
     val canBeg: Boolean = false,
     val canHideAndRest: Boolean = false,
+    val canSpeak: Boolean = false, // intelligent creatures emit short speech bubbles
     val attacks: List<AttackSpec> = emptyList(),
     val dodge: DodgeSpec? = null,
 )
