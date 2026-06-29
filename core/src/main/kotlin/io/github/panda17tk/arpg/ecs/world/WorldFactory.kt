@@ -44,6 +44,7 @@ import io.github.panda17tk.arpg.map.Stages
 import io.github.panda17tk.arpg.math.Rng
 import io.github.panda17tk.arpg.pathfinding.FlowField
 import io.github.panda17tk.arpg.pathfinding.SpatialGrid
+import io.github.panda17tk.arpg.sim.Tribes
 import io.github.panda17tk.arpg.sim.Tuning
 import kotlin.math.floor
 
@@ -59,6 +60,8 @@ object WorldFactory {
         val mobGrid = SpatialGrid<Entity>(Tuning.TILE)
         val gameOver = GameOver()
         val fx = Fx(Rng(seed xor 0x123456789L))
+        // Per-run enemy tribes: 5 spatial tribes, ~35% of pairs mutually hostile (they brawl on sight).
+        val tribes = Tribes.build(5, map.width * Tuning.TILE, map.height * Tuning.TILE, 0.35f, Rng(seed xor 0x7A3B1C9DL))
         val waveState = WaveState(
             num = 1,
             phase = "active",
@@ -77,6 +80,7 @@ object WorldFactory {
                 add(gameOver)
                 add(waveState)
                 add(fx)
+                add(tribes)
             }
             systems {
                 add(SnapshotSystem())
@@ -120,7 +124,7 @@ object WorldFactory {
         for (marker in loaded.spawns) {
             if (marker.kind != "enemy") continue
             val def = config.enemies[marker.name] ?: continue
-            MobFactory.spawn(world, def, marker.worldX, marker.worldY)
+            MobFactory.spawn(world, def, marker.worldX, marker.worldY, tribe = tribes.tribeOf(marker.worldX, marker.worldY))
         }
 
         return GameWorld(world, player).also {
