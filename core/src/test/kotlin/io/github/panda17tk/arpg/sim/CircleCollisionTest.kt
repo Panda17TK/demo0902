@@ -32,4 +32,10 @@ class CircleCollisionTest {
         val r = CircleCollision.resolve(40f, 0f, 10f, 0f, 200f, listOf(planet)) // moving +y, normal is +x
         assertEquals(0f, r.inwardSpeed, 1e-3f)
     }
+
+    @Test fun `reports the outward normal at the contact`() {
+        val r = CircleCollision.resolve(40f, 0f, 10f, 0f, 0f, listOf(planet))
+        assertEquals(1f, r.normalX, 1e-3f)
+        assertEquals(0f, r.normalY, 1e-3f)
+    }
 }

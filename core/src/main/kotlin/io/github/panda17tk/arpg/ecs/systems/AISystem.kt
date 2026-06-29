@@ -21,6 +21,7 @@ import io.github.panda17tk.arpg.pathfinding.Los
 import io.github.panda17tk.arpg.pathfinding.SpatialGrid
 import io.github.panda17tk.arpg.sim.CircleCollision
 import io.github.panda17tk.arpg.sim.Collision
+import io.github.panda17tk.arpg.sim.CrashModel
 import io.github.panda17tk.arpg.sim.Leveling
 import io.github.panda17tk.arpg.sim.PlanetField
 import io.github.panda17tk.arpg.sim.Tribes
@@ -144,15 +145,20 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
                 mvx = dx / dist * eff * dt; mvy = dy / dist * eff * dt; f.x = dx / dist; f.y = dy / dist
             }
         }
-        // Drift (gravity/crash momentum) rides on top of AI movement + knockback; zero it on wall hits.
+        // Drift (gravity/crash momentum) rides on top of AI movement + knockback; crash on wall hits.
         val r1 = Collision.moveAndCollide(map, t.x, t.y, b.halfW, b.halfH, mvx + (v.vx + v.driftX) * dt, 0f)
-        if (r1.hitX) v.driftX = 0f
+        if (r1.hitX) { crashMob(h, abs(v.vx + v.driftX)); v.driftX = 0f }
         val r2 = Collision.moveAndCollide(map, r1.x, r1.y, b.halfW, b.halfH, 0f, mvy + (v.vy + v.driftY) * dt)
-        if (r2.hitY) v.driftY = 0f
+        if (r2.hitY) { crashMob(h, abs(v.vy + v.driftY)); v.driftY = 0f }
         t.x = r2.x; t.y = r2.y
-        // Solid planets: push the mob out of any planet circle (crash damage arrives in SP-4).
-        val pc = CircleCollision.resolve(t.x, t.y, b.halfW, v.driftX, v.driftY, planetField.planets)
-        if (pc.hit) { t.x = pc.x; t.y = pc.y; v.driftX = 0f; v.driftY = 0f }
+        // Solid planets: push out + crash damage (weaponised gravity — fling enemies into planets/asteroids).
+        val pc = CircleCollision.resolve(t.x, t.y, b.halfW, v.vx + v.driftX, v.vy + v.driftY, planetField.planets)
+        if (pc.hit) {
+            t.x = pc.x; t.y = pc.y
+            crashMob(h, pc.inwardSpeed)
+            val (rdx, rdy) = CrashModel.rebound(v.driftX, v.driftY, pc.normalX, pc.normalY, MOB_CRASH_RESTITUTION)
+            v.driftX = rdx; v.driftY = rdy
+        }
 
         val pt = playerT; val ph = playerH; val pv = playerV
 
@@ -210,6 +216,12 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         return null
     }
 
+    /** Crash damage when a mob is driven into a wall or planet fast; MobDamageSystem reaps the kill. */
+    private fun crashMob(h: Health, inwardSpeed: Float) {
+        val dmg = CrashModel.damage(inwardSpeed, MOB_CRASH_THRESHOLD, MOB_CRASH_K)
+        if (dmg > 0f) h.hp -= dmg
+    }
+
     companion object {
         private val COH_RADIUS = Tuning.TILE * 5f // same-tribe cohesion + hostile-scan radius
         private val HOSTILE_RANGE = Tuning.TILE * 7f // lock onto a hostile-tribe mob within this range
@@ -219,6 +231,9 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         private const val KITE_SMARTS = 0.40f // smarts above this → ranged mobs kite
         private val KITE_DIST = Tuning.TILE * 5f // back off when the player is closer than this
         private const val MOB_DRIFT_DECAY = 0.8f // gravity/crash momentum bleeds ~20%/s so AI movement dominates
+        private const val MOB_CRASH_THRESHOLD = 110f // mobs take damage above this impact speed
+        private const val MOB_CRASH_K = 0.6f // mob crash damage per unit speed over threshold (weaponised gravity/knockback)
+        private const val MOB_CRASH_RESTITUTION = 0.35f // slight outward rebound off a planet
         private val COVER_OFFSETS = floatArrayOf(0f, 0.6f, -0.6f, 1.2f, -1.2f) // away ± up to ~70°
     }
 }

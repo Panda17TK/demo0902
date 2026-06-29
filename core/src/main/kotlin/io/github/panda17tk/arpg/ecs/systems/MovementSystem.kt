@@ -19,10 +19,12 @@ import io.github.panda17tk.arpg.map.Biomes
 import io.github.panda17tk.arpg.map.TileMap
 import io.github.panda17tk.arpg.sim.CircleCollision
 import io.github.panda17tk.arpg.sim.Collision
+import io.github.panda17tk.arpg.sim.CrashModel
 import io.github.panda17tk.arpg.sim.Inertia
 import io.github.panda17tk.arpg.sim.Locomotion
 import io.github.panda17tk.arpg.sim.PlanetField
 import io.github.panda17tk.arpg.sim.Tuning
+import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.pow
 
@@ -80,11 +82,16 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         val r1 = Collision.moveAndCollide(map, t.x, t.y, b.halfW, b.halfH, (v.vx + v.driftX) * dt, 0f)
         val r2 = Collision.moveAndCollide(map, r1.x, r1.y, b.halfW, b.halfH, 0f, (v.vy + v.driftY) * dt)
         t.x = r2.x; t.y = r2.y
-        if (r1.hitX) { v.vx = 0f; v.driftX = 0f }
-        if (r2.hitY) { v.vy = 0f; v.driftY = 0f }
-        // Solid planets: push the player out of any planet circle (crash damage arrives in SP-4).
-        val pc = CircleCollision.resolve(t.x, t.y, b.halfW, v.driftX, v.driftY, planetField.planets)
-        if (pc.hit) { t.x = pc.x; t.y = pc.y; v.driftX = 0f; v.driftY = 0f }
+        if (r1.hitX) { applyCrash(h, abs(v.vx + v.driftX)); v.vx = 0f; v.driftX = 0f }
+        if (r2.hitY) { applyCrash(h, abs(v.vy + v.driftY)); v.vy = 0f; v.driftY = 0f }
+        // Solid planets: push out + crash damage scaled by inward speed (slams hurt; gentle for the player).
+        val pc = CircleCollision.resolve(t.x, t.y, b.halfW, v.vx + v.driftX, v.vy + v.driftY, planetField.planets)
+        if (pc.hit) {
+            t.x = pc.x; t.y = pc.y
+            applyCrash(h, pc.inwardSpeed)
+            val (rdx, rdy) = CrashModel.rebound(v.driftX, v.driftY, pc.normalX, pc.normalY, CRASH_RESTITUTION)
+            v.driftX = rdx; v.driftY = rdy
+        }
         if (input.aiming) { f.x = input.aimX; f.y = input.aimY } // right stick aims independent of movement
         else if (mv.isMoving) { f.x = mv.dirX; f.y = mv.dirY }
         if (staInf) {
@@ -99,8 +106,18 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         if (grass) s.value = (s.value + GRASS_STA * dt).coerceAtMost(s.max)
     }
 
+    /** Crash damage on a high-speed impact (wall or planet), respecting the player's i-frames. */
+    private fun applyCrash(h: Health, inwardSpeed: Float) {
+        val dmg = CrashModel.damage(inwardSpeed, CRASH_THRESHOLD, CRASH_K)
+        if (dmg > 0f && h.iTime <= 0f) { h.hp = (h.hp - dmg).coerceAtLeast(0f); h.iTime = CRASH_IFRAME }
+    }
+
     companion object {
         private const val DASH_UP_MUL = 1.5f // dash-speed pickup buff
+        private const val CRASH_THRESHOLD = 200f // impact speed below this → no crash damage (forgiving)
+        private const val CRASH_K = 0.25f // player crash damage per unit speed over threshold
+        private const val CRASH_IFRAME = 0.4f // invuln after a crash so one slam isn't multi-hit
+        private const val CRASH_RESTITUTION = 0.35f // slight outward rebound off a planet
         private const val MOVE_ACCEL = 480f // walk acceleration — heavier: ramps up over ~0.2s
         private const val DASH_ACCEL = 1600f // dash acceleration — beefier dash
         private const val MOVE_DECAY = 0.6f // light drag while thrusting (still reaches the cap)
