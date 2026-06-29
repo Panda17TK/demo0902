@@ -22,6 +22,7 @@ import io.github.panda17tk.arpg.math.Rng
 import io.github.panda17tk.arpg.pathfinding.FlowField
 import io.github.panda17tk.arpg.pathfinding.Los
 import io.github.panda17tk.arpg.pathfinding.SpatialGrid
+import io.github.panda17tk.arpg.planet.PlanetBiome
 import io.github.panda17tk.arpg.sim.CircleCollision
 import io.github.panda17tk.arpg.sim.Collision
 import io.github.panda17tk.arpg.sim.CrashModel
@@ -106,7 +107,7 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         var cohX = 0f; var cohY = 0f; var cohN = 0
         var hostX = 0f; var hostY = 0f; var hostD = Float.MAX_VALUE; var hostFound = false
         var hostHp: Health? = null; var hostV: Velocity? = null
-        var kingNear = false; var wardThreatened = false
+        var kingNear = false; var wardThreatened = false; var wardHurt = false
         mobGrid.forNearby(t.x, t.y, COH_RADIUS) { other ->
             if (other == entity) return@forNearby
             with(world) {
@@ -121,7 +122,11 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
                     cohX += ot.x; cohY += ot.y; cohN++
                     val ocm = other[CreatureMind]
                     if (ocm.familyRole == FamilyRole.KING) kingNear = true
-                    if (Family.isWard(ocm.familyRole) && hypot(ot.x - px, ot.y - py) < WARD_THREAT_RANGE) wardThreatened = true
+                    if (Family.isWard(ocm.familyRole)) {
+                        if (hypot(ot.x - px, ot.y - py) < WARD_THREAT_RANGE) wardThreatened = true
+                        val oh = other[Health]
+                        if (oh.hp <= oh.hpMax * WARD_HURT_FRAC) wardHurt = true // a wounded ward calls defenders to a fury
+                    }
                 }
             }
         }
@@ -138,11 +143,25 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
 
         // Living Planets society: a guardian defends a threatened ward; a nearby king steels morale.
         val guardian = mind.protectiveness >= GUARDIAN_MIN || mind.familyRole == FamilyRole.GUARDIAN
+        // Once struck or crowded, a creature commits to the fight and stops issuing warnings.
+        if (h.hitFlash > 0f || dist < WARN_NEAR) mind.provoked = true
+        val hasStanding = mind.familyRole == FamilyRole.KING || mind.familyRole == FamilyRole.ELDER ||
+            mind.familyRole == FamilyRole.GUARDIAN || mind.intelligence >= WARN_INTEL
+        val canWarn = !mind.provoked && hasStanding
+        val playerNear = see && dist < WARN_RANGE
         val prevState = mind.state
-        updateMind(mind, h, dist, dt, guardian && wardThreatened, kingNear)
-        val aggressive = mind.state == CreatureState.Hostile || mind.state == CreatureState.Protect
+        updateMind(mind, h, dist, dt, guardian && wardThreatened, kingNear, wardHurt, playerNear, canWarn)
+        val aggressive = mind.state == CreatureState.Hostile || mind.state == CreatureState.Protect ||
+            mind.state == CreatureState.Rally
         if (speech.canSpeak && mind.state != prevState && speech.cooldown <= 0f) {
-            val trig = SpeechLines.forState(mind.state)
+            var trig = SpeechLines.forState(mind.state)
+            // Flavour the first encounter: kings decree, lone survivors muse, guards rally to the throne.
+            if (trig == SpeechLines.Trigger.Warn) {
+                if (mind.familyRole == FamilyRole.KING) trig = SpeechLines.Trigger.KingEncounter
+                else if (m.def.biome == PlanetBiome.LONELY) trig = SpeechLines.Trigger.LonelyEncounter
+            } else if (trig == SpeechLines.Trigger.ProtectChild && kingNear) {
+                trig = SpeechLines.Trigger.ProtectKing
+            }
             if (trig != null) {
                 val line = SpeechLines.pick(trig, rng.nextInt(1000))
                 if (line != null) { speech.text = line; speech.remaining = BUBBLE_TIME; speech.cooldown = SPEECH_CD }
@@ -154,35 +173,38 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         val hasRanged = m.def.attacks.any { it.type == "shot" }
         val brawl = aggressive && hostFound && hostD <= HOSTILE_RANGE
         val cover = if (aggressive && !brawl && smarts > COVER_SMARTS && see) coverDir(t.x, t.y, px, py) else null
+        // Rallying defenders surge; everyone else moves at their normal effective speed.
+        val moveEff = eff * if (mind.state == CreatureState.Rally) RALLY_SPEED else 1f
         var mvx = 0f; var mvy = 0f
         if (!aggressive) {
-            // The creature has broken off: run, hide or freeze instead of fighting.
+            // The creature has broken off: run, hide, freeze or simply mind its own business.
             when (mind.state) {
-                CreatureState.Flee -> if (dist > 0f) { mvx = -toPx * eff * dt; mvy = -toPy * eff * dt; f.x = -toPx; f.y = -toPy }
+                CreatureState.Flee -> if (dist > 0f) { mvx = -toPx * moveEff * dt; mvy = -toPy * moveEff * dt; f.x = -toPx; f.y = -toPy }
                 CreatureState.Hide -> {
                     val c = coverDir(t.x, t.y, px, py)
-                    if (c != null) { mvx = c[0] * eff * dt; mvy = c[1] * eff * dt }
-                    else if (dist > 0f) { mvx = -toPx * eff * dt; mvy = -toPy * eff * dt }
+                    if (c != null) { mvx = c[0] * moveEff * dt; mvy = c[1] * moveEff * dt }
+                    else if (dist > 0f) { mvx = -toPx * moveEff * dt; mvy = -toPy * moveEff * dt }
                     if (dist > 0f) { f.x = toPx; f.y = toPy }
                 }
-                else -> if (dist > 0f) { f.x = toPx; f.y = toPy } // Beg / Rest: stand still, face the player
+                CreatureState.Ignore -> {} // pacifist: holds its ground, indifferent to the player
+                else -> if (dist > 0f) { f.x = toPx; f.y = toPy } // Warn / Beg / Rest / Surrender: stand, face the player
             }
         } else if (brawl) {
             // Frontline: charge the rival-tribe mob.
             val bdx = hostX - t.x; val bdy = hostY - t.y; val bd = hypot(bdx, bdy)
-            if (bd > 0f) { mvx = bdx / bd * eff * dt; mvy = bdy / bd * eff * dt; f.x = bdx / bd; f.y = bdy / bd }
+            if (bd > 0f) { mvx = bdx / bd * moveEff * dt; mvy = bdy / bd * moveEff * dt; f.x = bdx / bd; f.y = bdy / bd }
         } else if (cover != null) {
             // Smart: slip toward a wall to shield from the player, still facing them to fire.
-            mvx = cover[0] * eff * dt; mvy = cover[1] * eff * dt; f.x = toPx; f.y = toPy
+            mvx = cover[0] * moveEff * dt; mvy = cover[1] * moveEff * dt; f.x = toPx; f.y = toPy
         } else if (smarts > KITE_SMARTS && hasRanged && see && dist in 1f..KITE_DIST) {
             // Ranged support kites: back off and support from behind the frontline.
-            mvx = -toPx * eff * dt; mvy = -toPy * eff * dt; f.x = toPx; f.y = toPy
+            mvx = -toPx * moveEff * dt; mvy = -toPy * moveEff * dt; f.x = toPx; f.y = toPy
         } else {
             val (fx, fy) = AiMove.followDir(map, flow, t.x, t.y)
             if (fx != 0f || fy != 0f) {
-                mvx = fx * eff * dt; mvy = fy * eff * dt; f.x = fx; f.y = fy
+                mvx = fx * moveEff * dt; mvy = fy * moveEff * dt; f.x = fx; f.y = fy
             } else if (see && dist > 0f) {
-                mvx = dx / dist * eff * dt; mvy = dy / dist * eff * dt; f.x = dx / dist; f.y = dy / dist
+                mvx = dx / dist * moveEff * dt; mvy = dy / dist * moveEff * dt; f.x = dx / dist; f.y = dy / dist
             }
         }
         // Drift (gravity/crash momentum) rides on top of AI movement + knockback; crash on wall hits.
@@ -256,8 +278,12 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         return null
     }
 
-    /** Advance behavioural state: hide waits then rests, rest heals, the player's approach interrupts both. */
-    private fun updateMind(mind: CreatureMind, h: Health, dist: Float, dt: Float, protectedThreatened: Boolean, kingNear: Boolean) {
+    /** Advance behavioural state: hide→rest heals, the player's approach interrupts, beg→surrender, pacifists ignore. */
+    private fun updateMind(
+        mind: CreatureMind, h: Health, dist: Float, dt: Float,
+        protectedThreatened: Boolean, kingNear: Boolean,
+        wardHurt: Boolean, playerNear: Boolean, canWarn: Boolean,
+    ) {
         val hpFrac = if (h.hpMax > 0f) h.hp / h.hpMax else 0f
         when (mind.state) {
             CreatureState.Rest -> {
@@ -270,14 +296,30 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
                 mind.stateTimer -= dt
                 if (mind.stateTimer <= 0f) mind.state = CreatureState.Rest
             }
+            CreatureState.Surrender -> { /* yielded: it stays down and harmless */ }
+            CreatureState.Ignore -> {
+                if (mind.provoked) mind.state = CreatureState.Flee // a pacifist that gets hit just runs
+            }
             else -> {
                 if (mind.familyRole == FamilyRole.CHILD) { mind.state = CreatureState.Flee; return } // children never fight
                 val effBravery = Family.effectiveBravery(mind.bravery, kingNear) // a nearby king steels nerves
                 val next = CreatureAI.nextState(
                     hpFrac, effBravery, mind.intelligence, mind.canBeg, mind.canHideAndRest,
                     mind.mercyThreshold, protectedThreatened, mind.protectiveness,
+                    wardHurt, playerNear, canWarn,
                 )
-                if (next == CreatureState.Hide && mind.state != CreatureState.Hide) mind.stateTimer = HIDE_TIME
+                when {
+                    // A creature left to beg long enough — and not struck again — lays down its arms for good.
+                    next == CreatureState.Beg -> {
+                        if (mind.state == CreatureState.Beg && h.hitFlash <= 0f) {
+                            mind.stateTimer -= dt
+                            if (mind.stateTimer <= 0f) { mind.state = CreatureState.Surrender; return }
+                        } else {
+                            mind.stateTimer = SURRENDER_TIME
+                        }
+                    }
+                    next == CreatureState.Hide && mind.state != CreatureState.Hide -> mind.stateTimer = HIDE_TIME
+                }
                 mind.state = next
             }
         }
@@ -309,6 +351,12 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         private const val SPEECH_CD = 4f // minimum seconds between a creature's lines
         private const val GUARDIAN_MIN = 0.5f // protectiveness at/above this makes a creature a guardian
         private val WARD_THREAT_RANGE = Tuning.TILE * 5f // player this close to a ward → guardians defend it
+        private const val WARD_HURT_FRAC = 0.5f // a ward/king below this HP fraction makes defenders rally
+        private val WARN_RANGE = Tuning.TILE * 6f // territorial creatures warn the player within this range
+        private val WARN_NEAR = Tuning.TILE * 2.5f // player this close (or any hit) provokes → no more warnings
+        private const val WARN_INTEL = 0.4f // intelligence at/above this lets a creature warn before fighting
+        private const val RALLY_SPEED = 1.35f // rallying defenders surge faster
+        private const val SURRENDER_TIME = 3f // seconds a begging creature is left unharmed before it yields
         private val COVER_OFFSETS = floatArrayOf(0f, 0.6f, -0.6f, 1.2f, -1.2f) // away ± up to ~70°
     }
 }

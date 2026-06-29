@@ -6,10 +6,12 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class WorldBossTest {
-    @Test fun `default roster has one boss and three midbosses`() {
-        val e = GameConfig().enemies
-        assertEquals(1, e.values.count { it.tier == "boss" }, "expected exactly one boss")
-        assertEquals(3, e.values.count { it.tier == "midboss" }, "expected three midbosses (brute, warlock, beast_king)")
+    @Test fun `generic space roster has one boss and two midbosses`() {
+        // Biome creatures (biome != null) live on their planet's surface and are gated out of space waves;
+        // the generic space roster stays overlord (boss) + brute, warlock (midbosses). beast_king is now NATURE.
+        val space = GameConfig().enemies.values.filter { it.biome == null }
+        assertEquals(1, space.count { it.tier == "boss" }, "expected exactly one generic space boss (overlord)")
+        assertEquals(2, space.count { it.tier == "midboss" }, "expected two generic space midbosses (brute, warlock)")
     }
 
     @Test fun `the boss has the full attack kit`() {

@@ -14,6 +14,8 @@ import io.github.panda17tk.arpg.map.TileMap
 import io.github.panda17tk.arpg.math.Rng
 import io.github.panda17tk.arpg.sim.Tribes
 import io.github.panda17tk.arpg.sim.Tuning
+import io.github.panda17tk.arpg.sim.WorldMode
+import io.github.panda17tk.arpg.sim.WorldState
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -28,13 +30,17 @@ class SpawnerSystem : IteratingSystem(family { all(PlayerTag, Transform) }) {
     private val map: TileMap = world.inject()
     private val rng: Rng = world.inject()
     private val tribes: Tribes = world.inject()
+    private val worldState: WorldState = world.inject()
 
     private val mobs by lazy { world.family { all(Mob) } }
-    private val normalKeys: List<String> = config.enemies.filterValues { it.tier == "normal" }.keys.toList()
-    private val midBossKeys: List<String> = config.enemies.filterValues { it.tier == "midboss" }.keys.toList()
-    private val bossKeys: List<String> = config.enemies.filterValues { it.tier == "boss" }.keys.toList()
+    // Space waves draw only from generic enemies; biome creatures (biome != null) live on their planet's surface.
+    private val normalKeys: List<String> = config.enemies.filterValues { it.tier == "normal" && it.biome == null }.keys.toList()
+    private val midBossKeys: List<String> = config.enemies.filterValues { it.tier == "midboss" && it.biome == null }.keys.toList()
+    private val bossKeys: List<String> = config.enemies.filterValues { it.tier == "boss" && it.biome == null }.keys.toList()
 
     override fun onTickEntity(entity: Entity) {
+        // On a planet's surface the inhabitants are placed once by SurfaceEcology; no endless waves.
+        if (worldState.mode == WorldMode.SURFACE) return
         val pt = entity[Transform]
         val w = wave
         val c = config.waves

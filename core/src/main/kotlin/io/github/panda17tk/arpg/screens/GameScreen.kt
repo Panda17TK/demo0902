@@ -400,13 +400,31 @@ class GameScreen : ScreenAdapter() {
         }
         shapes.end()
 
-        // speech bubbles — short lines above creatures (world space; y-down → negative scaleY flips glyphs upright)
-        batch.projectionMatrix = camera.combined
-        batch.begin()
+        // speech bubbles — translucent plate + short line above creatures (y-down → negative scaleY flips glyphs upright)
         val bubScaleX = font.data.scaleX; val bubScaleY = font.data.scaleY
         font.data.setScale(0.2f, -0.2f) // small world-unit text; tune on device
+        val speakers = gw.world.family { all(Mob, Transform, Speech) }
+        // backing plates first (shapes) so short lines stay legible against the starfield / terrain
+        shapes.projectionMatrix = camera.combined
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
         with(gw.world) {
-            gw.world.family { all(Mob, Transform, Speech) }.forEach { e ->
+            speakers.forEach { e ->
+                val sp = e[Speech]
+                if (sp.remaining > 0f && sp.text.isNotEmpty()) {
+                    val mt = e[Transform]
+                    glyphLayout.setText(font, sp.text)
+                    val lw = glyphLayout.width; val lh = kotlin.math.abs(glyphLayout.height)
+                    tmpC.set(0f, 0f, 0f, 0.5f); shapes.color = tmpC
+                    shapes.rect(mt.x - lw / 2f - 4f, mt.y - 20f - lh - 2f, lw + 8f, lh * 2f + 6f)
+                }
+            }
+        }
+        shapes.end()
+        // then the lines themselves (batch)
+        batch.projectionMatrix = camera.combined
+        batch.begin()
+        with(gw.world) {
+            speakers.forEach { e ->
                 val sp = e[Speech]
                 if (sp.remaining > 0f && sp.text.isNotEmpty()) {
                     val mt = e[Transform]

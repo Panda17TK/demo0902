@@ -1,5 +1,6 @@
 package io.github.panda17tk.arpg.config
 
+import io.github.panda17tk.arpg.planet.PlanetBiome
 import kotlinx.serialization.Serializable
 
 /** One enemy attack spec (data-driven; AISystem interprets `type`). */
@@ -52,6 +53,7 @@ data class EnemyDef(
     val canHideAndRest: Boolean = false,
     val canSpeak: Boolean = false, // intelligent creatures emit short speech bubbles
     val familyRole: FamilyRole = FamilyRole.NONE, // child/elder/guardian/king drive protection + morale
+    val biome: PlanetBiome? = null, // null = generic (space waves); set = lives on that planet type (surface only)
     val attacks: List<AttackSpec> = emptyList(),
     val dodge: DodgeSpec? = null,
 )
