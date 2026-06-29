@@ -67,7 +67,7 @@ class GravitySystem : IntervalSystem() {
         private val TILE = Tuning.TILE
         private const val WIN = 50
         private const val RECOMPUTE = 1.5f
-        private val RANGE = Tuning.TILE * 5f
+        private val RANGE = Tuning.TILE * 12f // influence reaches 12 blocks, decaying per block
         private const val STRENGTH = 38f
     }
 }
