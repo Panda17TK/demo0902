@@ -57,6 +57,9 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         // Decay knockback velocity + timers (always)
         val decay = 0.02f.pow(dt)
         v.vx *= decay; v.vy *= decay
+        // Decay gravity/crash momentum (drift) lightly so flung mobs coast, then AI reasserts control.
+        val driftDecay = MOB_DRIFT_DECAY.pow(dt)
+        v.driftX *= driftDecay; v.driftY *= driftDecay
         if (m.bumpCd > 0f) m.bumpCd -= dt
         if (h.hitFlash > 0f) h.hitFlash -= dt
         for (i in m.attackCd.indices) if (m.attackCd[i] > 0f) m.attackCd[i] -= dt
@@ -138,8 +141,11 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
                 mvx = dx / dist * eff * dt; mvy = dy / dist * eff * dt; f.x = dx / dist; f.y = dy / dist
             }
         }
-        val r1 = Collision.moveAndCollide(map, t.x, t.y, b.halfW, b.halfH, mvx + v.vx * dt, 0f)
-        val r2 = Collision.moveAndCollide(map, r1.x, r1.y, b.halfW, b.halfH, 0f, mvy + v.vy * dt)
+        // Drift (gravity/crash momentum) rides on top of AI movement + knockback; zero it on wall hits.
+        val r1 = Collision.moveAndCollide(map, t.x, t.y, b.halfW, b.halfH, mvx + (v.vx + v.driftX) * dt, 0f)
+        if (r1.hitX) v.driftX = 0f
+        val r2 = Collision.moveAndCollide(map, r1.x, r1.y, b.halfW, b.halfH, 0f, mvy + (v.vy + v.driftY) * dt)
+        if (r2.hitY) v.driftY = 0f
         t.x = r2.x; t.y = r2.y
 
         val pt = playerT; val ph = playerH; val pv = playerV
@@ -206,6 +212,7 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         private const val COVER_SMARTS = 0.55f // smarts above this → seek wall cover
         private const val KITE_SMARTS = 0.40f // smarts above this → ranged mobs kite
         private val KITE_DIST = Tuning.TILE * 5f // back off when the player is closer than this
+        private const val MOB_DRIFT_DECAY = 0.8f // gravity/crash momentum bleeds ~20%/s so AI movement dominates
         private val COVER_OFFSETS = floatArrayOf(0f, 0.6f, -0.6f, 1.2f, -1.2f) // away ± up to ~70°
     }
 }
