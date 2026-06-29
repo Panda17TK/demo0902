@@ -49,6 +49,8 @@ import io.github.panda17tk.arpg.sim.Base
 import io.github.panda17tk.arpg.sim.BaseField
 import io.github.panda17tk.arpg.sim.Bases
 import io.github.panda17tk.arpg.sim.GravityField
+import io.github.panda17tk.arpg.sim.PlanetField
+import io.github.panda17tk.arpg.sim.Planets
 import io.github.panda17tk.arpg.sim.Tribes
 import io.github.panda17tk.arpg.sim.Tuning
 import io.github.panda17tk.arpg.sim.WallGravity
@@ -76,6 +78,14 @@ object WorldFactory {
             BaseField(Bases.pickLargest(clusters, 6, 18).map { Base(it.cx * Tuning.TILE, it.cy * Tuning.TILE, tribes.tribeOf(it.cx * Tuning.TILE, it.cy * Tuning.TILE), it.radius * Tuning.TILE) })
         }
         val gravityField = GravityField()
+        // Discrete planets: 2..4 per stage, deterministic from the seed, clear of the player spawn.
+        val planetCount = 2 + Rng(seed xor 0x50A4E70BL).nextInt(3)
+        val planetField = PlanetField(
+            Planets.place(
+                map.width * Tuning.TILE, map.height * Tuning.TILE,
+                loaded.playerSpawnX, loaded.playerSpawnY, planetCount, Rng(seed xor 0x91A2B3C4L),
+            ),
+        )
         val waveState = WaveState(
             num = 1,
             phase = "active",
@@ -97,6 +107,7 @@ object WorldFactory {
                 add(tribes)
                 add(baseField)
                 add(gravityField)
+                add(planetField)
             }
             systems {
                 add(SnapshotSystem())
@@ -152,6 +163,7 @@ object WorldFactory {
             it.fx = fx
             it.bases = baseField.bases
             it.gravityField = gravityField
+            it.planets = planetField.planets
         }
     }
 }

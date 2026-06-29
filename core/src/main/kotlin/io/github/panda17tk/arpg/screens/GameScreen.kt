@@ -41,6 +41,7 @@ import io.github.panda17tk.arpg.input.InputState
 import io.github.panda17tk.arpg.input.KeyboardInput
 import io.github.panda17tk.arpg.input.TouchButton
 import io.github.panda17tk.arpg.input.TouchControls
+import io.github.panda17tk.arpg.map.Biome
 import io.github.panda17tk.arpg.map.Tile
 import io.github.panda17tk.arpg.math.Rng
 import io.github.panda17tk.arpg.render.Actors
@@ -316,6 +317,17 @@ class GameScreen : ScreenAdapter() {
                 }
             }
         }
+        // planets — large solid bodies tinted by biome
+        for (p in gw.planets) {
+            when (p.biome) {
+                Biome.ROCK -> tmpC.set(0.42f, 0.40f, 0.38f, 1f)
+                Biome.GRASS -> tmpC.set(0.28f, 0.52f, 0.30f, 1f)
+                Biome.SNOW -> tmpC.set(0.82f, 0.88f, 0.95f, 1f)
+                Biome.MAGMA -> tmpC.set(0.62f, 0.24f, 0.18f, 1f)
+            }
+            shapes.color = tmpC
+            shapes.circle(p.cx, p.cy, p.radius, 44)
+        }
         // tribe strongholds ("stars") — a tribe-coloured aura + pulsing core
         for (base in gw.bases) {
             val col = tribeColors[base.tribe % tribeColors.size]
@@ -334,6 +346,12 @@ class GameScreen : ScreenAdapter() {
             for (k in 1..3) shapes.circle(c.cx, c.cy, c.radius * k / 3f, 30)
             tmpC.set(0.45f, 0.5f, 0.72f, 0.16f); shapes.color = tmpC
             shapes.circle(c.cx, c.cy, c.radius + Tuning.TILE * 1.4f, 36)
+        }
+        // planet gravity wells — faint range rings around each planet
+        for (p in gw.planets) {
+            tmpC.set(0.5f, 0.55f, 0.72f, 0.18f); shapes.color = tmpC
+            shapes.circle(p.cx, p.cy, p.gravityRange, 48)
+            shapes.circle(p.cx, p.cy, p.radius + Tuning.TILE * 1.2f, 40)
         }
         with(gw.world) {
             gw.world.family { all(Mob, Transform, MobAction) }.forEach { e ->

@@ -34,7 +34,7 @@ private fun defaultEnemies(): Map<String, EnemyDef> = mapOf(
     ),
     "stalker" to EnemyDef(
         name = "ストーカー", tier = "normal", color = "#9a6ad0", hp = 60f, speed = 64f,
-        seeRange = 340f, contactKB = 200f,
+        seeRange = 340f, contactKB = 200f, gravityResponse = 0f, // agile — ignores gravity, closes straight in
         dodge = DodgeSpec(0.18f, 0.15f, 2.0f),
         attacks = listOf(
             AttackSpec("blink", cd = 3.0f, maxTiles = 5, dur = 0.1f, minDist = 70f, standoff = 28f),
@@ -44,7 +44,7 @@ private fun defaultEnemies(): Map<String, EnemyDef> = mapOf(
     // --- Bosses (legacy enemies.js BUILTIN_BOSSES). tier midboss=5 attacks / boss=10. ---
     "brute" to EnemyDef(
         name = "ブルート(中ボス)", tier = "midboss", color = "#d08a3a", hp = 420f, speed = 58f,
-        w = 34f, h = 34f, seeRange = 320f, contactKB = 320f,
+        w = 34f, h = 34f, seeRange = 320f, contactKB = 320f, gravityResponse = 1.5f, // heavy — easy to fling into planets
         attacks = listOf(
             AttackSpec("melee", cd = 0.8f, dmg = 16f, range = 22f, arc = 360f),
             AttackSpec("charge_melee", cd = 3.2f, range = 60f, reach = 40f, windup = 0.8f, dmg = 30f, kb = 480f),
@@ -67,7 +67,7 @@ private fun defaultEnemies(): Map<String, EnemyDef> = mapOf(
     ),
     "overlord" to EnemyDef(
         name = "オーバーロード(ボス)", tier = "boss", color = "#d04a6a", hp = 1200f, speed = 52f,
-        w = 46f, h = 46f, seeRange = 480f, contactKB = 360f,
+        w = 46f, h = 46f, seeRange = 480f, contactKB = 360f, gravityResponse = 0.25f, // boss resists being flung
         dodge = DodgeSpec(0.12f, 0.12f, 2.5f),
         attacks = listOf(
             AttackSpec("melee", cd = 0.7f, dmg = 20f, range = 30f, arc = 360f),
