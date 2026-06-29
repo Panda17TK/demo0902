@@ -12,4 +12,6 @@ class WorldState(
     var landingCandidate: PlanetBody? = null,
     /** On a SURFACE, the world-space escape pad (the landing point) the player returns to to take off. */
     var escapePad: Pair<Float, Float>? = null,
+    /** On a SURFACE, the built landmarks (camp/crater/dais/eye/shrine/ruins) the society lives among. */
+    var facilities: List<Facility> = emptyList(),
 )

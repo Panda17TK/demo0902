@@ -52,6 +52,7 @@ import io.github.panda17tk.arpg.render.Fonts
 import io.github.panda17tk.arpg.render.Hud
 import io.github.panda17tk.arpg.render.WorldView
 import io.github.panda17tk.arpg.save.Scores
+import io.github.panda17tk.arpg.sim.FacilityKind
 import io.github.panda17tk.arpg.sim.ReturnSpawn
 import io.github.panda17tk.arpg.sim.SurfaceObjective
 import io.github.panda17tk.arpg.sim.Tuning
@@ -299,6 +300,42 @@ class GameScreen : ScreenAdapter() {
             }
             shapes.color = tmpC
             shapes.rect(camera.position.x - vhw, camera.position.y - vhh, vhw * 2f, vhh * 2f)
+        }
+        // biome facilities — the society's built landmarks (camp/crater/dais/eye/shrine/ruins) on the ground
+        for (f in gw.worldState.facilities) {
+            val fr = f.radius
+            when (f.kind) {
+                FacilityKind.CAMP -> {
+                    tmpC.set(0.34f, 0.26f, 0.16f, 0.6f); shapes.color = tmpC; shapes.circle(f.x, f.y, fr, 26)
+                    tmpC.set(0.50f, 0.40f, 0.24f, 1f); shapes.color = tmpC
+                    for (i in 0 until 8) { val a = i / 8f * 6.2831855f; shapes.circle(f.x + cos(a) * fr, f.y + sin(a) * fr, fr * 0.12f, 8) }
+                }
+                FacilityKind.CRATER -> {
+                    tmpC.set(0.12f, 0.06f, 0.05f, 1f); shapes.color = tmpC; shapes.circle(f.x, f.y, fr, 28)
+                    tmpC.set(0.92f, 0.40f, 0.12f, 0.85f); shapes.color = tmpC; shapes.circle(f.x, f.y, fr * 0.55f, 22)
+                    tmpC.set(1f, 0.78f, 0.28f, 0.9f); shapes.color = tmpC; shapes.circle(f.x, f.y, fr * 0.25f, 16)
+                }
+                FacilityKind.DAIS -> {
+                    tmpC.set(0.80f, 0.88f, 0.96f, 0.9f); shapes.color = tmpC; shapes.circle(f.x, f.y, fr, 26)
+                    tmpC.set(0.60f, 0.72f, 0.86f, 1f); shapes.color = tmpC; shapes.circle(f.x, f.y, fr * 0.6f, 22)
+                }
+                FacilityKind.EYE -> {
+                    tmpC.set(0.62f, 0.56f, 0.36f, 0.30f); shapes.color = tmpC; shapes.circle(f.x, f.y, fr, 30)
+                    tmpC.set(0.86f, 0.78f, 0.50f, 0.40f); shapes.color = tmpC; shapes.circle(f.x, f.y, fr * 0.6f, 24)
+                    tmpC.set(0.18f, 0.16f, 0.24f, 0.7f); shapes.color = tmpC; shapes.circle(f.x, f.y, fr * 0.25f, 16)
+                }
+                FacilityKind.SHRINE -> {
+                    tmpC.set(0.30f, 0.30f, 0.36f, 0.9f); shapes.color = tmpC; shapes.circle(f.x, f.y, fr, 22)
+                    tmpC.set(0.55f, 0.55f, 0.64f, 1f); shapes.color = tmpC; shapes.circle(f.x, f.y, fr * 0.5f, 18)
+                    tmpC.set(0.80f, 0.85f, 1f, 0.9f); shapes.color = tmpC; shapes.circle(f.x, f.y, fr * 0.18f, 12)
+                }
+                FacilityKind.RUIN -> {
+                    tmpC.set(0.45f, 0.43f, 0.40f, 1f); shapes.color = tmpC
+                    shapes.circle(f.x - fr * 0.4f, f.y - fr * 0.2f, fr * 0.45f, 10)
+                    shapes.circle(f.x + fr * 0.3f, f.y + fr * 0.25f, fr * 0.38f, 10)
+                    shapes.circle(f.x + fr * 0.1f, f.y - fr * 0.4f, fr * 0.30f, 8)
+                }
+            }
         }
         // escape pad — a glowing return ring at the surface landing point (drawn on the ground, under the actors)
         gw.worldState.escapePad?.let { pad ->

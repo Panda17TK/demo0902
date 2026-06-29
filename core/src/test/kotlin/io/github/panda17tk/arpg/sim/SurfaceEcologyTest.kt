@@ -10,8 +10,10 @@ import org.junit.jupiter.api.Test
 
 class SurfaceEcologyTest {
     private val enemies = GameConfig().enemies
-    private fun place(b: PlanetBiome, seed: Long = 1L) =
+    private fun society(b: PlanetBiome, seed: Long = 1L) =
         SurfaceEcology.populate(b, 1000f, 1000f, 4000f, 4000f, Rng(seed))
+    private fun place(b: PlanetBiome, seed: Long = 1L) = society(b, seed).placements
+    private fun facilities(b: PlanetBiome, seed: Long = 1L) = society(b, seed).facilities
 
     @Test fun `nature lands you among a child a guardian and a king`() {
         val roles = place(PlanetBiome.NATURE).mapNotNull { enemies[it.key]?.familyRole }.toSet()
@@ -47,6 +49,35 @@ class SurfaceEcologyTest {
     }
 
     @Test fun `same seed yields the same society`() {
-        assertEquals(place(PlanetBiome.MAGMA, 5L), place(PlanetBiome.MAGMA, 5L))
+        assertEquals(society(PlanetBiome.MAGMA, 5L), society(PlanetBiome.MAGMA, 5L))
+    }
+
+    // --- facilities (Sprint L) ---
+
+    @Test fun `every biome builds at least one facility`() {
+        for (b in PlanetBiome.values()) assertTrue(facilities(b).isNotEmpty(), "no facility for $b")
+    }
+
+    @Test fun `magma builds a crater and ice a dais`() {
+        assertTrue(facilities(PlanetBiome.MAGMA).any { it.kind == FacilityKind.CRATER })
+        assertTrue(facilities(PlanetBiome.ICE).any { it.kind == FacilityKind.DAIS })
+    }
+
+    @Test fun `the dead world is dotted with ruins`() {
+        assertTrue(facilities(PlanetBiome.DEAD).count { it.kind == FacilityKind.RUIN } >= 1)
+    }
+
+    @Test fun `the leader sits on the central facility`() {
+        val s = society(PlanetBiome.MAGMA, 2L)
+        val king = s.placements.first() // volcano_king is added first (dist 0 from the camp heart)
+        val crater = s.facilities.first { it.kind == FacilityKind.CRATER }
+        assertEquals(crater.x, king.x, 1e-3f)
+        assertEquals(crater.y, king.y, 1e-3f)
+    }
+
+    @Test fun `facilities stay inside the arena`() {
+        for (b in PlanetBiome.values()) for (f in facilities(b)) {
+            assertTrue(f.x in 0f..4000f && f.y in 0f..4000f, "${f.kind} at ${f.x},${f.y}")
+        }
     }
 }

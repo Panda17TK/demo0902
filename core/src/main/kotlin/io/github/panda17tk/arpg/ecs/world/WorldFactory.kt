@@ -184,12 +184,14 @@ object WorldFactory {
         if (mode == WorldMode.SURFACE && biome != null) {
             val worldW = map.width * Tuning.TILE; val worldH = map.height * Tuning.TILE
             val ecoRng = Rng(seed xor 0x5EED1234L)
-            for (p in SurfaceEcology.populate(biome, loaded.playerSpawnX, loaded.playerSpawnY, worldW, worldH, ecoRng)) {
+            val society = SurfaceEcology.populate(biome, loaded.playerSpawnX, loaded.playerSpawnY, worldW, worldH, ecoRng)
+            for (p in society.placements) {
                 val def = config.enemies[p.key] ?: continue
                 val (fx, fy) = snapToFloor(map, p.x, p.y)
                 val e = MobFactory.spawn(world, def, fx, fy, tribe = tribes.tribeOf(fx, fy))
                 if (p.passive) with(world) { e[CreatureMind].state = CreatureState.Ignore } // pacifist until attacked
             }
+            worldState.facilities = society.facilities
         }
 
         return GameWorld(world, player).also {
