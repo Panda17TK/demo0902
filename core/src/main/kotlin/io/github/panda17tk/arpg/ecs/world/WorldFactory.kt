@@ -8,6 +8,7 @@ import io.github.panda17tk.arpg.ecs.components.Arsenal
 import io.github.panda17tk.arpg.ecs.components.Body
 import io.github.panda17tk.arpg.ecs.components.Buff
 import io.github.panda17tk.arpg.ecs.components.Cooldowns
+import io.github.panda17tk.arpg.ecs.components.CreatureMind
 import io.github.panda17tk.arpg.ecs.components.Facing
 import io.github.panda17tk.arpg.ecs.components.Fx
 import io.github.panda17tk.arpg.ecs.components.GameOver
@@ -44,6 +45,7 @@ import io.github.panda17tk.arpg.input.InputState
 import io.github.panda17tk.arpg.map.MapLoader
 import io.github.panda17tk.arpg.map.Stages
 import io.github.panda17tk.arpg.map.SurfaceStages
+import io.github.panda17tk.arpg.map.TileMap
 import io.github.panda17tk.arpg.math.Rng
 import io.github.panda17tk.arpg.pathfinding.FlowField
 import io.github.panda17tk.arpg.pathfinding.SpatialGrid
@@ -51,9 +53,11 @@ import io.github.panda17tk.arpg.planet.PlanetBiome
 import io.github.panda17tk.arpg.sim.Base
 import io.github.panda17tk.arpg.sim.BaseField
 import io.github.panda17tk.arpg.sim.Bases
+import io.github.panda17tk.arpg.sim.CreatureState
 import io.github.panda17tk.arpg.sim.GravityField
 import io.github.panda17tk.arpg.sim.PlanetField
 import io.github.panda17tk.arpg.sim.Planets
+import io.github.panda17tk.arpg.sim.SurfaceEcology
 import io.github.panda17tk.arpg.sim.Tribes
 import io.github.panda17tk.arpg.sim.Tuning
 import io.github.panda17tk.arpg.sim.WallGravity
@@ -170,6 +174,18 @@ object WorldFactory {
             MobFactory.spawn(world, def, marker.worldX, marker.worldY, tribe = tribes.tribeOf(marker.worldX, marker.worldY))
         }
 
+        // Living Planets: landing on a planet lays out its inhabitants once (its society/ecology), not a wave.
+        if (mode == WorldMode.SURFACE && biome != null) {
+            val worldW = map.width * Tuning.TILE; val worldH = map.height * Tuning.TILE
+            val ecoRng = Rng(seed xor 0x5EED1234L)
+            for (p in SurfaceEcology.populate(biome, loaded.playerSpawnX, loaded.playerSpawnY, worldW, worldH, ecoRng)) {
+                val def = config.enemies[p.key] ?: continue
+                val (fx, fy) = snapToFloor(map, p.x, p.y)
+                val e = MobFactory.spawn(world, def, fx, fy, tribe = tribes.tribeOf(fx, fy))
+                if (p.passive) with(world) { e[CreatureMind].state = CreatureState.Ignore } // pacifist until attacked
+            }
+        }
+
         return GameWorld(world, player).also {
             it.map = map
             it.flow = flow
@@ -181,5 +197,20 @@ object WorldFactory {
             it.planets = planetField.planets
             it.worldState = worldState
         }
+    }
+
+    /** Nudge a desired spot to the centre of the nearest free floor tile (spiral out) so nothing spawns inside a wall. */
+    private fun snapToFloor(map: TileMap, x: Float, y: Float): Pair<Float, Float> {
+        val tx = floor(x / Tuning.TILE).toInt(); val ty = floor(y / Tuning.TILE).toInt()
+        for (r in 0..8) {
+            for (dx in -r..r) for (dy in -r..r) {
+                if (kotlin.math.abs(dx) != r && kotlin.math.abs(dy) != r) continue // perimeter of the ring only
+                val nx = tx + dx; val ny = ty + dy
+                if (nx in 1 until map.width - 1 && ny in 1 until map.height - 1 && !map.solidAt(nx, ny)) {
+                    return ((nx + 0.5f) * Tuning.TILE) to ((ny + 0.5f) * Tuning.TILE)
+                }
+            }
+        }
+        return x to y
     }
 }
