@@ -28,6 +28,7 @@ import io.github.panda17tk.arpg.ecs.systems.FireSystem
 import io.github.panda17tk.arpg.ecs.systems.FlowRebuildSystem
 import io.github.panda17tk.arpg.ecs.systems.GameOverSystem
 import io.github.panda17tk.arpg.ecs.systems.GravitySystem
+import io.github.panda17tk.arpg.ecs.systems.LandingSystem
 import io.github.panda17tk.arpg.ecs.systems.MeleeSystem
 import io.github.panda17tk.arpg.ecs.systems.MobActionSystem
 import io.github.panda17tk.arpg.ecs.systems.MobDamageSystem
@@ -54,6 +55,7 @@ import io.github.panda17tk.arpg.sim.Planets
 import io.github.panda17tk.arpg.sim.Tribes
 import io.github.panda17tk.arpg.sim.Tuning
 import io.github.panda17tk.arpg.sim.WallGravity
+import io.github.panda17tk.arpg.sim.WorldState
 import kotlin.math.floor
 
 object WorldFactory {
@@ -86,6 +88,7 @@ object WorldFactory {
                 loaded.playerSpawnX, loaded.playerSpawnY, planetCount, Rng(seed xor 0x91A2B3C4L),
             ),
         )
+        val worldState = WorldState()
         val waveState = WaveState(
             num = 1,
             phase = "active",
@@ -108,6 +111,7 @@ object WorldFactory {
                 add(baseField)
                 add(gravityField)
                 add(planetField)
+                add(worldState)
             }
             systems {
                 add(SnapshotSystem())
@@ -115,6 +119,7 @@ object WorldFactory {
                 add(GameOverSystem())
                 add(MovementSystem())
                 add(GravitySystem())
+                add(LandingSystem())
                 add(BuildSystem())
                 add(WeaponSwitchSystem())
                 add(MeleeSystem(mobGrid))
@@ -164,6 +169,7 @@ object WorldFactory {
             it.bases = baseField.bases
             it.gravityField = gravityField
             it.planets = planetField.planets
+            it.worldState = worldState
         }
     }
 }
