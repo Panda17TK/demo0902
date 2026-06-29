@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 /** Editable player/combat balance. Defaults mirror the legacy CONFIG.player. */
 @Serializable
 data class PlayerConfig(
-    val baseSpeed: Float = 110f,
+    val baseSpeed: Float = 85f,
     val speedMul: Float = 1.2f,
     val dashMul: Float = 2f,
     val hpMax: Float = 100f,

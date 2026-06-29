@@ -356,12 +356,12 @@ class GameScreen : ScreenAdapter() {
         val foes = gw.world.family { all(Mob) }.numEntities
         val wpn = with(gw.world) { gw.player[Arsenal] }.current
         val reloadFrac = if (wpn.reloadT > 0f && wpn.def.reloadTime > 0f) (wpn.reloadT / wpn.def.reloadTime).coerceIn(0f, 1f) else 0f
+        val reserveStr = if (wpn.def.infiniteAmmo) "無限" else "${ammo.get(wpn.def.ammoType)}"
         Hud.liveHud(
             shapes, batch, font, Fonts.title, hudViewport,
             gw.waveState.num, foes,
             hp, hpMax, sta, staMax, overheat,
-            wpn.def.name, wpn.mag, wpn.def.magSize, reloadFrac,
-            ammo.ammo9, ammo.ammo12, ammo.ammoBeam, ammo.ammoNade,
+            wpn.def.name, wpn.mag, wpn.def.magSize, reloadFrac, reserveStr,
             runTime, gw.gameOver.kills, blocks,
         )
 
@@ -463,7 +463,7 @@ class GameScreen : ScreenAdapter() {
         Gdx.gl.glEnable(GL20.GL_BLEND)
         shapes.projectionMatrix = hudViewport.camera.combined
         shapes.begin(ShapeRenderer.ShapeType.Filled)
-        shapes.color = Color(1f, 1f, 1f, 0.10f); shapes.circle(l.stickCx, l.stickCy, l.stickRadius, 28)
+        shapes.color = Color(1f, 1f, 1f, 0.06f); shapes.circle(l.stickCx, l.stickCy, l.stickRadius, 28)
         if (touch.stickActive) {
             shapes.color = Color(1f, 1f, 1f, 0.30f)
             var kx = touch.knobX - touch.baseX; var ky = touch.knobY - touch.baseY
@@ -481,7 +481,7 @@ class GameScreen : ScreenAdapter() {
             if (al > am) { ax = ax / al * am; ay = ay / al * am }
             shapes.circle(touch.aimBaseX + ax, touch.aimBaseY + ay, l.stickRadius * 0.42f, 18)
         } else {
-            shapes.color = Color(1f, 0.5f, 0.4f, 0.10f); shapes.circle(l.aimGuideCx, l.aimGuideCy, l.aimGuideRadius, 24)
+            shapes.color = Color(1f, 0.5f, 0.4f, 0.06f); shapes.circle(l.aimGuideCx, l.aimGuideCy, l.aimGuideRadius, 24)
         }
         // action buttons — only the contextually-visible ones; pressed ones brighten + grow (P3).
         for (b in l.all()) {

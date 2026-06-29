@@ -48,7 +48,7 @@ class BaseSystem : IntervalSystem() {
 
     companion object {
         private const val INTERVAL = 4f
-        private const val CAP = 80
+        private const val CAP = 120
         private val RANGE = Tuning.TILE * 60f
         private const val TAU = 6.2831855f
     }

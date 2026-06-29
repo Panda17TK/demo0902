@@ -179,7 +179,7 @@ object Stages {
             }
         }
         g[pcy][pcx] = 'P'
-        repeat(14 + rng.nextInt(8)) { // cap initial enemies regardless of map size (waves add more)
+        repeat(30 + rng.nextInt(16)) { // more initial enemies; waves + bases add many more
             val ex = 2 + rng.nextInt(w - 4); val ey = 2 + rng.nextInt(h - 4)
             if (g[ey][ex] == '.' && (abs(ex - pcx) > 7 || abs(ey - pcy) > 7)) g[ey][ex] = if (rng.nextFloat() < 0.5f) 'Z' else 'T'
         }

@@ -30,9 +30,10 @@ class LocomotionTest {
         assertFalse(Locomotion.isDashing(dashHeld = true, moving = false, sta = 50f))
         assertFalse(Locomotion.isDashing(dashHeld = false, moving = true, sta = 50f))
     }
-    @Test fun `speed is 132 normally and 264 dashing`() {
-        assertEquals(132f, Locomotion.speed(dashing = false, cfg = cfg), 1e-3f)
-        assertEquals(264f, Locomotion.speed(dashing = true, cfg = cfg), 1e-3f)
+    @Test fun `speed is the capped walk value, doubled when dashing`() {
+        // baseSpeed 85 * speedMul 1.2 = 102 walk; dashMul 2 → 204 (this is the movement speed cap).
+        assertEquals(102f, Locomotion.speed(dashing = false, cfg = cfg), 1e-3f)
+        assertEquals(204f, Locomotion.speed(dashing = true, cfg = cfg), 1e-3f)
     }
     @Test fun `stamina drains while dashing and clamps at zero`() {
         assertEquals(65f, Locomotion.nextStamina(100f, dashing = true, dt = 1f, cfg = cfg), 1e-3f)
