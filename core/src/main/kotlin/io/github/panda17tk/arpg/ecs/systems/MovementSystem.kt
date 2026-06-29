@@ -59,11 +59,14 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         val dashing = (staInf || !s.overheat) && Locomotion.isDashing(input.dash, mv.isMoving, if (staInf) 1f else s.value)
         tag.dashing = dashing
         // Block biomes around the player drive terrain effects (magma burns, snow slows, grass restores).
+        // On a planet surface the block material leans to the planet's biome (lava on magma worlds, etc.).
         val ptx = floor(t.x / Tuning.TILE).toInt(); val pty = floor(t.y / Tuning.TILE).toInt()
+        val surf = if (worldState.mode == WorldMode.SURFACE) worldState.biome else null
         var magma = false; var snow = false; var grass = false
         for (oy in -1..1) for (ox in -1..1) {
             if (!map.solidAt(ptx + ox, pty + oy)) continue
-            when (Biomes.of(ptx + ox, pty + oy)) {
+            val mat = if (surf != null) Biomes.surface(surf, ptx + ox, pty + oy) else Biomes.of(ptx + ox, pty + oy)
+            when (mat) {
                 Biome.MAGMA -> magma = true; Biome.SNOW -> snow = true; Biome.GRASS -> grass = true; else -> {}
             }
         }

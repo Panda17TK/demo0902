@@ -287,20 +287,11 @@ class GameScreen : ScreenAdapter() {
         val maxTx = minOf(gw.map.width - 1, ((camera.position.x + vhw) / vt).toInt())
         val minTy = maxOf(0, ((camera.position.y - vhh) / vt).toInt())
         val maxTy = minOf(gw.map.height - 1, ((camera.position.y + vhh) / vt).toInt())
-        WorldView.draw(shapes, gw.map, minTx, maxTx, minTy, maxTy)
-        // Living Planets: wash a planet surface in its biome colour (atmosphere/ground tint), under the actors.
-        if (gw.worldState.mode == WorldMode.SURFACE) gw.worldState.biome?.let { b ->
-            when (b) {
-                PlanetBiome.NATURE -> tmpC.set(0.20f, 0.45f, 0.22f, 0.16f)
-                PlanetBiome.MAGMA -> tmpC.set(0.55f, 0.16f, 0.08f, 0.18f)
-                PlanetBiome.ICE -> tmpC.set(0.70f, 0.82f, 0.95f, 0.16f)
-                PlanetBiome.GAS -> tmpC.set(0.62f, 0.55f, 0.32f, 0.16f)
-                PlanetBiome.DEAD -> tmpC.set(0.30f, 0.28f, 0.26f, 0.18f)
-                PlanetBiome.LONELY -> tmpC.set(0.16f, 0.16f, 0.22f, 0.20f)
-            }
-            shapes.color = tmpC
-            shapes.rect(camera.position.x - vhw, camera.position.y - vhh, vhw * 2f, vhh * 2f)
-        }
+        // On a surface, render the terrain as that planet's biome (biome ground + biome-material walls).
+        WorldView.draw(
+            shapes, gw.map, minTx, maxTx, minTy, maxTy,
+            if (gw.worldState.mode == WorldMode.SURFACE) gw.worldState.biome else null,
+        )
         // biome facilities — the society's built landmarks (camp/crater/dais/eye/shrine/ruins) on the ground
         for (f in gw.worldState.facilities) {
             val fr = f.radius

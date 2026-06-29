@@ -6,6 +6,7 @@ import io.github.panda17tk.arpg.map.Biome
 import io.github.panda17tk.arpg.map.Biomes
 import io.github.panda17tk.arpg.map.Tile
 import io.github.panda17tk.arpg.map.TileMap
+import io.github.panda17tk.arpg.planet.PlanetBiome
 import io.github.panda17tk.arpg.sim.Tuning
 import kotlin.math.cos
 import kotlin.math.sin
@@ -32,8 +33,18 @@ object WorldView {
     private val CRACK = Color.valueOf("17130d")
     private val DOOR = Color.valueOf("3b2a1a")
     private val DOOR_FRAME = Color.valueOf("6b4c2b")
+    // Planet-surface ground tones (used instead of the deep-space starfield floor when landed).
+    private val GROUND = mapOf(
+        PlanetBiome.NATURE to Color.valueOf("24351f"),
+        PlanetBiome.MAGMA to Color.valueOf("2a140e"),
+        PlanetBiome.ICE to Color.valueOf("aebccd"),
+        PlanetBiome.GAS to Color.valueOf("3a3324"),
+        PlanetBiome.DEAD to Color.valueOf("24221f"),
+        PlanetBiome.LONELY to Color.valueOf("1a1820"),
+    )
 
-    fun draw(s: ShapeRenderer, map: TileMap, minTx: Int, maxTx: Int, minTy: Int, maxTy: Int) {
+    /** [surfaceBiome] non-null = render as that planet's surface (biome ground + biome-material walls). */
+    fun draw(s: ShapeRenderer, map: TileMap, minTx: Int, maxTx: Int, minTy: Int, maxTy: Int, surfaceBiome: PlanetBiome? = null) {
         val t = Tuning.TILE
         val ti = t.toInt()
         for (ty in minTy..maxTy) for (tx in minTx..maxTx) {
@@ -41,7 +52,8 @@ object WorldView {
             val hsh = (tx * 73856093) xor (ty * 19349663)
             when (map.tileAt(tx, ty)) {
                 Tile.WALL -> {
-                    s.color = when (Biomes.of(tx, ty)) {
+                    val mat = if (surfaceBiome != null) Biomes.surface(surfaceBiome, tx, ty) else Biomes.of(tx, ty)
+                    s.color = when (mat) {
                         Biome.GRASS -> GRASS_ROCK[Math.floorMod(hsh, GRASS_ROCK.size)]
                         Biome.SNOW -> SNOW_ROCK[Math.floorMod(hsh, SNOW_ROCK.size)]
                         Biome.MAGMA -> MAGMA_ROCK[Math.floorMod(hsh, MAGMA_ROCK.size)]
@@ -66,7 +78,15 @@ object WorldView {
                     s.rect(px + 6f, py + 4f, t - 12f, 1.5f); s.rect(px + 6f, py + t - 5.5f, t - 12f, 1.5f)
                     s.rect(px + 6f, py + 4f, 1.5f, t - 8f); s.rect(px + t - 7.5f, py + 4f, 1.5f, t - 8f)
                 }
-                else -> {
+                else -> if (surfaceBiome != null) {
+                    // planet ground: a biome-toned floor with a faint pebble speckle (no starfield)
+                    s.color = GROUND[surfaceBiome] ?: NEB_B
+                    s.rect(px, py, t, t)
+                    if (Math.floorMod(hsh, 9) == 0) {
+                        s.color = CRATER
+                        s.circle(px + Math.floorMod(hsh, ti).toFloat(), py + Math.floorMod(hsh ushr 3, ti).toFloat(), 1.4f, 6)
+                    }
+                } else {
                     // deep-space floor: large nebula regions (no tile grid) + a sparse starfield
                     val reg = Math.floorMod((tx / 7) * 92821 xor (ty / 7) * 68917, NEBULA_FLOOR.size)
                     s.color = NEBULA_FLOOR[reg]
