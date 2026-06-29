@@ -181,7 +181,12 @@ class GameScreen : ScreenAdapter() {
         val paused = overlay != Overlay.NONE
 
         // Gameplay touch (twin-stick / fire) runs only when no modal blocks it (spec §5.2).
-        if (touchEnabled && !paused && !choosing && !gw.gameOver.isOver) touch.poll(input, hudViewport)
+        // Pass the player context so the action buttons can show/hide by relevance (P3).
+        if (touchEnabled && !paused && !choosing && !gw.gameOver.isOver) {
+            val tw = with(gw.world) { gw.player[Arsenal] }.current
+            val tBlocks = with(gw.world) { gw.player[Materials].blocks }
+            touch.poll(input, hudViewport, tBlocks, tw.mag, tw.def.magSize)
+        }
 
         if (gw.gameOver.isOver) {
             accumulator = 0f
@@ -439,7 +444,8 @@ class GameScreen : ScreenAdapter() {
             if (len > max) { kx = kx / len * max; ky = ky / len * max }
             shapes.circle(l.stickCx + kx, l.stickCy + ky, l.stickRadius * 0.42f, 18)
         }
-        // right aim+fire stick — floats at the thumb, reddish = firing
+        // right aim+fire stick — floats at the thumb when active, reddish = firing;
+        // otherwise a fixed "rest here to aim" guide ring sits on the right (P3).
         if (touch.aimActive) {
             shapes.color = Color(1f, 0.5f, 0.4f, 0.16f); shapes.circle(touch.aimBaseX, touch.aimBaseY, l.stickRadius, 28)
             shapes.color = Color(1f, 0.5f, 0.4f, 0.5f)
@@ -447,13 +453,23 @@ class GameScreen : ScreenAdapter() {
             val al = hypot(ax, ay); val am = l.stickRadius
             if (al > am) { ax = ax / al * am; ay = ay / al * am }
             shapes.circle(touch.aimBaseX + ax, touch.aimBaseY + ay, l.stickRadius * 0.42f, 18)
+        } else {
+            shapes.color = Color(1f, 0.5f, 0.4f, 0.10f); shapes.circle(l.aimGuideCx, l.aimGuideCy, l.aimGuideRadius, 24)
         }
-        shapes.color = Color(1f, 1f, 1f, 0.14f)
-        for (b in l.all()) shapes.circle(l.centerX(b), l.centerY(b), l.radiusOf(b), 22)
+        // action buttons — only the contextually-visible ones; pressed ones brighten + grow (P3).
+        for (b in l.all()) {
+            if (b !in touch.visibleButtons) continue
+            val pressed = b in touch.pressedButtons
+            shapes.color = if (pressed) Color(1f, 1f, 1f, 0.34f) else Color(1f, 1f, 1f, 0.14f)
+            shapes.circle(l.centerX(b), l.centerY(b), l.radiusOf(b) * (if (pressed) 1.16f else 1f), 22)
+        }
         shapes.end()
         batch.projectionMatrix = hudViewport.camera.combined
         batch.begin()
-        for (b in l.all()) { glyphLayout.setText(font, labelOf(b)); font.draw(batch, glyphLayout, l.centerX(b) - glyphLayout.width / 2f, l.centerY(b) + 7f) }
+        for (b in l.all()) {
+            if (b !in touch.visibleButtons) continue
+            glyphLayout.setText(font, labelOf(b)); font.draw(batch, glyphLayout, l.centerX(b) - glyphLayout.width / 2f, l.centerY(b) + 7f)
+        }
         batch.end()
     }
 

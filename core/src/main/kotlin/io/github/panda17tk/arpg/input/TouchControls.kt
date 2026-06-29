@@ -38,8 +38,15 @@ class TouchControls {
     private var weaponIdx = 0
     private val tmpVec = Vector3()
 
-    fun poll(input: InputState, viewport: Viewport) {
+    // P3: contextual visibility + press highlight (exposed for drawing) + haptic edge tracker.
+    var visibleButtons: Set<TouchButton> = emptySet(); private set
+    var pressedButtons: Set<TouchButton> = emptySet(); private set
+    private var prevPressed: Set<TouchButton> = emptySet()
+
+    fun poll(input: InputState, viewport: Viewport, blocks: Int, mag: Int, magSize: Int?) {
         layout.screenW = viewport.worldWidth; layout.screenH = viewport.worldHeight
+        val vis = TouchButtons.visible(blocks, mag, magSize)
+        visibleButtons = vis
         input.aiming = false
         var stick = false; var aim = false
         var dash = false; var melee = false; var reload = false; var wall = false; var weapon = false
@@ -55,7 +62,8 @@ class TouchControls {
                 layout.isInStickZone(x, y) && stickPointer == -1 -> {
                     stickPointer = i; baseX = x; baseY = y; knobX = x; knobY = y; stick = true
                 }
-                else -> when (layout.button(x, y)) {
+                // Hidden (context-gated) buttons fall through to the aim stick.
+                else -> when (layout.button(x, y)?.takeIf { it in vis }) {
                     TouchButton.DASH -> dash = true
                     TouchButton.MELEE -> melee = true
                     TouchButton.RELOAD -> reload = true
@@ -72,7 +80,7 @@ class TouchControls {
         stickActive = stick; aimActive = aim
 
         if (stick) {
-            val dead = layout.stickRadius * 0.30f
+            val dead = layout.stickRadius * MOVE_DEAD
             val dx = knobX - baseX; val dy = knobY - baseY
             if (dx < -dead) input.left = true
             if (dx > dead) input.right = true
@@ -82,7 +90,7 @@ class TouchControls {
         if (aim) {
             val dx = aimKnobX - aimBaseX; val dy = aimKnobY - aimBaseY
             val len = hypot(dx, dy)
-            if (len > layout.stickRadius * 0.22f) {
+            if (len > layout.stickRadius * AIM_DEAD) {
                 input.aiming = true
                 input.aimX = dx / len; input.aimY = -dy / len // touch is y-up, world is y-down → flip Y
                 input.fire = true
@@ -94,10 +102,24 @@ class TouchControls {
         if (wall && !prevWall) input.placeWall = true
         if (weapon && !prevWeapon) { input.weaponSlot = weaponIdx; weaponIdx = (weaponIdx + 1) % WEAPON_SLOTS }
         prevMelee = melee; prevReload = reload; prevWall = wall; prevWeapon = weapon
+
+        // P3: pressed set drives the highlight; a fresh press edge fires a short haptic tick.
+        val pressed = buildSet {
+            if (dash) add(TouchButton.DASH)
+            if (melee) add(TouchButton.MELEE)
+            if (reload) add(TouchButton.RELOAD)
+            if (wall) add(TouchButton.WALL)
+            if (weapon) add(TouchButton.WEAPON)
+        }
+        if ((pressed - prevPressed).isNotEmpty()) Haptics.buzz(18)
+        prevPressed = pressed
+        pressedButtons = pressed
     }
 
     companion object {
         private const val MAX_POINTERS = 10
         private const val WEAPON_SLOTS = 5
+        private const val MOVE_DEAD = 0.26f // P3: slightly tighter dead-zones for snappier response
+        private const val AIM_DEAD = 0.18f
     }
 }
