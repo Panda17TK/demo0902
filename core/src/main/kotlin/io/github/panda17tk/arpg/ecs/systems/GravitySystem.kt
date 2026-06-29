@@ -11,6 +11,8 @@ import io.github.panda17tk.arpg.map.TileMap
 import io.github.panda17tk.arpg.sim.Cluster
 import io.github.panda17tk.arpg.sim.Gravity
 import io.github.panda17tk.arpg.sim.GravityField
+import io.github.panda17tk.arpg.sim.PlanetField
+import io.github.panda17tk.arpg.sim.PlanetGravity
 import io.github.panda17tk.arpg.sim.Tuning
 import io.github.panda17tk.arpg.sim.WallGravity
 import kotlin.math.floor
@@ -25,6 +27,7 @@ import kotlin.math.floor
 class GravitySystem : IntervalSystem() {
     private val map: TileMap = world.inject()
     private val gravityField: GravityField = world.inject()
+    private val planetField: PlanetField = world.inject()
     private var timer = 0f
     private var clusters: List<Cluster> = emptyList()
     private val players by lazy { world.family { all(PlayerTag, Transform, Velocity) } }
@@ -49,7 +52,7 @@ class GravitySystem : IntervalSystem() {
                     gravityField.clusters = clusters
                 }
             }
-            if (clusters.isEmpty()) return
+            if (clusters.isEmpty() && planetField.planets.isEmpty()) return
             // Player: gravity into drift, weakened while dashing (dash-escape).
             players.forEach { e ->
                 applyGravity(e[Transform], e[Velocity], 1f, if (e[PlayerTag].dashing) DASH_GRAVITY_MUL else 1f, dt)
@@ -63,7 +66,7 @@ class GravitySystem : IntervalSystem() {
 
     /** Add cluster gravity to an entity's momentum, scaled by response and dash-escape. */
     private fun applyGravity(t: Transform, v: Velocity, response: Float, dashMul: Float, dt: Float) {
-        val (ax, ay) = WallGravity.gravityAt(clusters, t.x, t.y, RANGE, STRENGTH)
+        val (ax, ay) = PlanetGravity.combinedGravityAccel(planetField.planets, clusters, t.x, t.y, RANGE, STRENGTH)
         if (ax == 0f && ay == 0f) return
         val (ndx, ndy) = Gravity.applyToDrift(v.driftX, v.driftY, ax, ay, response, dashMul, dt)
         v.driftX = ndx; v.driftY = ndy
@@ -71,7 +74,7 @@ class GravitySystem : IntervalSystem() {
 
     /** Positional pull (grenades): nudge the transform unless it would embed in a wall. */
     private fun pullPos(t: Transform, dt: Float) {
-        val (ax, ay) = WallGravity.gravityAt(clusters, t.x, t.y, RANGE, STRENGTH)
+        val (ax, ay) = PlanetGravity.combinedGravityAccel(planetField.planets, clusters, t.x, t.y, RANGE, STRENGTH)
         if (ax == 0f && ay == 0f) return
         val nx = t.x + ax * dt; val ny = t.y + ay * dt
         if (!map.solidAt(floor(nx / TILE).toInt(), floor(ny / TILE).toInt())) { t.x = nx; t.y = ny }

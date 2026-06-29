@@ -19,8 +19,10 @@ import io.github.panda17tk.arpg.math.Rng
 import io.github.panda17tk.arpg.pathfinding.FlowField
 import io.github.panda17tk.arpg.pathfinding.Los
 import io.github.panda17tk.arpg.pathfinding.SpatialGrid
+import io.github.panda17tk.arpg.sim.CircleCollision
 import io.github.panda17tk.arpg.sim.Collision
 import io.github.panda17tk.arpg.sim.Leveling
+import io.github.panda17tk.arpg.sim.PlanetField
 import io.github.panda17tk.arpg.sim.Tribes
 import io.github.panda17tk.arpg.sim.Tuning
 import kotlin.math.abs
@@ -40,6 +42,7 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
     private val config: GameConfig = world.inject()
     private val rng: Rng = world.inject()
     private val tribes: Tribes = world.inject()
+    private val planetField: PlanetField = world.inject()
 
     private val players by lazy { world.family { all(PlayerTag, Transform, Health, Velocity) } }
 
@@ -147,6 +150,9 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         val r2 = Collision.moveAndCollide(map, r1.x, r1.y, b.halfW, b.halfH, 0f, mvy + (v.vy + v.driftY) * dt)
         if (r2.hitY) v.driftY = 0f
         t.x = r2.x; t.y = r2.y
+        // Solid planets: push the mob out of any planet circle (crash damage arrives in SP-4).
+        val pc = CircleCollision.resolve(t.x, t.y, b.halfW, v.driftX, v.driftY, planetField.planets)
+        if (pc.hit) { t.x = pc.x; t.y = pc.y; v.driftX = 0f; v.driftY = 0f }
 
         val pt = playerT; val ph = playerH; val pv = playerV
 

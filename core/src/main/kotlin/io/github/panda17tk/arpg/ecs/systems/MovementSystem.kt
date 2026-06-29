@@ -17,9 +17,11 @@ import io.github.panda17tk.arpg.input.InputState
 import io.github.panda17tk.arpg.map.Biome
 import io.github.panda17tk.arpg.map.Biomes
 import io.github.panda17tk.arpg.map.TileMap
+import io.github.panda17tk.arpg.sim.CircleCollision
 import io.github.panda17tk.arpg.sim.Collision
 import io.github.panda17tk.arpg.sim.Inertia
 import io.github.panda17tk.arpg.sim.Locomotion
+import io.github.panda17tk.arpg.sim.PlanetField
 import io.github.panda17tk.arpg.sim.Tuning
 import kotlin.math.floor
 import kotlin.math.pow
@@ -28,6 +30,7 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
     private val input: InputState = world.inject()
     private val map: TileMap = world.inject()
     private val config: GameConfig = world.inject()
+    private val planetField: PlanetField = world.inject()
 
     override fun onTickEntity(entity: Entity) {
         val t = entity[Transform]
@@ -79,6 +82,9 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         t.x = r2.x; t.y = r2.y
         if (r1.hitX) { v.vx = 0f; v.driftX = 0f }
         if (r2.hitY) { v.vy = 0f; v.driftY = 0f }
+        // Solid planets: push the player out of any planet circle (crash damage arrives in SP-4).
+        val pc = CircleCollision.resolve(t.x, t.y, b.halfW, v.driftX, v.driftY, planetField.planets)
+        if (pc.hit) { t.x = pc.x; t.y = pc.y; v.driftX = 0f; v.driftY = 0f }
         if (input.aiming) { f.x = input.aimX; f.y = input.aimY } // right stick aims independent of movement
         else if (mv.isMoving) { f.x = mv.dirX; f.y = mv.dirY }
         if (staInf) {
