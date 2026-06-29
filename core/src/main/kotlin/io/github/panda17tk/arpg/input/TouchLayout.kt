@@ -14,6 +14,12 @@ class TouchLayout(var screenW: Float = 0f, var screenH: Float = 0f) {
     val stickCy get() = screenH * 0.16f
     val buttonRadius get() = minDim * 0.062f
 
+    // P3: fixed aim-guide ring on the right — a "rest here to aim" hint, kept clear of the
+    // action buttons. The live aim stick still floats to the actual thumb position when active.
+    val aimGuideCx get() = screenW * 0.58f
+    val aimGuideCy get() = screenH * 0.18f
+    val aimGuideRadius get() = minDim * 0.10f
+
     /** Twin-stick: fire is the right aim stick; secondary actions in a bottom-right grid (thumb-reach). */
     private val buttons = listOf(
         Triple(TouchButton.DASH, 0.93f, 0.10f),
