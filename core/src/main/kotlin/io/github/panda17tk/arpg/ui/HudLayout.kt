@@ -33,7 +33,7 @@ data class HudLayout(
             // Second band (below the wave row): HP + stamina stacked on the left.
             val hpY = waveY - GAP - BAR_H
             val staY = hpY - GAP - BAR_H
-            val barW = min(200f, hudW * 0.42f)
+            val barW = min(150f, hudW * 0.30f) // narrow → numbers overlay inside, clear of the centre
             val hp = UiButton(PAD + ICON_W, hpY, barW, BAR_H, "HP")
             val stamina = UiButton(PAD + ICON_W, staY, barW, BAR_H, "ST")
 

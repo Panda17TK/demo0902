@@ -164,8 +164,7 @@ object Hud {
         shapes: ShapeRenderer, batch: SpriteBatch, font: BitmapFont, titleFont: BitmapFont, vp: Viewport,
         waveNum: Int, foes: Int,
         hp: Float, hpMax: Float, sta: Float, staMax: Float, overheat: Boolean,
-        weaponName: String, mag: Int, magSize: Int?, reloadFrac: Float,
-        ammo9: Int, ammo12: Int, ammoBeam: Int, ammoNade: Int,
+        weaponName: String, mag: Int, magSize: Int?, reloadFrac: Float, reserveStr: String,
         timeSec: Float, kills: Int, blocks: Int,
     ) {
         val w = vp.worldWidth; val h = vp.worldHeight
@@ -199,19 +198,20 @@ object Hud {
         titleFont.draw(batch, glyph, l.wave.x + l.wave.w - glyph.width - 10f, l.wave.y + l.wave.h - 3f)
         glyph.setText(font, "残り $foes")
         font.draw(batch, glyph, l.wave.centerX - glyph.width / 2f, l.wave.y - 2f)
-        // HP / stamina numbers past their bars
-        font.draw(batch, "${hp.toInt()}/${hpMax.toInt()}", l.hp.x + l.hp.w + 6f, l.hp.y + l.hp.h)
-        if (overheat) font.draw(batch, "過熱!", l.stamina.x + l.stamina.w + 6f, l.stamina.y + l.stamina.h)
-        // weapon name + big mag count + reserve / reloading line
-        val magStr = magSize?.let { "$mag/$it" } ?: "INF"
+        // HP / stamina numbers overlaid right-aligned WITHIN their bars (kept inside the left zone)
+        glyph.setText(font, "${hp.toInt()}/${hpMax.toInt()}")
+        font.draw(batch, glyph, l.hp.x + l.hp.w - glyph.width - 3f, l.hp.y + l.hp.h - 1f)
+        if (overheat) {
+            glyph.setText(font, "過熱!")
+            font.draw(batch, glyph, l.stamina.x + l.stamina.w - glyph.width - 3f, l.stamina.y + l.stamina.h - 1f)
+        }
+        // weapon panel (right zone): name + big mag, reserve / reloading below — right-aligned, compact
         font.draw(batch, weaponName, l.ammo.x + 30f, l.ammo.y + l.ammo.h - 4f)
+        val magStr = magSize?.let { "$mag/$it" } ?: "INF"
         glyph.setText(font, magStr)
         font.draw(batch, glyph, l.ammo.x + l.ammo.w - glyph.width - 6f, l.ammo.y + l.ammo.h - 4f)
-        font.draw(
-            batch,
-            if (reloadFrac > 0f) "装填中" else "予備 $ammo9/$ammo12/$ammoBeam/$ammoNade",
-            l.ammo.x + 6f, l.ammo.y + 14f,
-        )
+        glyph.setText(font, if (reloadFrac > 0f) "装填中" else "予備 $reserveStr")
+        font.draw(batch, glyph, l.ammo.x + l.ammo.w - glyph.width - 6f, l.ammo.y + 14f)
         // secondary stats (lowest priority)
         val mins = (timeSec / 60f).toInt(); val secs = (timeSec % 60f).toInt()
         font.draw(batch, "時間 %d:%02d  撃破 %d  資材 %d".format(mins, secs, kills, blocks), l.stats.x, l.stats.y + l.stats.h)

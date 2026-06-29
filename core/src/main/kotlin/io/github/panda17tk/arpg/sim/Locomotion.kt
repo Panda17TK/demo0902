@@ -1,6 +1,7 @@
 package io.github.panda17tk.arpg.sim
 
 import io.github.panda17tk.arpg.config.PlayerConfig
+import kotlin.math.pow
 import kotlin.math.sqrt
 
 /** Resolved movement direction + analog scale (0 = not moving). */
@@ -32,4 +33,19 @@ object Locomotion {
     fun nextStamina(sta: Float, dashing: Boolean, dt: Float, cfg: PlayerConfig): Float =
         if (dashing) (sta - cfg.staDrain * dt).coerceAtLeast(0f)
         else (sta + cfg.staRegen * dt).coerceAtMost(cfg.staMax)
+
+    /**
+     * Acceleration-based movement. While [moving], push acceleration along (dirX,dirY); always apply
+     * [friction] (heavier when stopped), then clamp the result to [maxSpeed]. Gives a weighty ramp-up
+     * and coast instead of instant top speed.
+     */
+    fun applyMove(vx: Float, vy: Float, dirX: Float, dirY: Float, moving: Boolean, accel: Float, friction: Float, maxSpeed: Float, dt: Float): Pair<Float, Float> {
+        var nx = vx; var ny = vy
+        if (moving) { nx += dirX * accel * dt; ny += dirY * accel * dt }
+        val f = friction.pow(dt)
+        nx *= f; ny *= f
+        val sp = sqrt(nx * nx + ny * ny)
+        if (sp > maxSpeed && sp > 1e-4f) { nx = nx / sp * maxSpeed; ny = ny / sp * maxSpeed }
+        return nx to ny
+    }
 }

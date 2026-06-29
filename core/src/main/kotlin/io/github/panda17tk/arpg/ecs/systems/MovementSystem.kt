@@ -17,7 +17,6 @@ import io.github.panda17tk.arpg.input.InputState
 import io.github.panda17tk.arpg.map.TileMap
 import io.github.panda17tk.arpg.sim.Collision
 import io.github.panda17tk.arpg.sim.Locomotion
-import kotlin.math.hypot
 import kotlin.math.pow
 
 class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing, Stamina, Body, Velocity, Mods, Health, Buff) }) {
@@ -45,27 +44,20 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         val mv = Locomotion.keyboardDirection(input.left, input.right, input.up, input.down)
         val dashing = (staInf || !s.overheat) && Locomotion.isDashing(input.dash, mv.isMoving, if (staInf) 1f else s.value)
         tag.dashing = dashing
-        val spd = Locomotion.speed(dashing, config.player) * mods.moveMul * (if (bf.dashUpT > 0f) DASH_UP_MUL else 1f)
+        val maxV = Locomotion.speed(dashing, config.player) * mods.moveMul * (if (bf.dashUpT > 0f) DASH_UP_MUL else 1f)
+        val accel = if (dashing) DASH_ACCEL else MOVE_ACCEL
+        val friction = if (mv.isMoving) MOVE_FRICTION else STOP_FRICTION
 
-        val dx = mv.dirX * spd * mv.speedScale * dt
-        val dy = mv.dirY * spd * mv.speedScale * dt
-
-        // Decay knockback velocity (very fast: gone in ~0.1s) — keeps hits punchy.
+        // Knockback decays fast and stays separate from movement (keeps hits punchy).
         v.vx *= 0.0001f.pow(dt)
         v.vy *= 0.0001f.pow(dt)
-        // Inertia: dashing builds strong drift; ordinary movement builds a gentler drift, so the
-        // player accelerates up to speed and coasts when they stop (normal movement has momentum too).
-        if (mv.isMoving) {
-            val thrust = if (dashing) config.player.dashThrust else MOVE_THRUST
-            v.driftX += mv.dirX * thrust * dt
-            v.driftY += mv.dirY * thrust * dt
-        }
-        v.driftX *= 0.72f.pow(dt); v.driftY *= 0.72f.pow(dt) // slower decay → stronger glide (inertia)
-        val dsp = hypot(v.driftX, v.driftY)
-        if (dsp > 360f) { v.driftX = v.driftX / dsp * 360f; v.driftY = v.driftY / dsp * 360f }
+        // Acceleration-based movement: input/dash push acceleration in the move direction; the movement
+        // velocity (drift) ramps up to a capped max and coasts to a stop via friction (heavier feel).
+        val (nvx, nvy) = Locomotion.applyMove(v.driftX, v.driftY, mv.dirX, mv.dirY, mv.isMoving, accel, friction, maxV, dt)
+        v.driftX = nvx; v.driftY = nvy
 
-        // Integrate input movement + knockback + dash drift through collision
-        val r = Collision.moveAndCollide(map, t.x, t.y, b.halfW, b.halfH, dx + (v.vx + v.driftX) * dt, dy + (v.vy + v.driftY) * dt)
+        // Integrate movement velocity + knockback through collision
+        val r = Collision.moveAndCollide(map, t.x, t.y, b.halfW, b.halfH, (v.vx + v.driftX) * dt, (v.vy + v.driftY) * dt)
         t.x = r.x
         t.y = r.y
         if (r.hitX) { v.vx = 0f; v.driftX = 0f } // stop shoving into a wall (fixes edge stick)
@@ -83,6 +75,9 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
 
     companion object {
         private const val DASH_UP_MUL = 1.5f // dash-speed pickup buff
-        private const val MOVE_THRUST = 340f // normal-movement inertia (< dashThrust); coast when stopping
+        private const val MOVE_ACCEL = 480f // walk acceleration — heavier: ramps up over ~0.2s
+        private const val DASH_ACCEL = 1000f // dash acceleration
+        private const val MOVE_FRICTION = 0.6f // light drag while moving (still reaches the cap)
+        private const val STOP_FRICTION = 0.08f // firmer drag when stopping (short coast)
     }
 }
