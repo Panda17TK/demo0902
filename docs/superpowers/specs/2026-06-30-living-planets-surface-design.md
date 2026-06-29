@@ -1,7 +1,7 @@
 # LP-E 着陸＋地表ステージ 設計ノート（縦切り実装済み・一部残課題）
 
 - 日付: 2026-06-30（実装状況を追記）
-- ステータス: LP-E 骨格＋惑星biome分離＋Living Planets Overdrive 縦切り（生態系・社会・会話・報酬・演出）まで実装済み。残りは帰還地点／地表施設／地表素材の per-block 分布。LP-A〜LP-D（v2.13.0）完了済み。
+- ステータス: LP-E 骨格＋惑星biome分離＋Overdrive 縦切り（生態系・社会・会話・報酬・演出）＋往復ループ（脱出パッド・帰還）＋地表施設＋per-block 地表素材まで実装済み。LP-A〜LP-D（v2.13.0）完了済み。
 - 位置づけ: Living Planets の最後の大ピース。これまでと違い**ワールドのモード切替**という大改修。
 
 ## 実装状況（現状反映）
@@ -28,10 +28,15 @@ Living Planets Overdrive 縦切り（生態系・社会・報酬・演出）:
 - 目標：`sim/SurfaceObjective` が地表HUDに探索目標（主を倒せ→残数→制圧→離陸）を表示。
 - 演出：`GameScreen` が惑星をbiome別に描画（ハロー＋大陸/極冠/縞/クレーター/灯）。地表は惑星biome色で淡くトーン。
 
+往復ループ・施設・地表素材（実装済み）:
+- 帰還地点：`sim/ReturnSpawn` ＋ `WorldState.escapePad`。地表着陸点に脱出パッドを置き、パッド上で `L` 離陸。`WorldFactory` に `playerSpawn` 上書きを追加し、宇宙は同一seedで再生成して**離れた惑星の真横に再出現**（往復継続）。
+- 地表施設：`SurfaceEcology` が `Society(placements, facilities)` を返す。王の座（NATURE=キャンプ／MAGMA=火口／ICE=台座／GAS=嵐の眼／DEAD=祠＋遺跡／LONELY=道標）を実体オブジェクトとして配置し、王・女王・核は施設中心に spawn。`GameScreen` が地面に描画。
+- 地表素材の per-block 分布：`Biomes.surface(planetBiome, tx, ty)` を追加。`WorldView`（地表は惑星biome色の地面＋biome素材の壁）と `MovementSystem`（地形効果）が地表で参照。自然=草、マグマ=溶岩、氷=雪 が見た目・効果に出る。
+
 残課題:
-- 帰還地点：地表の専用脱出ポイント（現状は目標達成後に `L` で離陸）。
-- 地表施設：拠点・祭壇・建造物など biome 別オブジェクト。
-- 地表素材の per-block 分布：`map.Biome`（grass/snow/magma）は現状positionalのまま；地表は惑星biome色の全面トーンで代替。
+- 新しい星系への移動（現状は1星系を往復探索；warp等は将来）。
+- 施設の機能化（取引・祭壇効果など、現状は landmark 描画＋王の座）。
+- 地表素材の地形生成への反映（現状は素材分布のみ；壁形状は `SurfaceStages` の biome 別密度/規模）。
 
 ## なぜ別扱いか
 これまでの SP/LP は既存システムへの加算的拡張で、ゲームを壊さずTDDできた。LP-E は **SPACE ⇄ SURFACE の世界切替**で、以下に触れる：世界の再構築、物理の分岐、描画の分岐、入力（着陸操作）、そして**状態の持ち越し設計判断**。リスクが高く、設計を決めてから着手すべき。
