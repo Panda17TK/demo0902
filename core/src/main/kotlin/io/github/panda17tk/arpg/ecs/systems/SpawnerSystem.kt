@@ -14,6 +14,8 @@ import io.github.panda17tk.arpg.map.TileMap
 import io.github.panda17tk.arpg.math.Rng
 import io.github.panda17tk.arpg.sim.Tribes
 import io.github.panda17tk.arpg.sim.Tuning
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * Wave-based spawner (legacy spawner.js). Spawns normal enemies over time during a wave;
@@ -43,7 +45,8 @@ class SpawnerSystem : IteratingSystem(family { all(PlayerTag, Transform) }) {
             if (w.toSpawn > 0) {
                 w.spawnCd -= dt
                 if (w.spawnCd <= 0f && mobs.numEntities < liveCap(w.num, c)) {
-                    if (spawnNormal(pt, w.num)) { w.toSpawn--; w.spawnCd = spawnInterval(w.num, c) }
+                    val n = spawnNormal(pt, w.num)
+                    if (n > 0) { w.toSpawn -= n; w.spawnCd = spawnInterval(w.num, c) }
                     else w.spawnCd = 0.2f
                 }
             }
@@ -80,13 +83,19 @@ class SpawnerSystem : IteratingSystem(family { all(PlayerTag, Transform) }) {
     private fun liveCap(n: Int, c: WaveConfig): Int = minOf(c.maxLiveCap, c.liveCapBase + n * c.liveCapPerWave)
     private fun spawnInterval(n: Int, c: WaveConfig): Float = maxOf(c.minSpawnInterval, c.spawnIntervalBase - n * c.spawnIntervalPerWave)
 
-    private fun spawnNormal(pt: Transform, waveNum: Int): Boolean {
-        if (normalKeys.isEmpty()) return false
-        val tile = pickTile(pt) ?: return false
-        val key = normalKeys[rng.nextInt(normalKeys.size)]
-        val def = config.enemies[key] ?: return false
-        MobFactory.spawn(world, def, tile.first, tile.second, waveNum, config.waves.hpScalePerWave, config.waves.speedScalePerWave, tribe = tribes.tribeOf(tile.first, tile.second))
-        return true
+    /** Spawn a same-tribe herd (3..6) clustered around one tile so tribes pop in groups. Returns the count. */
+    private fun spawnNormal(pt: Transform, waveNum: Int): Int {
+        if (normalKeys.isEmpty()) return 0
+        val tile = pickTile(pt) ?: return 0
+        val tribe = tribes.tribeOf(tile.first, tile.second)
+        var spawned = 0
+        repeat(3 + rng.nextInt(4)) {
+            val def = config.enemies[normalKeys[rng.nextInt(normalKeys.size)]] ?: return@repeat
+            val a = rng.nextFloat() * 6.2831855f; val r = rng.nextFloat() * Tuning.TILE * 2.5f
+            MobFactory.spawn(world, def, tile.first + cos(a) * r, tile.second + sin(a) * r, waveNum, config.waves.hpScalePerWave, config.waves.speedScalePerWave, tribe = tribe)
+            spawned++
+        }
+        return spawned
     }
 
     /** A free floor tile at least 8 tiles from the player (legacy pickTile; LOS check dropped for spawn reliability). */

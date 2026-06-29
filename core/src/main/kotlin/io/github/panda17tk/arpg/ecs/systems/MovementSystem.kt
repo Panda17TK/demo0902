@@ -53,10 +53,12 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         // Decay knockback velocity (very fast: gone in ~0.1s) — keeps hits punchy.
         v.vx *= 0.0001f.pow(dt)
         v.vy *= 0.0001f.pow(dt)
-        // Space dash inertia: a separate drift that builds while dashing and coasts (slow decay).
-        if (dashing && mv.isMoving) {
-            v.driftX += mv.dirX * config.player.dashThrust * dt
-            v.driftY += mv.dirY * config.player.dashThrust * dt
+        // Inertia: dashing builds strong drift; ordinary movement builds a gentler drift, so the
+        // player accelerates up to speed and coasts when they stop (normal movement has momentum too).
+        if (mv.isMoving) {
+            val thrust = if (dashing) config.player.dashThrust else MOVE_THRUST
+            v.driftX += mv.dirX * thrust * dt
+            v.driftY += mv.dirY * thrust * dt
         }
         v.driftX *= 0.72f.pow(dt); v.driftY *= 0.72f.pow(dt) // slower decay → stronger glide (inertia)
         val dsp = hypot(v.driftX, v.driftY)
@@ -81,5 +83,6 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
 
     companion object {
         private const val DASH_UP_MUL = 1.5f // dash-speed pickup buff
+        private const val MOVE_THRUST = 340f // normal-movement inertia (< dashThrust); coast when stopping
     }
 }
