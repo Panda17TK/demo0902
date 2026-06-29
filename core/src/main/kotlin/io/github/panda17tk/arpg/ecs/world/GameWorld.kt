@@ -10,6 +10,7 @@ import io.github.panda17tk.arpg.pathfinding.FlowField
 import io.github.panda17tk.arpg.sim.Base
 import io.github.panda17tk.arpg.sim.GravityField
 import io.github.panda17tk.arpg.sim.PlanetBody
+import io.github.panda17tk.arpg.sim.WorldState
 
 class GameWorld(val world: World, val player: Entity) {
     lateinit var map: TileMap
@@ -20,4 +21,5 @@ class GameWorld(val world: World, val player: Entity) {
     var bases: List<Base> = emptyList()
     var gravityField: GravityField = GravityField()
     var planets: List<PlanetBody> = emptyList()
+    var worldState: WorldState = WorldState()
 }

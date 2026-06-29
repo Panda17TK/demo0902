@@ -24,6 +24,8 @@ import io.github.panda17tk.arpg.sim.Inertia
 import io.github.panda17tk.arpg.sim.Locomotion
 import io.github.panda17tk.arpg.sim.PlanetField
 import io.github.panda17tk.arpg.sim.Tuning
+import io.github.panda17tk.arpg.sim.WorldMode
+import io.github.panda17tk.arpg.sim.WorldState
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.pow
@@ -33,6 +35,7 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
     private val map: TileMap = world.inject()
     private val config: GameConfig = world.inject()
     private val planetField: PlanetField = world.inject()
+    private val worldState: WorldState = world.inject()
 
     override fun onTickEntity(entity: Entity) {
         val t = entity[Transform]
@@ -71,10 +74,16 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         // Knockback decays fast and stays separate from movement (keeps hits punchy).
         v.vx *= 0.0001f.pow(dt)
         v.vy *= 0.0001f.pow(dt)
-        // Newtonian-ish momentum: input/dash accelerate the drift; light space-drag lets it coast (space inertia).
+        // Coast drag depends on where we are: space glides; planet ground stops fast; ice/snow slips.
+        val coast = when {
+            worldState.mode != WorldMode.SURFACE -> COAST_DECAY
+            worldState.biome == Biome.SNOW -> ICE_COAST
+            else -> SURFACE_COAST
+        }
+        // Newtonian-ish momentum: input/dash accelerate the drift; the coast drag set above lets it glide or grip.
         val thrustX = if (mv.isMoving) mv.dirX * accel else 0f
         val thrustY = if (mv.isMoving) mv.dirY * accel else 0f
-        val decay = if (mv.isMoving) MOVE_DECAY else COAST_DECAY
+        val decay = if (mv.isMoving) MOVE_DECAY else coast
         val (nvx, nvy) = Inertia.step(v.driftX, v.driftY, thrustX, thrustY, decay, maxV, dt)
         v.driftX = nvx; v.driftY = nvy
 
@@ -101,8 +110,9 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
             if (s.value <= 0.05f) s.overheat = true            // fully drained → overheat (no stamina actions)
             if (s.value >= s.max - 0.05f) s.overheat = false   // fully recovered → clear overheat
         }
-        // Terrain effects: magma block burns HP; grass block restores stamina.
-        if (magma) h.hp = (h.hp - MAGMA_DPS * dt).coerceAtLeast(0f)
+        // Terrain effects: magma block burns HP; grass restores stamina; a magma planet surface burns everywhere.
+        val onMagmaSurface = worldState.mode == WorldMode.SURFACE && worldState.biome == Biome.MAGMA
+        if (magma || onMagmaSurface) h.hp = (h.hp - MAGMA_DPS * dt).coerceAtLeast(0f)
         if (grass) s.value = (s.value + GRASS_STA * dt).coerceAtMost(s.max)
     }
 
@@ -122,6 +132,8 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         private const val DASH_ACCEL = 1600f // dash acceleration — beefier dash
         private const val MOVE_DECAY = 0.6f // light drag while thrusting (still reaches the cap)
         private const val COAST_DECAY = 0.5f // space glide on release — momentum lingers (~halves in 1s); main feel tunable
+        private const val SURFACE_COAST = 0.02f // planet ground: friction stops you fast (no space inertia)
+        private const val ICE_COAST = 0.7f // ice/snow surface: slippery, long glide
         private const val SNOW_SLOW = 0.62f // snow block underfoot → slower
         private const val MAGMA_DPS = 8f // magma block burns HP/sec
         private const val GRASS_STA = 16f // grass block restores stamina/sec
