@@ -4,6 +4,7 @@ import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.World
 import io.github.panda17tk.arpg.config.EnemyDef
 import io.github.panda17tk.arpg.ecs.components.Body
+import io.github.panda17tk.arpg.ecs.components.CreatureMind
 import io.github.panda17tk.arpg.ecs.components.Facing
 import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Mob
@@ -28,6 +29,10 @@ object MobFactory {
                 attackCd = FloatArray(def.attacks.size), waveNum = waveNum, tribe = tribe,
             )
             it += MobAction()
+            it += CreatureMind(
+                intelligence = def.intelligence, bravery = def.bravery, protectiveness = def.protectiveness,
+                mercyThreshold = def.mercyThreshold, canBeg = def.canBeg, canHideAndRest = def.canHideAndRest,
+            )
         }
     }
 }

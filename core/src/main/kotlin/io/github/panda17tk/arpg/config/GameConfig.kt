@@ -27,6 +27,7 @@ private fun defaultEnemies(): Map<String, EnemyDef> = mapOf(
     "spitter" to EnemyDef(
         name = "スピッター", tier = "normal", color = "#3aa06f", hp = 65f, speed = 35f,
         seeRange = 320f, contactKB = 220f,
+        bravery = 0.25f, canBeg = true, mercyThreshold = 0.3f, // timid — flees when hurt, begs near death
         attacks = listOf(
             AttackSpec("melee", cd = 3.0f, dmg = 10f, range = 9f, arc = 90f),
             AttackSpec("shot", cd = 1.2f, dmg = 12f, speed = 220f, life = 1.6f),
@@ -35,6 +36,7 @@ private fun defaultEnemies(): Map<String, EnemyDef> = mapOf(
     "stalker" to EnemyDef(
         name = "ストーカー", tier = "normal", color = "#9a6ad0", hp = 60f, speed = 64f,
         seeRange = 340f, contactKB = 200f, gravityResponse = 0f, // agile — ignores gravity, closes straight in
+        intelligence = 0.8f, bravery = 0.3f, canHideAndRest = true, // cunning — hides and licks its wounds
         dodge = DodgeSpec(0.18f, 0.15f, 2.0f),
         attacks = listOf(
             AttackSpec("blink", cd = 3.0f, maxTiles = 5, dur = 0.1f, minDist = 70f, standoff = 28f),

@@ -43,6 +43,13 @@ data class EnemyDef(
     val seeRange: Float = 240f,
     val contactKB: Float = 220f,
     val gravityResponse: Float = 1f, // 0 = ignores gravity, 1 = normal, >1 = heavy (easily flung into planets)
+    // Living Planets temperament (legacy-safe defaults → the creature stays always hostile):
+    val intelligence: Float = 0f,
+    val bravery: Float = 1f,
+    val protectiveness: Float = 0f,
+    val mercyThreshold: Float = 0f,
+    val canBeg: Boolean = false,
+    val canHideAndRest: Boolean = false,
     val attacks: List<AttackSpec> = emptyList(),
     val dodge: DodgeSpec? = null,
 )

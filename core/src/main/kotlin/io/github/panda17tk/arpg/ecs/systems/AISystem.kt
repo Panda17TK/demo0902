@@ -7,6 +7,7 @@ import io.github.panda17tk.arpg.ai.AiMove
 import io.github.panda17tk.arpg.combat.MobAttacks
 import io.github.panda17tk.arpg.config.GameConfig
 import io.github.panda17tk.arpg.ecs.components.Body
+import io.github.panda17tk.arpg.ecs.components.CreatureMind
 import io.github.panda17tk.arpg.ecs.components.Facing
 import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Mob
@@ -22,6 +23,8 @@ import io.github.panda17tk.arpg.pathfinding.SpatialGrid
 import io.github.panda17tk.arpg.sim.CircleCollision
 import io.github.panda17tk.arpg.sim.Collision
 import io.github.panda17tk.arpg.sim.CrashModel
+import io.github.panda17tk.arpg.sim.CreatureAI
+import io.github.panda17tk.arpg.sim.CreatureState
 import io.github.panda17tk.arpg.sim.Leveling
 import io.github.panda17tk.arpg.sim.PlanetField
 import io.github.panda17tk.arpg.sim.Tribes
@@ -36,7 +39,7 @@ import kotlin.math.sqrt
 
 /** Enemy AI: flow-field chase + separation + contact + data-driven attack dispatch (legacy ai.js + runAttacks). */
 class AISystem(private val mobGrid: SpatialGrid<Entity>) :
-    IteratingSystem(family { all(Mob, Transform, Velocity, Body, Health, Facing, MobAction) }) {
+    IteratingSystem(family { all(Mob, Transform, Velocity, Body, Health, Facing, MobAction, CreatureMind) }) {
 
     private val map: TileMap = world.inject()
     private val flow: FlowField = world.inject()
@@ -89,6 +92,11 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         val toPx = if (dist > 0f) dx / dist else 1f
         val toPy = if (dist > 0f) dy / dist else 0f
 
+        // Living Planets: advance the creature's behavioural state, then decide if it still fights.
+        val mind = entity[CreatureMind]
+        updateMind(mind, h, dist, dt)
+        val aggressive = mind.state == CreatureState.Hostile || mind.state == CreatureState.Protect
+
         // Neighbour scan (one pass): separation (any mob) + same-tribe cohesion + nearest hostile-tribe mob.
         val myTribe = m.tribe
         var sepX = 0f; var sepY = 0f
@@ -124,10 +132,22 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         // Tactics scale with smarts (tribe intelligence + level): smart tribes take cover + kite.
         val smarts = Leveling.smarts(tribes.intelligenceOf(myTribe), m.level)
         val hasRanged = m.def.attacks.any { it.type == "shot" }
-        val brawl = hostFound && hostD <= HOSTILE_RANGE
-        val cover = if (!brawl && smarts > COVER_SMARTS && see) coverDir(t.x, t.y, px, py) else null
+        val brawl = aggressive && hostFound && hostD <= HOSTILE_RANGE
+        val cover = if (aggressive && !brawl && smarts > COVER_SMARTS && see) coverDir(t.x, t.y, px, py) else null
         var mvx = 0f; var mvy = 0f
-        if (brawl) {
+        if (!aggressive) {
+            // The creature has broken off: run, hide or freeze instead of fighting.
+            when (mind.state) {
+                CreatureState.Flee -> if (dist > 0f) { mvx = -toPx * eff * dt; mvy = -toPy * eff * dt; f.x = -toPx; f.y = -toPy }
+                CreatureState.Hide -> {
+                    val c = coverDir(t.x, t.y, px, py)
+                    if (c != null) { mvx = c[0] * eff * dt; mvy = c[1] * eff * dt }
+                    else if (dist > 0f) { mvx = -toPx * eff * dt; mvy = -toPy * eff * dt }
+                    if (dist > 0f) { f.x = toPx; f.y = toPy }
+                }
+                else -> if (dist > 0f) { f.x = toPx; f.y = toPy } // Beg / Rest: stand still, face the player
+            }
+        } else if (brawl) {
             // Frontline: charge the rival-tribe mob.
             val bdx = hostX - t.x; val bdy = hostY - t.y; val bd = hypot(bdx, bdy)
             if (bd > 0f) { mvx = bdx / bd * eff * dt; mvy = bdy / bd * eff * dt; f.x = bdx / bd; f.y = bdy / bd }
@@ -176,7 +196,7 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
                     while (m.xp >= Leveling.threshold(m.level)) { m.xp -= Leveling.threshold(m.level); m.level++ }
                 }
             }
-        } else if (pt != null && ph != null && pv != null && m.bumpCd <= 0f) {
+        } else if (aggressive && pt != null && ph != null && pv != null && m.bumpCd <= 0f) {
             if (abs(t.x - pt.x) < (b.halfW + 11f) && abs(t.y - pt.y) < (b.halfH + 11f)) {
                 val nx = if (dist > 0f) (pt.x - t.x) / dist else 1f
                 val ny = if (dist > 0f) (pt.y - t.y) / dist else 0f
@@ -187,8 +207,8 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
             }
         }
 
-        // Data-driven attack dispatch (legacy runAttacks). melee/shot/lunge/charge_melee/blink in 5b.
-        if (pt != null && ph != null && pv != null) {
+        // Data-driven attack dispatch (legacy runAttacks). Non-hostile creatures (fleeing/begging/hiding) hold fire.
+        if (aggressive && pt != null && ph != null && pv != null) {
             val usable = Leveling.attacksForLevel(m.level, m.def.attacks.size) // level unlocks more skills
             m.def.attacks.forEachIndexed { i, atk ->
                 if (i < usable && m.attackCd[i] <= 0f) {
@@ -216,6 +236,31 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         return null
     }
 
+    /** Advance behavioural state: hide waits then rests, rest heals, the player's approach interrupts both. */
+    private fun updateMind(mind: CreatureMind, h: Health, dist: Float, dt: Float) {
+        val hpFrac = if (h.hpMax > 0f) h.hp / h.hpMax else 0f
+        when (mind.state) {
+            CreatureState.Rest -> {
+                if (dist < REST_INTERRUPT) { mind.state = CreatureState.Hostile; return }
+                h.hp = minOf(h.hpMax, h.hp + REST_HEAL * dt)
+                if (hpFrac >= REST_RECOVER) mind.state = CreatureState.Hostile
+            }
+            CreatureState.Hide -> {
+                if (dist < REST_INTERRUPT) { mind.state = CreatureState.Flee; return }
+                mind.stateTimer -= dt
+                if (mind.stateTimer <= 0f) mind.state = CreatureState.Rest
+            }
+            else -> {
+                val next = CreatureAI.nextState(
+                    hpFrac, mind.bravery, mind.intelligence, mind.canBeg, mind.canHideAndRest,
+                    mind.mercyThreshold, protectedThreatened = false, protectiveness = mind.protectiveness,
+                )
+                if (next == CreatureState.Hide && mind.state != CreatureState.Hide) mind.stateTimer = HIDE_TIME
+                mind.state = next
+            }
+        }
+    }
+
     /** Crash damage when a mob is driven into a wall or planet fast; MobDamageSystem reaps the kill. */
     private fun crashMob(h: Health, inwardSpeed: Float) {
         val dmg = CrashModel.damage(inwardSpeed, MOB_CRASH_THRESHOLD, MOB_CRASH_K)
@@ -234,6 +279,10 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         private const val MOB_CRASH_THRESHOLD = 110f // mobs take damage above this impact speed
         private const val MOB_CRASH_K = 0.6f // mob crash damage per unit speed over threshold (weaponised gravity/knockback)
         private const val MOB_CRASH_RESTITUTION = 0.35f // slight outward rebound off a planet
+        private const val HIDE_TIME = 2.5f // seconds a smart creature stays hidden before resting
+        private const val REST_HEAL = 14f // HP/sec regained while resting
+        private const val REST_RECOVER = 0.85f // rested back to this HP fraction → rejoin the fight
+        private val REST_INTERRUPT = Tuning.TILE * 4f // player this close interrupts hide/rest
         private val COVER_OFFSETS = floatArrayOf(0f, 0.6f, -0.6f, 1.2f, -1.2f) // away ± up to ~70°
     }
 }
