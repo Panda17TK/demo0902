@@ -148,9 +148,9 @@ object Stages {
 
     // --- Space / asteroid-belt stages (large open arenas strewn with rocks). Gameplay uses these. ---
     private val SPACE: List<StageDef> = listOf(
-        asteroid("belt1", "アステロイドベルト α", 232, 232, 1L), // ~16x area
-        asteroid("belt2", "アステロイドベルト β", 264, 200, 2L),
-        asteroid("belt3", "アステロイドベルト γ", 200, 264, 3L),
+        asteroid("belt1", "アステロイドベルト α", 1313, 1313, 1L), // ~32x area (√32× linear vs the old 232²)
+        asteroid("belt2", "アステロイドベルト β", 1494, 1131, 2L),
+        asteroid("belt3", "アステロイドベルト γ", 1131, 1494, 3L),
     )
 
     fun byId(id: String?): StageDef = (ALL + SPACE).firstOrNull { it.id == id } ?: SPACE[0]

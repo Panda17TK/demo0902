@@ -19,6 +19,10 @@ class TileMap(
     /** Out-of-bounds is treated as solid (matches legacy solidAt). */
     fun solidAt(tx: Int, ty: Int): Boolean = tileAt(tx, ty).solid
 
+    /** A breakable wall (finite HP) — excludes the indestructible border so it doesn't form a cluster. */
+    fun destructibleAt(tx: Int, ty: Int): Boolean =
+        inBounds(tx, ty) && tiles[index(tx, ty)].solid && maxHp[index(tx, ty)].isFinite()
+
     fun setTile(tx: Int, ty: Int, t: Tile) { if (inBounds(tx, ty)) tiles[index(tx, ty)] = t }
 
     companion object {

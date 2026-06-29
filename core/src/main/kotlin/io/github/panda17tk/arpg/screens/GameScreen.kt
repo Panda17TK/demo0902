@@ -30,6 +30,7 @@ import io.github.panda17tk.arpg.ecs.components.Mob
 import io.github.panda17tk.arpg.ecs.components.MobAction
 import io.github.panda17tk.arpg.ecs.components.Mods
 import io.github.panda17tk.arpg.ecs.components.Pickup
+import io.github.panda17tk.arpg.ecs.components.Smoke
 import io.github.panda17tk.arpg.ecs.components.Stamina
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.ecs.components.Velocity
@@ -295,6 +296,21 @@ class GameScreen : ScreenAdapter() {
                 val bob = sin(animTime * 4f + pt.x * 0.05f) * 2f
                 shapes.color = pickupColor(pk.kind)
                 shapes.circle(pt.x, pt.y + bob, 4f, 10)
+            }
+        }
+        // smoke clouds — overlapping puffs of varying white/grey + opacity, fading over life
+        with(gw.world) {
+            gw.world.family { all(Smoke, Transform) }.forEach { e ->
+                val st = e[Transform]; val sm = e[Smoke]
+                val k = (1f - sm.t / sm.life).coerceIn(0f, 1f)
+                for (i in 0 until 8) {
+                    val ang = i * 2.39996f + sm.t * 0.5f
+                    val rr = sm.radius * (0.2f + 0.55f * ((i * 0.137f) % 1f))
+                    val grey = 0.6f + 0.4f * ((i * 0.31f) % 1f)
+                    tmpC.set(grey, grey, grey, 0.16f * k)
+                    shapes.color = tmpC
+                    shapes.circle(st.x + cos(ang) * rr, st.y + sin(ang) * rr, sm.radius * 0.5f, 14)
+                }
             }
         }
         shapes.end()
