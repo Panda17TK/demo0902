@@ -33,6 +33,7 @@ object MobFactory {
             it += CreatureMind(
                 intelligence = def.intelligence, bravery = def.bravery, protectiveness = def.protectiveness,
                 mercyThreshold = def.mercyThreshold, canBeg = def.canBeg, canHideAndRest = def.canHideAndRest,
+                familyRole = def.familyRole,
             )
             it += Speech(canSpeak = def.canSpeak)
         }

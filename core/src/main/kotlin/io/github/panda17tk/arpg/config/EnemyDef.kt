@@ -51,6 +51,7 @@ data class EnemyDef(
     val canBeg: Boolean = false,
     val canHideAndRest: Boolean = false,
     val canSpeak: Boolean = false, // intelligent creatures emit short speech bubbles
+    val familyRole: FamilyRole = FamilyRole.NONE, // child/elder/guardian/king drive protection + morale
     val attacks: List<AttackSpec> = emptyList(),
     val dodge: DodgeSpec? = null,
 )

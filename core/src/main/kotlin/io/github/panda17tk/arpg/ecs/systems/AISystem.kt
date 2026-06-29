@@ -5,6 +5,7 @@ import com.github.quillraven.fleks.IteratingSystem
 import com.github.quillraven.fleks.World.Companion.family
 import io.github.panda17tk.arpg.ai.AiMove
 import io.github.panda17tk.arpg.combat.MobAttacks
+import io.github.panda17tk.arpg.config.FamilyRole
 import io.github.panda17tk.arpg.config.GameConfig
 import io.github.panda17tk.arpg.ecs.components.Body
 import io.github.panda17tk.arpg.ecs.components.CreatureMind
@@ -26,6 +27,7 @@ import io.github.panda17tk.arpg.sim.Collision
 import io.github.panda17tk.arpg.sim.CrashModel
 import io.github.panda17tk.arpg.sim.CreatureAI
 import io.github.panda17tk.arpg.sim.CreatureState
+import io.github.panda17tk.arpg.sim.Family
 import io.github.panda17tk.arpg.sim.Leveling
 import io.github.panda17tk.arpg.sim.PlanetField
 import io.github.panda17tk.arpg.sim.SpeechLines
@@ -96,20 +98,7 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         val see = dist < m.def.seeRange && Los.hasLineOfSight(map, t.x, t.y, px, py)
         val toPx = if (dist > 0f) dx / dist else 1f
         val toPy = if (dist > 0f) dy / dist else 0f
-
-        // Living Planets: advance the creature's behavioural state, then decide if it still fights.
         val mind = entity[CreatureMind]
-        val prevState = mind.state
-        updateMind(mind, h, dist, dt)
-        val aggressive = mind.state == CreatureState.Hostile || mind.state == CreatureState.Protect
-        // Intelligent creatures announce a state change (flee/beg/hide) with a brief bubble.
-        if (speech.canSpeak && mind.state != prevState && speech.cooldown <= 0f) {
-            val trig = SpeechLines.forState(mind.state)
-            if (trig != null) {
-                val line = SpeechLines.pick(trig, rng.nextInt(1000))
-                if (line != null) { speech.text = line; speech.remaining = BUBBLE_TIME; speech.cooldown = SPEECH_CD }
-            }
-        }
 
         // Neighbour scan (one pass): separation (any mob) + same-tribe cohesion + nearest hostile-tribe mob.
         val myTribe = m.tribe
@@ -117,6 +106,7 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         var cohX = 0f; var cohY = 0f; var cohN = 0
         var hostX = 0f; var hostY = 0f; var hostD = Float.MAX_VALUE; var hostFound = false
         var hostHp: Health? = null; var hostV: Velocity? = null
+        var kingNear = false; var wardThreatened = false
         mobGrid.forNearby(t.x, t.y, COH_RADIUS) { other ->
             if (other == entity) return@forNearby
             with(world) {
@@ -129,6 +119,9 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
                     if (d < hostD) { hostD = d; hostX = ot.x; hostY = ot.y; hostFound = true; hostHp = other[Health]; hostV = other[Velocity] }
                 } else if (om.tribe == myTribe) {
                     cohX += ot.x; cohY += ot.y; cohN++
+                    val ocm = other[CreatureMind]
+                    if (ocm.familyRole == FamilyRole.KING) kingNear = true
+                    if (Family.isWard(ocm.familyRole) && hypot(ot.x - px, ot.y - py) < WARD_THREAT_RANGE) wardThreatened = true
                 }
             }
         }
@@ -141,6 +134,19 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
             val ccx = cohX / cohN - t.x; val ccy = cohY / cohN - t.y
             val cl = hypot(ccx, ccy)
             if (cl > ai.sepRadius) { v.vx += ccx / cl * eff * COH_W; v.vy += ccy / cl * eff * COH_W }
+        }
+
+        // Living Planets society: a guardian defends a threatened ward; a nearby king steels morale.
+        val guardian = mind.protectiveness >= GUARDIAN_MIN || mind.familyRole == FamilyRole.GUARDIAN
+        val prevState = mind.state
+        updateMind(mind, h, dist, dt, guardian && wardThreatened, kingNear)
+        val aggressive = mind.state == CreatureState.Hostile || mind.state == CreatureState.Protect
+        if (speech.canSpeak && mind.state != prevState && speech.cooldown <= 0f) {
+            val trig = SpeechLines.forState(mind.state)
+            if (trig != null) {
+                val line = SpeechLines.pick(trig, rng.nextInt(1000))
+                if (line != null) { speech.text = line; speech.remaining = BUBBLE_TIME; speech.cooldown = SPEECH_CD }
+            }
         }
 
         // Tactics scale with smarts (tribe intelligence + level): smart tribes take cover + kite.
@@ -251,7 +257,7 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
     }
 
     /** Advance behavioural state: hide waits then rests, rest heals, the player's approach interrupts both. */
-    private fun updateMind(mind: CreatureMind, h: Health, dist: Float, dt: Float) {
+    private fun updateMind(mind: CreatureMind, h: Health, dist: Float, dt: Float, protectedThreatened: Boolean, kingNear: Boolean) {
         val hpFrac = if (h.hpMax > 0f) h.hp / h.hpMax else 0f
         when (mind.state) {
             CreatureState.Rest -> {
@@ -265,9 +271,11 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
                 if (mind.stateTimer <= 0f) mind.state = CreatureState.Rest
             }
             else -> {
+                if (mind.familyRole == FamilyRole.CHILD) { mind.state = CreatureState.Flee; return } // children never fight
+                val effBravery = Family.effectiveBravery(mind.bravery, kingNear) // a nearby king steels nerves
                 val next = CreatureAI.nextState(
-                    hpFrac, mind.bravery, mind.intelligence, mind.canBeg, mind.canHideAndRest,
-                    mind.mercyThreshold, protectedThreatened = false, protectiveness = mind.protectiveness,
+                    hpFrac, effBravery, mind.intelligence, mind.canBeg, mind.canHideAndRest,
+                    mind.mercyThreshold, protectedThreatened, mind.protectiveness,
                 )
                 if (next == CreatureState.Hide && mind.state != CreatureState.Hide) mind.stateTimer = HIDE_TIME
                 mind.state = next
@@ -299,6 +307,8 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         private val REST_INTERRUPT = Tuning.TILE * 4f // player this close interrupts hide/rest
         private const val BUBBLE_TIME = 2.2f // seconds a speech bubble stays up
         private const val SPEECH_CD = 4f // minimum seconds between a creature's lines
+        private const val GUARDIAN_MIN = 0.5f // protectiveness at/above this makes a creature a guardian
+        private val WARD_THREAT_RANGE = Tuning.TILE * 5f // player this close to a ward → guardians defend it
         private val COVER_OFFSETS = floatArrayOf(0f, 0.6f, -0.6f, 1.2f, -1.2f) // away ± up to ~70°
     }
 }
