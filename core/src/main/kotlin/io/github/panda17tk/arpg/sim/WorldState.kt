@@ -10,4 +10,6 @@ class WorldState(
     var mode: WorldMode = WorldMode.SPACE,
     var biome: PlanetBiome? = null,
     var landingCandidate: PlanetBody? = null,
+    /** On a SURFACE, the world-space escape pad (the landing point) the player returns to to take off. */
+    var escapePad: Pair<Float, Float>? = null,
 )

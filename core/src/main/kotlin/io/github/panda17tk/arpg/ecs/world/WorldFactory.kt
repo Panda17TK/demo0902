@@ -70,11 +70,15 @@ object WorldFactory {
     fun create(
         input: InputState, config: GameConfig = GameConfig(), seed: Long = 1L,
         mode: WorldMode = WorldMode.SPACE, biome: PlanetBiome? = null, carry: PlayerCarry? = null,
+        playerSpawn: Pair<Float, Float>? = null,
     ): GameWorld {
         val loaded = MapLoader.load(
             if (mode == WorldMode.SURFACE) SurfaceStages.forBiome(biome, seed) else Stages.random(Rng(seed)),
         )
         val map = loaded.tileMap
+        // The player normally starts at the stage's spawn; a return-to-space override re-emerges them beside a planet.
+        val spawnX = playerSpawn?.first ?: loaded.playerSpawnX
+        val spawnY = playerSpawn?.second ?: loaded.playerSpawnY
         val flow = FlowField(map.width, map.height)
         flow.rebuild(map, floor(loaded.playerSpawnX / Tuning.TILE).toInt(), floor(loaded.playerSpawnY / Tuning.TILE).toInt(), FlowRebuildSystem.MAX_DIST)
         val combatRng = Rng(seed xor 0x9E3779B9L)
@@ -102,6 +106,8 @@ object WorldFactory {
             ),
         )
         val worldState = WorldState(mode = mode, biome = biome)
+        // The escape pad sits at the surface landing point; standing on it lets the player take off again.
+        if (mode == WorldMode.SURFACE) worldState.escapePad = loaded.playerSpawnX to loaded.playerSpawnY
         val waveState = WaveState(
             num = 1,
             phase = "active",
@@ -151,7 +157,7 @@ object WorldFactory {
         }
 
         val player = world.entity {
-            it += Transform(x = loaded.playerSpawnX, y = loaded.playerSpawnY)
+            it += Transform(x = spawnX, y = spawnY)
             it += PlayerTag()
             it += Facing()
             it += Stamina(config.player.staMax, config.player.staMax)

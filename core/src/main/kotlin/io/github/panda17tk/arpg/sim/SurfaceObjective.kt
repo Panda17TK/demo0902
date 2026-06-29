@@ -9,5 +9,5 @@ import io.github.panda17tk.arpg.planet.PlanetBiome
 object SurfaceObjective {
     fun hudLine(biome: PlanetBiome, elitesAlive: Int): String =
         if (elitesAlive > 0) "${biome.displayName}：この星の主を倒せ（残り $elitesAlive）"
-        else "${biome.displayName}を制圧した　[L] 離陸して宇宙へ"
+        else "${biome.displayName}を制圧した　脱出パッドへ戻れ"
 }

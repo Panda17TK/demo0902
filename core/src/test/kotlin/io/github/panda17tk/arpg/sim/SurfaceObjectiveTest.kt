@@ -11,10 +11,10 @@ class SurfaceObjectiveTest {
         assertTrue(s.contains("2"), s)
     }
 
-    @Test fun `a subdued planet invites takeoff`() {
+    @Test fun `a subdued planet points back to the escape pad`() {
         val s = SurfaceObjective.hudLine(PlanetBiome.MAGMA, 0)
         assertTrue(s.contains("火山惑星"), s)
-        assertTrue(s.contains("[L]"), s)
+        assertTrue(s.contains("脱出パッド"), s)
     }
 
     @Test fun `every biome yields a non-blank line in both states`() {

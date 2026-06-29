@@ -52,6 +52,7 @@ import io.github.panda17tk.arpg.render.Fonts
 import io.github.panda17tk.arpg.render.Hud
 import io.github.panda17tk.arpg.render.WorldView
 import io.github.panda17tk.arpg.save.Scores
+import io.github.panda17tk.arpg.sim.ReturnSpawn
 import io.github.panda17tk.arpg.sim.SurfaceObjective
 import io.github.panda17tk.arpg.sim.Tuning
 import io.github.panda17tk.arpg.sim.WorldMode
@@ -168,7 +169,8 @@ class GameScreen : ScreenAdapter() {
 
     /** Build (or rebuild) the run and reset per-run screen state (Phase 7 restart). */
     private fun newRun() {
-        gw = WorldFactory.create(input, configStore.config)
+        spaceSeed = 1L; surfSeed = 100L; returnSpawn = null
+        gw = WorldFactory.create(input, configStore.config, seed = spaceSeed)
         accumulator = 0f
         camInit = false
         choosing = false
@@ -181,26 +183,37 @@ class GameScreen : ScreenAdapter() {
         newBest = false
     }
 
-    private var landSeed = 100L
+    private var spaceSeed = 1L            // the current star system's seed (stable, so round-trips return to it)
+    private var surfSeed = 100L           // surface seed, varied per landing
+    private var returnSpawn: Pair<Float, Float>? = null // where to re-emerge in space after taking off
 
-    /** Land on the hovered planet (SPACE) or take off back to space (SURFACE), carrying run state across the rebuild. */
+    /** Land on the hovered planet (SPACE) or take off from the escape pad (SURFACE), carrying run state across. */
     private fun handleLanding() {
         val ws = gw.worldState
         if (ws.mode == WorldMode.SPACE) {
             val cand = ws.landingCandidate ?: return
-            transitionWorld(WorldMode.SURFACE, cand.biome)
+            returnSpawn = ReturnSpawn.beside(cand) // remember where to re-emerge on takeoff
+            surfSeed += 1
+            transitionWorld(WorldMode.SURFACE, cand.biome, surfSeed, null)
         } else {
-            transitionWorld(WorldMode.SPACE, null)
+            if (!playerOnEscapePad()) return // must stand on the escape pad to leave the surface
+            transitionWorld(WorldMode.SPACE, null, spaceSeed, returnSpawn) // same system, beside the planet we left
         }
     }
 
-    private fun transitionWorld(mode: WorldMode, biome: PlanetBiome?) {
+    private fun transitionWorld(mode: WorldMode, biome: PlanetBiome?, seed: Long, spawn: Pair<Float, Float>?) {
         val carry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
-        landSeed += 1
-        gw = WorldFactory.create(input, configStore.config, landSeed, mode, biome, carry)
+        gw = WorldFactory.create(input, configStore.config, seed, mode, biome, carry, spawn)
         gw.waveState.num = carry.wave
         accumulator = 0f; camInit = false; overlay = Overlay.NONE
         choosing = false; offered = false; choices = emptyList(); lastHp = Float.NaN
+    }
+
+    /** True when the player is standing on the surface escape pad (the return point). */
+    private fun playerOnEscapePad(): Boolean {
+        val pad = gw.worldState.escapePad ?: return false
+        val (ppx, ppy) = with(gw.world) { val t = gw.player[Transform]; t.x to t.y }
+        return hypot(ppx - pad.first, ppy - pad.second) < Tuning.TILE * 1.5f
     }
 
     override fun render(delta: Float) {
@@ -286,6 +299,13 @@ class GameScreen : ScreenAdapter() {
             }
             shapes.color = tmpC
             shapes.rect(camera.position.x - vhw, camera.position.y - vhh, vhw * 2f, vhh * 2f)
+        }
+        // escape pad — a glowing return ring at the surface landing point (drawn on the ground, under the actors)
+        gw.worldState.escapePad?.let { pad ->
+            tmpC.set(0.45f, 0.85f, 1f, 0.30f); shapes.color = tmpC
+            shapes.circle(pad.first, pad.second, Tuning.TILE * 1.3f, 28)
+            tmpC.set(0.70f, 0.95f, 1f, 0.85f); shapes.color = tmpC
+            shapes.circle(pad.first, pad.second, Tuning.TILE * 0.55f, 20)
         }
         with(gw.world) {
             gw.world.family { all(Mob, Transform, Health, Facing, Velocity, MobAction) }.forEach { e ->
@@ -522,7 +542,9 @@ class GameScreen : ScreenAdapter() {
                 gw.world.family { all(Mob) }.forEach { if (it[Mob].def.tier != "normal") elites++ }
             }
             val biome = ws.biome
+            val onPad = ws.mode == WorldMode.SURFACE && playerOnEscapePad()
             val hint = when {
+                onPad -> "[L] 脱出パッドから離陸して宇宙へ"
                 ws.mode == WorldMode.SURFACE && biome != null -> SurfaceObjective.hudLine(biome, elites)
                 ws.mode == WorldMode.SURFACE -> "[L] 離陸して宇宙へ"
                 ws.landingCandidate != null -> "[L] 着陸: ${ws.landingCandidate!!.biome.displayName}"
