@@ -42,6 +42,7 @@ data class EnemyDef(
     val h: Float = 22f,
     val seeRange: Float = 240f,
     val contactKB: Float = 220f,
+    val gravityResponse: Float = 1f, // 0 = ignores gravity, 1 = normal, >1 = heavy (easily flung into planets)
     val attacks: List<AttackSpec> = emptyList(),
     val dodge: DodgeSpec? = null,
 )

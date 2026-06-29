@@ -57,8 +57,8 @@ class GravitySystem : IntervalSystem() {
             players.forEach { e ->
                 applyGravity(e[Transform], e[Velocity], 1f, if (e[PlayerTag].dashing) DASH_GRAVITY_MUL else 1f, dt)
             }
-            // Mobs: gravity into drift (gravityResponse arrives in SP-5; all 1f for now).
-            mobs.forEach { e -> applyGravity(e[Transform], e[Velocity], 1f, 1f, dt) }
+            // Mobs: gravity into drift, scaled by each archetype's gravityResponse (0 = ignores gravity).
+            mobs.forEach { e -> applyGravity(e[Transform], e[Velocity], e[Mob].def.gravityResponse, 1f, dt) }
             // Grenades: positional curve (no drift integrator of their own).
             grenades.forEach { pullPos(it[Transform], dt) }
         }
