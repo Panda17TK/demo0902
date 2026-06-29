@@ -16,30 +16,33 @@ class ReloadSystem : IteratingSystem(family { all(PlayerTag, Arsenal, Ammo) }) {
 
     override fun onTickEntity(entity: Entity) {
         val arsenal = entity[Arsenal]; val ammo = entity[Ammo]
-        val w = arsenal.current; val size = w.def.magSize ?: return // beam: no magazine
 
-        // A reload in progress finishes (refills the mag) when its timer elapses.
-        if (w.reloadT > 0f) {
-            w.reloadT -= deltaTime
-            if (w.reloadT <= 0f) {
-                w.reloadT = 0f
-                if (w.def.infiniteAmmo) {
-                    w.mag = size // infinite reserve: top off the magazine, never spend reserve
-                } else {
-                    val r = Reload.reload(size, w.mag, ammo.get(w.def.ammoType))
-                    w.mag = r.newMag; ammo.set(w.def.ammoType, r.newReserve)
+        // 1) Progress an in-flight reload on EVERY weapon, so it keeps going after switching away.
+        for (wr in arsenal.weapons) {
+            val sz = wr.def.magSize ?: continue
+            if (wr.reloadT > 0f) {
+                wr.reloadT -= deltaTime
+                if (wr.reloadT <= 0f) {
+                    wr.reloadT = 0f
+                    if (wr.def.infiniteAmmo) wr.mag = sz
+                    else { val r = Reload.reload(sz, wr.mag, ammo.get(wr.def.ammoType)); wr.mag = r.newMag; ammo.set(wr.def.ammoType, r.newReserve) }
                 }
             }
-            return
         }
+
+        // 2) Start a reload — only for the current weapon (empty → immediate, manual → fast, else auto).
+        val w = arsenal.current; val size = w.def.magSize ?: return // beam: no magazine
+        if (w.reloadT > 0f) return
         if (w.mag >= size || (!w.def.infiniteAmmo && ammo.get(w.def.ammoType) <= 0)) { w.autoReloadTimer = 0f; return }
         val time = if (w.def.reloadTime > 0f) w.def.reloadTime else config.player.autoReloadDelay
-        if (input.reload) { w.reloadT = time * MANUAL_MUL; w.autoReloadTimer = 0f; return } // manual: faster
-        if (!input.fire) { // auto-reload after a quiet delay
-            w.autoReloadTimer += deltaTime
-            if (w.autoReloadTimer >= config.player.autoReloadDelay) { w.reloadT = time; w.autoReloadTimer = 0f }
-        } else {
-            w.autoReloadTimer = 0f
+        when {
+            w.mag <= 0 -> { w.reloadT = time; w.autoReloadTimer = 0f }               // out of ammo → auto-reload now
+            input.reload -> { w.reloadT = time * MANUAL_MUL; w.autoReloadTimer = 0f } // manual: faster
+            !input.fire -> {                                                          // auto-reload after a quiet delay
+                w.autoReloadTimer += deltaTime
+                if (w.autoReloadTimer >= config.player.autoReloadDelay) { w.reloadT = time; w.autoReloadTimer = 0f }
+            }
+            else -> w.autoReloadTimer = 0f
         }
     }
 

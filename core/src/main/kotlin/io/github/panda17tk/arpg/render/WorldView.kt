@@ -15,7 +15,12 @@ import kotlin.math.sin
  */
 object WorldView {
     private val SPACE_A = Color.valueOf("070a12")
-    private val SPACE_B = Color.valueOf("0a0e18")
+    private val SPACE_B = Color.valueOf("090c16")
+    // Floor = deep space: smooth nebula regions (7×7-tile patches) instead of a per-tile grid.
+    private val NEB_P = Color.valueOf("130a1f")
+    private val NEB_B = Color.valueOf("0a1124")
+    private val NEB_T = Color.valueOf("0c1a1a")
+    private val NEBULA_FLOOR = arrayOf(SPACE_A, SPACE_A, SPACE_B, SPACE_A, SPACE_A, SPACE_A, NEB_P, NEB_B, NEB_T)
     private val STARS = arrayOf(Color.valueOf("ffffff"), Color.valueOf("9ec5ff"), Color.valueOf("ffe6b0"), Color.valueOf("cbb8ff"))
     private val ROCKS = arrayOf(Color.valueOf("6b6358"), Color.valueOf("5d564c"), Color.valueOf("776c5d"), Color.valueOf("534b42"))
     private val CRATER = Color.valueOf("38322b")
@@ -52,11 +57,13 @@ object WorldView {
                     s.rect(px + 6f, py + 4f, 1.5f, t - 8f); s.rect(px + t - 7.5f, py + 4f, 1.5f, t - 8f)
                 }
                 else -> {
-                    s.color = if (((tx + ty) and 1) == 0) SPACE_A else SPACE_B
+                    // deep-space floor: large nebula regions (no tile grid) + a sparse starfield
+                    val reg = Math.floorMod((tx / 7) * 92821 xor (ty / 7) * 68917, NEBULA_FLOOR.size)
+                    s.color = NEBULA_FLOOR[reg]
                     s.rect(px, py, t, t)
-                    if (Math.floorMod(hsh, 9) == 0) {
+                    if (Math.floorMod(hsh, 6) == 0) {
                         s.color = STARS[Math.floorMod(hsh ushr 4, STARS.size)]
-                        val sz = if (Math.floorMod(hsh, 47) == 0) 2.4f else 1.3f
+                        val sz = if (Math.floorMod(hsh, 41) == 0) 2.5f else 1.2f
                         s.circle(px + Math.floorMod(hsh, ti).toFloat(), py + Math.floorMod(hsh ushr 3, ti).toFloat(), sz, 6)
                     }
                 }
