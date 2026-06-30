@@ -26,6 +26,7 @@ data class Society(val placements: List<EcologyPlacement>, val facilities: List<
 object SurfaceEcology {
     fun populate(
         biome: PlanetBiome, spawnX: Float, spawnY: Float, worldW: Float, worldH: Float, rng: Rng,
+        context: PlanetContext = PlanetContext.NEUTRAL,
     ): Society {
         val out = ArrayList<EcologyPlacement>()
         val fac = ArrayList<Facility>()
@@ -112,7 +113,74 @@ object SurfaceEcology {
             PlanetBiome.ICE -> wild("frost_hare", 5, WILD_NEAR, WILD_FAR)
             else -> {} // GAS / DEAD / LONELY: no wildlife yet (keeps GAS gravity-free + the asteroid sparse)
         }
+
+        // Story seed: bend the base ecology toward this planet's premise (LP worldbuilding). NONE leaves it be.
+        when (context.storySeed) {
+            PlanetStorySeed.LOST_CHILD -> {
+                // a child wandered out of the camp; a predator stalks it; a guardian is sent out between them
+                val a = rng.nextFloat() * TAU
+                val lx = clampX(campX + cos(a) * LOST_DIST); val ly = clampY(campY + sin(a) * LOST_DIST)
+                out.add(EcologyPlacement(childKey(biome), lx, ly, passive = true))
+                out.add(EcologyPlacement(predatorKey(biome), clampX(lx + cos(a) * Tuning.TILE * 2f), clampY(ly + sin(a) * Tuning.TILE * 2f), passive = true))
+                out.add(EcologyPlacement(guardianKey(biome), clampX(campX + cos(a) * LOST_DIST * 0.5f), clampY(campY + sin(a) * LOST_DIST * 0.5f)))
+            }
+            PlanetStorySeed.HUNGRY_FOREST -> {
+                removePrey(out, 2)                                // a starving food web: fewer grazers…
+                wild(predatorKey(biome), 3, WILD_NEAR, WILD_FAR)  // …more hunters prowling in
+            }
+            PlanetStorySeed.NESTING_SEASON -> {
+                wild("nest_mother", 1, WILD_NEAR, WILD_MID)
+                wild("forest_hatchling", 4, WILD_NEAR, WILD_MID)  // a surge of fragile young
+            }
+            PlanetStorySeed.PREDATOR_INVASION -> {
+                repeat(3) { add(predatorKey(biome), GUARD + FAR * rng.nextFloat(), passive = true) } // pressing the camp's edge
+            }
+            PlanetStorySeed.APEX_WORSHIP -> {
+                wild(apexKey(biome), 1, WILD_FAR, WILD_EDGE)      // a far, looming, worshipped beast
+            }
+            PlanetStorySeed.SILENT_MONASTERY -> {
+                // a hushed holy place: a monk and a silent watcher, almost no one else
+                out.add(EcologyPlacement("star_monk", clampX(campX), clampY(campY + Tuning.TILE * 2f), passive = true))
+                out.add(EcologyPlacement(watcherKey(biome), clampX(spawnX), clampY(spawnY + Tuning.TILE * 3f), passive = true))
+            }
+            PlanetStorySeed.BROKEN_SHRINE, PlanetStorySeed.RELIC_FAMINE -> {
+                repeat(3) { // a ring of ruins around a desecrated/starved shrine
+                    val a = rng.nextFloat() * TAU; val d = GUARD + FAR * rng.nextFloat()
+                    fac.add(Facility(FacilityKind.RUIN, clampX(campX + cos(a) * d), clampY(campY + sin(a) * d), Tuning.TILE * 0.9f))
+                }
+            }
+            PlanetStorySeed.EXILED_HEIR -> {
+                out.add(EcologyPlacement("exiled_king", clampX(spawnX + Tuning.TILE * 4f), clampY(spawnY), passive = false))
+            }
+            PlanetStorySeed.NONE -> {}
+        }
         return Society(out, fac)
+    }
+
+    // --- Story-seed creature mapping: each returns an EXISTING enemy key per biome (unknown keys are skipped). ---
+    private fun childKey(b: PlanetBiome) = when (b) {
+        PlanetBiome.NATURE -> "beast_whelp"; PlanetBiome.ICE -> "frostling"; PlanetBiome.MAGMA -> "ember_imp"
+        PlanetBiome.GAS -> "wind_jelly"; PlanetBiome.DEAD -> "bone_drone"; PlanetBiome.LONELY -> "star_monk"
+    }
+    private fun predatorKey(b: PlanetBiome) = when (b) {
+        PlanetBiome.NATURE -> "fang_wolf"; PlanetBiome.ICE -> "snow_stalker"; PlanetBiome.MAGMA -> "lava_thrower"
+        PlanetBiome.GAS -> "gravity_wraith"; PlanetBiome.DEAD -> "ruin_guard"; PlanetBiome.LONELY -> "lost_soldier"
+    }
+    private fun guardianKey(b: PlanetBiome) = when (b) {
+        PlanetBiome.NATURE -> "forest_guardian"; PlanetBiome.ICE -> "ice_spearman"; PlanetBiome.MAGMA -> "obsidian_guard"
+        PlanetBiome.GAS -> "storm_orb"; PlanetBiome.DEAD -> "ruin_guard"; PlanetBiome.LONELY -> "lost_soldier"
+    }
+    private fun apexKey(b: PlanetBiome) = when (b) {
+        PlanetBiome.NATURE -> "forest_apex"; PlanetBiome.MAGMA -> "volcano_king"; PlanetBiome.ICE -> "ice_queen"
+        PlanetBiome.GAS -> "storm_core"; PlanetBiome.DEAD -> "dead_oracle"; PlanetBiome.LONELY -> "exiled_king"
+    }
+    private fun watcherKey(b: PlanetBiome) = when (b) {
+        PlanetBiome.GAS -> "wind_jelly"; PlanetBiome.DEAD -> "bone_drone"; PlanetBiome.LONELY -> "lost_soldier"; else -> "star_monk"
+    }
+    private val PREY = setOf("horn_deer", "moss_hopper", "root_boar", "frost_hare")
+    private fun removePrey(out: MutableList<EcologyPlacement>, n: Int) {
+        var removed = 0; val it = out.iterator()
+        while (it.hasNext() && removed < n) { if (it.next().key in PREY) { it.remove(); removed++ } }
     }
 
     private const val TAU = 6.2831855f
@@ -127,4 +195,5 @@ object SurfaceEcology {
     private val WILD_MID = Tuning.TILE * 8f
     private val WILD_FAR = Tuning.TILE * 12f
     private val WILD_EDGE = Tuning.TILE * 16f  // the apex roams the far edge
+    private val LOST_DIST = Tuning.TILE * 6f   // a LOST_CHILD strays this far out of the camp
 }

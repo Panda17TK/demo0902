@@ -201,7 +201,7 @@ object WorldFactory {
         if (mode == WorldMode.SURFACE && biome != null) {
             val worldW = map.width * Tuning.TILE; val worldH = map.height * Tuning.TILE
             val ecoRng = Rng(seed xor 0x5EED1234L)
-            val society = SurfaceEcology.populate(biome, loaded.playerSpawnX, loaded.playerSpawnY, worldW, worldH, ecoRng)
+            val society = SurfaceEcology.populate(biome, loaded.playerSpawnX, loaded.playerSpawnY, worldW, worldH, ecoRng, context ?: PlanetContext.NEUTRAL)
             for (p in society.placements) {
                 val def = config.enemies[p.key] ?: continue
                 val (fx, fy) = snapToFloor(map, p.x, p.y)
