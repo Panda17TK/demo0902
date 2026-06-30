@@ -8,6 +8,7 @@ import io.github.panda17tk.arpg.combat.MobAttacks
 import io.github.panda17tk.arpg.config.FamilyRole
 import io.github.panda17tk.arpg.config.GameConfig
 import io.github.panda17tk.arpg.config.LifeKind
+import io.github.panda17tk.arpg.config.WildRole
 import io.github.panda17tk.arpg.ecs.components.Body
 import io.github.panda17tk.arpg.ecs.components.CreatureMind
 import io.github.panda17tk.arpg.ecs.components.Facing
@@ -112,6 +113,7 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         var hostX = 0f; var hostY = 0f; var hostD = Float.MAX_VALUE; var hostFound = false
         var hostHp: Health? = null; var hostV: Velocity? = null
         var kingNear = false; var wardThreatened = false; var wardHurt = false
+        var wardNear = false; var wildPredatorNear = false // a wild predator stalking a ward also rouses guardians
         mobGrid.forNearby(t.x, t.y, COH_RADIUS) { other ->
             if (other == entity) return@forNearby
             with(world) {
@@ -120,6 +122,8 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
                 val d = hypot(ddx, ddy)
                 if (d < 0.0001f) return@forNearby
                 if (d <= ai.sepRadius) { val w = (ai.sepRadius - d) / ai.sepRadius; sepX += ddx / d * w; sepY += ddy / d * w }
+                if (d < WARD_THREAT_RANGE && om.def.lifeKind == LifeKind.WILDLIFE &&
+                    (om.def.wildRole == WildRole.PREDATOR || om.def.wildRole == WildRole.APEX)) wildPredatorNear = true
                 if (tribes.areHostile(myTribe, om.tribe)) {
                     if (d < hostD) { hostD = d; hostX = ot.x; hostY = ot.y; hostFound = true; hostHp = other[Health]; hostV = other[Velocity] }
                 } else if (om.tribe == myTribe) {
@@ -127,6 +131,7 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
                     val ocm = other[CreatureMind]
                     if (ocm.familyRole == FamilyRole.KING) kingNear = true
                     if (Family.isWard(ocm.familyRole)) {
+                        wardNear = true
                         if (hypot(ot.x - px, ot.y - py) < WARD_THREAT_RANGE) wardThreatened = true
                         val oh = other[Health]
                         if (oh.hp <= oh.hpMax * WARD_HURT_FRAC) wardHurt = true // a wounded ward calls defenders to a fury
@@ -134,6 +139,8 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
                 }
             }
         }
+        // A wild predator prowling beside a ward threatens it just as the player would → guardians defend.
+        if (wardNear && wildPredatorNear) wardThreatened = true
         if (sepX != 0f || sepY != 0f) {
             val l = sqrt(sepX * sepX + sepY * sepY)
             v.vx += sepX / l * eff * 0.5f; v.vy += sepY / l * eff * 0.5f

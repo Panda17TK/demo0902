@@ -58,4 +58,8 @@ class WildAITest {
     @Test fun `a wounded predator breaks off and flees`() {
         assertEquals(WildState.Flee, state(WildRole.PREDATOR, hpFrac = 0.1f, preyNear = true, hunger = 1f))
     }
+
+    @Test fun `a predator stalks nearby prey while its appetite is still low`() {
+        assertEquals(WildState.Stalk, state(WildRole.PREDATOR, preyNear = true, hunger = 0f))
+    }
 }

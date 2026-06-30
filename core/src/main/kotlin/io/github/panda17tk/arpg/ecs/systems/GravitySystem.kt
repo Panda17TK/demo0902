@@ -57,8 +57,8 @@ class GravitySystem : IntervalSystem() {
             players.forEach { e ->
                 applyGravity(e[Transform], e[Velocity], 1f, if (e[PlayerTag].dashing) DASH_GRAVITY_MUL else 1f, dt)
             }
-            // Mobs: gravity into drift, scaled by each archetype's gravityResponse (0 = ignores gravity).
-            mobs.forEach { e -> applyGravity(e[Transform], e[Velocity], e[Mob].def.gravityResponse, 1f, dt) }
+            // Mobs barely feel gravity on their own field — only 5% (keeps enemies from being dragged into wells).
+            mobs.forEach { e -> applyGravity(e[Transform], e[Velocity], e[Mob].def.gravityResponse, MOB_GRAVITY_MUL, dt) }
             // Grenades: positional curve (no drift integrator of their own).
             grenades.forEach { pullPos(it[Transform], dt) }
         }
@@ -87,5 +87,6 @@ class GravitySystem : IntervalSystem() {
         private val RANGE = Tuning.TILE * 12f // influence reaches 12 blocks, decaying per block
         private const val STRENGTH = 13f // ~1/3 of the previous pull
         private const val DASH_GRAVITY_MUL = 0.25f // dashing weakens gravity to 1/4 (escape with effort)
+        private const val MOB_GRAVITY_MUL = 0.05f // enemies feel only 5% of gravity (no self-destructing into wells)
     }
 }

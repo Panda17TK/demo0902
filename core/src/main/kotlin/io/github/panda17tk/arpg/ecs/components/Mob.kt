@@ -18,10 +18,13 @@ class Mob(
     var xp: Float = 0f,
     val dashes: Boolean = false, // ~half of each tribe's rank-and-file dash (facing-thrust inertial burst)
     var dashCd: Float = 0f,
-    // Wildlife runtime (WildlifeSystem only; ignored by hostile/sapient mobs).
+    // Wildlife runtime (WildlifeSystem / WildPredationSystem only; ignored by hostile/sapient mobs).
     var wildState: WildState = WildState.Wander,
     var hunger: Float = 0f,   // 0..1, climbs over time; a predator hunts when high, drops while feeding
     var wanderCd: Float = 0f, // re-roll timer for the idle wander heading
+    var feedCd: Float = 0f,   // cooldown between predation bites
+    var homeX: Float = 0f,    // nest / home position (set to the spawn point); nest-guards return here
+    var homeY: Float = 0f,
 ) : Component<Mob> {
     val tier: String get() = def.tier
     override fun type() = Mob

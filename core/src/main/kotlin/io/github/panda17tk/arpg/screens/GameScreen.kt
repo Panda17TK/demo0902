@@ -224,16 +224,20 @@ class GameScreen : ScreenAdapter() {
             !choosing && !gw.gameOver.isOver) overlay = PauseFlow.toggle(overlay)
         handlePauseTaps()
         val paused = overlay != Overlay.NONE
-        // Living Planets: land on / leave a planet with L (rebuilds the world for the surface stage).
-        if (!paused && !choosing && !gw.gameOver.isOver && Gdx.input.isKeyJustPressed(Input.Keys.L)) handleLanding()
 
         // Gameplay touch (twin-stick / fire) runs only when no modal blocks it (spec §5.2).
-        // Pass the player context so the action buttons can show/hide by relevance (P3).
+        // Pass the player context so the action buttons can show/hide by relevance (P3). The LAND button
+        // appears only when landing is possible: near a planet in space, or standing on the escape pad.
         if (touchEnabled && !paused && !choosing && !gw.gameOver.isOver) {
             val tw = with(gw.world) { gw.player[Arsenal] }.current
             val tBlocks = with(gw.world) { gw.player[Materials].blocks }
-            touch.poll(input, hudViewport, tBlocks, tw.mag, tw.def.magSize)
+            val ws = gw.worldState
+            val canLand = (ws.mode == WorldMode.SPACE && ws.landingCandidate != null) ||
+                (ws.mode == WorldMode.SURFACE && playerOnEscapePad())
+            touch.poll(input, hudViewport, tBlocks, tw.mag, tw.def.magSize, canLand)
         }
+        // Living Planets: land on / leave a planet (L key or the touch LAND button) — rebuilds the world.
+        if (!paused && !choosing && !gw.gameOver.isOver && input.land) handleLanding()
 
         if (gw.gameOver.isOver) {
             accumulator = 0f
@@ -729,6 +733,7 @@ class GameScreen : ScreenAdapter() {
         TouchButton.RELOAD -> "装填"
         TouchButton.WALL -> "壁"
         TouchButton.WEAPON -> "武器"
+        TouchButton.LAND -> if (gw.worldState.mode == WorldMode.SURFACE) "発進" else "着陸"
     }
 
     private fun pickupColor(kind: String): Color = when (kind) {
