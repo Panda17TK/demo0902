@@ -10,7 +10,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # allow the v* release step to create a Release and upload the APK
+      contents: write # allow the release step to create a Release and upload the APK
     steps:
       - uses: actions/checkout@v4
 
@@ -38,17 +38,18 @@ jobs:
           name: arpg-debug-apk
           path: android/build/outputs/apk/debug/*.apk
 
-      # On a v* tag, publish the APK to the Releases page so anyone can download it without logging in.
+      # One-off: publish the v2.16.0 debug APK to the Releases page from this branch (no tag push needed).
       - name: Rename APK for the release
-        if: startsWith(github.ref, 'refs/tags/')
         run: |
           apk=$(ls android/build/outputs/apk/debug/*.apk | head -n1)
-          cp "$apk" "arpg-${{ github.ref_name }}-debug.apk"
+          cp "$apk" "arpg-v2.16.0-debug.apk"
 
       - name: Publish APK to the Releases page
-        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: arpg-${{ github.ref_name }}-debug.apk
+          tag_name: v2.16.0
+          target_commitish: main
+          name: v2.16.0
+          files: arpg-v2.16.0-debug.apk
           generate_release_notes: true
           fail_on_unmatched_files: true
