@@ -54,6 +54,7 @@ import io.github.panda17tk.arpg.render.WorldView
 import io.github.panda17tk.arpg.save.Scores
 import io.github.panda17tk.arpg.sim.Drift
 import io.github.panda17tk.arpg.sim.FacilityKind
+import io.github.panda17tk.arpg.sim.PlanetMemoryBook
 import io.github.panda17tk.arpg.sim.ReturnSpawn
 import io.github.panda17tk.arpg.sim.SurfaceObjective
 import io.github.panda17tk.arpg.sim.Tuning
@@ -175,6 +176,7 @@ class GameScreen : ScreenAdapter() {
     /** Build (or rebuild) the run and reset per-run screen state (Phase 7 restart). */
     private fun newRun() {
         spaceSeed = 1L; surfSeed = 100L; returnSpawn = null
+        planetMemory.memories.clear(); landedPlanetId = null // a fresh run forgets every planet
         gw = WorldFactory.create(input, configStore.config, seed = spaceSeed)
         accumulator = 0f
         camInit = false
@@ -191,6 +193,8 @@ class GameScreen : ScreenAdapter() {
     private var spaceSeed = 1L            // the current star system's seed (stable, so round-trips return to it)
     private var surfSeed = 100L           // surface seed, varied per landing
     private var returnSpawn: Pair<Float, Float>? = null // where to re-emerge in space after taking off
+    private val planetMemory = PlanetMemoryBook() // per-planet society memory, persists across landings this run
+    private var landedPlanetId: Long? = null      // id of the planet we're on, so takeoff folds memory back in
 
     /** Land on the hovered planet (SPACE) or take off from the escape pad (SURFACE), carrying run state across. */
     private fun handleLanding() {
@@ -199,9 +203,12 @@ class GameScreen : ScreenAdapter() {
             val cand = ws.landingCandidate ?: return
             returnSpawn = ReturnSpawn.beside(cand) // remember where to re-emerge on takeoff
             surfSeed += 1
+            landedPlanetId = cand.id
             transitionWorld(WorldMode.SURFACE, cand.biome, surfSeed, null)
+            gw.worldState.society = planetMemory.recall(cand.id) // seed this visit from the planet's remembered state
         } else {
             if (!playerOnEscapePad()) return // must stand on the escape pad to leave the surface
+            landedPlanetId?.let { planetMemory.remember(it, gw.worldState.society) } // fold the visit back into memory
             transitionWorld(WorldMode.SPACE, null, spaceSeed, returnSpawn) // same system, beside the planet we left
         }
     }

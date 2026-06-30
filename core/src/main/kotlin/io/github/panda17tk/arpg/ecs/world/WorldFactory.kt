@@ -108,6 +108,7 @@ object WorldFactory {
                 map.width * Tuning.TILE, map.height * Tuning.TILE,
                 loaded.playerSpawnX, loaded.playerSpawnY, planetCount, Rng(seed xor 0x91A2B3C4L),
                 margin = 768f, // 8× the old gap → planets sit far apart in the wider space
+                seed = seed, // stable planet ids per star system → society memory persists across landings
             ),
         )
         val worldState = WorldState(mode = mode, biome = biome)

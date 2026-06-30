@@ -5,7 +5,8 @@ package io.github.panda17tk.arpg.sim
  * (The ecosystem makes events; the society remembers them.) [io.github.panda17tk.arpg.ecs.systems.EcologyEventSystem]
  * detects the events and calls the apply-methods here; the HUD ([SurfaceObjective]) and guardians read the result.
  *
- * Session-scoped for now (recreated per landing). Persisting it per planet across landings is a later round.
+ * Persisted per planet across landings via [PlanetMemoryBook]: a landing seeds the surface society from the
+ * planet's remembered state ([copyState]) and a takeoff folds the visit back in ([mergeFrom]).
  * The three float gauges accumulate (clamped 0..1): how angry the tribe is, how much it owes the player, and how
  * shaken the food web is.
  */
@@ -47,4 +48,34 @@ class PlanetSocietyState(
     fun onApexKilled() { apexKilled = true; ecologicalDisruption = bump(ecologicalDisruption, 0.5f) }
 
     private fun bump(v: Float, by: Float) = (v + by).coerceIn(0f, 1f)
+
+    /** A deep copy — used to seed a fresh surface visit from a planet's remembered state without aliasing it. */
+    fun copyState(): PlanetSocietyState = PlanetSocietyState(
+        childHarmed, childKilled, wildPredatorThreatenedChild, predatorKilledNearChild,
+        hatchlingKilled, nestMotherKilled, apexKilled, surrenderKilled, surrenderedSpared,
+        leaderDefeated, relicClaimed, hostility, mercy, ecologicalDisruption,
+    )
+
+    /**
+     * Fold a finished surface visit's [surface] society back into this persistent record.
+     * Booleans OR (a deed once done is never forgotten); counters and the 0..1 gauges keep the MAX.
+     * Because a visit is seeded from this record via [copyState], the visit's values already include the past,
+     * so MAX persists the latest without double-counting and keeps repeated merges idempotent.
+     */
+    fun mergeFrom(surface: PlanetSocietyState) {
+        childHarmed = childHarmed || surface.childHarmed
+        childKilled = childKilled || surface.childKilled
+        wildPredatorThreatenedChild = wildPredatorThreatenedChild || surface.wildPredatorThreatenedChild
+        predatorKilledNearChild = predatorKilledNearChild || surface.predatorKilledNearChild
+        hatchlingKilled = hatchlingKilled || surface.hatchlingKilled
+        nestMotherKilled = nestMotherKilled || surface.nestMotherKilled
+        apexKilled = apexKilled || surface.apexKilled
+        leaderDefeated = leaderDefeated || surface.leaderDefeated
+        relicClaimed = relicClaimed || surface.relicClaimed
+        surrenderKilled = maxOf(surrenderKilled, surface.surrenderKilled)
+        surrenderedSpared = maxOf(surrenderedSpared, surface.surrenderedSpared)
+        hostility = maxOf(hostility, surface.hostility)
+        mercy = maxOf(mercy, surface.mercy)
+        ecologicalDisruption = maxOf(ecologicalDisruption, surface.ecologicalDisruption)
+    }
 }
