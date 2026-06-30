@@ -52,6 +52,7 @@ import io.github.panda17tk.arpg.render.Fonts
 import io.github.panda17tk.arpg.render.Hud
 import io.github.panda17tk.arpg.render.WorldView
 import io.github.panda17tk.arpg.save.Scores
+import io.github.panda17tk.arpg.sim.Drift
 import io.github.panda17tk.arpg.sim.FacilityKind
 import io.github.panda17tk.arpg.sim.ReturnSpawn
 import io.github.panda17tk.arpg.sim.SurfaceObjective
@@ -67,6 +68,9 @@ import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.pow
 import kotlin.math.sin
+
+/** Half-extent of the toroidal box the drifting debris wraps within (matches WorldFactory's seed range). */
+private const val DRIFT_RANGE = 1400f
 
 /**
  * Fixed-timestep simulation + render interpolation, porting the legacy main.js loop.
@@ -268,6 +272,8 @@ class GameScreen : ScreenAdapter() {
             py = t.prevY + (t.y - t.prevY) * alpha
             fx = f.x; fy = f.y; sta = s.value; staMax = s.max; pit = gw.player[Health].iTime; overheat = s.overheat
         }
+        // flow the cosmetic debris/asteroid field around the player (space only; wraps toroidally)
+        if (!paused) gw.worldState.drift?.let { Drift.advance(it, px, py, DRIFT_RANGE, delta) }
         val playerHit = pit > 0f && ((pit * 20f).toInt() % 2 == 0)
         val dashing = input.dash && sta > 0f
         val muzzle = input.fire
@@ -296,6 +302,22 @@ class GameScreen : ScreenAdapter() {
             shapes, gw.map, minTx, maxTx, minTy, maxTy,
             if (gw.worldState.mode == WorldMode.SURFACE) gw.worldState.biome else null,
         )
+        // drifting debris + asteroids flowing through the void (cosmetic; behind planets). Big rocks tumble
+        // (craters ride the spin), small bits are faint dust — together they make the vast space feel alive.
+        gw.worldState.drift?.let { df ->
+            for (d in df.items) {
+                if (d.asteroid) {
+                    tmpC.set(0.40f, 0.39f, 0.42f, 0.9f); shapes.color = tmpC
+                    shapes.circle(d.x, d.y, d.size, 9)
+                    tmpC.set(0.27f, 0.26f, 0.29f, 0.9f); shapes.color = tmpC
+                    shapes.circle(d.x + cos(d.rot) * d.size * 0.42f, d.y + sin(d.rot) * d.size * 0.42f, d.size * 0.26f, 7)
+                    shapes.circle(d.x - cos(d.rot) * d.size * 0.5f, d.y - sin(d.rot) * d.size * 0.5f, d.size * 0.18f, 6)
+                } else {
+                    tmpC.set(0.52f, 0.52f, 0.58f, 0.5f); shapes.color = tmpC
+                    shapes.circle(d.x, d.y, d.size, 6)
+                }
+            }
+        }
         // biome facilities — the society's built landmarks (camp/crater/dais/eye/shrine/ruins) on the ground
         for (f in gw.worldState.facilities) {
             val fr = f.radius

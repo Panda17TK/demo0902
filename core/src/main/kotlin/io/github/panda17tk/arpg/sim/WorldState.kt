@@ -16,4 +16,6 @@ class WorldState(
     var facilities: List<Facility> = emptyList(),
     /** On a SURFACE, what the society remembers of this visit (ecology events, player deeds). Reset per landing. */
     var society: PlanetSocietyState = PlanetSocietyState(),
+    /** In SPACE, the drifting debris/asteroid field flowing around the player (cosmetic; null on a surface). */
+    var drift: DriftField? = null,
 )

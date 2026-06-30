@@ -25,10 +25,12 @@ object SpaceDrive {
     const val STICK_CAP_MUL = 2f  // a stick dash tops out at 2× the normal-move cruise speed
     const val BUTTON_CAP_MUL = 3f // a button dash tops out at 3× cruise
 
-    /** Pick the thrust mode for this frame: button dash > stick dash > walk > coast. */
+    /**
+     * Pick the thrust mode for this frame: dash button > walk > coast. A hard stick push no longer
+     * auto-dashes — only the dash button boosts ([stickMag]/[stickDashMin] are kept for API stability).
+     */
     fun mode(moving: Boolean, stickMag: Float, dashButton: Boolean, canDash: Boolean, stickDashMin: Float): Mode = when {
         dashButton && canDash -> Mode.BUTTON_DASH
-        moving && canDash && stickMag >= stickDashMin -> Mode.STICK_DASH
         moving -> Mode.WALK
         else -> Mode.NONE
     }

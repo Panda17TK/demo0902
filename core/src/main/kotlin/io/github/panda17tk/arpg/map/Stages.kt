@@ -148,9 +148,12 @@ object Stages {
 
     // --- Space / asteroid-belt stages (large open arenas strewn with rocks). Gameplay uses these. ---
     private val SPACE: List<StageDef> = listOf(
-        asteroid("belt1", "アステロイドベルト α", 1313, 1313, 1L), // ~32x area (√32× linear vs the old 232²)
-        asteroid("belt2", "アステロイドベルト β", 1494, 1131, 2L),
-        asteroid("belt3", "アステロイドベルト γ", 1131, 1494, 3L),
+        // Bigger, sparser space (~2.5× the area again). A literal 24× would make the dense tile grid ~650MB
+        // (TileMap + FlowField) and OOM on Android, so this is scaled to a memory-safe size and the vastness is
+        // carried by 8× planet spacing + drifting debris.
+        asteroid("belt1", "アステロイドベルト α", 2100, 2100, 1L),
+        asteroid("belt2", "アステロイドベルト β", 2390, 1810, 2L),
+        asteroid("belt3", "アステロイドベルト γ", 1810, 2390, 3L),
     )
 
     fun byId(id: String?): StageDef = (ALL + SPACE).firstOrNull { it.id == id } ?: SPACE[0]

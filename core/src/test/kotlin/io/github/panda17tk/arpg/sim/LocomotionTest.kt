@@ -41,6 +41,6 @@ class LocomotionTest {
     }
     @Test fun `stamina regens while not dashing and clamps at max`() {
         assertEquals(72f, Locomotion.nextStamina(50f, dashing = false, dt = 1f, cfg = cfg), 1e-3f)
-        assertEquals(150f, Locomotion.nextStamina(145f, dashing = false, dt = 1f, cfg = cfg), 1e-3f) // clamps at staMax 150
+        assertEquals(300f, Locomotion.nextStamina(295f, dashing = false, dt = 1f, cfg = cfg), 1e-3f) // clamps at staMax 300
     }
 }
