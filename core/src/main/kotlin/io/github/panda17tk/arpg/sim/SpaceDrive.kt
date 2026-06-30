@@ -44,6 +44,7 @@ object SpaceDrive {
         vx: Float, vy: Float, dirX: Float, dirY: Float, mode: Mode,
         walkAccel: Float, stickAccel: Float, buttonAccel: Float,
         cruise: Float, decay: Float, hardCap: Float, dt: Float,
+        walkCapMul: Float = 1f,
     ): Pair<Float, Float> {
         val prev = hypot(vx, vy)
         var nx = vx
@@ -53,9 +54,9 @@ object SpaceDrive {
         // never clamps away faster inertia you already built (a bigger dash, or gravity) — to shed it you must
         // thrust the other way. Coasting (NONE) leaves momentum untouched.
         val modeCap = when (mode) {
-            Mode.WALK -> cruise
+            Mode.WALK -> cruise * walkCapMul // [walkCapMul] lets callers throttle only normal-move speed (e.g. ½ in space)
             Mode.STICK_DASH -> cruise * STICK_CAP_MUL
-            Mode.BUTTON_DASH -> cruise * BUTTON_CAP_MUL
+            Mode.BUTTON_DASH -> cruise * BUTTON_CAP_MUL // dash caps stay anchored to full cruise (dash-ram preserved)
             Mode.NONE -> 0f
         }
         when (mode) {

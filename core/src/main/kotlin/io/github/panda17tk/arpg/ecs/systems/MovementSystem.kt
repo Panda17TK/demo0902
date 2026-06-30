@@ -97,12 +97,14 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         val tx = if (mode == SpaceDrive.Mode.BUTTON_DASH) f.x else mv.dirX
         val ty = if (mode == SpaceDrive.Mode.BUTTON_DASH) f.y else mv.dirY
 
+        // Normal-move (WALK) speed is halved in open space so cruising feels calmer; dashes keep their full cap.
+        val walkCapMul = if (worldState.mode == WorldMode.SURFACE) 1f else SPACE_WALK_MUL
         // Knockback decays fast and stays separate from movement (keeps hits punchy).
         v.vx *= 0.0001f.pow(dt)
         v.vy *= 0.0001f.pow(dt)
         val (nvx, nvy) = SpaceDrive.step(
             v.driftX, v.driftY, tx, ty, mode,
-            MOVE_ACCEL, STICK_DASH_ACCEL, BUTTON_DASH_ACCEL, cruise, decay, hardCap, dt,
+            MOVE_ACCEL, STICK_DASH_ACCEL, BUTTON_DASH_ACCEL, cruise, decay, hardCap, dt, walkCapMul,
         )
         v.driftX = nvx; v.driftY = nvy
 
@@ -154,6 +156,7 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         private const val V_HARD = 1000f // absolute speed ceiling (zero-friction safety; not tied to dash state)
         private const val BUTTON_DASH_DRAIN = 70f // stamina/sec while button-dashing (expensive)
         private const val STICK_DASH_DRAIN = 7f // stamina/sec while stick-dashing (very cheap)
+        private const val SPACE_WALK_MUL = 0.5f // open space: normal-move cap is half (calmer cruising; dashes unaffected)
         private const val SPACE_DECAY = 1f // open space: zero friction — momentum is conserved
         private const val SURFACE_COAST = 0.02f // planet ground: friction stops you fast (no space inertia)
         private const val ICE_COAST = 0.7f // ice/snow surface: slippery, long glide

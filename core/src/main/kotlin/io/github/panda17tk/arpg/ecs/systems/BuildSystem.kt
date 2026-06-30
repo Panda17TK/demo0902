@@ -37,7 +37,7 @@ class BuildSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing, B
         if (Tiles.canPlaceWall(map, tx, ty, t.x, t.y, b.halfW)) {
             Tiles.placeWall(map, tx, ty)
             mats.blocks--
-            flow.rebuild(map, floor(t.x / Tuning.TILE).toInt(), floor(t.y / Tuning.TILE).toInt())
+            flow.rebuild(map, floor(t.x / Tuning.TILE).toInt(), floor(t.y / Tuning.TILE).toInt(), FlowRebuildSystem.MAX_DIST)
         }
     }
 }
