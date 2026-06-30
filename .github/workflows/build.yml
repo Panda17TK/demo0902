@@ -5,6 +5,12 @@ on:
     branches: [ main, "redesign/**" ]
     tags: [ "v*" ]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish (e.g. v2.17.0). Creates the tag + Release on main and attaches the APK."
+        required: true
+        type: string
 
 jobs:
   build:
@@ -38,17 +44,32 @@ jobs:
           name: arpg-debug-apk
           path: android/build/outputs/apk/debug/*.apk
 
-      # On a v* tag, publish the APK to the Releases page so anyone can download it without logging in.
+      # Publish the APK to the Releases page (no login needed to download) either on a pushed v* tag,
+      # or on a manual run (Actions → build → Run workflow → tag), which creates the tag + Release on main.
+      - name: Resolve release tag
+        id: rel
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        env:
+          EVENT: ${{ github.event_name }}
+          DISPATCH_TAG: ${{ inputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ]; then tag="$DISPATCH_TAG"; else tag="$REF_NAME"; fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
       - name: Rename APK for the release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: steps.rel.outputs.tag != ''
         run: |
           apk=$(ls android/build/outputs/apk/debug/*.apk | head -n1)
-          cp "$apk" "arpg-${{ github.ref_name }}-debug.apk"
+          cp "$apk" "arpg-${{ steps.rel.outputs.tag }}-debug.apk"
 
       - name: Publish APK to the Releases page
-        if: startsWith(github.ref, 'refs/tags/')
+        if: steps.rel.outputs.tag != ''
         uses: softprops/action-gh-release@v2
         with:
-          files: arpg-${{ github.ref_name }}-debug.apk
+          tag_name: ${{ steps.rel.outputs.tag }}
+          target_commitish: main
+          name: ${{ steps.rel.outputs.tag }}
+          files: arpg-${{ steps.rel.outputs.tag }}-debug.apk
           generate_release_notes: true
           fail_on_unmatched_files: true
