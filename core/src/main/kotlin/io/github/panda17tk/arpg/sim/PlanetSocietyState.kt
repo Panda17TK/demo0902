@@ -26,28 +26,60 @@ class PlanetSocietyState(
     var mercy: Float = 0f,                // how much goodwill the player has earned
     var ecologicalDisruption: Float = 0f, // how shaken the food web is
 ) {
-    /** The player wounded one of the tribe's young — guardians stir. */
-    fun onChildHarmed() { childHarmed = true; hostility = bump(hostility, 0.3f) }
+    // Gauge deltas now run through SocietyImpact, scaled by the planet's [ctx] (temperament + sacred). A NEUTRAL
+    // context (the default) leaves the base deltas unchanged, so no-arg callers behave exactly as before.
+
+    /** The player wounded one of the tribe's young — guardians stir (harder on a vengeful / child-sacred world). */
+    fun onChildHarmed(ctx: PlanetContext = PlanetContext.NEUTRAL) {
+        childHarmed = true; hostility = bump(hostility, SocietyImpact.childHarmed(CHILD_HARM, ctx))
+    }
 
     /** The player killed one of the tribe's young — the gravest offence. */
-    fun onChildKilled() { childKilled = true; childHarmed = true; hostility = bump(hostility, 0.8f) }
+    fun onChildKilled(ctx: PlanetContext = PlanetContext.NEUTRAL) {
+        childKilled = true; childHarmed = true; hostility = bump(hostility, SocietyImpact.childKilled(CHILD_KILL, ctx))
+    }
 
     /** A wild predator is stalking a child — recorded so guardians can be roused. */
     fun onWildPredatorThreatenedChild() { wildPredatorThreatenedChild = true }
 
     /** A predator fell near a child (often the player driving it off) — the tribe takes note kindly. */
-    fun onPredatorRepelledNearChild() { predatorKilledNearChild = true; mercy = bump(mercy, 0.4f) }
+    fun onPredatorRepelledNearChild(ctx: PlanetContext = PlanetContext.NEUTRAL) {
+        predatorKilledNearChild = true; mercy = bump(mercy, SocietyImpact.predatorRepelled(PRED_REPEL, ctx))
+    }
 
     /** Defenceless young of the wild were killed — the wilderness stirs. */
-    fun onHatchlingKilled() { hatchlingKilled = true; ecologicalDisruption = bump(ecologicalDisruption, 0.3f) }
+    fun onHatchlingKilled(ctx: PlanetContext = PlanetContext.NEUTRAL) {
+        hatchlingKilled = true; ecologicalDisruption = bump(ecologicalDisruption, SocietyImpact.nestHarmed(NEST_HARM, ctx))
+    }
 
     /** A nest-guardian fell — its young are exposed, the wild grows restless. */
-    fun onNestMotherKilled() { nestMotherKilled = true; ecologicalDisruption = bump(ecologicalDisruption, 0.3f); hostility = bump(hostility, 0.2f) }
+    fun onNestMotherKilled(ctx: PlanetContext = PlanetContext.NEUTRAL) {
+        nestMotherKilled = true
+        ecologicalDisruption = bump(ecologicalDisruption, SocietyImpact.nestHarmed(NEST_HARM, ctx))
+        hostility = bump(hostility, SocietyImpact.nestHarmed(NEST_MOTHER_HOST, ctx))
+    }
 
-    /** The apex was slain — the food web is thrown badly out of balance. */
-    fun onApexKilled() { apexKilled = true; ecologicalDisruption = bump(ecologicalDisruption, 0.5f) }
+    /** The apex was slain — the food web is thrown badly out of balance (worse where the apex is sacred). */
+    fun onApexKilled(ctx: PlanetContext = PlanetContext.NEUTRAL) {
+        apexKilled = true; ecologicalDisruption = bump(ecologicalDisruption, SocietyImpact.apexKilled(APEX_DISRUPT, ctx))
+    }
+
+    /** The planet's relic was carried off — a slight affront, sharper where the relic is held sacred. */
+    fun onRelicClaimed(ctx: PlanetContext = PlanetContext.NEUTRAL) {
+        relicClaimed = true; hostility = bump(hostility, SocietyImpact.relicClaimed(RELIC_CLAIM, ctx))
+    }
 
     private fun bump(v: Float, by: Float) = (v + by).coerceIn(0f, 1f)
+
+    companion object {
+        private const val CHILD_HARM = 0.3f       // base hostility from wounding a child
+        private const val CHILD_KILL = 0.8f       // base hostility from killing a child
+        private const val PRED_REPEL = 0.4f       // base mercy from driving a predator off a child
+        private const val NEST_HARM = 0.3f        // base disruption from a slain hatchling / nest mother
+        private const val NEST_MOTHER_HOST = 0.2f // base hostility from a slain nest mother
+        private const val APEX_DISRUPT = 0.5f     // base disruption from felling the apex
+        private const val RELIC_CLAIM = 0.15f     // base hostility from carrying off the relic
+    }
 
     /** A deep copy — used to seed a fresh surface visit from a planet's remembered state without aliasing it. */
     fun copyState(): PlanetSocietyState = PlanetSocietyState(

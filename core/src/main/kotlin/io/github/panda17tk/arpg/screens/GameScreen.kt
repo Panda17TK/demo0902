@@ -57,6 +57,8 @@ import io.github.panda17tk.arpg.sim.FacilityKind
 import io.github.panda17tk.arpg.sim.PlanetContext
 import io.github.panda17tk.arpg.sim.PlanetMemoryBook
 import io.github.panda17tk.arpg.sim.ReturnSpawn
+import io.github.panda17tk.arpg.sim.ReturnVisitLine
+import io.github.panda17tk.arpg.sim.SocietySpeechLines
 import io.github.panda17tk.arpg.sim.SurfaceObjective
 import io.github.panda17tk.arpg.sim.Tuning
 import io.github.panda17tk.arpg.sim.WorldMode
@@ -73,6 +75,7 @@ import kotlin.math.sin
 
 /** Half-extent of the toroidal box the drifting debris wraps within (matches WorldFactory's seed range). */
 private const val DRIFT_RANGE = 1400f
+private const val REMEMBERED_TIME = 5f // seconds the HUD greets a returning player on a remembered planet
 
 /**
  * Fixed-timestep simulation + render interpolation, porting the legacy main.js loop.
@@ -196,6 +199,7 @@ class GameScreen : ScreenAdapter() {
     private var returnSpawn: Pair<Float, Float>? = null // where to re-emerge in space after taking off
     private val planetMemory = PlanetMemoryBook() // per-planet society memory, persists across landings this run
     private var landedPlanetId: Long? = null      // id of the planet we're on, so takeoff folds memory back in
+    private var rememberedT = 0f                  // seconds left to show the return-visit greeting in the HUD
 
     /** Land on the hovered planet (SPACE) or take off from the escape pad (SURFACE), carrying run state across. */
     private fun handleLanding() {
@@ -205,8 +209,14 @@ class GameScreen : ScreenAdapter() {
             returnSpawn = ReturnSpawn.beside(cand) // remember where to re-emerge on takeoff
             surfSeed += 1
             landedPlanetId = cand.id
+            val known = planetMemory.knows(cand.id)
+            val recalled = planetMemory.recall(cand.id)
             transitionWorld(WorldMode.SURFACE, cand.biome, surfSeed, null, cand.context)
-            gw.worldState.society = planetMemory.recall(cand.id) // seed this visit from the planet's remembered state
+            gw.worldState.society = recalled // seed this visit from the planet's remembered state
+            // Return-visit payoff: a remembered planet greets the player by reputation (shown briefly in the HUD).
+            gw.worldState.rememberedPlanet = known
+            gw.worldState.returnVisitGreeting = if (known) SocietySpeechLines.returnGreeting(recalled) else null
+            rememberedT = if (known && ReturnVisitLine.hudLine(recalled) != null) REMEMBERED_TIME else 0f
         } else {
             if (!playerOnEscapePad()) return // must stand on the escape pad to leave the surface
             landedPlanetId?.let { planetMemory.remember(it, gw.worldState.society) } // fold the visit back into memory
@@ -282,6 +292,8 @@ class GameScreen : ScreenAdapter() {
         }
         // flow the cosmetic debris/asteroid field around the player (space only; wraps toroidally)
         if (!paused) gw.worldState.drift?.let { Drift.advance(it, px, py, DRIFT_RANGE, delta) }
+        // The return-visit greeting fades after a few seconds, then the surface objective reverts to normal.
+        if (rememberedT > 0f && !paused) { rememberedT -= delta; if (rememberedT <= 0f) gw.worldState.rememberedPlanet = false }
         val playerHit = pit > 0f && ((pit * 20f).toInt() % 2 == 0)
         val dashing = input.dash && sta > 0f
         val muzzle = input.fire
@@ -635,7 +647,7 @@ class GameScreen : ScreenAdapter() {
             val onPad = ws.mode == WorldMode.SURFACE && playerOnEscapePad()
             val hint = when {
                 onPad -> "[L] 脱出パッドから離陸して宇宙へ"
-                ws.mode == WorldMode.SURFACE && biome != null -> SurfaceObjective.hudLine(biome, elites, ws.society)
+                ws.mode == WorldMode.SURFACE && biome != null -> SurfaceObjective.hudLine(biome, elites, ws.society, ws.context ?: PlanetContext.NEUTRAL, ws.rememberedPlanet)
                 ws.mode == WorldMode.SURFACE -> "[L] 離陸して宇宙へ"
                 ws.landingCandidate != null -> "[L] 着陸: ${ws.landingCandidate!!.biome.displayName}"
                 else -> null

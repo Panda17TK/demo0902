@@ -14,6 +14,7 @@ import io.github.panda17tk.arpg.ecs.components.Smoke
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.math.Rng
 import io.github.panda17tk.arpg.sim.Consequence
+import io.github.panda17tk.arpg.sim.PlanetContext
 import io.github.panda17tk.arpg.sim.WorldState
 import kotlin.math.abs
 
@@ -52,7 +53,9 @@ class PickupSystem : IteratingSystem(family { all(Pickup, Transform) }) {
 
     /** A planet material's boon — small permanent stat gains; a lonely relic rolls a random one. */
     private fun applyMaterial(p: Entity, kind: String) {
-        worldState.society.relicClaimed = true // the planet's relic has been claimed → objective points to the pad
+        // Claim the relic: sets relicClaimed (→ objective points to the pad) + a little hostility, sharper on a
+        // relic-sacred world (the planet minds its treasure being carried off).
+        worldState.society.onRelicClaimed(worldState.context ?: PlanetContext.NEUTRAL)
         val mult = Consequence.materialMultiplier(worldState.society) // a slain apex → richer spoils (at a cost)
         val k = if (kind == "mat_lonely") LONELY_ROLL[rng.nextInt(LONELY_ROLL.size)] else kind
         with(world) {

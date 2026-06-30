@@ -9,6 +9,7 @@ import io.github.panda17tk.arpg.config.WildRole
 import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Mob
 import io.github.panda17tk.arpg.ecs.components.Transform
+import io.github.panda17tk.arpg.sim.PlanetContext
 import io.github.panda17tk.arpg.sim.WorldMode
 import io.github.panda17tk.arpg.sim.WorldState
 
@@ -28,6 +29,7 @@ class EcologyEventSystem : IntervalSystem() {
     override fun onTick() {
         if (worldState.mode != WorldMode.SURFACE) return
         val soc = worldState.society
+        val ctx = worldState.context ?: PlanetContext.NEUTRAL // scales each deed by the planet's character
         // Pass 1: where are the society's children right now?
         val childX = ArrayList<Float>(); val childY = ArrayList<Float>()
         mobs.forEach { e ->
@@ -48,18 +50,18 @@ class EcologyEventSystem : IntervalSystem() {
                 if (prev != null && prev > 0f && hp <= 0f) {
                     // died this tick (caught just before MobDamageSystem reaps it)
                     when {
-                        m.def.familyRole == FamilyRole.CHILD -> soc.onChildKilled()
+                        m.def.familyRole == FamilyRole.CHILD -> soc.onChildKilled(ctx)
                         m.def.familyRole == FamilyRole.KING -> soc.leaderDefeated = true
                     }
                     if (wild) when (m.def.wildRole) {
-                        WildRole.APEX -> soc.onApexKilled()
-                        WildRole.HATCHLING -> soc.onHatchlingKilled()
-                        WildRole.NEST_GUARD -> soc.onNestMotherKilled()
+                        WildRole.APEX -> soc.onApexKilled(ctx)
+                        WildRole.HATCHLING -> soc.onHatchlingKilled(ctx)
+                        WildRole.NEST_GUARD -> soc.onNestMotherKilled(ctx)
                         else -> {}
                     }
-                    if (wildHunter && nearAChild(t.x, t.y, REPEL_RANGE)) soc.onPredatorRepelledNearChild()
+                    if (wildHunter && nearAChild(t.x, t.y, REPEL_RANGE)) soc.onPredatorRepelledNearChild(ctx)
                 } else if (prev != null && hp > 0f && hp < prev) {
-                    if (m.def.familyRole == FamilyRole.CHILD) soc.onChildHarmed()
+                    if (m.def.familyRole == FamilyRole.CHILD) soc.onChildHarmed(ctx)
                 }
                 if (hp > 0f && wildHunter && nearAChild(t.x, t.y, THREAT_RANGE)) soc.onWildPredatorThreatenedChild()
                 prevHp[e] = hp

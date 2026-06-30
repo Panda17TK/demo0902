@@ -20,4 +20,8 @@ class WorldState(
     var drift: DriftField? = null,
     /** On a SURFACE, the landed planet's character (temperament/sacred/story) — drives ecology, AI, speech. */
     var context: PlanetContext? = null,
+    /** On a SURFACE just landed on a remembered planet, true briefly so the HUD greets the player by reputation. */
+    var rememberedPlanet: Boolean = false,
+    /** On a SURFACE, the return-visit greeting this planet's memory warrants (null on a first visit / faint memory). */
+    var returnVisitGreeting: SocietySpeechTrigger? = null,
 )
