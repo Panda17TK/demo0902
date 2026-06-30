@@ -13,11 +13,13 @@ import io.github.panda17tk.arpg.ecs.components.PlayerTag
 import io.github.panda17tk.arpg.ecs.components.Smoke
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.math.Rng
+import io.github.panda17tk.arpg.sim.WorldState
 import kotlin.math.abs
 
 /** Auto-collects pickups when the player walks near; despawns stale ones. Planet materials grant small boons. */
 class PickupSystem : IteratingSystem(family { all(Pickup, Transform) }) {
     private val rng: Rng = world.inject()
+    private val worldState: WorldState = world.inject()
     private val players by lazy { world.family { all(PlayerTag, Transform, Health, Ammo, Materials, Buff, Mods) } }
 
     override fun onTickEntity(entity: Entity) {
@@ -49,6 +51,7 @@ class PickupSystem : IteratingSystem(family { all(Pickup, Transform) }) {
 
     /** A planet material's boon — small permanent stat gains; a lonely relic rolls a random one. */
     private fun applyMaterial(p: Entity, kind: String) {
+        worldState.society.relicClaimed = true // the planet's relic has been claimed → objective points to the pad
         val k = if (kind == "mat_lonely") LONELY_ROLL[rng.nextInt(LONELY_ROLL.size)] else kind
         with(world) {
             when (k) {

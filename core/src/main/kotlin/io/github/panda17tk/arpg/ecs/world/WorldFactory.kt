@@ -25,6 +25,7 @@ import io.github.panda17tk.arpg.ecs.systems.AISystem
 import io.github.panda17tk.arpg.ecs.systems.BaseSystem
 import io.github.panda17tk.arpg.ecs.systems.BuildSystem
 import io.github.panda17tk.arpg.ecs.systems.EBulletSystem
+import io.github.panda17tk.arpg.ecs.systems.EcologyEventSystem
 import io.github.panda17tk.arpg.ecs.systems.FireSystem
 import io.github.panda17tk.arpg.ecs.systems.FlowRebuildSystem
 import io.github.panda17tk.arpg.ecs.systems.GameOverSystem
@@ -136,6 +137,7 @@ object WorldFactory {
             }
             systems {
                 add(SnapshotSystem())
+                add(EcologyEventSystem()) // record ecology events into society memory before the dead are reaped
                 add(MobDamageSystem(mobGrid))
                 add(GameOverSystem())
                 add(MovementSystem())
