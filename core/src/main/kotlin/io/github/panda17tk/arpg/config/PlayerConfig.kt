@@ -11,7 +11,7 @@ data class PlayerConfig(
     val hpMax: Float = 100f,
     val staMax: Float = 300f,
     val staDrain: Float = 35f,
-    val staRegen: Float = 22f,
+    val staRegen: Float = 44f,
     val meleeDmg: Float = 22f,
     val meleeReach: Float = 51f,
     val meleeCd: Float = 0.32f,

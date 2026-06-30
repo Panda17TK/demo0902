@@ -35,13 +35,11 @@ class ReloadSystem : IteratingSystem(family { all(PlayerTag, Arsenal, Ammo) }) {
         if (w.reloadT > 0f) return
         if (w.mag >= size || (!w.def.infiniteAmmo && ammo.get(w.def.ammoType) <= 0)) { w.autoReloadTimer = 0f; return }
         val time = if (w.def.reloadTime > 0f) w.def.reloadTime else config.player.autoReloadDelay
+        // Auto-reload ONLY when the magazine is shot dry; a manual reload (R / button) is still allowed any time.
+        // No quiet-delay auto-reload — stopping fire with rounds left keeps them chambered.
         when {
-            w.mag <= 0 -> { w.reloadT = time; w.autoReloadTimer = 0f }               // out of ammo → auto-reload now
+            w.mag <= 0 -> { w.reloadT = time; w.autoReloadTimer = 0f }               // out of ammo → auto-reload
             input.reload -> { w.reloadT = time * MANUAL_MUL; w.autoReloadTimer = 0f } // manual: faster
-            !input.fire -> {                                                          // auto-reload after a quiet delay
-                w.autoReloadTimer += deltaTime
-                if (w.autoReloadTimer >= config.player.autoReloadDelay) { w.reloadT = time; w.autoReloadTimer = 0f }
-            }
             else -> w.autoReloadTimer = 0f
         }
     }
