@@ -1,6 +1,8 @@
 package io.github.panda17tk.arpg.combat
 
 import io.github.panda17tk.arpg.map.TileMap
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -11,5 +13,21 @@ class BeamRayTest {
         val hit = BeamRay.cast(m, x = 16f, y = 48f, dirX = 1f, dirY = 0f, maxLen = 700f)
         assertTrue(hit.reach in 120f..150f, "reach ${hit.reach} should be near the wall face at x=160")
         assertTrue(hit.endX < 160f && hit.endX > 145f, "beam end ${hit.endX} must be just before the wall face")
+    }
+
+    @Test fun `beam reports the wall tile it stopped on`() {
+        val m = TileMap.fromRows(listOf(".....#....", ".....#....", ".....#...."))
+        val hit = BeamRay.cast(m, x = 16f, y = 48f, dirX = 1f, dirY = 0f, maxLen = 700f)
+        assertTrue(hit.hitWall, "should have hit a wall")
+        assertEquals(5, hit.wallTileX) // world 160..192 → tile x=5
+        assertEquals(1, hit.wallTileY) // y=48 → tile y=1
+    }
+
+    @Test fun `an unobstructed beam reaches max range and reports no wall`() {
+        val m = TileMap.fromRows(listOf("..........", "..........", ".........."))
+        val hit = BeamRay.cast(m, x = 16f, y = 48f, dirX = 1f, dirY = 0f, maxLen = 120f)
+        assertFalse(hit.hitWall, "open space → no wall")
+        assertEquals(-1, hit.wallTileX)
+        assertEquals(120f, hit.reach, 1e-3f)
     }
 }

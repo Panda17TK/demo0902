@@ -28,4 +28,24 @@ object Explosion {
             if (d <= r) Tiles.damageTile(map, tx, ty, cfg.explodeWallDmg * (1f - d / r))
         }
     }
+
+    /**
+     * Flatten EVERY destructible WALL whose centre lies within [radius] of (x,y) — a clean crater rather than a
+     * falloff (used by the beam's impact blast). Indestructible (∞-HP) border walls are left alone. Returns true
+     * if any wall broke (so the caller can rebuild the flow field).
+     */
+    fun blastWalls(map: TileMap, x: Float, y: Float, radius: Float): Boolean {
+        var broke = false
+        val tx0 = maxOf(1, floor((x - radius) / Tuning.TILE).toInt())
+        val ty0 = maxOf(1, floor((y - radius) / Tuning.TILE).toInt())
+        val tx1 = minOf(map.width - 2, floor((x + radius) / Tuning.TILE).toInt())
+        val ty1 = minOf(map.height - 2, floor((y + radius) / Tuning.TILE).toInt())
+        for (ty in ty0..ty1) for (tx in tx0..tx1) {
+            if (map.tileAt(tx, ty) != Tile.WALL) continue
+            val cx = tx * Tuning.TILE + Tuning.TILE / 2f
+            val cy = ty * Tuning.TILE + Tuning.TILE / 2f
+            if (hypot(cx - x, cy - y) <= radius && Tiles.damageTile(map, tx, ty, Float.MAX_VALUE).broke) broke = true
+        }
+        return broke
+    }
 }

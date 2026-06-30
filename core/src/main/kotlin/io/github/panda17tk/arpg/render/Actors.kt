@@ -23,6 +23,9 @@ object Actors {
     private val GUN = Color.valueOf("2b3a50")
     private val GUN_TIP = Color.valueOf("1a2738")
     private val MUZZLE = Color.valueOf("fff1c0")
+    private val THRUST_OUT = Color(1f, 0.40f, 0.10f, 0.45f)  // soft orange plume (the trailing tail)
+    private val THRUST_MID = Color(1f, 0.62f, 0.18f, 0.80f)  // orange body
+    private val THRUST_CORE = Color(1f, 0.93f, 0.70f, 0.95f) // hot near-white nozzle
     private val EYE_DARK = Color.valueOf("16202e")
     private val RED_EYE = Color.valueOf("ff5a5a")
     private val BOSS_EYE = Color.valueOf("ffd166")
@@ -47,10 +50,22 @@ object Actors {
         s.color = pupil; s.circle(cx - spread + ex, cy + ry + ey, r, 8); s.circle(cx + spread + ex, cy + ry + ey, r, 8)
     }
 
-    fun drawPlayer(s: ShapeRenderer, x: Float, y: Float, faceX: Float, faceY: Float, dashing: Boolean, hitFlash: Boolean, muzzle: Boolean) {
+    fun drawPlayer(s: ShapeRenderer, x: Float, y: Float, faceX: Float, faceY: Float, dashing: Boolean, hitFlash: Boolean, muzzle: Boolean, t: Float = 0f) {
         val r = Tuning.PLAYER_RADIUS; val w = r * 2f; val h = r * 2f
         s.color = SHADOW; ellipseC(s, x, y + h / 2f - 1f, w * 0.46f, h * 0.18f)
-        if (dashing) { s.color = dashTmp.set(PLAYER).also { it.a = 0.25f }; Draw.roundedRect(s, x - faceX * 8f - w / 2f, y - faceY * 8f - h / 2f, w, h, 5f) }
+        if (dashing) {
+            s.color = dashTmp.set(PLAYER).also { it.a = 0.25f }; Draw.roundedRect(s, x - faceX * 8f - w / 2f, y - faceY * 8f - h / 2f, w, h, 5f)
+            // Two thruster flames out the back (opposite facing), one off each shoulder, with a slight flicker tail.
+            val bx = -faceX; val by = -faceY; val perpX = -faceY; val perpY = faceX
+            val flick = 0.82f + 0.18f * sin(t * 42f)
+            for (sgn in intArrayOf(-1, 1)) {
+                val nx = x + bx * (r * 0.55f) + perpX * sgn * r * 0.42f
+                val ny = y + by * (r * 0.55f) + perpY * sgn * r * 0.42f
+                s.color = THRUST_OUT; s.circle(nx + bx * 9f * flick, ny + by * 9f * flick, r * 0.30f * flick, 8)  // trailing tail
+                s.color = THRUST_MID; s.circle(nx + bx * 5f * flick, ny + by * 5f * flick, r * 0.40f * flick, 8)  // body
+                s.color = THRUST_CORE; s.circle(nx + bx * 1.5f, ny + by * 1.5f, r * 0.26f * flick, 8)             // hot nozzle
+            }
+        }
         s.color = GUN; Draw.orientedRect(s, x, y, faceX, faceY, 6f, 12f, 2.5f)
         s.color = GUN_TIP; Draw.orientedRect(s, x, y, faceX, faceY, 15f, 3f, 1.5f)
         if (muzzle) { s.color = MUZZLE; Draw.orientedRect(s, x, y, faceX, faceY, 18f, 6f, 3.5f) }

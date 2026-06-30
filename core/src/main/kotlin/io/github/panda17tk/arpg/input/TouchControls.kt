@@ -36,6 +36,9 @@ class TouchControls {
     private var prevWall = false
     private var prevWeapon = false
     private var prevLand = false
+    private var prevAiming = false // for manual-fire weapons: detect the frame the aim stick is released
+    private var lastAimX = 1f
+    private var lastAimY = 0f
     private var weaponIdx = 0
     private val tmpVec = Vector3()
 
@@ -72,7 +75,9 @@ class TouchControls {
                     TouchButton.WALL -> wall = true
                     TouchButton.WEAPON -> weapon = true
                     TouchButton.LAND -> land = true
-                    else -> if (aimPointer == -1 && !layout.isInStickZone(x, y)) {
+                    // Never let a tap on the LAND button's spot get stolen by the aim stick (which would lock the
+                    // pointer to fire and make landing impossible on touch). Ignore it on the frames it's not landable.
+                    else -> if (aimPointer == -1 && !layout.isInStickZone(x, y) && layout.button(x, y) != TouchButton.LAND) {
                         aimPointer = i; aimBaseX = x; aimBaseY = y; aimKnobX = x; aimKnobY = y; aim = true
                     }
                 }
@@ -98,9 +103,19 @@ class TouchControls {
             if (len > layout.stickRadius * AIM_DEAD) {
                 input.aiming = true
                 input.aimX = dx / len; input.aimY = -dy / len // touch is y-up, world is y-down → flip Y
+                lastAimX = input.aimX; lastAimY = input.aimY
                 input.fire = true
             }
         }
+        // Manual-fire weapons (beam/grenade) shoot when you RELEASE the aim stick: emit a one-frame release edge
+        // and hold the last aim so Facing (and thus the shot) stays pointed where you were aiming.
+        val aimingNow = input.aiming
+        if (prevAiming && !aimingNow) {
+            input.fireRelease = true
+            input.aiming = true
+            input.aimX = lastAimX; input.aimY = lastAimY
+        }
+        prevAiming = aimingNow
         if (dash) input.dash = true
         if (melee && !prevMelee) input.melee = true
         if (reload && !prevReload) input.reload = true
@@ -116,6 +131,7 @@ class TouchControls {
             if (reload) add(TouchButton.RELOAD)
             if (wall) add(TouchButton.WALL)
             if (weapon) add(TouchButton.WEAPON)
+            if (land) add(TouchButton.LAND) // feedback parity: LAND also buzzes + highlights on press
         }
         if ((pressed - prevPressed).isNotEmpty()) Haptics.buzz(18)
         prevPressed = pressed

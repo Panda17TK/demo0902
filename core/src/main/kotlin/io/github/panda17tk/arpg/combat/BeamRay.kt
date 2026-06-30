@@ -4,7 +4,10 @@ import io.github.panda17tk.arpg.map.TileMap
 import io.github.panda17tk.arpg.sim.Tuning
 import kotlin.math.floor
 
-data class BeamHit(val endX: Float, val endY: Float, val reach: Float)
+/** [wallTileX]/[wallTileY] are the solid tile the beam stopped on (-1 if it reached max range hitting nothing). */
+data class BeamHit(val endX: Float, val endY: Float, val reach: Float, val wallTileX: Int = -1, val wallTileY: Int = -1) {
+    val hitWall: Boolean get() = wallTileX >= 0
+}
 
 /** Ray-march to the first solid tile (legacy beam). step=6, walks until a wall or maxLen. */
 object BeamRay {
@@ -15,7 +18,7 @@ object BeamRay {
         while (t < maxLen) {
             cx += dirX * STEP; cy += dirY * STEP
             val tx = floor(cx / Tuning.TILE).toInt(); val ty = floor(cy / Tuning.TILE).toInt()
-            if (map.solidAt(tx, ty)) { reach = t; break }
+            if (map.solidAt(tx, ty)) { return BeamHit(ex, ey, t, tx, ty) } // stop at the wall, report which tile
             ex = cx; ey = cy
             t += STEP
         }

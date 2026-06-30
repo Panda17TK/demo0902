@@ -1,9 +1,11 @@
 package io.github.panda17tk.arpg.ecs.systems
 
+import com.badlogic.gdx.graphics.Color
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.IteratingSystem
 import com.github.quillraven.fleks.World.Companion.family
 import io.github.panda17tk.arpg.combat.BeamRay
+import io.github.panda17tk.arpg.combat.Explosion
 import io.github.panda17tk.arpg.combat.Firing
 import io.github.panda17tk.arpg.combat.MobDamage
 import io.github.panda17tk.arpg.config.GameConfig
@@ -25,11 +27,13 @@ import io.github.panda17tk.arpg.ecs.components.Velocity
 import io.github.panda17tk.arpg.input.InputState
 import io.github.panda17tk.arpg.map.TileMap
 import io.github.panda17tk.arpg.math.Rng
+import io.github.panda17tk.arpg.pathfinding.FlowField
 import io.github.panda17tk.arpg.pathfinding.SpatialGrid
 import io.github.panda17tk.arpg.sim.Tuning
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.floor
 import kotlin.math.hypot
 import kotlin.math.sin
 
@@ -41,16 +45,21 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
     private val rng: Rng = world.inject()
     private val config: GameConfig = world.inject()
     private val fx: Fx = world.inject()
+    private val flow: FlowField = world.inject()
 
     override fun onTickEntity(entity: Entity) {
         val cd = entity[Cooldowns]
         if (cd.shoot > 0f) cd.shoot -= deltaTime
-        if (!input.fire || cd.shoot > 0f) return
+
+        val arsenal = entity[Arsenal]
+        val w = arsenal.current; val def = w.def
+        // Manual-fire weapons (beam/grenade) shoot on the release edge; everything else fires while held.
+        val triggered = if (def.manualFire) input.fireRelease else input.fire
+        if (!triggered || cd.shoot > 0f) return
+        if (w.reloadT > 0f) return // can't fire mid-reload
 
         val t = entity[Transform]; val f = entity[Facing]
-        val arsenal = entity[Arsenal]; val ammo = entity[Ammo]; val mods = entity[Mods]
-        val w = arsenal.current; val def = w.def
-        if (w.reloadT > 0f) return // can't fire mid-reload
+        val ammo = entity[Ammo]; val mods = entity[Mods]
         val aim = atan2(f.y, f.x)
         val dirX = cos(aim); val dirY = sin(aim)
 
@@ -63,7 +72,7 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
                 fx.spawnBeam(t.x, t.y, t.x + dirX * hit.reach, t.y + dirY * hit.reach)
 
                 // --- Beam vs mob: query mobs near the ray, check projection + perpendicular distance ---
-                // Port of legacy combat.js beam mob loop (lines ~185-205). Single hit (multi-hit is a later refinement).
+                // The beam PIERCES enemies: every mob along the ray (up to the wall) is hurt — no break.
                 mobGrid.forNearby(t.x, t.y, hit.reach + 32f) { mobEntity ->
                     val mobT = with(world) { mobEntity[Transform] }
                     val mobB = with(world) { mobEntity[Body] }
@@ -78,6 +87,29 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
                     val mobA = with(world) { mobEntity[MobAction] }
                     val mobDodge = with(world) { mobEntity[Mob].def.dodge }
                     MobDamage.hurt(mobH, mobV, mobA, mobDodge, def.dmg * mods.gunMul, 0f, 0f, 0f, rng.nextFloat())
+                }
+
+                // Beam doesn't pierce walls: it stops at one and detonates. One-shot the hit wall and carve a
+                // radius-2 blast crater at the impact point (clears walls + damages mobs), punching a hole in cover.
+                if (hit.hitWall) {
+                    val bx = (hit.wallTileX + 0.5f) * Tuning.TILE; val by = (hit.wallTileY + 0.5f) * Tuning.TILE
+                    val r = Tuning.TILE * BEAM_BLAST_TILES
+                    val broke = Explosion.blastWalls(map, bx, by, r)
+                    mobGrid.forNearby(bx, by, r + 24f) { mobEntity ->
+                        val mobT = with(world) { mobEntity[Transform] }
+                        val ddx = mobT.x - bx; val ddy = mobT.y - by; val d = hypot(ddx, ddy)
+                        if (d < r) {
+                            val fall = 1f - d / r
+                            val mobH = with(world) { mobEntity[Health] }
+                            val mobV = with(world) { mobEntity[Velocity] }
+                            val mobA = with(world) { mobEntity[MobAction] }
+                            val mobDodge = with(world) { mobEntity[Mob].def.dodge }
+                            val nx = if (d > 0f) ddx / d else dirX; val ny = if (d > 0f) ddy / d else dirY
+                            MobDamage.hurt(mobH, mobV, mobA, mobDodge, BEAM_BLAST_DMG * fall, nx, ny, 240f * fall, rng.nextFloat())
+                        }
+                    }
+                    if (broke) flow.rebuild(map, floor(t.x / Tuning.TILE).toInt(), floor(t.y / Tuning.TILE).toInt())
+                    fx.addShake(0.16f, 6f); fx.spawnSparks(bx, by, 12, BEAM_SPARK)
                 }
             }
             "grenade" -> {
@@ -101,5 +133,11 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
                 }
             }
         }
+    }
+
+    companion object {
+        private const val BEAM_BLAST_TILES = 2f // radius-2-tile impact crater
+        private const val BEAM_BLAST_DMG = 64f  // splash damage at the blast centre (0 at the rim)
+        private val BEAM_SPARK = Color.valueOf("9fe8ff") // pale-cyan beam-impact sparks
     }
 }

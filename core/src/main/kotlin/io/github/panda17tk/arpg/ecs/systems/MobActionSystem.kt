@@ -15,11 +15,12 @@ import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.ecs.components.Velocity
 import io.github.panda17tk.arpg.map.TileMap
 import io.github.panda17tk.arpg.sim.Collision
+import io.github.panda17tk.arpg.sim.Tuning
 import kotlin.math.hypot
 import kotlin.math.min
 
 /** Progresses multi-frame mob actions (legacy updateMobActions): charge_melee strike, blink move, dodge timers. */
-class MobActionSystem : IteratingSystem(family { all(Mob, Transform, MobAction, Body) }) {
+class MobActionSystem : IteratingSystem(family { all(Mob, Transform, MobAction, Body, Velocity) }) {
     private val map: TileMap = world.inject()
     private val config: GameConfig = world.inject()
     private val fx: Fx = world.inject()
@@ -28,6 +29,21 @@ class MobActionSystem : IteratingSystem(family { all(Mob, Transform, MobAction, 
     override fun onTickEntity(entity: Entity) {
         val t = entity[Transform]; val m = entity[Mob]; val a = entity[MobAction]; val b = entity[Body]
         val dt = deltaTime
+
+        // Dash-ram: a dashing player barging into a mob shoves it back (no damage — just a hard knockback). Governs
+        // the mob's away-velocity up to DASH_RAM_KB rather than accumulating, so a sustained overlap won't fling it.
+        val mv = entity[Velocity]
+        players.forEach { e ->
+            if (!e[PlayerTag].dashing) return@forEach
+            val pt = e[Transform]
+            val dx = t.x - pt.x; val dy = t.y - pt.y
+            val d = hypot(dx, dy)
+            if (d < (b.halfW + b.halfH) * 0.5f + Tuning.PLAYER_RADIUS + DASH_RAM_PAD) {
+                val dd = d.coerceAtLeast(0.0001f); val ux = dx / dd; val uy = dy / dd
+                val away = mv.vx * ux + mv.vy * uy
+                if (away < DASH_RAM_KB) { mv.vx += ux * (DASH_RAM_KB - away); mv.vy += uy * (DASH_RAM_KB - away) }
+            }
+        }
 
         // charge_melee: wind up, then strike
         if (a.chargeT > 0f) {
@@ -74,5 +90,10 @@ class MobActionSystem : IteratingSystem(family { all(Mob, Transform, MobAction, 
         // boss enrage / guard timers (Phase 6c)
         if (a.enrageT > 0f) a.enrageT -= dt
         if (a.guardT > 0f) a.guardT -= dt
+    }
+
+    companion object {
+        private const val DASH_RAM_KB = 340f  // away-speed imparted to a mob the dashing player rams
+        private const val DASH_RAM_PAD = 3f   // extra contact margin beyond the two radii
     }
 }
