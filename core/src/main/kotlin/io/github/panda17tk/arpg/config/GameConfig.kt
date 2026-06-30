@@ -369,4 +369,141 @@ private fun defaultEnemies(): Map<String, EnemyDef> = mapOf(
         seeRange = 300f, contactKB = 150f, gravityResponse = 1.0f,
         lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.HERD, diet = Diet.HERBIVORE, herdAffinity = 0.85f, fear = 0.85f, biome = PlanetBiome.ICE,
     ),
+
+    // --- MAGMA: a molten food web — skittish lizards, a stone-eating herd, a serpent hunter, fragile hatchlings. ---
+    "ash_lizard" to EnemyDef(
+        name = "灰トカゲ", tier = "normal", color = "#c2734a", hp = 30f, speed = 100f, w = 18f, h = 16f,
+        seeRange = 260f, contactKB = 120f, gravityResponse = 0.9f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREY, diet = Diet.ENERGY, herdAffinity = 0.4f, fear = 0.9f, biome = PlanetBiome.MAGMA,
+    ),
+    "basalt_ram" to EnemyDef(
+        name = "玄武岩の角", tier = "normal", color = "#8a5a44", hp = 96f, speed = 76f, w = 26f, h = 24f,
+        seeRange = 300f, contactKB = 240f, gravityResponse = 1.1f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.HERD, diet = Diet.MINERAL, herdAffinity = 0.85f, fear = 0.5f, biome = PlanetBiome.MAGMA,
+    ),
+    "lava_serpent" to EnemyDef(
+        name = "溶岩の蛇", tier = "normal", color = "#e0612a", hp = 80f, speed = 98f, w = 24f, h = 20f,
+        seeRange = 360f, contactKB = 240f, gravityResponse = 0.8f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREDATOR, diet = Diet.CARNIVORE, herdAffinity = 0.3f, fear = 0.2f, biome = PlanetBiome.MAGMA,
+        attacks = listOf(
+            AttackSpec("lunge", cd = 3.0f, range = 120f, power = 400f),
+            AttackSpec("melee", cd = 0.9f, dmg = 14f, range = 18f, arc = 360f),
+        ),
+    ),
+    "crater_hatchling" to EnemyDef(
+        name = "火口の雛", tier = "normal", color = "#f0a050", hp = 18f, speed = 88f, w = 14f, h = 14f,
+        seeRange = 220f, contactKB = 90f, gravityResponse = 0.8f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.HATCHLING, diet = Diet.OMNIVORE, herdAffinity = 0.7f, fear = 1.0f, biome = PlanetBiome.MAGMA,
+    ),
+
+    // --- ICE: prey, a shaggy herd, a stalking hunter, and a rare great worm at the top. ---
+    "sleeping_calf" to EnemyDef(
+        name = "眠り仔", tier = "normal", color = "#cfe2ee", hp = 40f, speed = 78f, w = 18f, h = 16f,
+        seeRange = 240f, contactKB = 120f, gravityResponse = 1.0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREY, diet = Diet.HERBIVORE, herdAffinity = 0.7f, fear = 0.8f, biome = PlanetBiome.ICE,
+    ),
+    "ice_muskox" to EnemyDef(
+        name = "氷ジャコウウシ", tier = "normal", color = "#bcd6e6", hp = 110f, speed = 70f, w = 28f, h = 26f,
+        seeRange = 300f, contactKB = 260f, gravityResponse = 1.1f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.HERD, diet = Diet.HERBIVORE, herdAffinity = 0.9f, fear = 0.5f, biome = PlanetBiome.ICE,
+    ),
+    "white_stalker" to EnemyDef(
+        name = "白い追跡者", tier = "normal", color = "#dfeaf2", hp = 70f, speed = 100f, w = 22f, h = 20f,
+        seeRange = 380f, contactKB = 240f, gravityResponse = 0.9f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREDATOR, diet = Diet.CARNIVORE, herdAffinity = 0.35f, fear = 0.2f, biome = PlanetBiome.ICE,
+        attacks = listOf(
+            AttackSpec("lunge", cd = 3.2f, range = 130f, power = 420f),
+            AttackSpec("melee", cd = 0.9f, dmg = 13f, range = 16f, arc = 360f),
+        ),
+    ),
+    "frost_worm" to EnemyDef(
+        name = "霜の大蟲", tier = "normal", color = "#9fc4d8", hp = 320f, speed = 64f, w = 34f, h = 30f,
+        seeRange = 400f, contactKB = 340f, gravityResponse = 0.7f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.APEX, diet = Diet.CARNIVORE, herdAffinity = 0.1f, fear = 0.05f, territoryRadius = 240f, biome = PlanetBiome.ICE,
+        attacks = listOf(
+            AttackSpec("charge_melee", cd = 3.4f, range = 90f, reach = 38f, windup = 0.7f, dmg = 22f, kb = 420f),
+            AttackSpec("melee", cd = 0.8f, dmg = 18f, range = 26f, arc = 360f),
+        ),
+    ),
+
+    // --- GAS: a floating, strange food web — drifting plankton, gliding rays, an electric eel hunter, frail whelps. ---
+    "cloud_plankton" to EnemyDef(
+        name = "雲プランクトン", tier = "normal", color = "#cfd8e8", hp = 14f, speed = 96f, w = 12f, h = 12f,
+        seeRange = 220f, contactKB = 70f, gravityResponse = 0f, // gas dwellers float free of gravity
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.SWARM, diet = Diet.ENERGY, herdAffinity = 0.8f, fear = 0.95f, biome = PlanetBiome.GAS,
+    ),
+    "storm_ray" to EnemyDef(
+        name = "嵐エイ", tier = "normal", color = "#a8b8d8", hp = 72f, speed = 84f, w = 28f, h = 22f,
+        seeRange = 300f, contactKB = 180f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.HERD, diet = Diet.ENERGY, herdAffinity = 0.85f, fear = 0.55f, biome = PlanetBiome.GAS,
+    ),
+    "thunder_eel" to EnemyDef(
+        name = "雷ウナギ", tier = "normal", color = "#c8b0f0", hp = 78f, speed = 102f, w = 24f, h = 18f,
+        seeRange = 360f, contactKB = 220f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREDATOR, diet = Diet.CARNIVORE, herdAffinity = 0.3f, fear = 0.2f, biome = PlanetBiome.GAS,
+        attacks = listOf(
+            AttackSpec("lunge", cd = 3.0f, range = 120f, power = 380f),
+            AttackSpec("melee", cd = 1.0f, dmg = 12f, range = 18f, arc = 360f),
+        ),
+    ),
+    "gravity_whelp" to EnemyDef(
+        name = "重力の仔", tier = "normal", color = "#b0c0e0", hp = 16f, speed = 90f, w = 13f, h = 13f,
+        seeRange = 220f, contactKB = 80f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.HATCHLING, diet = Diet.ENERGY, herdAffinity = 0.7f, fear = 1.0f, biome = PlanetBiome.GAS,
+    ),
+
+    // --- DEAD: a quiet scavenger/mimic ecosystem — carrion-eaters and ambushers, never crowded. ---
+    "bone_rat" to EnemyDef(
+        name = "骨ネズミ", tier = "normal", color = "#9a9488", hp = 22f, speed = 102f, w = 14f, h = 12f,
+        seeRange = 240f, contactKB = 90f, gravityResponse = 0.9f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.SCAVENGER, diet = Diet.SCAVENGER, herdAffinity = 0.5f, fear = 0.9f, biome = PlanetBiome.DEAD,
+    ),
+    "ash_crow" to EnemyDef(
+        name = "灰ガラス", tier = "normal", color = "#86807a", hp = 26f, speed = 110f, w = 16f, h = 14f,
+        seeRange = 280f, contactKB = 90f, gravityResponse = 0.5f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.SCAVENGER, diet = Diet.SCAVENGER, herdAffinity = 0.75f, fear = 0.85f, biome = PlanetBiome.DEAD,
+    ),
+    "grave_mimic" to EnemyDef(
+        name = "墓の擬態", tier = "normal", color = "#5d5a54", hp = 96f, speed = 70f, w = 24f, h = 22f,
+        seeRange = 200f, contactKB = 260f, gravityResponse = 1.4f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREDATOR, diet = Diet.CARNIVORE, herdAffinity = 0.1f, fear = 0.1f, territoryRadius = 120f, biome = PlanetBiome.DEAD,
+        attacks = listOf(
+            AttackSpec("charge_melee", cd = 3.6f, range = 80f, reach = 32f, windup = 0.8f, dmg = 18f, kb = 360f),
+        ),
+    ),
+    "ruin_parasite" to EnemyDef(
+        name = "廃墟の寄生体", tier = "normal", color = "#7a6f86", hp = 38f, speed = 96f, w = 16f, h = 16f,
+        seeRange = 300f, contactKB = 160f, gravityResponse = 0.8f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREDATOR, diet = Diet.CARNIVORE, herdAffinity = 0.4f, fear = 0.3f, biome = PlanetBiome.DEAD,
+        attacks = listOf(
+            AttackSpec("lunge", cd = 3.2f, range = 110f, power = 360f),
+            AttackSpec("melee", cd = 1.0f, dmg = 10f, range = 16f, arc = 360f),
+        ),
+    ),
+
+    // --- LONELY: sparse, mostly-noncombat encounters — a drifting moth, an old hound, a silent watcher, one last beast. ---
+    "star_moth" to EnemyDef(
+        name = "星蛾", tier = "normal", color = "#cdbfe6", hp = 18f, speed = 92f, w = 14f, h = 14f,
+        seeRange = 220f, contactKB = 70f, gravityResponse = 0.4f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREY, diet = Diet.ENERGY, herdAffinity = 0.4f, fear = 0.95f, biome = PlanetBiome.LONELY,
+    ),
+    "old_hound" to EnemyDef(
+        name = "老いた猟犬", tier = "normal", color = "#8a7f72", hp = 56f, speed = 74f, w = 22f, h = 18f,
+        seeRange = 260f, contactKB = 160f, gravityResponse = 1.0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREY, diet = Diet.OMNIVORE, herdAffinity = 0.2f, fear = 0.6f, biome = PlanetBiome.LONELY,
+    ),
+    "silent_watcher" to EnemyDef(
+        name = "沈黙の見守り", tier = "normal", color = "#6f6a78", hp = 60f, speed = 60f, w = 20f, h = 22f,
+        seeRange = 240f, contactKB = 140f, gravityResponse = 0.6f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREY, diet = Diet.NONE, herdAffinity = 0f, fear = 0.4f, biome = PlanetBiome.LONELY,
+    ),
+    "last_beast" to EnemyDef(
+        name = "最後の獣", tier = "normal", color = "#544f5c", hp = 300f, speed = 66f, w = 34f, h = 30f,
+        seeRange = 380f, contactKB = 320f, gravityResponse = 0.7f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.APEX, diet = Diet.CARNIVORE, herdAffinity = 0f, fear = 0.1f, territoryRadius = 220f, biome = PlanetBiome.LONELY,
+        attacks = listOf(
+            AttackSpec("charge_melee", cd = 3.8f, range = 90f, reach = 36f, windup = 0.8f, dmg = 20f, kb = 400f),
+            AttackSpec("melee", cd = 0.9f, dmg = 16f, range = 24f, arc = 360f),
+        ),
+    ),
 )

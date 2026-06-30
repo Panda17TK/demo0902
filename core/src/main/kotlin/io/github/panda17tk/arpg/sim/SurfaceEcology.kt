@@ -109,9 +109,37 @@ object SurfaceEcology {
                 wild("forest_hatchling", 3, WILD_MID, WILD_FAR) // …with her young nearby
                 wild("forest_apex", 1, WILD_FAR, WILD_EDGE)     // the lone apex, far out
             }
-            PlanetBiome.MAGMA -> wild("ember_moth", 4, WILD_NEAR, WILD_FAR)
-            PlanetBiome.ICE -> wild("frost_hare", 5, WILD_NEAR, WILD_FAR)
-            else -> {} // GAS / DEAD / LONELY: no wildlife yet (keeps GAS gravity-free + the asteroid sparse)
+            PlanetBiome.MAGMA -> {
+                wild("ash_lizard", 4, WILD_NEAR, WILD_FAR)      // skittish prey
+                wild("ember_moth", 3, WILD_NEAR, WILD_FAR)      // drifting prey
+                wild("basalt_ram", 3, WILD_NEAR, WILD_MID)      // a stone-eating herd
+                wild("lava_serpent", 2, WILD_MID, WILD_FAR)     // serpent hunters
+                wild("crater_hatchling", 3, WILD_MID, WILD_FAR) // fragile young
+            }
+            PlanetBiome.ICE -> {
+                wild("frost_hare", 4, WILD_NEAR, WILD_FAR)      // skittish prey
+                wild("sleeping_calf", 3, WILD_NEAR, WILD_MID)
+                wild("ice_muskox", 3, WILD_NEAR, WILD_MID)      // a shaggy herd
+                wild("white_stalker", 2, WILD_MID, WILD_FAR)    // stalking hunters
+                wild("frost_worm", 1, WILD_FAR, WILD_EDGE)      // the rare great worm at the top
+            }
+            PlanetBiome.GAS -> { // a floating, strange food web
+                wild("cloud_plankton", 6, WILD_NEAR, WILD_FAR)  // a drifting swarm
+                wild("storm_ray", 3, WILD_NEAR, WILD_MID)       // gliding herds
+                wild("thunder_eel", 2, WILD_MID, WILD_FAR)      // electric hunters
+                wild("gravity_whelp", 3, WILD_MID, WILD_FAR)    // frail young
+            }
+            PlanetBiome.DEAD -> { // a quiet scavenger/mimic ecosystem — never crowded
+                wild("bone_rat", 3, WILD_NEAR, WILD_FAR)        // carrion rats
+                wild("ash_crow", 3, WILD_NEAR, WILD_FAR)        // a scavenger flock
+                wild("grave_mimic", 1, WILD_MID, WILD_FAR)      // a lone ambusher
+                wild("ruin_parasite", 2, WILD_MID, WILD_FAR)    // creeping parasites
+            }
+            PlanetBiome.LONELY -> { // rare, mostly-noncombat encounters
+                wild("star_moth", 2, WILD_NEAR, WILD_FAR)       // a drifting moth or two
+                wild("old_hound", 1, WILD_NEAR, WILD_MID)       // a lone old hound
+                if (rng.nextFloat() < 0.5f) wild("last_beast", 1, WILD_FAR, WILD_EDGE) // rarely, one last beast
+            }
         }
 
         // Story seed: bend the base ecology toward this planet's premise (LP worldbuilding). NONE leaves it be.
@@ -175,7 +203,7 @@ object SurfaceEcology {
         PlanetBiome.GAS -> "storm_core"; PlanetBiome.DEAD -> "dead_oracle"; PlanetBiome.LONELY -> "exiled_king"
     }
     private fun watcherKey(b: PlanetBiome) = when (b) {
-        PlanetBiome.GAS -> "wind_jelly"; PlanetBiome.DEAD -> "bone_drone"; PlanetBiome.LONELY -> "lost_soldier"; else -> "star_monk"
+        PlanetBiome.GAS -> "wind_jelly"; PlanetBiome.DEAD -> "ash_crow"; PlanetBiome.LONELY -> "silent_watcher"; else -> "star_monk"
     }
     private val PREY = setOf("horn_deer", "moss_hopper", "root_boar", "frost_hare")
     private fun removePrey(out: MutableList<EcologyPlacement>, n: Int) {
