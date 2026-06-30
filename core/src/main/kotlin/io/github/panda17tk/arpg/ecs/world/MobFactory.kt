@@ -28,6 +28,7 @@ object MobFactory {
             it += Mob(
                 kind = def.name, def = def, speed = def.speed * ss,
                 attackCd = FloatArray(def.attacks.size), waveNum = waveNum, tribe = tribe, dashes = dashes,
+                homeX = x, homeY = y, // a wild animal's nest/home is where it first appears
             )
             it += MobAction()
             it += CreatureMind(

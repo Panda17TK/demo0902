@@ -6,6 +6,7 @@ import com.github.quillraven.fleks.IteratingSystem
 import com.github.quillraven.fleks.World.Companion.family
 import io.github.panda17tk.arpg.ecs.components.Fx
 import io.github.panda17tk.arpg.ecs.components.GameOver
+import io.github.panda17tk.arpg.config.LifeKind
 import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Mob
 import io.github.panda17tk.arpg.ecs.components.Mods
@@ -32,13 +33,18 @@ class MobDamageSystem(private val grid: SpatialGrid<Entity>) :
     override fun onTickEntity(entity: Entity) {
         val t = entity[Transform]
         if (entity[Health].hp <= 0f) {
-            gameOver.kills++
-            healOnKill()
             val mob = entity[Mob]
+            // A wild animal's death is part of the ecosystem, not the player's score — no kill count,
+            // no lifesteal, no loot farm (a wolf eating a deer must not tick the player's tally).
+            val wild = mob.def.lifeKind == LifeKind.WILDLIFE
+            if (!wild) {
+                gameOver.kills++
+                healOnKill()
+            }
             val big = mob.tier != "normal"
             fx.spawnDeath(t.x, t.y, Color.valueOf(mob.def.color.removePrefix("#")), big)
             fx.addShake(if (big) 0.25f else 0.08f, if (big) 9f else 3.5f)
-            Pickups.dropOnKill(world, rng, t.x, t.y, big)
+            if (!wild) Pickups.dropOnKill(world, rng, t.x, t.y, big)
             // A planet's king/elite drops a biome material (a core/relic) that grants the player a small boon.
             val biome = mob.def.biome
             if (biome != null && big) Pickups.spawn(world, "mat_" + biome.name.lowercase(), 1, t.x, t.y)

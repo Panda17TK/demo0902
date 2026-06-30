@@ -76,9 +76,14 @@ class WildlifeSystem : IteratingSystem(family { all(Mob, Transform, Velocity, Bo
         }
         val herdCx = if (herdCount > 0) herdSumX / herdCount else t.x
         val herdCy = if (herdCount > 0) herdSumY / herdCount else t.y
-        val herdSeparated = herdCount > 0 && hypot(herdCx - t.x, herdCy - t.y) > HERD_SEPARATION
+        val homeDist = hypot(m.homeX - t.x, m.homeY - t.y)
+        val isNestGuard = m.def.wildRole == WildRole.NEST_GUARD
+        // A nest-guard "regroups" to its nest; a herd animal regroups to the herd centre.
+        val herdSeparated = if (isNestGuard) homeDist > HOME_LEASH
+        else herdCount > 0 && hypot(herdCx - t.x, herdCy - t.y) > HERD_SEPARATION
         val territory = m.def.territoryRadius
-        val nestThreatened = territory > 0f && pdist < territory
+        // The nest is threatened when the player enters the territory, or a wild predator prowls nearby.
+        val nestThreatened = territory > 0f && (pdist < territory || predatorNear)
 
         // --- Decide ---
         m.hunger = (m.hunger + dt * HUNGER_RATE).coerceIn(0f, 1f)
@@ -95,15 +100,22 @@ class WildlifeSystem : IteratingSystem(family { all(Mob, Transform, Velocity, Bo
         var dx = 0f; var dy = 0f; var mul = 0f
         when (state) {
             WildState.Graze, WildState.Feed, WildState.Sleep -> mul = 0f
-            WildState.Threaten, WildState.GuardNest -> { if (pdist > 1e-3f) { f.x = (px - t.x) / pdist; f.y = (py - t.y) / pdist }; mul = 0f }
+            WildState.Threaten -> { if (pdist > 1e-3f) { f.x = (px - t.x) / pdist; f.y = (py - t.y) / pdist }; mul = 0f }
+            WildState.GuardNest -> { // hold the nest: stray back if we've wandered off, else face the threat and stand
+                if (homeDist > GUARD_LEASH) { val l = hypot(m.homeX - t.x, m.homeY - t.y); if (l > 1e-3f) { dx = (m.homeX - t.x) / l; dy = (m.homeY - t.y) / l }; mul = HERD_MUL }
+                else if (pdist > 1e-3f) { f.x = (px - t.x) / pdist; f.y = (py - t.y) / pdist; mul = 0f }
+            }
             WildState.Wander -> { rollWander(m, f, dt); dx = f.x; dy = f.y; mul = WANDER_MUL }
             WildState.Hunt -> { rollWander(m, f, dt); dx = f.x; dy = f.y; mul = HUNT_MUL }
             WildState.Flee -> {
                 val tx = if (predatorNear) predX else px; val ty = if (predatorNear) predY else py
                 val l = hypot(t.x - tx, t.y - ty); if (l > 1e-3f) { dx = (t.x - tx) / l; dy = (t.y - ty) / l }; mul = FLEE_MUL
             }
-            WildState.Herd, WildState.ReturnNest -> {
+            WildState.Herd -> {
                 val l = hypot(herdCx - t.x, herdCy - t.y); if (l > 1e-3f) { dx = (herdCx - t.x) / l; dy = (herdCy - t.y) / l }; mul = HERD_MUL
+            }
+            WildState.ReturnNest -> { // head back to the nest/home
+                val l = hypot(m.homeX - t.x, m.homeY - t.y); if (l > 1e-3f) { dx = (m.homeX - t.x) / l; dy = (m.homeY - t.y) / l }; mul = HERD_MUL
             }
             WildState.Stalk -> { val l = hypot(preyX - t.x, preyY - t.y); if (l > 1e-3f) { dx = (preyX - t.x) / l; dy = (preyY - t.y) / l }; mul = STALK_MUL }
             WildState.Chase -> {
@@ -148,6 +160,8 @@ class WildlifeSystem : IteratingSystem(family { all(Mob, Transform, Velocity, Bo
         private const val PREY_SENSE2 = 260f * 260f // a predator smells prey within ~8 tiles
         private const val HERD_SENSE2 = 220f * 220f // herd-mates within this count toward the centre
         private const val HERD_SEPARATION = 130f    // drift this far from the herd centre → regroup
+        private const val HOME_LEASH = 220f         // a nest-guard this far from home heads back
+        private const val GUARD_LEASH = 90f         // while guarding, edge back if beyond this from the nest
         private const val FEED_DIST2 = 40f * 40f    // close enough to a kill to feed
         private const val HUNGER_RATE = 0.06f       // hunger/sec (full appetite in ~8s)
         private const val FEED_RATE = 0.5f          // hunger drained/sec while feeding
