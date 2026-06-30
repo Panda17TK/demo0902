@@ -43,15 +43,18 @@ import io.github.panda17tk.arpg.input.InputState
 import io.github.panda17tk.arpg.input.KeyboardInput
 import io.github.panda17tk.arpg.input.TouchButton
 import io.github.panda17tk.arpg.input.TouchControls
-import io.github.panda17tk.arpg.map.Biome
 import io.github.panda17tk.arpg.map.Tile
 import io.github.panda17tk.arpg.math.Rng
+import io.github.panda17tk.arpg.planet.PlanetBiome
 import io.github.panda17tk.arpg.render.Actors
 import io.github.panda17tk.arpg.render.Draw
 import io.github.panda17tk.arpg.render.Fonts
 import io.github.panda17tk.arpg.render.Hud
 import io.github.panda17tk.arpg.render.WorldView
 import io.github.panda17tk.arpg.save.Scores
+import io.github.panda17tk.arpg.sim.FacilityKind
+import io.github.panda17tk.arpg.sim.ReturnSpawn
+import io.github.panda17tk.arpg.sim.SurfaceObjective
 import io.github.panda17tk.arpg.sim.Tuning
 import io.github.panda17tk.arpg.sim.WorldMode
 import io.github.panda17tk.arpg.ui.Modals
@@ -167,7 +170,8 @@ class GameScreen : ScreenAdapter() {
 
     /** Build (or rebuild) the run and reset per-run screen state (Phase 7 restart). */
     private fun newRun() {
-        gw = WorldFactory.create(input, configStore.config)
+        spaceSeed = 1L; surfSeed = 100L; returnSpawn = null
+        gw = WorldFactory.create(input, configStore.config, seed = spaceSeed)
         accumulator = 0f
         camInit = false
         choosing = false
@@ -180,26 +184,37 @@ class GameScreen : ScreenAdapter() {
         newBest = false
     }
 
-    private var landSeed = 100L
+    private var spaceSeed = 1L            // the current star system's seed (stable, so round-trips return to it)
+    private var surfSeed = 100L           // surface seed, varied per landing
+    private var returnSpawn: Pair<Float, Float>? = null // where to re-emerge in space after taking off
 
-    /** Land on the hovered planet (SPACE) or take off back to space (SURFACE), carrying run state across the rebuild. */
+    /** Land on the hovered planet (SPACE) or take off from the escape pad (SURFACE), carrying run state across. */
     private fun handleLanding() {
         val ws = gw.worldState
         if (ws.mode == WorldMode.SPACE) {
             val cand = ws.landingCandidate ?: return
-            transitionWorld(WorldMode.SURFACE, cand.biome)
+            returnSpawn = ReturnSpawn.beside(cand) // remember where to re-emerge on takeoff
+            surfSeed += 1
+            transitionWorld(WorldMode.SURFACE, cand.biome, surfSeed, null)
         } else {
-            transitionWorld(WorldMode.SPACE, null)
+            if (!playerOnEscapePad()) return // must stand on the escape pad to leave the surface
+            transitionWorld(WorldMode.SPACE, null, spaceSeed, returnSpawn) // same system, beside the planet we left
         }
     }
 
-    private fun transitionWorld(mode: WorldMode, biome: Biome?) {
+    private fun transitionWorld(mode: WorldMode, biome: PlanetBiome?, seed: Long, spawn: Pair<Float, Float>?) {
         val carry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
-        landSeed += 1
-        gw = WorldFactory.create(input, configStore.config, landSeed, mode, biome, carry)
+        gw = WorldFactory.create(input, configStore.config, seed, mode, biome, carry, spawn)
         gw.waveState.num = carry.wave
         accumulator = 0f; camInit = false; overlay = Overlay.NONE
         choosing = false; offered = false; choices = emptyList(); lastHp = Float.NaN
+    }
+
+    /** True when the player is standing on the surface escape pad (the return point). */
+    private fun playerOnEscapePad(): Boolean {
+        val pad = gw.worldState.escapePad ?: return false
+        val (ppx, ppy) = with(gw.world) { val t = gw.player[Transform]; t.x to t.y }
+        return hypot(ppx - pad.first, ppy - pad.second) < Tuning.TILE * 1.5f
     }
 
     override fun render(delta: Float) {
@@ -272,7 +287,54 @@ class GameScreen : ScreenAdapter() {
         val maxTx = minOf(gw.map.width - 1, ((camera.position.x + vhw) / vt).toInt())
         val minTy = maxOf(0, ((camera.position.y - vhh) / vt).toInt())
         val maxTy = minOf(gw.map.height - 1, ((camera.position.y + vhh) / vt).toInt())
-        WorldView.draw(shapes, gw.map, minTx, maxTx, minTy, maxTy)
+        // On a surface, render the terrain as that planet's biome (biome ground + biome-material walls).
+        WorldView.draw(
+            shapes, gw.map, minTx, maxTx, minTy, maxTy,
+            if (gw.worldState.mode == WorldMode.SURFACE) gw.worldState.biome else null,
+        )
+        // biome facilities — the society's built landmarks (camp/crater/dais/eye/shrine/ruins) on the ground
+        for (f in gw.worldState.facilities) {
+            val fr = f.radius
+            when (f.kind) {
+                FacilityKind.CAMP -> {
+                    tmpC.set(0.34f, 0.26f, 0.16f, 0.6f); shapes.color = tmpC; shapes.circle(f.x, f.y, fr, 26)
+                    tmpC.set(0.50f, 0.40f, 0.24f, 1f); shapes.color = tmpC
+                    for (i in 0 until 8) { val a = i / 8f * 6.2831855f; shapes.circle(f.x + cos(a) * fr, f.y + sin(a) * fr, fr * 0.12f, 8) }
+                }
+                FacilityKind.CRATER -> {
+                    tmpC.set(0.12f, 0.06f, 0.05f, 1f); shapes.color = tmpC; shapes.circle(f.x, f.y, fr, 28)
+                    tmpC.set(0.92f, 0.40f, 0.12f, 0.85f); shapes.color = tmpC; shapes.circle(f.x, f.y, fr * 0.55f, 22)
+                    tmpC.set(1f, 0.78f, 0.28f, 0.9f); shapes.color = tmpC; shapes.circle(f.x, f.y, fr * 0.25f, 16)
+                }
+                FacilityKind.DAIS -> {
+                    tmpC.set(0.80f, 0.88f, 0.96f, 0.9f); shapes.color = tmpC; shapes.circle(f.x, f.y, fr, 26)
+                    tmpC.set(0.60f, 0.72f, 0.86f, 1f); shapes.color = tmpC; shapes.circle(f.x, f.y, fr * 0.6f, 22)
+                }
+                FacilityKind.EYE -> {
+                    tmpC.set(0.62f, 0.56f, 0.36f, 0.30f); shapes.color = tmpC; shapes.circle(f.x, f.y, fr, 30)
+                    tmpC.set(0.86f, 0.78f, 0.50f, 0.40f); shapes.color = tmpC; shapes.circle(f.x, f.y, fr * 0.6f, 24)
+                    tmpC.set(0.18f, 0.16f, 0.24f, 0.7f); shapes.color = tmpC; shapes.circle(f.x, f.y, fr * 0.25f, 16)
+                }
+                FacilityKind.SHRINE -> {
+                    tmpC.set(0.30f, 0.30f, 0.36f, 0.9f); shapes.color = tmpC; shapes.circle(f.x, f.y, fr, 22)
+                    tmpC.set(0.55f, 0.55f, 0.64f, 1f); shapes.color = tmpC; shapes.circle(f.x, f.y, fr * 0.5f, 18)
+                    tmpC.set(0.80f, 0.85f, 1f, 0.9f); shapes.color = tmpC; shapes.circle(f.x, f.y, fr * 0.18f, 12)
+                }
+                FacilityKind.RUIN -> {
+                    tmpC.set(0.45f, 0.43f, 0.40f, 1f); shapes.color = tmpC
+                    shapes.circle(f.x - fr * 0.4f, f.y - fr * 0.2f, fr * 0.45f, 10)
+                    shapes.circle(f.x + fr * 0.3f, f.y + fr * 0.25f, fr * 0.38f, 10)
+                    shapes.circle(f.x + fr * 0.1f, f.y - fr * 0.4f, fr * 0.30f, 8)
+                }
+            }
+        }
+        // escape pad — a glowing return ring at the surface landing point (drawn on the ground, under the actors)
+        gw.worldState.escapePad?.let { pad ->
+            tmpC.set(0.45f, 0.85f, 1f, 0.30f); shapes.color = tmpC
+            shapes.circle(pad.first, pad.second, Tuning.TILE * 1.3f, 28)
+            tmpC.set(0.70f, 0.95f, 1f, 0.85f); shapes.color = tmpC
+            shapes.circle(pad.first, pad.second, Tuning.TILE * 0.55f, 20)
+        }
         with(gw.world) {
             gw.world.family { all(Mob, Transform, Health, Facing, Velocity, MobAction) }.forEach { e ->
                 val mt = e[Transform]; val mm = e[Mob]; val mh = e[Health]; val mf = e[Facing]; val mv = e[Velocity]; val ma = e[MobAction]
@@ -344,16 +406,64 @@ class GameScreen : ScreenAdapter() {
                 }
             }
         }
-        // planets — large solid bodies tinted by biome
+        // planets — biome-flavoured bodies: a halo/ring, the body, then surface features (spots/caps/bands/craters),
+        // all built from circles kept inside the silhouette so each planet type reads at a glance.
+        fun feature(cx: Float, cy: Float, r: Float, fx: Float, fy: Float, fr: Float, cr: Float, cg: Float, cb: Float, ca: Float) {
+            tmpC.set(cr, cg, cb, ca); shapes.color = tmpC
+            shapes.circle(cx + fx * r, cy + fy * r, fr * r, 22)
+        }
         for (p in gw.planets) {
+            val r = p.radius
+            // halo / ring behind the body (translucent; none for the dead/lonely rocks)
             when (p.biome) {
-                Biome.ROCK -> tmpC.set(0.42f, 0.40f, 0.38f, 1f)
-                Biome.GRASS -> tmpC.set(0.28f, 0.52f, 0.30f, 1f)
-                Biome.SNOW -> tmpC.set(0.82f, 0.88f, 0.95f, 1f)
-                Biome.MAGMA -> tmpC.set(0.62f, 0.24f, 0.18f, 1f)
+                PlanetBiome.MAGMA -> { tmpC.set(0.95f, 0.32f, 0.12f, 0.22f); shapes.color = tmpC; shapes.circle(p.cx, p.cy, r * 1.30f, 40) }
+                PlanetBiome.ICE -> { tmpC.set(0.60f, 0.92f, 0.96f, 0.18f); shapes.color = tmpC; shapes.circle(p.cx, p.cy, r * 1.30f, 40) }
+                PlanetBiome.GAS -> { tmpC.set(0.82f, 0.70f, 0.45f, 0.18f); shapes.color = tmpC; shapes.circle(p.cx, p.cy, r * 1.34f, 40) }
+                PlanetBiome.NATURE -> { tmpC.set(0.42f, 0.72f, 0.96f, 0.14f); shapes.color = tmpC; shapes.circle(p.cx, p.cy, r * 1.22f, 40) }
+                else -> {}
+            }
+            // body
+            when (p.biome) {
+                PlanetBiome.NATURE -> tmpC.set(0.20f, 0.44f, 0.62f, 1f)   // blue-green ocean world
+                PlanetBiome.MAGMA -> tmpC.set(0.24f, 0.10f, 0.09f, 1f)    // near-black, molten crust
+                PlanetBiome.ICE -> tmpC.set(0.82f, 0.90f, 0.96f, 1f)
+                PlanetBiome.GAS -> tmpC.set(0.74f, 0.62f, 0.40f, 1f)
+                PlanetBiome.DEAD -> tmpC.set(0.42f, 0.40f, 0.38f, 1f)
+                PlanetBiome.LONELY -> tmpC.set(0.26f, 0.26f, 0.30f, 1f)
             }
             shapes.color = tmpC
-            shapes.circle(p.cx, p.cy, p.radius, 44)
+            shapes.circle(p.cx, p.cy, r, 44)
+            // surface features
+            when (p.biome) {
+                PlanetBiome.NATURE -> {
+                    feature(p.cx, p.cy, r, -0.25f, 0.18f, 0.28f, 0.24f, 0.52f, 0.26f, 1f)   // continents
+                    feature(p.cx, p.cy, r, 0.30f, -0.20f, 0.20f, 0.24f, 0.52f, 0.26f, 1f)
+                    feature(p.cx, p.cy, r, 0.06f, 0.42f, 0.16f, 0.86f, 0.92f, 0.96f, 0.7f)   // cloud band
+                }
+                PlanetBiome.MAGMA -> {
+                    feature(p.cx, p.cy, r, -0.20f, -0.10f, 0.16f, 0.96f, 0.55f, 0.12f, 1f)   // lava pools / eruptions
+                    feature(p.cx, p.cy, r, 0.28f, 0.22f, 0.12f, 1f, 0.72f, 0.22f, 1f)
+                    feature(p.cx, p.cy, r, 0.05f, -0.34f, 0.09f, 1f, 0.45f, 0.10f, 1f)
+                }
+                PlanetBiome.ICE -> {
+                    feature(p.cx, p.cy, r, 0f, -0.46f, 0.40f, 0.96f, 0.98f, 1f, 1f)          // polar cap
+                    feature(p.cx, p.cy, r, 0.26f, 0.30f, 0.16f, 0.70f, 0.82f, 0.92f, 1f)
+                }
+                PlanetBiome.GAS -> {
+                    feature(p.cx, p.cy, r, 0f, 0.30f, 0.42f, 0.66f, 0.54f, 0.34f, 1f)        // darker band
+                    feature(p.cx, p.cy, r, 0f, -0.28f, 0.40f, 0.86f, 0.74f, 0.50f, 1f)       // lighter band
+                    feature(p.cx, p.cy, r, -0.22f, 0.06f, 0.16f, 0.88f, 0.42f, 0.20f, 1f)    // the great storm
+                }
+                PlanetBiome.DEAD -> {
+                    feature(p.cx, p.cy, r, -0.20f, 0.20f, 0.14f, 0.30f, 0.29f, 0.27f, 1f)    // craters
+                    feature(p.cx, p.cy, r, 0.25f, -0.15f, 0.10f, 0.30f, 0.29f, 0.27f, 1f)
+                    feature(p.cx, p.cy, r, 0.02f, -0.30f, 0.08f, 0.30f, 0.29f, 0.27f, 1f)
+                }
+                PlanetBiome.LONELY -> {
+                    feature(p.cx, p.cy, r, 0.04f, 0f, 0.62f, 0.34f, 0.34f, 0.40f, 1f)        // a small rocky body
+                    feature(p.cx, p.cy, r, 0.18f, -0.12f, 0.08f, 0.98f, 0.90f, 0.55f, 1f)    // a lone artificial light
+                }
+            }
         }
         // tribe strongholds ("stars") — a tribe-coloured aura + pulsing core
         for (base in gw.bases) {
@@ -398,13 +508,31 @@ class GameScreen : ScreenAdapter() {
         }
         shapes.end()
 
-        // speech bubbles — short lines above creatures (world space; y-down → negative scaleY flips glyphs upright)
-        batch.projectionMatrix = camera.combined
-        batch.begin()
+        // speech bubbles — translucent plate + short line above creatures (y-down → negative scaleY flips glyphs upright)
         val bubScaleX = font.data.scaleX; val bubScaleY = font.data.scaleY
         font.data.setScale(0.2f, -0.2f) // small world-unit text; tune on device
+        val speakers = gw.world.family { all(Mob, Transform, Speech) }
+        // backing plates first (shapes) so short lines stay legible against the starfield / terrain
+        shapes.projectionMatrix = camera.combined
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
         with(gw.world) {
-            gw.world.family { all(Mob, Transform, Speech) }.forEach { e ->
+            speakers.forEach { e ->
+                val sp = e[Speech]
+                if (sp.remaining > 0f && sp.text.isNotEmpty()) {
+                    val mt = e[Transform]
+                    glyphLayout.setText(font, sp.text)
+                    val lw = glyphLayout.width; val lh = kotlin.math.abs(glyphLayout.height)
+                    tmpC.set(0f, 0f, 0f, 0.5f); shapes.color = tmpC
+                    shapes.rect(mt.x - lw / 2f - 4f, mt.y - 20f - lh - 2f, lw + 8f, lh * 2f + 6f)
+                }
+            }
+        }
+        shapes.end()
+        // then the lines themselves (batch)
+        batch.projectionMatrix = camera.combined
+        batch.begin()
+        with(gw.world) {
+            speakers.forEach { e ->
                 val sp = e[Speech]
                 if (sp.remaining > 0f && sp.text.isNotEmpty()) {
                     val mt = e[Transform]
@@ -434,17 +562,20 @@ class GameScreen : ScreenAdapter() {
             wpn.def.name, wpn.mag, wpn.def.magSize, reloadFrac, reserveStr,
             runTime, gw.gameOver.kills, blocks,
         )
-        // Living Planets: landing / takeoff prompt (HUD space).
+        // Living Planets: surface exploration objective, or the landing prompt in space (HUD space).
         run {
             val ws = gw.worldState
+            var elites = 0
+            if (ws.mode == WorldMode.SURFACE) with(gw.world) {
+                gw.world.family { all(Mob) }.forEach { if (it[Mob].def.tier != "normal") elites++ }
+            }
+            val biome = ws.biome
+            val onPad = ws.mode == WorldMode.SURFACE && playerOnEscapePad()
             val hint = when {
+                onPad -> "[L] 脱出パッドから離陸して宇宙へ"
+                ws.mode == WorldMode.SURFACE && biome != null -> SurfaceObjective.hudLine(biome, elites)
                 ws.mode == WorldMode.SURFACE -> "[L] 離陸して宇宙へ"
-                ws.landingCandidate != null -> {
-                    val bn = when (ws.landingCandidate!!.biome) {
-                        Biome.ROCK -> "岩石"; Biome.GRASS -> "草原"; Biome.SNOW -> "氷雪"; Biome.MAGMA -> "溶岩"
-                    }
-                    "[L] 着陸: $bn"
-                }
+                ws.landingCandidate != null -> "[L] 着陸: ${ws.landingCandidate!!.biome.displayName}"
                 else -> null
             }
             if (hint != null && !paused && !choosing) {

@@ -39,6 +39,9 @@ class MobDamageSystem(private val grid: SpatialGrid<Entity>) :
             fx.spawnDeath(t.x, t.y, Color.valueOf(mob.def.color.removePrefix("#")), big)
             fx.addShake(if (big) 0.25f else 0.08f, if (big) 9f else 3.5f)
             Pickups.dropOnKill(world, rng, t.x, t.y, big)
+            // A planet's king/elite drops a biome material (a core/relic) that grants the player a small boon.
+            val biome = mob.def.biome
+            if (biome != null && big) Pickups.spawn(world, "mat_" + biome.name.lowercase(), 1, t.x, t.y)
             world -= entity
             return
         }

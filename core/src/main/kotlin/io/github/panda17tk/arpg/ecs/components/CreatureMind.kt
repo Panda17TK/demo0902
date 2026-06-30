@@ -16,6 +16,7 @@ class CreatureMind(
     val familyRole: FamilyRole = FamilyRole.NONE,
     var state: CreatureState = CreatureState.Hostile,
     var stateTimer: Float = 0f,
+    var provoked: Boolean = false, // once attacked or crowded, it stops warning and commits to the fight
 ) : Component<CreatureMind> {
     override fun type() = CreatureMind
     companion object : ComponentType<CreatureMind>()

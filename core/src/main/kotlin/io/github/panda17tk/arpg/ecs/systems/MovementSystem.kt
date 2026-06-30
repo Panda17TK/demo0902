@@ -17,6 +17,7 @@ import io.github.panda17tk.arpg.input.InputState
 import io.github.panda17tk.arpg.map.Biome
 import io.github.panda17tk.arpg.map.Biomes
 import io.github.panda17tk.arpg.map.TileMap
+import io.github.panda17tk.arpg.planet.PlanetBiome
 import io.github.panda17tk.arpg.sim.CircleCollision
 import io.github.panda17tk.arpg.sim.Collision
 import io.github.panda17tk.arpg.sim.CrashModel
@@ -58,11 +59,14 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         val dashing = (staInf || !s.overheat) && Locomotion.isDashing(input.dash, mv.isMoving, if (staInf) 1f else s.value)
         tag.dashing = dashing
         // Block biomes around the player drive terrain effects (magma burns, snow slows, grass restores).
+        // On a planet surface the block material leans to the planet's biome (lava on magma worlds, etc.).
         val ptx = floor(t.x / Tuning.TILE).toInt(); val pty = floor(t.y / Tuning.TILE).toInt()
+        val surf = if (worldState.mode == WorldMode.SURFACE) worldState.biome else null
         var magma = false; var snow = false; var grass = false
         for (oy in -1..1) for (ox in -1..1) {
             if (!map.solidAt(ptx + ox, pty + oy)) continue
-            when (Biomes.of(ptx + ox, pty + oy)) {
+            val mat = if (surf != null) Biomes.surface(surf, ptx + ox, pty + oy) else Biomes.of(ptx + ox, pty + oy)
+            when (mat) {
                 Biome.MAGMA -> magma = true; Biome.SNOW -> snow = true; Biome.GRASS -> grass = true; else -> {}
             }
         }
@@ -74,10 +78,10 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         // Knockback decays fast and stays separate from movement (keeps hits punchy).
         v.vx *= 0.0001f.pow(dt)
         v.vy *= 0.0001f.pow(dt)
-        // Coast drag depends on where we are: space glides; planet ground stops fast; ice/snow slips.
+        // Coast drag depends on where we are: space glides; planet ground stops fast; an ice planet slips.
         val coast = when {
             worldState.mode != WorldMode.SURFACE -> COAST_DECAY
-            worldState.biome == Biome.SNOW -> ICE_COAST
+            worldState.biome == PlanetBiome.ICE -> ICE_COAST
             else -> SURFACE_COAST
         }
         // Newtonian-ish momentum: input/dash accelerate the drift; the coast drag set above lets it glide or grip.
@@ -111,7 +115,7 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
             if (s.value >= s.max - 0.05f) s.overheat = false   // fully recovered → clear overheat
         }
         // Terrain effects: magma block burns HP; grass restores stamina; a magma planet surface burns everywhere.
-        val onMagmaSurface = worldState.mode == WorldMode.SURFACE && worldState.biome == Biome.MAGMA
+        val onMagmaSurface = worldState.mode == WorldMode.SURFACE && worldState.biome == PlanetBiome.MAGMA
         if (magma || onMagmaSurface) h.hp = (h.hp - MAGMA_DPS * dt).coerceAtLeast(0f)
         if (grass) s.value = (s.value + GRASS_STA * dt).coerceAtMost(s.max)
     }

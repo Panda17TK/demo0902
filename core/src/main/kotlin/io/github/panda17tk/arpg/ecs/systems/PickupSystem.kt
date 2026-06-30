@@ -7,15 +7,18 @@ import io.github.panda17tk.arpg.ecs.components.Ammo
 import io.github.panda17tk.arpg.ecs.components.Buff
 import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Materials
+import io.github.panda17tk.arpg.ecs.components.Mods
 import io.github.panda17tk.arpg.ecs.components.Pickup
 import io.github.panda17tk.arpg.ecs.components.PlayerTag
 import io.github.panda17tk.arpg.ecs.components.Smoke
 import io.github.panda17tk.arpg.ecs.components.Transform
+import io.github.panda17tk.arpg.math.Rng
 import kotlin.math.abs
 
-/** Auto-collects pickups when the player walks near; despawns stale ones. */
+/** Auto-collects pickups when the player walks near; despawns stale ones. Planet materials grant small boons. */
 class PickupSystem : IteratingSystem(family { all(Pickup, Transform) }) {
-    private val players by lazy { world.family { all(PlayerTag, Transform, Health, Ammo, Materials, Buff) } }
+    private val rng: Rng = world.inject()
+    private val players by lazy { world.family { all(PlayerTag, Transform, Health, Ammo, Materials, Buff, Mods) } }
 
     override fun onTickEntity(entity: Entity) {
         val t = entity[Transform]; val pk = entity[Pickup]
@@ -34,6 +37,7 @@ class PickupSystem : IteratingSystem(family { all(Pickup, Transform) }) {
                             val pp = p[Transform]
                             world.entity { it += Transform(x = pp.x, y = pp.y, prevX = pp.x, prevY = pp.y); it += Smoke(radius = 80f, life = 5f) }
                         }
+                        "mat_nature", "mat_magma", "mat_ice", "mat_gas", "mat_dead", "mat_lonely" -> applyMaterial(p, pk.kind)
                         else -> { val a = p[Ammo]; a.set(pk.kind, a.get(pk.kind) + pk.amount) }
                     }
                     world -= entity
@@ -43,8 +47,31 @@ class PickupSystem : IteratingSystem(family { all(Pickup, Transform) }) {
         }
     }
 
+    /** A planet material's boon — small permanent stat gains; a lonely relic rolls a random one. */
+    private fun applyMaterial(p: Entity, kind: String) {
+        val k = if (kind == "mat_lonely") LONELY_ROLL[rng.nextInt(LONELY_ROLL.size)] else kind
+        with(world) {
+            when (k) {
+                "mat_nature" -> { val h = p[Health]; h.hpMax += NATURE_HP; h.hp = minOf(h.hpMax, h.hp + NATURE_HP) }
+                "mat_magma" -> p[Mods].gunMul += MAGMA_GUN
+                "mat_ice" -> p[Mods].fireMul = maxOf(MIN_FIRE, p[Mods].fireMul * ICE_FIRE)
+                "mat_gas" -> p[Mods].moveMul += GAS_MOVE
+                "mat_dead" -> { val a = p[Ammo]; for (ak in AMMO_KINDS) a.set(ak, a.get(ak) + DEAD_AMMO) }
+                else -> {}
+            }
+        }
+    }
+
     companion object {
         private const val LIFE = 14f
         private const val PICK_R = 18f
+        private const val NATURE_HP = 8f      // nature core: a little more max HP (and a top-up)
+        private const val MAGMA_GUN = 0.1f    // magma core: +10% bullet damage
+        private const val ICE_FIRE = 0.9f     // ice core: 10% snappier fire interval
+        private const val MIN_FIRE = 0.4f     // ...floored so fire rate can't run away
+        private const val GAS_MOVE = 0.08f    // gas core: +8% move speed
+        private const val DEAD_AMMO = 12      // dead relic: tops up every ammo pool
+        private val AMMO_KINDS = arrayOf("ammo9", "ammo12", "ammoBeam", "ammoNade")
+        private val LONELY_ROLL = arrayOf("mat_nature", "mat_magma", "mat_ice", "mat_gas", "mat_dead")
     }
 }
