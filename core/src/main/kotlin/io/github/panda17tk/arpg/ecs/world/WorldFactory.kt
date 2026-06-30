@@ -41,6 +41,7 @@ import io.github.panda17tk.arpg.ecs.systems.SmokeSystem
 import io.github.panda17tk.arpg.ecs.systems.SnapshotSystem
 import io.github.panda17tk.arpg.ecs.systems.SpawnerSystem
 import io.github.panda17tk.arpg.ecs.systems.WeaponSwitchSystem
+import io.github.panda17tk.arpg.ecs.systems.WildlifeSystem
 import io.github.panda17tk.arpg.input.InputState
 import io.github.panda17tk.arpg.map.MapLoader
 import io.github.panda17tk.arpg.map.Stages
@@ -149,6 +150,7 @@ object WorldFactory {
                 add(SmokeSystem())
                 add(FlowRebuildSystem())
                 add(AISystem(mobGrid))
+                add(WildlifeSystem()) // mute wild animals: graze/herd/flee/hunt (AISystem skips WILDLIFE)
                 add(MobActionSystem())
                 add(SpawnerSystem())
                 add(BaseSystem())

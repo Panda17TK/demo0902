@@ -15,6 +15,7 @@ object KeyboardInput {
         state.right = k.isKeyPressed(Keys.D) || k.isKeyPressed(Keys.RIGHT)
         state.up = k.isKeyPressed(Keys.W) || k.isKeyPressed(Keys.UP)
         state.down = k.isKeyPressed(Keys.S) || k.isKeyPressed(Keys.DOWN)
+        state.moveMag = 0f // keyboard is digital: never trips the analog stick dash (use Shift to dash)
         state.dash = k.isKeyPressed(Keys.SHIFT_LEFT) || k.isKeyPressed(Keys.SHIFT_RIGHT)
         val f = k.isKeyPressed(Keys.F)
         state.placeWall = f && !prevF

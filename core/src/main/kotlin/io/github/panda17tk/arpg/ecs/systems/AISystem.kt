@@ -7,6 +7,7 @@ import io.github.panda17tk.arpg.ai.AiMove
 import io.github.panda17tk.arpg.combat.MobAttacks
 import io.github.panda17tk.arpg.config.FamilyRole
 import io.github.panda17tk.arpg.config.GameConfig
+import io.github.panda17tk.arpg.config.LifeKind
 import io.github.panda17tk.arpg.ecs.components.Body
 import io.github.panda17tk.arpg.ecs.components.CreatureMind
 import io.github.panda17tk.arpg.ecs.components.Facing
@@ -61,6 +62,7 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         val v = entity[Velocity]
         val b = entity[Body]
         val m = entity[Mob]
+        if (m.def.lifeKind == LifeKind.WILDLIFE) return // wild animals are driven by WildlifeSystem, not the hostile AI
         val f = entity[Facing]
         val h = entity[Health]
         val action = entity[MobAction]

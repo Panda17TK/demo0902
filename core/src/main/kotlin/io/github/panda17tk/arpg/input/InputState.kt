@@ -9,6 +9,7 @@ class InputState {
     var right = false
     var up = false
     var down = false
+    var moveMag = 0f           // analog move-stick deflection 0..1 (keyboard stays 0); a big push triggers a stick dash
     var dash = false
     var placeWall = false   // edge-triggered: true only on the frame F transitions down
     var fire = false           // held (K)
