@@ -15,6 +15,8 @@ class Mob(
     var tribe: Int = 0,
     var level: Int = 1,
     var xp: Float = 0f,
+    val dashes: Boolean = false, // ~half of each tribe's rank-and-file dash (facing-thrust inertial burst)
+    var dashCd: Float = 0f,
 ) : Component<Mob> {
     val tier: String get() = def.tier
     override fun type() = Mob

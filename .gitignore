@@ -20,3 +20,5 @@ Thumbs.db
 .superpowers/
 # Runtime-generated procedural SFX cache
 desktop/sfx/
+# Kotlin compiler/daemon error logs (build artifacts)
+.kotlin/

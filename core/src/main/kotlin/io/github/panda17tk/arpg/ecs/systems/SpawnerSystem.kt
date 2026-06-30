@@ -98,7 +98,7 @@ class SpawnerSystem : IteratingSystem(family { all(PlayerTag, Transform) }) {
         repeat(3 + rng.nextInt(4)) {
             val def = config.enemies[normalKeys[rng.nextInt(normalKeys.size)]] ?: return@repeat
             val a = rng.nextFloat() * 6.2831855f; val r = rng.nextFloat() * Tuning.TILE * 2.5f
-            MobFactory.spawn(world, def, tile.first + cos(a) * r, tile.second + sin(a) * r, waveNum, config.waves.hpScalePerWave, config.waves.speedScalePerWave, tribe = tribe)
+            MobFactory.spawn(world, def, tile.first + cos(a) * r, tile.second + sin(a) * r, waveNum, config.waves.hpScalePerWave, config.waves.speedScalePerWave, tribe = tribe, dashes = rng.nextFloat() < 0.5f)
             spawned++
         }
         return spawned
