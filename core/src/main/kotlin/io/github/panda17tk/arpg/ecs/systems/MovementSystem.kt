@@ -7,6 +7,7 @@ import io.github.panda17tk.arpg.config.GameConfig
 import io.github.panda17tk.arpg.ecs.components.Body
 import io.github.panda17tk.arpg.ecs.components.Buff
 import io.github.panda17tk.arpg.ecs.components.Facing
+import io.github.panda17tk.arpg.ecs.components.Fx
 import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Mods
 import io.github.panda17tk.arpg.ecs.components.PlayerTag
@@ -28,6 +29,7 @@ import io.github.panda17tk.arpg.sim.Tuning
 import io.github.panda17tk.arpg.sim.WorldMode
 import io.github.panda17tk.arpg.sim.WorldState
 import kotlin.math.floor
+import kotlin.math.hypot
 import kotlin.math.pow
 
 class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing, Stamina, Body, Velocity, Mods, Health, Buff) }) {
@@ -36,6 +38,7 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
     private val config: GameConfig = world.inject()
     private val planetField: PlanetField = world.inject()
     private val worldState: WorldState = world.inject()
+    private val fx: Fx = world.inject()
 
     override fun onTickEntity(entity: Entity) {
         val t = entity[Transform]
@@ -104,6 +107,7 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         v.driftX = nvx; v.driftY = nvy
 
         // Axis-separated collision so the player slides/crawls along walls instead of catching on edges.
+        val impactSpeed = hypot(v.vx + v.driftX, v.vy + v.driftY) // speed entering the collision step
         val r1 = Collision.moveAndCollide(map, t.x, t.y, b.halfW, b.halfH, (v.vx + v.driftX) * dt, 0f)
         val r2 = Collision.moveAndCollide(map, r1.x, r1.y, b.halfW, b.halfH, 0f, (v.vy + v.driftY) * dt)
         t.x = r2.x; t.y = r2.y
@@ -115,6 +119,10 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
             t.x = pc.x; t.y = pc.y
             val (rdx, rdy) = CrashModel.rebound(v.driftX, v.driftY, pc.normalX, pc.normalY, CRASH_RESTITUTION)
             v.driftX = rdx; v.driftY = rdy
+        }
+        // A fast smack into a wall or planet jolts the screen, scaled by speed — but never costs HP.
+        if ((r1.hitX || r2.hitY || pc.hit) && impactSpeed > IMPACT_MIN_SPEED) {
+            fx.addShake(IMPACT_SHAKE_T, (impactSpeed * IMPACT_SHAKE_K).coerceAtMost(IMPACT_SHAKE_MAX))
         }
         // Stamina: a button dash drains hard, a stick dash barely sips, otherwise it regenerates.
         if (staInf) {
@@ -152,5 +160,9 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         private const val SNOW_SLOW = 0.62f // snow block underfoot → slower
         private const val MAGMA_DPS = 8f // magma block burns HP/sec
         private const val GRASS_STA = 16f // grass block restores stamina/sec
+        private const val IMPACT_MIN_SPEED = 220f // above this, a wall/planet smack jolts the screen (no damage)
+        private const val IMPACT_SHAKE_K = 0.022f // shake magnitude per unit of impact speed
+        private const val IMPACT_SHAKE_MAX = 16f // …capped so a hard hit doesn't nauseate
+        private const val IMPACT_SHAKE_T = 0.2f // shake duration (s)
     }
 }

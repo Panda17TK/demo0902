@@ -9,7 +9,7 @@ data class PlayerConfig(
     val speedMul: Float = 1.2f,
     val dashMul: Float = 2.5f,
     val hpMax: Float = 100f,
-    val staMax: Float = 150f,
+    val staMax: Float = 300f,
     val staDrain: Float = 35f,
     val staRegen: Float = 22f,
     val meleeDmg: Float = 22f,

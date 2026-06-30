@@ -59,6 +59,7 @@ import io.github.panda17tk.arpg.sim.Bases
 import io.github.panda17tk.arpg.sim.CreatureState
 import io.github.panda17tk.arpg.sim.GravityField
 import io.github.panda17tk.arpg.sim.PlanetField
+import io.github.panda17tk.arpg.sim.Drift
 import io.github.panda17tk.arpg.sim.Planets
 import io.github.panda17tk.arpg.sim.SurfaceEcology
 import io.github.panda17tk.arpg.sim.Tribes
@@ -106,11 +107,14 @@ object WorldFactory {
             else Planets.place(
                 map.width * Tuning.TILE, map.height * Tuning.TILE,
                 loaded.playerSpawnX, loaded.playerSpawnY, planetCount, Rng(seed xor 0x91A2B3C4L),
+                margin = 768f, // 8× the old gap → planets sit far apart in the wider space
             ),
         )
         val worldState = WorldState(mode = mode, biome = biome)
         // The escape pad sits at the surface landing point; standing on it lets the player take off again.
         if (mode == WorldMode.SURFACE) worldState.escapePad = loaded.playerSpawnX to loaded.playerSpawnY
+        // In space, scatter a flowing field of debris + asteroids around the player (cosmetic; fills the void).
+        if (mode != WorldMode.SURFACE) worldState.drift = Drift.field(Rng(seed xor 0x0DEB712L), 120, loaded.playerSpawnX, loaded.playerSpawnY, 1400f)
         val waveState = WaveState(
             num = 1,
             phase = "active",

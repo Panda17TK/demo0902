@@ -22,8 +22,8 @@ class SpaceDriveTest {
         assertEquals(SpaceDrive.Mode.BUTTON_DASH, SpaceDrive.mode(moving = false, stickMag = 0f, dashButton = true, canDash = true, stickDashMin = 0.85f))
     }
 
-    @Test fun `a stick shoved past the rim dashes`() {
-        assertEquals(SpaceDrive.Mode.STICK_DASH, SpaceDrive.mode(moving = true, stickMag = 0.9f, dashButton = false, canDash = true, stickDashMin = 0.85f))
+    @Test fun `a hard stick push just walks now (stick auto-dash removed)`() {
+        assertEquals(SpaceDrive.Mode.WALK, SpaceDrive.mode(moving = true, stickMag = 0.9f, dashButton = false, canDash = true, stickDashMin = 0.85f))
     }
 
     @Test fun `a gentle push just walks`() {
@@ -79,21 +79,6 @@ class SpaceDriveTest {
             vx = nx; vy = ny
         }
         assertTrue(hypot(vx, vy) > cruise * 2f, "button dash should blow past cruise: ${hypot(vx, vy)}")
-    }
-
-    @Test fun `a stick dash also creeps above the cruise cap`() {
-        var vx = 0f; var vy = 0f
-        repeat(60) {
-            val (nx, ny) = SpaceDrive.step(vx, vy, 1f, 0f, SpaceDrive.Mode.STICK_DASH, walk, stick, button, cruise, 1f, hardCap, dt)
-            vx = nx; vy = ny
-        }
-        assertTrue(hypot(vx, vy) > cruise, "stick dash should exceed cruise: ${hypot(vx, vy)}")
-    }
-
-    @Test fun `a stick dash tops out at twice cruise`() {
-        var vx = 0f; var vy = 0f
-        repeat(200) { val (nx, ny) = SpaceDrive.step(vx, vy, 1f, 0f, SpaceDrive.Mode.STICK_DASH, walk, stick, button, cruise, 1f, hardCap, dt); vx = nx; vy = ny }
-        assertEquals(cruise * 2f, hypot(vx, vy), 1e-2f)
     }
 
     @Test fun `a button dash tops out at three times cruise`() {
