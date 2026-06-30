@@ -34,9 +34,12 @@ import io.github.panda17tk.arpg.sim.Dash
 import io.github.panda17tk.arpg.sim.Family
 import io.github.panda17tk.arpg.sim.Leveling
 import io.github.panda17tk.arpg.sim.PlanetField
+import io.github.panda17tk.arpg.sim.SocietyTuning
 import io.github.panda17tk.arpg.sim.SpeechLines
 import io.github.panda17tk.arpg.sim.Tribes
 import io.github.panda17tk.arpg.sim.Tuning
+import io.github.panda17tk.arpg.sim.WorldState
+import io.github.panda17tk.arpg.sim.toPressure
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -55,6 +58,7 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
     private val rng: Rng = world.inject()
     private val tribes: Tribes = world.inject()
     private val planetField: PlanetField = world.inject()
+    private val worldState: WorldState = world.inject()
 
     private val players by lazy { world.family { all(PlayerTag, Transform, Health, Velocity) } }
 
@@ -70,6 +74,8 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         val speech = entity[Speech]
         val dt = deltaTime
         val ai = config.ai
+        // Living Planets: how this planet's society currently feels (null in space / when no context) → small nudges.
+        val aiP = worldState.context?.let { SocietyTuning.ai(worldState.society.toPressure(it)) }
 
         // Decay knockback velocity + timers (always)
         val decay = 0.02f.pow(dt)
@@ -141,6 +147,8 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         }
         // A wild predator prowling beside a ward threatens it just as the player would → guardians defend.
         if (wardNear && wildPredatorNear) wardThreatened = true
+        // Gratitude (LP): a tribe that saw the player drive a predator off a child won't bristle at mere proximity.
+        if (aiP?.gratitude == true && !(wardNear && wildPredatorNear)) wardThreatened = false
         if (sepX != 0f || sepY != 0f) {
             val l = sqrt(sepX * sepX + sepY * sepY)
             v.vx += sepX / l * eff * 0.5f; v.vy += sepY / l * eff * 0.5f
@@ -158,10 +166,15 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         if (h.hitFlash > 0f || dist < WARN_NEAR) mind.provoked = true
         val hasStanding = mind.familyRole == FamilyRole.KING || mind.familyRole == FamilyRole.ELDER ||
             mind.familyRole == FamilyRole.GUARDIAN || mind.intelligence >= WARN_INTEL
-        val canWarn = !mind.provoked && hasStanding
+        // A very hostile world skips the courtesy of a warning (a PROUD world always warns first, so never skips).
+        val canWarn = !mind.provoked && hasStanding && aiP?.skipWarn != true
         val playerNear = see && dist < WARN_RANGE
         val prevState = mind.state
-        updateMind(mind, h, dist, dt, guardian && wardThreatened, kingNear, wardHurt, playerNear, canWarn)
+        // A child's death (or harm, on a vengeful world) makes guardians treat the very-near player as a threat;
+        // a forgiving/indebted world eases creatures toward begging a touch sooner.
+        val rally = guardian && (wardThreatened || (aiP?.rallyEager == true && playerNear))
+        val effMercy = (mind.mercyThreshold + (aiP?.mercyBoost ?: 0f)).coerceIn(0f, 1f)
+        updateMind(mind, h, dist, dt, rally, kingNear, wardHurt, playerNear, canWarn, effMercy)
         val aggressive = mind.state == CreatureState.Hostile || mind.state == CreatureState.Protect ||
             mind.state == CreatureState.Rally
         if (speech.canSpeak && mind.state != prevState && speech.cooldown <= 0f) {
@@ -298,7 +311,7 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
     private fun updateMind(
         mind: CreatureMind, h: Health, dist: Float, dt: Float,
         protectedThreatened: Boolean, kingNear: Boolean,
-        wardHurt: Boolean, playerNear: Boolean, canWarn: Boolean,
+        wardHurt: Boolean, playerNear: Boolean, canWarn: Boolean, mercyThreshold: Float,
     ) {
         val hpFrac = if (h.hpMax > 0f) h.hp / h.hpMax else 0f
         when (mind.state) {
@@ -321,7 +334,7 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
                 val effBravery = Family.effectiveBravery(mind.bravery, kingNear) // a nearby king steels nerves
                 val next = CreatureAI.nextState(
                     hpFrac, effBravery, mind.intelligence, mind.canBeg, mind.canHideAndRest,
-                    mind.mercyThreshold, protectedThreatened, mind.protectiveness,
+                    mercyThreshold, protectedThreatened, mind.protectiveness,
                     wardHurt, playerNear, canWarn,
                 )
                 when {
