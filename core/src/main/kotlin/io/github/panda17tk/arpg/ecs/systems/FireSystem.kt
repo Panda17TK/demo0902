@@ -108,7 +108,7 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
                             MobDamage.hurt(mobH, mobV, mobA, mobDodge, BEAM_BLAST_DMG * fall, nx, ny, 240f * fall, rng.nextFloat())
                         }
                     }
-                    if (broke) flow.rebuild(map, floor(t.x / Tuning.TILE).toInt(), floor(t.y / Tuning.TILE).toInt())
+                    if (broke) flow.rebuild(map, floor(t.x / Tuning.TILE).toInt(), floor(t.y / Tuning.TILE).toInt(), FlowRebuildSystem.MAX_DIST)
                     fx.addShake(0.16f, 6f); fx.spawnSparks(bx, by, 12, BEAM_SPARK)
                 }
             }

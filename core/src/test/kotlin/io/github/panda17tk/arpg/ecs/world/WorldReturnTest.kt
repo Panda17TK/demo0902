@@ -31,4 +31,11 @@ class WorldReturnTest {
         val b = WorldFactory.create(InputState(), seed = 9L)
         assertEquals(a.planets.map { it.cx to it.cy }, b.planets.map { it.cx to it.cy })
     }
+
+    @Test fun `the same space seed reproduces stable, distinct planet ids (memory keys survive round-trips)`() {
+        val a = WorldFactory.create(InputState(), seed = 9L)
+        val b = WorldFactory.create(InputState(), seed = 9L)
+        assertEquals(a.planets.map { it.id }, b.planets.map { it.id })
+        assertEquals(a.planets.size, a.planets.map { it.id }.toSet().size) // distinct within one star system
+    }
 }

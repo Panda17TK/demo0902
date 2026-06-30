@@ -60,6 +60,7 @@ import io.github.panda17tk.arpg.sim.CreatureState
 import io.github.panda17tk.arpg.sim.GravityField
 import io.github.panda17tk.arpg.sim.PlanetField
 import io.github.panda17tk.arpg.sim.Drift
+import io.github.panda17tk.arpg.sim.PlanetContext
 import io.github.panda17tk.arpg.sim.Planets
 import io.github.panda17tk.arpg.sim.SurfaceEcology
 import io.github.panda17tk.arpg.sim.Tribes
@@ -74,7 +75,7 @@ object WorldFactory {
     fun create(
         input: InputState, config: GameConfig = GameConfig(), seed: Long = 1L,
         mode: WorldMode = WorldMode.SPACE, biome: PlanetBiome? = null, carry: PlayerCarry? = null,
-        playerSpawn: Pair<Float, Float>? = null,
+        playerSpawn: Pair<Float, Float>? = null, context: PlanetContext? = null,
     ): GameWorld {
         val loaded = MapLoader.load(
             if (mode == WorldMode.SURFACE) SurfaceStages.forBiome(biome, seed) else Stages.random(Rng(seed)),
@@ -108,9 +109,10 @@ object WorldFactory {
                 map.width * Tuning.TILE, map.height * Tuning.TILE,
                 loaded.playerSpawnX, loaded.playerSpawnY, planetCount, Rng(seed xor 0x91A2B3C4L),
                 margin = 768f, // 8× the old gap → planets sit far apart in the wider space
+                seed = seed, // stable planet ids per star system → society memory persists across landings
             ),
         )
-        val worldState = WorldState(mode = mode, biome = biome)
+        val worldState = WorldState(mode = mode, biome = biome, context = context)
         // The escape pad sits at the surface landing point; standing on it lets the player take off again.
         if (mode == WorldMode.SURFACE) worldState.escapePad = loaded.playerSpawnX to loaded.playerSpawnY
         // In space, scatter a flowing field of debris + asteroids around the player (cosmetic; fills the void).
@@ -199,7 +201,7 @@ object WorldFactory {
         if (mode == WorldMode.SURFACE && biome != null) {
             val worldW = map.width * Tuning.TILE; val worldH = map.height * Tuning.TILE
             val ecoRng = Rng(seed xor 0x5EED1234L)
-            val society = SurfaceEcology.populate(biome, loaded.playerSpawnX, loaded.playerSpawnY, worldW, worldH, ecoRng)
+            val society = SurfaceEcology.populate(biome, loaded.playerSpawnX, loaded.playerSpawnY, worldW, worldH, ecoRng, context ?: PlanetContext.NEUTRAL)
             for (p in society.placements) {
                 val def = config.enemies[p.key] ?: continue
                 val (fx, fy) = snapToFloor(map, p.x, p.y)

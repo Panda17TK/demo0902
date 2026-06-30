@@ -87,7 +87,7 @@ class ProjectileSystem(private val mobGrid: SpatialGrid<Entity>) :
             if (wall != null) {
                 fx.spawnChips(t.x, t.y, 5, chipColor)
                 if (Tiles.damageTile(map, wall.first, wall.second, b.dmg).broke) {
-                    flow.rebuild(map, playerTileX(), playerTileY())
+                    flow.rebuild(map, playerTileX(), playerTileY(), FlowRebuildSystem.MAX_DIST)
                     Pickups.dropOnWall(world, rng, (wall.first + 0.5f) * Tuning.TILE, (wall.second + 0.5f) * Tuning.TILE)
                 }
                 world -= entity
@@ -116,7 +116,7 @@ class ProjectileSystem(private val mobGrid: SpatialGrid<Entity>) :
 
     private fun detonate(ex: Float, ey: Float, r: Float) {
         Explosion.applyWallDamage(map, ex, ey, config.player)
-        flow.rebuild(map, playerTileX(), playerTileY())
+        flow.rebuild(map, playerTileX(), playerTileY(), FlowRebuildSystem.MAX_DIST)
         val maxDmg = config.player.explodeDmg
         mobGrid.forNearby(ex, ey, r + 24f) { mobEntity ->
             val mobT = with(world) { mobEntity[Transform] }

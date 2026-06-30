@@ -59,6 +59,25 @@ class SpaceDriveTest {
         assertEquals(cruise, hypot(vx, vy), 1e-2f)
     }
 
+    @Test fun `a halved walk cap tops out at half cruise (the space normal-move throttle)`() {
+        var vx = 0f; var vy = 0f
+        repeat(120) {
+            val (nx, ny) = SpaceDrive.step(vx, vy, 1f, 0f, SpaceDrive.Mode.WALK, walk, stick, button, cruise, 1f, hardCap, dt, walkCapMul = 0.5f)
+            vx = nx; vy = ny
+        }
+        assertEquals(cruise * 0.5f, hypot(vx, vy), 1e-2f)
+    }
+
+    @Test fun `the halved walk cap does not throttle a dash (dash-ram preserved)`() {
+        // BUTTON_DASH ignores walkCapMul — still climbs to 3× cruise even when normal move is throttled.
+        var vx = 0f; var vy = 0f
+        repeat(200) {
+            val (nx, ny) = SpaceDrive.step(vx, vy, 1f, 0f, SpaceDrive.Mode.BUTTON_DASH, walk, stick, button, cruise, 1f, hardCap, dt, walkCapMul = 0.5f)
+            vx = nx; vy = ny
+        }
+        assertEquals(cruise * 3f, hypot(vx, vy), 1e-2f)
+    }
+
     @Test fun `walking forward never speeds up a faster coast`() {
         val (nx, ny) = walkStep(300f, 0f, 1f, 0f) // already well above cruise
         assertEquals(300f, hypot(nx, ny), 1e-3f) // governor holds it — no free acceleration past a dash

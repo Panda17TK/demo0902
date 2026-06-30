@@ -20,7 +20,10 @@ import io.github.panda17tk.arpg.sim.CircleCollision
 import io.github.panda17tk.arpg.sim.Collision
 import io.github.panda17tk.arpg.sim.CrashModel
 import io.github.panda17tk.arpg.sim.PlanetField
+import io.github.panda17tk.arpg.sim.SocietyTuning
 import io.github.panda17tk.arpg.sim.WildAI
+import io.github.panda17tk.arpg.sim.WorldState
+import io.github.panda17tk.arpg.sim.toPressure
 import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.pow
@@ -35,6 +38,7 @@ import kotlin.math.sin
 class WildlifeSystem : IteratingSystem(family { all(Mob, Transform, Velocity, Body, Health, Facing) }) {
     private val map: TileMap = world.inject()
     private val planetField: PlanetField = world.inject()
+    private val worldState: WorldState = world.inject()
     private val players by lazy { world.family { all(PlayerTag, Transform) } }
     private val mobs by lazy { world.family { all(Mob, Transform, Health) } }
     private val wanderRng = Rng(0x21D7A11FEL) // private stream: keeps idle wander out of the combat RNG
@@ -86,10 +90,13 @@ class WildlifeSystem : IteratingSystem(family { all(Mob, Transform, Velocity, Bo
         val nestThreatened = territory > 0f && (pdist < territory || predatorNear)
 
         // --- Decide ---
-        m.hunger = (m.hunger + dt * HUNGER_RATE).coerceIn(0f, 1f)
+        // Living Planets: a shaken food web spooks prey sooner; a slain apex / hungry world starves predators faster.
+        val wildP = worldState.context?.let { SocietyTuning.wild(worldState.society.toPressure(it)) }
+        m.hunger = (m.hunger + dt * HUNGER_RATE * (wildP?.hungerMul ?: 1f)).coerceIn(0f, 1f)
+        val effFear = (m.def.fear * (wildP?.fearMul ?: 1f)).coerceIn(0f, 1f)
         val state = WildAI.nextState(
             m.def.wildRole, h.hp / h.hpMax, pdist,
-            predatorNear, preyNear, nestThreatened, herdSeparated, m.hunger, m.def.fear,
+            predatorNear, preyNear, nestThreatened, herdSeparated, m.hunger, effFear,
         )
         m.wildState = state
         if (state == WildState.Feed || (state == WildState.Chase && preyNear && preyBest < FEED_DIST2)) {

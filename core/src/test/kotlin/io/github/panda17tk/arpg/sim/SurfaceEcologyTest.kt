@@ -34,8 +34,13 @@ class SurfaceEcologyTest {
         for (p in gas) assertEquals(0f, enemies[p.key]?.gravityResponse ?: -1f, 1e-6f, p.key)
     }
 
-    @Test fun `a lonely asteroid is a sparse event`() {
-        for (seed in 1L..8L) assertTrue(place(PlanetBiome.LONELY, seed).size <= 3)
+    @Test fun `a lonely asteroid stays sparse`() {
+        // A lone leader (+maybe a monk) and a few rare wild drifters — still far emptier than a full biome.
+        for (seed in 1L..8L) {
+            val lonely = place(PlanetBiome.LONELY, seed).size
+            assertTrue(lonely <= 6, "lonely should stay sparse, was $lonely")
+            assertTrue(lonely < place(PlanetBiome.NATURE, seed).size, "lonely should be sparser than nature")
+        }
     }
 
     @Test fun `every biome is populated`() {
