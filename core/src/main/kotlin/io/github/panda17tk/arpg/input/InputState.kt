@@ -13,6 +13,7 @@ class InputState {
     var dash = false
     var placeWall = false   // edge-triggered: true only on the frame F transitions down
     var fire = false           // held (K)
+    var fireRelease = false    // edge: the frame fire/aim is released — manual-fire weapons (beam/grenade) shoot here
     var melee = false          // edge (J)
     var reload = false         // edge (R)
     var land = false           // edge: land on / take off from a planet (L key or the touch LAND button)

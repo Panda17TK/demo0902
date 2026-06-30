@@ -9,6 +9,7 @@ object KeyboardInput {
     private var prevJ = false
     private var prevR = false
     private var prevL = false
+    private var prevK = false
 
     fun poll(state: InputState) {
         val k = Gdx.input
@@ -21,7 +22,9 @@ object KeyboardInput {
         val f = k.isKeyPressed(Keys.F)
         state.placeWall = f && !prevF
         prevF = f
-        state.fire = k.isKeyPressed(Keys.K)
+        val kFire = k.isKeyPressed(Keys.K)
+        state.fire = kFire
+        state.fireRelease = !kFire && prevK; prevK = kFire // release edge → manual-fire weapons shoot
         val j = k.isKeyPressed(Keys.J); state.melee = j && !prevJ; prevJ = j
         val r = k.isKeyPressed(Keys.R); state.reload = r && !prevR; prevR = r
         val lKey = k.isKeyPressed(Keys.L); state.land = lKey && !prevL; prevL = lKey // land / take off

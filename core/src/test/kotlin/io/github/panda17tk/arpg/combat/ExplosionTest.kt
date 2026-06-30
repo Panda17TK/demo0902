@@ -25,4 +25,14 @@ class ExplosionTest {
         Explosion.applyWallDamage(m, wx * Tuning.TILE + 16f, wy * Tuning.TILE + 16f, PlayerConfig())
         assertEquals(Tile.FLOOR, m.tileAt(wx, wy)) // 120 dmg at center > 90 HP -> broken
     }
+    @Test fun `blastWalls flattens a destructible wall within the radius (beam impact crater)`() {
+        val m = MapLoader.load(Stages.byId("arena1")).tileMap
+        var wx = -1; var wy = -1
+        loop@ for (ty in 1 until m.height - 1) for (tx in 1 until m.width - 1) {
+            if (m.tileAt(tx, ty) == Tile.WALL && m.hp[m.index(tx, ty)].isFinite()) { wx = tx; wy = ty; break@loop }
+        }
+        val broke = Explosion.blastWalls(m, wx * Tuning.TILE + 16f, wy * Tuning.TILE + 16f, Tuning.TILE * 2f)
+        assertTrue(broke, "the centred destructible wall should break")
+        assertEquals(Tile.FLOOR, m.tileAt(wx, wy))
+    }
 }

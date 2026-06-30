@@ -373,7 +373,7 @@ class GameScreen : ScreenAdapter() {
                 Actors.drawMob(shapes, mm.kind, mm.tier, mt.x, mt.y, mm.def.w, mm.def.h, Color.valueOf(mm.def.color), mf.x, mf.y, moving, mh.hitFlash > 0f, ma.dodgeT > 0f, chargeProg, ma.enrageT > 0f, hpFrac, e.id * 1.3f, animTime)
             }
         }
-        Actors.drawPlayer(shapes, px, py, fx, fy, dashing, playerHit, muzzle)
+        Actors.drawPlayer(shapes, px, py, fx, fy, dashing, playerHit, muzzle, animTime)
         with(gw.world) {
             gw.world.family { all(Bullet, Transform) }.forEach { e ->
                 val bt = e[Transform]; val b = e[Bullet]
@@ -523,14 +523,27 @@ class GameScreen : ScreenAdapter() {
                 if (ma.blinkChargeT > 0f) { shapes.color = cBlink; shapes.circle(mt.x, mt.y, 10f + ma.blinkChargeT * 50f, 14) }
             }
         }
+        // Melee swing: a thick cyan-white crescent that swooshes outward as it fades, with a bright core arc and a
+        // leading-edge spark — reads as a fast, strong slash rather than a faint line.
         gw.fx.slashes.forEach { sl ->
-            val k = 1f - sl.t / sl.life
-            shapes.color = tmpC.set(1f, 1f, 1f, 0.75f * k)
-            val a0 = sl.ang - 1.0f; val a1 = sl.ang + 1.0f; val r = 32f; val steps = 8
+            val p = (sl.t / sl.life).coerceIn(0f, 1f); val k = 1f - p
+            val a0 = sl.ang - 1.15f; val a1 = sl.ang + 1.15f
+            val rBase = 30f + p * 16f; val steps = 14 // expands outward over its life (the swoosh)
+            for (layer in -1..1) { // 3 offset radii → a thick glowing band
+                val rr = rBase + layer * 3.5f
+                shapes.color = tmpC.set(0.62f, 0.9f, 1f, 0.5f * k)
+                for (i in 0 until steps) {
+                    val b0 = a0 + (a1 - a0) * i / steps; val b1 = a0 + (a1 - a0) * (i + 1) / steps
+                    shapes.line(sl.x + cos(b0) * rr, sl.y + sin(b0) * rr, sl.x + cos(b1) * rr, sl.y + sin(b1) * rr)
+                }
+            }
+            shapes.color = tmpC.set(1f, 1f, 1f, 0.95f * k) // bright white core arc
             for (i in 0 until steps) {
                 val b0 = a0 + (a1 - a0) * i / steps; val b1 = a0 + (a1 - a0) * (i + 1) / steps
-                shapes.line(sl.x + cos(b0) * r, sl.y + sin(b0) * r, sl.x + cos(b1) * r, sl.y + sin(b1) * r)
+                shapes.line(sl.x + cos(b0) * rBase, sl.y + sin(b0) * rBase, sl.x + cos(b1) * rBase, sl.y + sin(b1) * rBase)
             }
+            shapes.color = tmpC.set(1f, 0.95f, 0.7f, 0.9f * k) // hot spark off the leading edge
+            shapes.line(sl.x + cos(a1) * (rBase - 6f), sl.y + sin(a1) * (rBase - 6f), sl.x + cos(a1) * (rBase + 9f), sl.y + sin(a1) * (rBase + 9f))
         }
         shapes.end()
 

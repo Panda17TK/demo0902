@@ -15,4 +15,5 @@ data class WeaponDef(
     val ammoType: String,
     val reloadTime: Float = 0f, // seconds for an auto reload (manual is faster); 0 = none (beam)
     val infiniteAmmo: Boolean = false, // reload refills the mag without ever depleting reserve
+    val manualFire: Boolean = false, // tap-to-aim, release-to-fire (deliberate, aimed weapons) instead of hold-to-fire
 )
