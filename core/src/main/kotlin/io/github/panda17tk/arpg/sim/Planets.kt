@@ -17,6 +17,7 @@ data class PlanetBody(
     val gravityRange: Float,
     val biome: PlanetBiome,
     val id: Long = 0L,
+    val context: PlanetContext = PlanetContext.NEUTRAL,
 )
 
 /**
@@ -40,7 +41,9 @@ object Planets {
             val cy = rng.range(radius + margin, worldH - radius - margin)
             if (hypot(cx - playerX, cy - playerY) < minPlayerDist + radius) continue
             if (out.any { hypot(cx - it.cx, cy - it.cy) < radius + it.radius + margin }) continue
-            out.add(PlanetBody(cx, cy, radius, radius * MASS_PER_RADIUS, radius + GRAVITY_REACH, biomes[rng.nextInt(biomes.size)], idFor(seed, out.size)))
+            val biome = biomes[rng.nextInt(biomes.size)]
+            val id = idFor(seed, out.size)
+            out.add(PlanetBody(cx, cy, radius, radius * MASS_PER_RADIUS, radius + GRAVITY_REACH, biome, id, PlanetContext.contextFor(id, biome)))
         }
         return out
     }

@@ -54,6 +54,7 @@ import io.github.panda17tk.arpg.render.WorldView
 import io.github.panda17tk.arpg.save.Scores
 import io.github.panda17tk.arpg.sim.Drift
 import io.github.panda17tk.arpg.sim.FacilityKind
+import io.github.panda17tk.arpg.sim.PlanetContext
 import io.github.panda17tk.arpg.sim.PlanetMemoryBook
 import io.github.panda17tk.arpg.sim.ReturnSpawn
 import io.github.panda17tk.arpg.sim.SurfaceObjective
@@ -204,7 +205,7 @@ class GameScreen : ScreenAdapter() {
             returnSpawn = ReturnSpawn.beside(cand) // remember where to re-emerge on takeoff
             surfSeed += 1
             landedPlanetId = cand.id
-            transitionWorld(WorldMode.SURFACE, cand.biome, surfSeed, null)
+            transitionWorld(WorldMode.SURFACE, cand.biome, surfSeed, null, cand.context)
             gw.worldState.society = planetMemory.recall(cand.id) // seed this visit from the planet's remembered state
         } else {
             if (!playerOnEscapePad()) return // must stand on the escape pad to leave the surface
@@ -213,9 +214,9 @@ class GameScreen : ScreenAdapter() {
         }
     }
 
-    private fun transitionWorld(mode: WorldMode, biome: PlanetBiome?, seed: Long, spawn: Pair<Float, Float>?) {
+    private fun transitionWorld(mode: WorldMode, biome: PlanetBiome?, seed: Long, spawn: Pair<Float, Float>?, context: PlanetContext? = null) {
         val carry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
-        gw = WorldFactory.create(input, configStore.config, seed, mode, biome, carry, spawn)
+        gw = WorldFactory.create(input, configStore.config, seed, mode, biome, carry, spawn, context)
         gw.waveState.num = carry.wave
         accumulator = 0f; camInit = false; overlay = Overlay.NONE
         choosing = false; offered = false; choices = emptyList(); lastHp = Float.NaN

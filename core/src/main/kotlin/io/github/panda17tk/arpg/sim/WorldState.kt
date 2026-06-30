@@ -18,4 +18,6 @@ class WorldState(
     var society: PlanetSocietyState = PlanetSocietyState(),
     /** In SPACE, the drifting debris/asteroid field flowing around the player (cosmetic; null on a surface). */
     var drift: DriftField? = null,
+    /** On a SURFACE, the landed planet's character (temperament/sacred/story) — drives ecology, AI, speech. */
+    var context: PlanetContext? = null,
 )

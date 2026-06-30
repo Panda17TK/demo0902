@@ -60,6 +60,7 @@ import io.github.panda17tk.arpg.sim.CreatureState
 import io.github.panda17tk.arpg.sim.GravityField
 import io.github.panda17tk.arpg.sim.PlanetField
 import io.github.panda17tk.arpg.sim.Drift
+import io.github.panda17tk.arpg.sim.PlanetContext
 import io.github.panda17tk.arpg.sim.Planets
 import io.github.panda17tk.arpg.sim.SurfaceEcology
 import io.github.panda17tk.arpg.sim.Tribes
@@ -74,7 +75,7 @@ object WorldFactory {
     fun create(
         input: InputState, config: GameConfig = GameConfig(), seed: Long = 1L,
         mode: WorldMode = WorldMode.SPACE, biome: PlanetBiome? = null, carry: PlayerCarry? = null,
-        playerSpawn: Pair<Float, Float>? = null,
+        playerSpawn: Pair<Float, Float>? = null, context: PlanetContext? = null,
     ): GameWorld {
         val loaded = MapLoader.load(
             if (mode == WorldMode.SURFACE) SurfaceStages.forBiome(biome, seed) else Stages.random(Rng(seed)),
@@ -111,7 +112,7 @@ object WorldFactory {
                 seed = seed, // stable planet ids per star system → society memory persists across landings
             ),
         )
-        val worldState = WorldState(mode = mode, biome = biome)
+        val worldState = WorldState(mode = mode, biome = biome, context = context)
         // The escape pad sits at the surface landing point; standing on it lets the player take off again.
         if (mode == WorldMode.SURFACE) worldState.escapePad = loaded.playerSpawnX to loaded.playerSpawnY
         // In space, scatter a flowing field of debris + asteroids around the player (cosmetic; fills the void).
