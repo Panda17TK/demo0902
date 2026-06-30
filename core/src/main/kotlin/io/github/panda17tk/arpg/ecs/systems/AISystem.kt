@@ -34,6 +34,7 @@ import io.github.panda17tk.arpg.sim.Dash
 import io.github.panda17tk.arpg.sim.Family
 import io.github.panda17tk.arpg.sim.Leveling
 import io.github.panda17tk.arpg.sim.PlanetField
+import io.github.panda17tk.arpg.sim.SocietySpeechLines
 import io.github.panda17tk.arpg.sim.SocietyTuning
 import io.github.panda17tk.arpg.sim.SpeechLines
 import io.github.panda17tk.arpg.sim.Tribes
@@ -178,17 +179,23 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         val aggressive = mind.state == CreatureState.Hostile || mind.state == CreatureState.Protect ||
             mind.state == CreatureState.Rally
         if (speech.canSpeak && mind.state != prevState && speech.cooldown <= 0f) {
-            var trig = SpeechLines.forState(mind.state)
-            // Flavour the first encounter: kings decree, lone survivors muse, guards rally to the throne.
-            if (trig == SpeechLines.Trigger.Warn) {
-                if (mind.familyRole == FamilyRole.KING) trig = SpeechLines.Trigger.KingEncounter
-                else if (m.def.biome == PlanetBiome.LONELY) trig = SpeechLines.Trigger.LonelyEncounter
-            } else if (trig == SpeechLines.Trigger.ProtectChild && kingNear) {
-                trig = SpeechLines.Trigger.ProtectKing
-            }
-            if (trig != null) {
-                val line = SpeechLines.pick(trig, rng.nextInt(1000))
-                if (line != null) { speech.text = line; speech.remaining = BUBBLE_TIME; speech.cooldown = SPEECH_CD }
+            // A reacting creature voices the society's memory first — a child-killer is named as one (inert if blank).
+            val socLine = if (aggressive) SocietySpeechLines.triggerFor(worldState.society)?.let { SocietySpeechLines.pick(it, rng.nextInt(1000)) } else null
+            if (socLine != null) {
+                speech.text = socLine; speech.remaining = BUBBLE_TIME; speech.cooldown = SPEECH_CD
+            } else {
+                var trig = SpeechLines.forState(mind.state)
+                // Flavour the first encounter: kings decree, lone survivors muse, guards rally to the throne.
+                if (trig == SpeechLines.Trigger.Warn) {
+                    if (mind.familyRole == FamilyRole.KING) trig = SpeechLines.Trigger.KingEncounter
+                    else if (m.def.biome == PlanetBiome.LONELY) trig = SpeechLines.Trigger.LonelyEncounter
+                } else if (trig == SpeechLines.Trigger.ProtectChild && kingNear) {
+                    trig = SpeechLines.Trigger.ProtectKing
+                }
+                if (trig != null) {
+                    val line = SpeechLines.pick(trig, rng.nextInt(1000))
+                    if (line != null) { speech.text = line; speech.remaining = BUBBLE_TIME; speech.cooldown = SPEECH_CD }
+                }
             }
         }
 
