@@ -88,6 +88,30 @@ object SurfaceEcology {
                 fac.add(Facility(FacilityKind.SHRINE, cx, cy, CAMP_R * 0.6f)) // a lonely waymark
             }
         }
+
+        // Wildlife layer: mute animals roaming the wider surface, scattered around the landing point (not the
+        // camp), so the player crosses an ecosystem on the way to the society. Added last → the leader stays first.
+        fun wild(key: String, count: Int, near: Float, far: Float) {
+            repeat(count) {
+                val a = rng.nextFloat() * TAU
+                val d = near + (far - near) * rng.nextFloat()
+                out.add(EcologyPlacement(key, clampX(spawnX + cos(a) * d), clampY(spawnY + sin(a) * d), passive = true))
+            }
+        }
+        when (biome) {
+            PlanetBiome.NATURE -> {
+                wild("horn_deer", 4, WILD_NEAR, WILD_MID)       // a grazing herd
+                wild("moss_hopper", 5, WILD_NEAR, WILD_FAR)     // skittish prey, scattered wide
+                wild("fang_wolf", 2, WILD_MID, WILD_FAR)        // a wolf pack prowling the fringe
+                wild("root_boar", 2, WILD_NEAR, WILD_MID)       // territorial tuskers
+                wild("nest_mother", 1, WILD_MID, WILD_FAR)      // a nest guardian…
+                wild("forest_hatchling", 3, WILD_MID, WILD_FAR) // …with her young nearby
+                wild("forest_apex", 1, WILD_FAR, WILD_EDGE)     // the lone apex, far out
+            }
+            PlanetBiome.MAGMA -> wild("ember_moth", 4, WILD_NEAR, WILD_FAR)
+            PlanetBiome.ICE -> wild("frost_hare", 5, WILD_NEAR, WILD_FAR)
+            else -> {} // GAS / DEAD / LONELY: no wildlife yet (keeps GAS gravity-free + the asteroid sparse)
+        }
         return Society(out, fac)
     }
 
@@ -99,4 +123,8 @@ object SurfaceEcology {
     private val FAR = Tuning.TILE * 5.2f      // scattered drifters
     private val MARGIN = Tuning.TILE * 2f     // keep clear of the arena's outer walls
     private val CAMP_R = Tuning.TILE * 2.2f   // central facility radius
+    private val WILD_NEAR = Tuning.TILE * 4f   // wildlife: nearest ring to the landing point
+    private val WILD_MID = Tuning.TILE * 8f
+    private val WILD_FAR = Tuning.TILE * 12f
+    private val WILD_EDGE = Tuning.TILE * 16f  // the apex roams the far edge
 }

@@ -54,6 +54,13 @@ data class EnemyDef(
     val canSpeak: Boolean = false, // intelligent creatures emit short speech bubbles
     val familyRole: FamilyRole = FamilyRole.NONE, // child/elder/guardian/king drive protection + morale
     val biome: PlanetBiome? = null, // null = generic (space waves); set = lives on that planet type (surface only)
+    // Living Planets wildlife (mute animals, driven by WildlifeSystem). Legacy-safe defaults keep a creature HOSTILE.
+    val lifeKind: LifeKind = LifeKind.HOSTILE, // HOSTILE legacy / SAPIENT society / WILDLIFE wild animal
+    val wildRole: WildRole = WildRole.NONE,    // its niche in the food web (prey/herd/predator/apex/…)
+    val diet: Diet = Diet.NONE,                // what it eats (drives who it hunts)
+    val herdAffinity: Float = 0f,              // 0..1: how strongly it sticks with its herd
+    val fear: Float = 0f,                      // 0..1: how readily it flees the player / predators
+    val territoryRadius: Float = 0f,           // px an apex / nest-guard reacts within (0 = none)
     val attacks: List<AttackSpec> = emptyList(),
     val dodge: DodgeSpec? = null,
 )

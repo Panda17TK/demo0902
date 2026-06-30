@@ -28,7 +28,7 @@ private fun defaultEnemies(): Map<String, EnemyDef> = mapOf(
     "spitter" to EnemyDef(
         name = "スピッター", tier = "normal", color = "#3aa06f", hp = 65f, speed = 35f,
         seeRange = 320f, contactKB = 220f,
-        bravery = 0.25f, canBeg = true, mercyThreshold = 0.3f, canSpeak = true, // timid — flees, begs, pleads aloud
+        bravery = 0.25f, canBeg = true, mercyThreshold = 0.3f, canSpeak = true, lifeKind = LifeKind.SAPIENT, // timid — flees, begs, pleads aloud
         attacks = listOf(
             AttackSpec("melee", cd = 3.0f, dmg = 10f, range = 9f, arc = 90f),
             AttackSpec("shot", cd = 1.2f, dmg = 12f, speed = 220f, life = 1.6f),
@@ -37,7 +37,7 @@ private fun defaultEnemies(): Map<String, EnemyDef> = mapOf(
     "stalker" to EnemyDef(
         name = "ストーカー", tier = "normal", color = "#9a6ad0", hp = 60f, speed = 64f,
         seeRange = 340f, contactKB = 200f, gravityResponse = 0f, // agile — ignores gravity, closes straight in
-        intelligence = 0.8f, bravery = 0.3f, canHideAndRest = true, canSpeak = true, // cunning — hides, rests, taunts
+        intelligence = 0.8f, bravery = 0.3f, canHideAndRest = true, canSpeak = true, lifeKind = LifeKind.SAPIENT, // cunning — hides, rests, taunts
         dodge = DodgeSpec(0.18f, 0.15f, 2.0f),
         attacks = listOf(
             AttackSpec("blink", cd = 3.0f, maxTiles = 5, dur = 0.1f, minDist = 70f, standoff = 28f),
@@ -112,7 +112,7 @@ private fun defaultEnemies(): Map<String, EnemyDef> = mapOf(
     "spore_shaman" to EnemyDef(
         name = "胞子の祈祷師", tier = "normal", color = "#6fae8f", hp = 70f, speed = 44f,
         seeRange = 360f, contactKB = 200f, gravityResponse = 0.9f,
-        intelligence = 0.85f, bravery = 0.35f, canHideAndRest = true, canSpeak = true, biome = PlanetBiome.NATURE,
+        intelligence = 0.85f, bravery = 0.35f, canHideAndRest = true, canSpeak = true, lifeKind = LifeKind.SAPIENT, biome = PlanetBiome.NATURE,
         attacks = listOf(
             AttackSpec("shot", cd = 1.1f, dmg = 11f, speed = 220f, life = 1.6f),
             AttackSpec("heal", cd = 9.0f, amount = 30f),
@@ -121,7 +121,7 @@ private fun defaultEnemies(): Map<String, EnemyDef> = mapOf(
     "beast_king" to EnemyDef(
         name = "獣王", tier = "midboss", color = "#2f6f2a", hp = 480f, speed = 54f, w = 36f, h = 36f,
         seeRange = 360f, contactKB = 360f, gravityResponse = 0.6f,
-        protectiveness = 0.7f, canSpeak = true, familyRole = FamilyRole.KING, biome = PlanetBiome.NATURE,
+        protectiveness = 0.7f, canSpeak = true, lifeKind = LifeKind.SAPIENT, familyRole = FamilyRole.KING, biome = PlanetBiome.NATURE,
         attacks = listOf(
             AttackSpec("melee", cd = 0.8f, dmg = 18f, range = 26f, arc = 360f),
             AttackSpec("summon", cd = 8.0f, minion = "young_beast", count = 3),
@@ -160,7 +160,7 @@ private fun defaultEnemies(): Map<String, EnemyDef> = mapOf(
     "volcano_king" to EnemyDef(
         name = "火山王", tier = "midboss", color = "#a83218", hp = 540f, speed = 50f, w = 38f, h = 38f,
         seeRange = 380f, contactKB = 360f, gravityResponse = 0.6f,
-        protectiveness = 0.7f, canSpeak = true, familyRole = FamilyRole.KING, biome = PlanetBiome.MAGMA,
+        protectiveness = 0.7f, canSpeak = true, lifeKind = LifeKind.SAPIENT, familyRole = FamilyRole.KING, biome = PlanetBiome.MAGMA,
         attacks = listOf(
             AttackSpec("melee", cd = 0.8f, dmg = 20f, range = 28f, arc = 360f),
             AttackSpec("nova", cd = 5.0f, dmg = 10f, count = 16, speed = 200f),
@@ -172,7 +172,7 @@ private fun defaultEnemies(): Map<String, EnemyDef> = mapOf(
     "frostling" to EnemyDef(
         name = "氷の小妖", tier = "normal", color = "#bfe6f0", hp = 28f, speed = 86f,
         seeRange = 260f, contactKB = 160f, gravityResponse = 0.8f,
-        bravery = 0.15f, canBeg = true, mercyThreshold = 0.3f, canSpeak = true, biome = PlanetBiome.ICE, // timid — flees and pleads
+        bravery = 0.15f, canBeg = true, mercyThreshold = 0.3f, canSpeak = true, lifeKind = LifeKind.SAPIENT, biome = PlanetBiome.ICE, // timid — flees and pleads
         attacks = listOf(
             AttackSpec("lunge", cd = 3.2f, range = 70f, power = 280f),
             AttackSpec("melee", cd = 1.0f, dmg = 8f, range = 12f, arc = 360f),
@@ -189,7 +189,7 @@ private fun defaultEnemies(): Map<String, EnemyDef> = mapOf(
     "snow_stalker" to EnemyDef(
         name = "雪の追跡者", tier = "normal", color = "#9ad0e6", hp = 64f, speed = 66f,
         seeRange = 340f, contactKB = 200f, gravityResponse = 0f,
-        intelligence = 0.85f, bravery = 0.3f, canHideAndRest = true, canSpeak = true, biome = PlanetBiome.ICE,
+        intelligence = 0.85f, bravery = 0.3f, canHideAndRest = true, canSpeak = true, lifeKind = LifeKind.SAPIENT, biome = PlanetBiome.ICE,
         dodge = DodgeSpec(0.18f, 0.15f, 2.0f),
         attacks = listOf(
             AttackSpec("blink", cd = 3.0f, maxTiles = 5, dur = 0.1f, minDist = 70f, standoff = 28f),
@@ -199,7 +199,7 @@ private fun defaultEnemies(): Map<String, EnemyDef> = mapOf(
     "ice_queen" to EnemyDef(
         name = "氷の女王", tier = "midboss", color = "#5fa6d8", hp = 500f, speed = 48f, w = 36f, h = 36f,
         seeRange = 380f, contactKB = 340f, gravityResponse = 0.6f,
-        protectiveness = 0.7f, canSpeak = true, familyRole = FamilyRole.KING, biome = PlanetBiome.ICE,
+        protectiveness = 0.7f, canSpeak = true, lifeKind = LifeKind.SAPIENT, familyRole = FamilyRole.KING, biome = PlanetBiome.ICE,
         attacks = listOf(
             AttackSpec("nova", cd = 4.6f, dmg = 9f, count = 18, speed = 190f),
             AttackSpec("summon", cd = 8.0f, minion = "frostling", count = 3),
@@ -229,7 +229,7 @@ private fun defaultEnemies(): Map<String, EnemyDef> = mapOf(
     "gravity_wraith" to EnemyDef(
         name = "重力の亡霊", tier = "normal", color = "#b0a0e8", hp = 70f, speed = 60f,
         seeRange = 360f, contactKB = 200f, gravityResponse = 0f,
-        intelligence = 0.8f, bravery = 0.3f, canHideAndRest = true, canSpeak = true, biome = PlanetBiome.GAS,
+        intelligence = 0.8f, bravery = 0.3f, canHideAndRest = true, canSpeak = true, lifeKind = LifeKind.SAPIENT, biome = PlanetBiome.GAS,
         dodge = DodgeSpec(0.2f, 0.15f, 1.8f),
         attacks = listOf(
             AttackSpec("blink", cd = 3.2f, maxTiles = 6, dur = 0.1f, minDist = 80f, standoff = 60f),
@@ -239,7 +239,7 @@ private fun defaultEnemies(): Map<String, EnemyDef> = mapOf(
     "storm_core" to EnemyDef(
         name = "嵐の核(ボス)", tier = "boss", color = "#7a78d8", hp = 1080f, speed = 40f, w = 44f, h = 44f,
         seeRange = 460f, contactKB = 320f, gravityResponse = 0f, // the eye of the storm — unmoved by gravity
-        canSpeak = true, biome = PlanetBiome.GAS,
+        canSpeak = true, lifeKind = LifeKind.SAPIENT, biome = PlanetBiome.GAS,
         attacks = listOf(
             AttackSpec("nova", cd = 4.0f, dmg = 10f, count = 20, speed = 200f),
             AttackSpec("barrage", cd = 3.0f, dmg = 9f, count = 9, spread = 90f, speed = 200f),
@@ -270,7 +270,7 @@ private fun defaultEnemies(): Map<String, EnemyDef> = mapOf(
     "dead_oracle" to EnemyDef(
         name = "死の託宣者", tier = "midboss", color = "#8c86b0", hp = 320f, speed = 44f, w = 32f, h = 32f,
         seeRange = 400f, contactKB = 220f, gravityResponse = 0.7f,
-        intelligence = 0.7f, bravery = 0.6f, canHideAndRest = true, canSpeak = true, biome = PlanetBiome.DEAD,
+        intelligence = 0.7f, bravery = 0.6f, canHideAndRest = true, canSpeak = true, lifeKind = LifeKind.SAPIENT, biome = PlanetBiome.DEAD,
         attacks = listOf(
             AttackSpec("shot", cd = 1.1f, dmg = 12f, speed = 220f, life = 1.8f),
             AttackSpec("nova", cd = 5.5f, dmg = 9f, count = 14, speed = 180f),
@@ -281,7 +281,7 @@ private fun defaultEnemies(): Map<String, EnemyDef> = mapOf(
     "lost_soldier" to EnemyDef(
         name = "はぐれ兵", tier = "midboss", color = "#b9a06a", hp = 180f, speed = 60f, w = 26f, h = 26f,
         seeRange = 360f, contactKB = 240f, gravityResponse = 1.0f,
-        intelligence = 0.55f, bravery = 0.3f, canBeg = true, mercyThreshold = 0.4f, canSpeak = true, biome = PlanetBiome.LONELY,
+        intelligence = 0.55f, bravery = 0.3f, canBeg = true, mercyThreshold = 0.4f, canSpeak = true, lifeKind = LifeKind.SAPIENT, biome = PlanetBiome.LONELY,
         attacks = listOf(
             AttackSpec("shot", cd = 1.2f, dmg = 12f, speed = 230f, life = 1.7f),
             AttackSpec("charge_melee", cd = 2.8f, range = 50f, reach = 34f, windup = 0.7f, dmg = 18f, kb = 340f),
@@ -291,7 +291,7 @@ private fun defaultEnemies(): Map<String, EnemyDef> = mapOf(
     "exiled_king" to EnemyDef(
         name = "追放王(ボス)", tier = "boss", color = "#c8a23a", hp = 760f, speed = 54f, w = 42f, h = 42f,
         seeRange = 440f, contactKB = 380f, gravityResponse = 0.4f,
-        bravery = 1f, protectiveness = 0.4f, canSpeak = true, familyRole = FamilyRole.KING, biome = PlanetBiome.LONELY,
+        bravery = 1f, protectiveness = 0.4f, canSpeak = true, lifeKind = LifeKind.SAPIENT, familyRole = FamilyRole.KING, biome = PlanetBiome.LONELY,
         attacks = listOf(
             AttackSpec("melee", cd = 0.7f, dmg = 22f, range = 30f, arc = 360f),
             AttackSpec("charge", cd = 4.5f, range = 260f, power = 680f),
@@ -302,6 +302,71 @@ private fun defaultEnemies(): Map<String, EnemyDef> = mapOf(
     "star_monk" to EnemyDef(
         name = "星の修道士", tier = "normal", color = "#d8d0a0", hp = 90f, speed = 72f,
         seeRange = 320f, contactKB = 160f, gravityResponse = 0.6f,
-        intelligence = 0.6f, bravery = 0.1f, canSpeak = true, biome = PlanetBiome.LONELY, // peaceful — flees if attacked
+        intelligence = 0.6f, bravery = 0.1f, canSpeak = true, lifeKind = LifeKind.SAPIENT, biome = PlanetBiome.LONELY, // peaceful — flees if attacked
+    ),
+
+    // ===== Wildlife (LifeKind.WILDLIFE): mute animals that build an ecosystem, not a society. =====
+    // --- NATURE: a whole food web — skittish prey, a grazing herd, pack hunters, a guarded nest, a lone apex. ---
+    "moss_hopper" to EnemyDef(
+        name = "コケトビ", tier = "normal", color = "#8fcf6f", hp = 24f, speed = 104f, w = 16f, h = 16f,
+        seeRange = 260f, contactKB = 120f, gravityResponse = 0.8f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREY, diet = Diet.HERBIVORE, herdAffinity = 0.6f, fear = 0.95f, biome = PlanetBiome.NATURE,
+    ),
+    "horn_deer" to EnemyDef(
+        name = "ツノジカ", tier = "normal", color = "#b9925a", hp = 78f, speed = 82f, w = 24f, h = 24f,
+        seeRange = 320f, contactKB = 200f, gravityResponse = 1.0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.HERD, diet = Diet.HERBIVORE, herdAffinity = 0.9f, fear = 0.6f, biome = PlanetBiome.NATURE,
+    ),
+    "fang_wolf" to EnemyDef(
+        name = "牙オオカミ", tier = "normal", color = "#7a7f88", hp = 62f, speed = 96f, w = 22f, h = 20f,
+        seeRange = 360f, contactKB = 240f, gravityResponse = 0.9f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREDATOR, diet = Diet.CARNIVORE, herdAffinity = 0.45f, fear = 0.25f, biome = PlanetBiome.NATURE,
+        attacks = listOf(
+            AttackSpec("lunge", cd = 3.0f, range = 110f, power = 380f),
+            AttackSpec("melee", cd = 0.9f, dmg = 12f, range = 16f, arc = 360f),
+        ),
+    ),
+    "root_boar" to EnemyDef(
+        name = "ねもといのしし", tier = "normal", color = "#9a6b4a", hp = 120f, speed = 66f, w = 28f, h = 24f,
+        seeRange = 260f, contactKB = 280f, gravityResponse = 1.1f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.NEST_GUARD, diet = Diet.HERBIVORE, herdAffinity = 0.3f, fear = 0.2f, territoryRadius = 150f, biome = PlanetBiome.NATURE,
+        attacks = listOf(
+            AttackSpec("charge_melee", cd = 3.2f, range = 70f, reach = 30f, windup = 0.6f, dmg = 16f, kb = 360f),
+        ),
+    ),
+    "nest_mother" to EnemyDef(
+        name = "巣の母", tier = "normal", color = "#6f9a52", hp = 170f, speed = 50f, w = 32f, h = 28f,
+        seeRange = 320f, contactKB = 300f, gravityResponse = 0.9f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.NEST_GUARD, diet = Diet.OMNIVORE, herdAffinity = 0.3f, fear = 0.1f, territoryRadius = 180f, biome = PlanetBiome.NATURE,
+        attacks = listOf(
+            AttackSpec("melee", cd = 0.9f, dmg = 14f, range = 22f, arc = 360f),
+            AttackSpec("charge_melee", cd = 3.6f, range = 80f, reach = 34f, windup = 0.7f, dmg = 18f, kb = 380f),
+        ),
+    ),
+    "forest_hatchling" to EnemyDef(
+        name = "孵りたて", tier = "normal", color = "#bfe08f", hp = 18f, speed = 84f, w = 14f, h = 14f,
+        seeRange = 220f, contactKB = 90f, gravityResponse = 0.8f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.HATCHLING, diet = Diet.OMNIVORE, herdAffinity = 0.7f, fear = 1.0f, biome = PlanetBiome.NATURE,
+    ),
+    "forest_apex" to EnemyDef(
+        name = "森の主", tier = "normal", color = "#3f6f3a", hp = 300f, speed = 74f, w = 34f, h = 30f,
+        seeRange = 400f, contactKB = 340f, gravityResponse = 0.7f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.APEX, diet = Diet.CARNIVORE, herdAffinity = 0.1f, fear = 0.05f, territoryRadius = 240f, biome = PlanetBiome.NATURE,
+        attacks = listOf(
+            AttackSpec("lunge", cd = 3.4f, range = 140f, power = 460f),
+            AttackSpec("charge_melee", cd = 3.4f, range = 90f, reach = 38f, windup = 0.7f, dmg = 22f, kb = 420f),
+            AttackSpec("melee", cd = 0.8f, dmg = 18f, range = 26f, arc = 360f),
+        ),
+    ),
+    // --- Other biomes: a light touch for now (one wild species each). ---
+    "ember_moth" to EnemyDef(
+        name = "燻り蛾", tier = "normal", color = "#e08a4a", hp = 22f, speed = 108f, w = 14f, h = 14f,
+        seeRange = 260f, contactKB = 110f, gravityResponse = 0.5f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREY, diet = Diet.ENERGY, herdAffinity = 0.5f, fear = 0.9f, biome = PlanetBiome.MAGMA,
+    ),
+    "frost_hare" to EnemyDef(
+        name = "霜ウサギ", tier = "normal", color = "#bfe6ef", hp = 44f, speed = 92f, w = 18f, h = 16f,
+        seeRange = 300f, contactKB = 150f, gravityResponse = 1.0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.HERD, diet = Diet.HERBIVORE, herdAffinity = 0.85f, fear = 0.85f, biome = PlanetBiome.ICE,
     ),
 )
