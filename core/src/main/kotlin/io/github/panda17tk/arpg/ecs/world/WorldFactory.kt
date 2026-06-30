@@ -173,11 +173,16 @@ object WorldFactory {
         }
         carry?.applyTo(world, player) // carry HP/ammo/upgrades across a SPACE⇄SURFACE landing
 
+        // ~Half of each tribe's rank-and-file (normal tier) dash; bosses/elites keep their own kit.
+        val dashRng = Rng(seed xor 0x0DA54DA5L)
         // Initial enemies placed at the stage's markers (the wave spawner adds more over time).
         for (marker in loaded.spawns) {
             if (marker.kind != "enemy") continue
             val def = config.enemies[marker.name] ?: continue
-            MobFactory.spawn(world, def, marker.worldX, marker.worldY, tribe = tribes.tribeOf(marker.worldX, marker.worldY))
+            MobFactory.spawn(
+                world, def, marker.worldX, marker.worldY, tribe = tribes.tribeOf(marker.worldX, marker.worldY),
+                dashes = def.tier == "normal" && dashRng.nextFloat() < 0.5f,
+            )
         }
 
         // Living Planets: landing on a planet lays out its inhabitants once (its society/ecology), not a wave.
@@ -188,7 +193,10 @@ object WorldFactory {
             for (p in society.placements) {
                 val def = config.enemies[p.key] ?: continue
                 val (fx, fy) = snapToFloor(map, p.x, p.y)
-                val e = MobFactory.spawn(world, def, fx, fy, tribe = tribes.tribeOf(fx, fy))
+                val e = MobFactory.spawn(
+                    world, def, fx, fy, tribe = tribes.tribeOf(fx, fy),
+                    dashes = def.tier == "normal" && dashRng.nextFloat() < 0.5f,
+                )
                 if (p.passive) with(world) { e[CreatureMind].state = CreatureState.Ignore } // pacifist until attacked
             }
             worldState.facilities = society.facilities
