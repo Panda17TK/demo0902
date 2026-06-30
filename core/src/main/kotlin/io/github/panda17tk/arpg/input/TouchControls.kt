@@ -48,6 +48,7 @@ class TouchControls {
         val vis = TouchButtons.visible(blocks, mag, magSize)
         visibleButtons = vis
         input.aiming = false
+        input.moveMag = 0f
         var stick = false; var aim = false
         var dash = false; var melee = false; var reload = false; var wall = false; var weapon = false
 
@@ -86,6 +87,8 @@ class TouchControls {
             if (dx > dead) input.right = true
             if (dy > dead) input.up = true   // finger pushed up the screen == keyboard W
             if (dy < -dead) input.down = true
+            // Analog deflection (0..1): pushing the stick to its rim trips a stick dash.
+            input.moveMag = (hypot(dx, dy) / layout.stickRadius).coerceIn(0f, 1f)
         }
         if (aim) {
             val dx = aimKnobX - aimBaseX; val dy = aimKnobY - aimBaseY

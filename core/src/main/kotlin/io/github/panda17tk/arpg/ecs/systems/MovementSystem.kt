@@ -21,9 +21,9 @@ import io.github.panda17tk.arpg.planet.PlanetBiome
 import io.github.panda17tk.arpg.sim.CircleCollision
 import io.github.panda17tk.arpg.sim.Collision
 import io.github.panda17tk.arpg.sim.CrashModel
-import io.github.panda17tk.arpg.sim.Inertia
 import io.github.panda17tk.arpg.sim.Locomotion
 import io.github.panda17tk.arpg.sim.PlanetField
+import io.github.panda17tk.arpg.sim.SpaceDrive
 import io.github.panda17tk.arpg.sim.Tuning
 import io.github.panda17tk.arpg.sim.WorldMode
 import io.github.panda17tk.arpg.sim.WorldState
@@ -55,8 +55,11 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         val staInf = bf.staminaInfT > 0f // pickup buff: dash freely without draining stamina
 
         val mv = Locomotion.keyboardDirection(input.left, input.right, input.up, input.down)
-        val dashing = (staInf || !s.overheat) && Locomotion.isDashing(input.dash, mv.isMoving, if (staInf) 1f else s.value)
-        tag.dashing = dashing
+        // Resolve facing before thrust: the right stick aims, else face the way you move. A button dash
+        // launches along this facing, so it must be current.
+        if (input.aiming) { f.x = input.aimX; f.y = input.aimY }
+        else if (mv.isMoving) { f.x = mv.dirX; f.y = mv.dirY }
+
         // Block biomes around the player drive terrain effects (magma burns, snow slows, grass restores).
         // On a planet surface the block material leans to the planet's biome (lava on magma worlds, etc.).
         val ptx = floor(t.x / Tuning.TILE).toInt(); val pty = floor(t.y / Tuning.TILE).toInt()
@@ -70,24 +73,34 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
             }
         }
 
-        val maxV = Locomotion.speed(dashing, config.player) * mods.moveMul *
+        // Decide this frame's thrust. Stick dash / button dash need stamina (unless the buff is up);
+        // when overheated, a big push or held button just falls back to a capped walk.
+        val canDash = staInf || (!s.overheat && s.value > 0f)
+        val mode = SpaceDrive.mode(mv.isMoving, input.moveMag, input.dash, canDash, STICK_DASH_MIN)
+        val dashing = mode == SpaceDrive.Mode.BUTTON_DASH || mode == SpaceDrive.Mode.STICK_DASH
+        tag.dashing = dashing
+
+        // Normal-move speed cap scales with buffs/snow; dashes are bounded only by the hard ceiling.
+        val cruise = Locomotion.speed(false, config.player) * mods.moveMul *
             (if (bf.dashUpT > 0f) DASH_UP_MUL else 1f) * (if (snow) SNOW_SLOW else 1f)
-        val accel = if (dashing) DASH_ACCEL else MOVE_ACCEL
+        val hardCap = V_HARD * mods.moveMul * (if (bf.dashUpT > 0f) DASH_UP_MUL else 1f)
+        // Zero friction in open space; a planet surface (ice especially) restores ground drag so you stop.
+        val decay = when {
+            worldState.mode != WorldMode.SURFACE -> SPACE_DECAY
+            worldState.biome == PlanetBiome.ICE -> ICE_COAST
+            else -> SURFACE_COAST
+        }
+        // Thrust direction: the facing for a button dash, the move stick otherwise.
+        val tx = if (mode == SpaceDrive.Mode.BUTTON_DASH) f.x else mv.dirX
+        val ty = if (mode == SpaceDrive.Mode.BUTTON_DASH) f.y else mv.dirY
 
         // Knockback decays fast and stays separate from movement (keeps hits punchy).
         v.vx *= 0.0001f.pow(dt)
         v.vy *= 0.0001f.pow(dt)
-        // Coast drag depends on where we are: space glides; planet ground stops fast; an ice planet slips.
-        val coast = when {
-            worldState.mode != WorldMode.SURFACE -> COAST_DECAY
-            worldState.biome == PlanetBiome.ICE -> ICE_COAST
-            else -> SURFACE_COAST
-        }
-        // Newtonian-ish momentum: input/dash accelerate the drift; the coast drag set above lets it glide or grip.
-        val thrustX = if (mv.isMoving) mv.dirX * accel else 0f
-        val thrustY = if (mv.isMoving) mv.dirY * accel else 0f
-        val decay = if (mv.isMoving) MOVE_DECAY else coast
-        val (nvx, nvy) = Inertia.step(v.driftX, v.driftY, thrustX, thrustY, decay, maxV, dt)
+        val (nvx, nvy) = SpaceDrive.step(
+            v.driftX, v.driftY, tx, ty, mode,
+            MOVE_ACCEL, STICK_DASH_ACCEL, BUTTON_DASH_ACCEL, cruise, decay, hardCap, dt,
+        )
         v.driftX = nvx; v.driftY = nvy
 
         // Axis-separated collision so the player slides/crawls along walls instead of catching on edges.
@@ -103,12 +116,17 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
             val (rdx, rdy) = CrashModel.rebound(v.driftX, v.driftY, pc.normalX, pc.normalY, CRASH_RESTITUTION)
             v.driftX = rdx; v.driftY = rdy
         }
-        if (input.aiming) { f.x = input.aimX; f.y = input.aimY } // right stick aims independent of movement
-        else if (mv.isMoving) { f.x = mv.dirX; f.y = mv.dirY }
+        // Stamina: a button dash drains hard, a stick dash barely sips, otherwise it regenerates.
         if (staInf) {
             s.value = s.max; s.overheat = false
         } else {
-            s.value = Locomotion.nextStamina(s.value, dashing, dt, config.player)
+            val drain = when (mode) {
+                SpaceDrive.Mode.BUTTON_DASH -> BUTTON_DASH_DRAIN
+                SpaceDrive.Mode.STICK_DASH -> STICK_DASH_DRAIN
+                else -> 0f
+            }
+            s.value = if (drain > 0f) (s.value - drain * dt).coerceAtLeast(0f)
+            else (s.value + config.player.staRegen * dt).coerceAtMost(s.max)
             if (s.value <= 0.05f) s.overheat = true            // fully drained → overheat (no stamina actions)
             if (s.value >= s.max - 0.05f) s.overheat = false   // fully recovered → clear overheat
         }
@@ -121,10 +139,14 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
     companion object {
         private const val DASH_UP_MUL = 1.5f // dash-speed pickup buff
         private const val CRASH_RESTITUTION = 0.35f // slight outward rebound off a planet (no crash damage)
-        private const val MOVE_ACCEL = 480f // walk acceleration — heavier: ramps up over ~0.2s
-        private const val DASH_ACCEL = 1600f // dash acceleration — beefier dash
-        private const val MOVE_DECAY = 0.6f // light drag while thrusting (still reaches the cap)
-        private const val COAST_DECAY = 0.5f // space glide on release — momentum lingers (~halves in 1s); main feel tunable
+        private const val MOVE_ACCEL = 640f // walk ramp — reaches the cruise cap in ~0.16s
+        private const val STICK_DASH_ACCEL = 320f // big-stick boost: a small accel that builds speed above cruise
+        private const val BUTTON_DASH_ACCEL = 2200f // dash button: a hard thrust along the facing
+        private const val STICK_DASH_MIN = 0.85f // move-stick deflection (0..1) that trips a stick dash
+        private const val V_HARD = 1000f // absolute speed ceiling (zero-friction safety; not tied to dash state)
+        private const val BUTTON_DASH_DRAIN = 70f // stamina/sec while button-dashing (expensive)
+        private const val STICK_DASH_DRAIN = 7f // stamina/sec while stick-dashing (very cheap)
+        private const val SPACE_DECAY = 1f // open space: zero friction — momentum is conserved
         private const val SURFACE_COAST = 0.02f // planet ground: friction stops you fast (no space inertia)
         private const val ICE_COAST = 0.7f // ice/snow surface: slippery, long glide
         private const val SNOW_SLOW = 0.62f // snow block underfoot → slower
