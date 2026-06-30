@@ -1,0 +1,46 @@
+name: deploy-pages
+
+# mobile-arena（静的PWA）を GitHub Pages に公開する。
+#
+# 事前準備（1回だけ・手動。Actions トークンでは自動有効化できないため）:
+#   リポジトリ Settings → Pages → Source を「GitHub Actions」にする。
+#   （必要なら Settings → Environments → github-pages → Deployment branches で
+#    ブランチ claude/mobile-arena-export-u36CG を許可）
+#
+# 公開手順: Pages 有効化後、Actions → "deploy-pages" → Run workflow（このブランチを選択）。
+# 自動 push デプロイにしたい場合は on: に push トリガを足す。
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile-arena
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Build static site (www/)
+        run: npm run build
+      - uses: actions/configure-pages@v5
+      - name: Upload site artifact (mobile-arena/www)
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "mobile-arena/www"
+      - id: deployment
+        uses: actions/deploy-pages@v4
