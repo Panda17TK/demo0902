@@ -90,6 +90,24 @@ class SpaceDriveTest {
         assertTrue(hypot(vx, vy) > cruise, "stick dash should exceed cruise: ${hypot(vx, vy)}")
     }
 
+    @Test fun `a stick dash tops out at twice cruise`() {
+        var vx = 0f; var vy = 0f
+        repeat(200) { val (nx, ny) = SpaceDrive.step(vx, vy, 1f, 0f, SpaceDrive.Mode.STICK_DASH, walk, stick, button, cruise, 1f, hardCap, dt); vx = nx; vy = ny }
+        assertEquals(cruise * 2f, hypot(vx, vy), 1e-2f)
+    }
+
+    @Test fun `a button dash tops out at three times cruise`() {
+        var vx = 0f; var vy = 0f
+        repeat(200) { val (nx, ny) = SpaceDrive.step(vx, vy, 1f, 0f, SpaceDrive.Mode.BUTTON_DASH, walk, stick, button, cruise, 1f, hardCap, dt); vx = nx; vy = ny }
+        assertEquals(cruise * 3f, hypot(vx, vy), 1e-2f)
+    }
+
+    @Test fun `a dash never clamps away faster inertia you already built`() {
+        val fast = cruise * 5f // e.g. flung fast by a gravity slingshot
+        val (nx, ny) = SpaceDrive.step(fast, 0f, 1f, 0f, SpaceDrive.Mode.BUTTON_DASH, walk, stick, button, cruise, 1f, hardCap, dt)
+        assertTrue(hypot(nx, ny) >= fast - 1e-2f, "a dash must not slow a faster coast: ${hypot(nx, ny)} vs $fast")
+    }
+
     @Test fun `nothing exceeds the absolute hard cap`() {
         val (nx, ny) = SpaceDrive.step(5000f, 0f, 0f, 0f, SpaceDrive.Mode.NONE, walk, stick, button, cruise, 1f, hardCap, dt)
         assertEquals(hardCap, hypot(nx, ny), 1e-2f)

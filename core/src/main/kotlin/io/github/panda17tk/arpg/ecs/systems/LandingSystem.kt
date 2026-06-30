@@ -25,5 +25,5 @@ class LandingSystem : IntervalSystem() {
         }
     }
 
-    companion object { private val LAND_RANGE = Tuning.TILE * 1.2f }
+    companion object { private val LAND_RANGE = Tuning.TILE * 3f } // hover within ~3 tiles of the surface to land
 }

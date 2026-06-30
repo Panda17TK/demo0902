@@ -15,6 +15,7 @@ class InputState {
     var fire = false           // held (K)
     var melee = false          // edge (J)
     var reload = false         // edge (R)
+    var land = false           // edge: land on / take off from a planet (L key or the touch LAND button)
     var weaponSlot = -1        // 0..4 on the frame 1-5 is pressed, else -1
     var aimX = 0f              // twin-stick: right-stick aim direction (unit vector)
     var aimY = 0f

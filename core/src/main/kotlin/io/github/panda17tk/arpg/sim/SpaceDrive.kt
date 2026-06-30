@@ -22,6 +22,9 @@ import kotlin.math.pow
 object SpaceDrive {
     enum class Mode { NONE, WALK, STICK_DASH, BUTTON_DASH }
 
+    const val STICK_CAP_MUL = 2f  // a stick dash tops out at 2× the normal-move cruise speed
+    const val BUTTON_CAP_MUL = 3f // a button dash tops out at 3× cruise
+
     /** Pick the thrust mode for this frame: button dash > stick dash > walk > coast. */
     fun mode(moving: Boolean, stickMag: Float, dashButton: Boolean, canDash: Boolean, stickDashMin: Float): Mode = when {
         dashButton && canDash -> Mode.BUTTON_DASH
@@ -43,19 +46,26 @@ object SpaceDrive {
         val prev = hypot(vx, vy)
         var nx = vx
         var ny = vy
+        // Each thrust mode adds acceleration; a governor then caps the speed it can REACH — walk at cruise,
+        // a stick dash at 2× cruise, a button dash at 3× cruise. The cap is max(modeCap, prevSpeed), so thrust
+        // never clamps away faster inertia you already built (a bigger dash, or gravity) — to shed it you must
+        // thrust the other way. Coasting (NONE) leaves momentum untouched.
+        val modeCap = when (mode) {
+            Mode.WALK -> cruise
+            Mode.STICK_DASH -> cruise * STICK_CAP_MUL
+            Mode.BUTTON_DASH -> cruise * BUTTON_CAP_MUL
+            Mode.NONE -> 0f
+        }
         when (mode) {
             Mode.BUTTON_DASH -> { nx += dirX * buttonAccel * dt; ny += dirY * buttonAccel * dt }
             Mode.STICK_DASH -> { nx += dirX * stickAccel * dt; ny += dirY * stickAccel * dt }
-            Mode.WALK -> {
-                nx += dirX * walkAccel * dt
-                ny += dirY * walkAccel * dt
-                // Governor: walk caps speed at cruise from a slow coast, but won't speed up (or brake) a
-                // faster coast — so a dash you already built survives, and retro-walking still slows you.
-                val cap = maxOf(cruise, prev)
-                val sp = hypot(nx, ny)
-                if (sp > cap && sp > 1e-4f) { nx = nx / sp * cap; ny = ny / sp * cap }
-            }
+            Mode.WALK -> { nx += dirX * walkAccel * dt; ny += dirY * walkAccel * dt }
             Mode.NONE -> {} // frictionless coast: keep the momentum we already have
+        }
+        if (mode != Mode.NONE) {
+            val cap = maxOf(modeCap, prev)
+            val sp = hypot(nx, ny)
+            if (sp > cap && sp > 1e-4f) { nx = nx / sp * cap; ny = ny / sp * cap }
         }
         if (decay != 1f) {
             val d = decay.pow(dt)

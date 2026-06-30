@@ -35,6 +35,7 @@ class TouchControls {
     private var prevReload = false
     private var prevWall = false
     private var prevWeapon = false
+    private var prevLand = false
     private var weaponIdx = 0
     private val tmpVec = Vector3()
 
@@ -43,14 +44,14 @@ class TouchControls {
     var pressedButtons: Set<TouchButton> = emptySet(); private set
     private var prevPressed: Set<TouchButton> = emptySet()
 
-    fun poll(input: InputState, viewport: Viewport, blocks: Int, mag: Int, magSize: Int?) {
+    fun poll(input: InputState, viewport: Viewport, blocks: Int, mag: Int, magSize: Int?, canLand: Boolean) {
         layout.screenW = viewport.worldWidth; layout.screenH = viewport.worldHeight
-        val vis = TouchButtons.visible(blocks, mag, magSize)
+        val vis = TouchButtons.visible(blocks, mag, magSize, canLand)
         visibleButtons = vis
         input.aiming = false
         input.moveMag = 0f
         var stick = false; var aim = false
-        var dash = false; var melee = false; var reload = false; var wall = false; var weapon = false
+        var dash = false; var melee = false; var reload = false; var wall = false; var weapon = false; var land = false
 
         for (i in 0 until MAX_POINTERS) {
             if (!Gdx.input.isTouched(i)) continue
@@ -70,6 +71,7 @@ class TouchControls {
                     TouchButton.RELOAD -> reload = true
                     TouchButton.WALL -> wall = true
                     TouchButton.WEAPON -> weapon = true
+                    TouchButton.LAND -> land = true
                     else -> if (aimPointer == -1 && !layout.isInStickZone(x, y)) {
                         aimPointer = i; aimBaseX = x; aimBaseY = y; aimKnobX = x; aimKnobY = y; aim = true
                     }
@@ -104,7 +106,8 @@ class TouchControls {
         if (reload && !prevReload) input.reload = true
         if (wall && !prevWall) input.placeWall = true
         if (weapon && !prevWeapon) { input.weaponSlot = weaponIdx; weaponIdx = (weaponIdx + 1) % WEAPON_SLOTS }
-        prevMelee = melee; prevReload = reload; prevWall = wall; prevWeapon = weapon
+        if (land && !prevLand) input.land = true // edge: fire landing once per tap
+        prevMelee = melee; prevReload = reload; prevWall = wall; prevWeapon = weapon; prevLand = land
 
         // P3: pressed set drives the highlight; a fresh press edge fires a short haptic tick.
         val pressed = buildSet {

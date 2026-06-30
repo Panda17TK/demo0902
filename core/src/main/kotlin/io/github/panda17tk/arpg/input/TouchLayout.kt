@@ -1,6 +1,6 @@
 package io.github.panda17tk.arpg.input
 
-enum class TouchButton { FIRE, MELEE, DASH, RELOAD, WALL, WEAPON }
+enum class TouchButton { FIRE, MELEE, DASH, RELOAD, WALL, WEAPON, LAND }
 
 /**
  * Pure geometry + hit-testing for the on-screen touch controls (no libGDX deps → unit-testable).
@@ -27,6 +27,7 @@ class TouchLayout(var screenW: Float = 0f, var screenH: Float = 0f) {
         Triple(TouchButton.WEAPON, 0.93f, 0.23f),
         Triple(TouchButton.MELEE, 0.78f, 0.23f),
         Triple(TouchButton.WALL, 0.855f, 0.36f),
+        Triple(TouchButton.LAND, 0.62f, 0.82f), // contextual: only shown near a planet / on the escape pad
     )
 
     fun all(): List<TouchButton> = buttons.map { it.first }
@@ -38,8 +39,11 @@ class TouchLayout(var screenW: Float = 0f, var screenH: Float = 0f) {
 
     /** Which action button (if any) contains the point. Returns null inside the stick zone. */
     /** Dash / weapon / reload are a touch larger for easier tapping. */
-    fun radiusOf(b: TouchButton): Float =
-        buttonRadius * if (b == TouchButton.DASH || b == TouchButton.WEAPON || b == TouchButton.RELOAD) 1.18f else 1f
+    fun radiusOf(b: TouchButton): Float = buttonRadius * when (b) {
+        TouchButton.LAND -> 1.55f // a big, obvious "land here" target
+        TouchButton.DASH, TouchButton.WEAPON, TouchButton.RELOAD -> 1.18f
+        else -> 1f
+    }
 
     fun button(x: Float, y: Float): TouchButton? {
         if (x < screenW * 0.45f) return null

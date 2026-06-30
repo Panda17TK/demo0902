@@ -140,8 +140,8 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         private const val DASH_UP_MUL = 1.5f // dash-speed pickup buff
         private const val CRASH_RESTITUTION = 0.35f // slight outward rebound off a planet (no crash damage)
         private const val MOVE_ACCEL = 640f // walk ramp — reaches the cruise cap in ~0.16s
-        private const val STICK_DASH_ACCEL = 320f // big-stick boost: a small accel that builds speed above cruise
-        private const val BUTTON_DASH_ACCEL = 2200f // dash button: a hard thrust along the facing
+        private const val STICK_DASH_ACCEL = 96f // big-stick boost: a gentle accel toward the 2× cruise cap
+        private const val BUTTON_DASH_ACCEL = 660f // dash button: a firm thrust along the facing toward the 3× cap
         private const val STICK_DASH_MIN = 0.85f // move-stick deflection (0..1) that trips a stick dash
         private const val V_HARD = 1000f // absolute speed ceiling (zero-friction safety; not tied to dash state)
         private const val BUTTON_DASH_DRAIN = 70f // stamina/sec while button-dashing (expensive)

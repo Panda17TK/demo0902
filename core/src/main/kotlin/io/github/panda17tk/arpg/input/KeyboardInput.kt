@@ -8,6 +8,7 @@ object KeyboardInput {
     private var prevF = false
     private var prevJ = false
     private var prevR = false
+    private var prevL = false
 
     fun poll(state: InputState) {
         val k = Gdx.input
@@ -23,6 +24,7 @@ object KeyboardInput {
         state.fire = k.isKeyPressed(Keys.K)
         val j = k.isKeyPressed(Keys.J); state.melee = j && !prevJ; prevJ = j
         val r = k.isKeyPressed(Keys.R); state.reload = r && !prevR; prevR = r
+        val lKey = k.isKeyPressed(Keys.L); state.land = lKey && !prevL; prevL = lKey // land / take off
         state.weaponSlot = when {
             k.isKeyPressed(Keys.NUM_1) -> 0
             k.isKeyPressed(Keys.NUM_2) -> 1
