@@ -360,6 +360,21 @@ class GameScreen : ScreenAdapter() {
                     shapes.circle(f.x + fr * 0.3f, f.y + fr * 0.25f, fr * 0.38f, 10)
                     shapes.circle(f.x + fr * 0.1f, f.y - fr * 0.4f, fr * 0.30f, 8)
                 }
+                FacilityKind.NEST -> { // a woven bowl cradling pale eggs
+                    tmpC.set(0.36f, 0.30f, 0.18f, 0.9f); shapes.color = tmpC; shapes.circle(f.x, f.y, fr, 20)
+                    tmpC.set(0.22f, 0.18f, 0.10f, 1f); shapes.color = tmpC; shapes.circle(f.x, f.y, fr * 0.62f, 18)
+                    tmpC.set(0.90f, 0.88f, 0.78f, 1f); shapes.color = tmpC
+                    for (i in 0 until 3) { val a = i / 3f * 6.2831855f; shapes.circle(f.x + cos(a) * fr * 0.32f, f.y + sin(a) * fr * 0.32f, fr * 0.16f, 10) }
+                }
+                FacilityKind.GRAVE -> { // turned earth + a leaning headstone
+                    tmpC.set(0.18f, 0.17f, 0.16f, 1f); shapes.color = tmpC; shapes.circle(f.x, f.y, fr, 18)
+                    tmpC.set(0.40f, 0.39f, 0.37f, 1f); shapes.color = tmpC; shapes.circle(f.x, f.y - fr * 0.2f, fr * 0.32f, 8)
+                }
+                FacilityKind.RELIC_ALTAR -> { // a stone pedestal with a pulsing relic
+                    tmpC.set(0.28f, 0.26f, 0.20f, 1f); shapes.color = tmpC; shapes.circle(f.x, f.y, fr, 18)
+                    tmpC.set(0.95f, 0.85f, 0.45f, 0.5f + 0.25f * sin(animTime * 2.4f)); shapes.color = tmpC
+                    shapes.circle(f.x, f.y, fr * 0.4f, 16)
+                }
             }
         }
         // escape pad — a glowing return ring at the surface landing point (drawn on the ground, under the actors)

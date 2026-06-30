@@ -9,7 +9,7 @@ import kotlin.math.sin
 data class EcologyPlacement(val key: String, val x: Float, val y: Float, val passive: Boolean = false)
 
 /** A built landmark on the surface — the leader's seat or scattered ruins — drawn as a real ground object. */
-enum class FacilityKind { CAMP, CRATER, DAIS, EYE, SHRINE, RUIN }
+enum class FacilityKind { CAMP, CRATER, DAIS, EYE, SHRINE, RUIN, NEST, GRAVE, RELIC_ALTAR }
 
 data class Facility(val kind: FacilityKind, val x: Float, val y: Float, val radius: Float)
 
@@ -182,6 +182,19 @@ object SurfaceEcology {
             }
             PlanetStorySeed.NONE -> {}
         }
+
+        // Loop 7 event-anchor facilities: a nest where hatchlings roam, a grave on the dead world, and a relic
+        // altar by the leader's seat (where the planet's material is claimed after the master falls).
+        if (biome == PlanetBiome.NATURE || biome == PlanetBiome.MAGMA || biome == PlanetBiome.GAS) {
+            val a = rng.nextFloat() * TAU
+            fac.add(Facility(FacilityKind.NEST, clampX(spawnX + cos(a) * WILD_MID), clampY(spawnY + sin(a) * WILD_MID), CAMP_R * 0.8f))
+        }
+        if (biome == PlanetBiome.DEAD) {
+            val a = rng.nextFloat() * TAU
+            fac.add(Facility(FacilityKind.GRAVE, clampX(campX + cos(a) * GUARD), clampY(campY + sin(a) * GUARD), CAMP_R * 0.7f))
+        }
+        val ra = rng.nextFloat() * TAU
+        fac.add(Facility(FacilityKind.RELIC_ALTAR, clampX(cx + cos(ra) * GUARD), clampY(cy + sin(ra) * GUARD), CAMP_R * 0.6f))
         return Society(out, fac)
     }
 

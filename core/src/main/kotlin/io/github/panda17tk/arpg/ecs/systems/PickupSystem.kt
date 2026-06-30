@@ -13,6 +13,7 @@ import io.github.panda17tk.arpg.ecs.components.PlayerTag
 import io.github.panda17tk.arpg.ecs.components.Smoke
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.math.Rng
+import io.github.panda17tk.arpg.sim.Consequence
 import io.github.panda17tk.arpg.sim.WorldState
 import kotlin.math.abs
 
@@ -52,14 +53,15 @@ class PickupSystem : IteratingSystem(family { all(Pickup, Transform) }) {
     /** A planet material's boon — small permanent stat gains; a lonely relic rolls a random one. */
     private fun applyMaterial(p: Entity, kind: String) {
         worldState.society.relicClaimed = true // the planet's relic has been claimed → objective points to the pad
+        val mult = Consequence.materialMultiplier(worldState.society) // a slain apex → richer spoils (at a cost)
         val k = if (kind == "mat_lonely") LONELY_ROLL[rng.nextInt(LONELY_ROLL.size)] else kind
         with(world) {
             when (k) {
-                "mat_nature" -> { val h = p[Health]; h.hpMax += NATURE_HP; h.hp = minOf(h.hpMax, h.hp + NATURE_HP) }
-                "mat_magma" -> p[Mods].gunMul += MAGMA_GUN
+                "mat_nature" -> { val h = p[Health]; val g = NATURE_HP * mult; h.hpMax += g; h.hp = minOf(h.hpMax, h.hp + g) }
+                "mat_magma" -> p[Mods].gunMul += MAGMA_GUN * mult
                 "mat_ice" -> p[Mods].fireMul = maxOf(MIN_FIRE, p[Mods].fireMul * ICE_FIRE)
-                "mat_gas" -> p[Mods].moveMul += GAS_MOVE
-                "mat_dead" -> { val a = p[Ammo]; for (ak in AMMO_KINDS) a.set(ak, a.get(ak) + DEAD_AMMO) }
+                "mat_gas" -> p[Mods].moveMul += GAS_MOVE * mult
+                "mat_dead" -> { val a = p[Ammo]; val g = (DEAD_AMMO * mult).toInt(); for (ak in AMMO_KINDS) a.set(ak, a.get(ak) + g) }
                 else -> {}
             }
         }
