@@ -577,7 +577,7 @@ class GameScreen : ScreenAdapter() {
             val onPad = ws.mode == WorldMode.SURFACE && playerOnEscapePad()
             val hint = when {
                 onPad -> "[L] 脱出パッドから離陸して宇宙へ"
-                ws.mode == WorldMode.SURFACE && biome != null -> SurfaceObjective.hudLine(biome, elites)
+                ws.mode == WorldMode.SURFACE && biome != null -> SurfaceObjective.hudLine(biome, elites, ws.society)
                 ws.mode == WorldMode.SURFACE -> "[L] 離陸して宇宙へ"
                 ws.landingCandidate != null -> "[L] 着陸: ${ws.landingCandidate!!.biome.displayName}"
                 else -> null

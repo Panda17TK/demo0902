@@ -14,4 +14,6 @@ class WorldState(
     var escapePad: Pair<Float, Float>? = null,
     /** On a SURFACE, the built landmarks (camp/crater/dais/eye/shrine/ruins) the society lives among. */
     var facilities: List<Facility> = emptyList(),
+    /** On a SURFACE, what the society remembers of this visit (ecology events, player deeds). Reset per landing. */
+    var society: PlanetSocietyState = PlanetSocietyState(),
 )

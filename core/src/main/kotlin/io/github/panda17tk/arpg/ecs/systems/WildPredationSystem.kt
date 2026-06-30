@@ -5,11 +5,13 @@ import com.github.quillraven.fleks.IteratingSystem
 import com.github.quillraven.fleks.World.Companion.family
 import io.github.panda17tk.arpg.config.LifeKind
 import io.github.panda17tk.arpg.config.WildRole
+import io.github.panda17tk.arpg.config.WildState
 import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Mob
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.pathfinding.SpatialGrid
 import io.github.panda17tk.arpg.sim.Predation
+import io.github.panda17tk.arpg.sim.WildAI
 import io.github.panda17tk.arpg.sim.Tuning
 import kotlin.math.hypot
 
@@ -26,6 +28,12 @@ class WildPredationSystem(private val mobGrid: SpatialGrid<Entity>) :
         val pred = entity[Mob]
         if (pred.def.lifeKind != LifeKind.WILDLIFE) return
         if (pred.def.wildRole != WildRole.PREDATOR && pred.def.wildRole != WildRole.APEX) return
+        // Only an actively hunting animal bites — a fed wolf doesn't snap at prey that merely wandered past.
+        // An apex rules its turf, so it bites whenever it's closing in; a lesser predator must also be hungry.
+        val hunting = pred.def.wildRole == WildRole.APEX ||
+            pred.wildState == WildState.Chase || pred.wildState == WildState.Stalk || pred.wildState == WildState.Hunt
+        if (!hunting) return
+        if (pred.def.wildRole == WildRole.PREDATOR && pred.hunger < WildAI.HUNGRY) return
         if (pred.feedCd > 0f) { pred.feedCd -= deltaTime; return } // one bite per cooldown — skip the scan while chewing
 
         val t = entity[Transform]
