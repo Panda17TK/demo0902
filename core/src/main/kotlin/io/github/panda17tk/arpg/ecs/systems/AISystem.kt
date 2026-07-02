@@ -349,7 +349,7 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         }
     }
 
-    /** Contact damage: brawl a hostile-tribe mob if we're locked onto one, else bump the player. */
+    /** Contact: brawl a hostile-tribe mob if we're locked onto one, else bounce off (or dash-ram) the player. */
     private fun resolveContacts(
         t: Transform, v: Velocity, b: Body, m: Mob, h: Health, player: PlayerRef,
         ai: AiConfig, brawl: Boolean, dist: Float, aggressive: Boolean,
@@ -370,12 +370,19 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
             }
         } else if (aggressive && pt != null && ph != null && pv != null && m.bumpCd <= 0f) {
             if (abs(t.x - pt.x) < (b.halfW + 11f) && abs(t.y - pt.y) < (b.halfH + 11f)) {
-                val nx = if (dist > 0f) (pt.x - t.x) / dist else 1f
-                val ny = if (dist > 0f) (pt.y - t.y) / dist else 0f
-                pv.vx += nx * ai.playerKnockback; pv.vy += ny * ai.playerKnockback
-                v.vx -= nx * m.def.contactKB; v.vy -= ny * m.def.contactKB
-                if (ph.iTime <= 0f) { ph.hp -= ai.contactDmg; ph.iTime = ai.iFrameContact }
-                m.bumpCd = 0.28f
+                // Mere contact never hurts (or shoves) the player — only explicit attacks (melee/shot/…)
+                // deal damage, so melee-range mobs are free to press in and swing. But a mob slamming in
+                // with dash/fling momentum is a ram: the rammed side (the player) takes a knockback along
+                // the mob's motion and the rammer rebounds. (The player's dash-ram lives in MobActionSystem.)
+                val driftSp = hypot(v.driftX, v.driftY)
+                if (driftSp > RAM_MIN_SPEED) {
+                    pv.vx += v.driftX / driftSp * ai.playerKnockback
+                    pv.vy += v.driftY / driftSp * ai.playerKnockback
+                    val nx = if (dist > 0f) (pt.x - t.x) / dist else 1f
+                    val ny = if (dist > 0f) (pt.y - t.y) / dist else 0f
+                    v.vx -= nx * m.def.contactKB; v.vy -= ny * m.def.contactKB // the rammer rebounds
+                    m.bumpCd = 0.28f
+                }
             }
         }
     }
@@ -466,6 +473,7 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         private val HOSTILE_RANGE = Tuning.TILE * 7f // lock onto a hostile-tribe mob within this range
         private const val COH_W = 0.22f // herd cohesion weight (< separation's 0.5 so herds don't collapse)
         private const val MOB_VS_MOB_DMG = 14f // contact damage between hostile tribes
+        private const val RAM_MIN_SPEED = 150f // drift speed above this = a dash/fling ram → knock the player back
         private const val COVER_SMARTS = 0.55f // smarts above this → seek wall cover
         private const val KITE_SMARTS = 0.40f // smarts above this → ranged mobs kite
         private val KITE_DIST = Tuning.TILE * 5f // back off when the player is closer than this
