@@ -32,6 +32,7 @@ object Hud {
     private val cCard = Color(0.16f, 0.17f, 0.22f, 1f)
     private val cBtn = Color(0.18f, 0.20f, 0.27f, 1f)
     private val cBtnGo = Color(0.16f, 0.42f, 0.26f, 1f)   // green restart / resume
+    private val cBtnDanger = Color(0.44f, 0.16f, 0.16f, 1f) // the destructive 消す button
     private val cPill = Color(1f, 1f, 1f, 0.16f)
     private val cFrame = Color(1f, 1f, 1f, 0.45f)
     private val cHint = Color(0.75f, 0.78f, 0.85f, 1f)
@@ -312,6 +313,37 @@ object Hud {
             font.draw(batch, label, barX - 70f, gaugeBase + i * rowH + 13f)
         }
         centerLabel(batch, font, back.label, back.centerX, back.centerY)
+        batch.end()
+    }
+
+    /**
+     * 「宇宙の記憶を消す」 confirmation (LP v2.28): a dark scrim, the warning, and [消す][戻る].
+     * The destructive button wears a warning red; nothing here mutates state — GameScreen acts on the tap.
+     */
+    fun forget(
+        shapes: ShapeRenderer, batch: SpriteBatch, font: BitmapFont, titleFont: BitmapFont, vp: Viewport,
+        buttons: List<UiButton>,
+    ) {
+        val w = vp.worldWidth; val h = vp.worldHeight
+        Gdx.gl.glEnable(GL20.GL_BLEND)
+        shapes.projectionMatrix = vp.camera.combined
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
+        shapes.color = cScrimDark; shapes.rect(0f, 0f, w, h)
+        buttons.forEachIndexed { i, b ->
+            shapes.color = if (i == 0) cBtnDanger else cBtn
+            shapes.rect(b.x, b.y, b.w, b.h)
+        }
+        shapes.end()
+        frames(shapes, buttons)
+
+        batch.projectionMatrix = vp.camera.combined
+        batch.begin()
+        buttons.firstOrNull()?.let {
+            centerText(batch, titleFont, "宇宙の記憶を消す", w, it.y + it.h + 96f)
+            centerText(batch, font, "本当に消しますか", w, it.y + it.h + 56f)
+            centerText(batch, font, "この宇宙のすべての星があなたを忘れます", w, it.y + it.h + 30f)
+        }
+        buttons.forEach { centerLabel(batch, font, it.label, it.centerX, it.centerY) }
         batch.end()
     }
 

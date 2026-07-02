@@ -25,13 +25,14 @@ class PauseFlowTest {
 
     @Test fun `out-of-range pause indices have no action`() {
         assertNull(PauseFlow.action(-1))
-        assertNull(PauseFlow.action(3))
+        assertNull(PauseFlow.action(4, hasMemory = false))
+        assertNull(PauseFlow.action(5, hasMemory = true))
     }
 
     @Test fun `the memory entry only exists on a surface pause`() {
-        assertNull(PauseFlow.action(3, hasMemory = false))
+        assertEquals(PauseAction.FORGET, PauseFlow.action(3, hasMemory = false))
         assertEquals(PauseAction.MEMORY, PauseFlow.action(3, hasMemory = true))
-        assertNull(PauseFlow.action(4, hasMemory = true))
+        assertEquals(PauseAction.FORGET, PauseFlow.action(4, hasMemory = true))
     }
 
     @Test fun `toggle from the memory screen returns to play`() {
