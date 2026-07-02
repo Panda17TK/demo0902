@@ -267,6 +267,7 @@ object Hud {
     fun memory(
         shapes: ShapeRenderer, batch: SpriteBatch, font: BitmapFont, titleFont: BitmapFont, vp: Viewport,
         header: String, facts: List<Pair<String, Mark>>, gauges: List<Pair<String, Float>>, back: UiButton,
+        goals: List<String> = emptyList(), // LP v2.26: the planet's full goal list (already chip-formatted)
     ) {
         val w = vp.worldWidth; val h = vp.worldHeight
         // Gauge bars sit between the back button and the fact list; labels to their left.
@@ -300,6 +301,12 @@ object Hud {
             }
             font.draw(batch, "$markGlyph  $text", left, y)
             y -= rowH
+        }
+        if (goals.isNotEmpty()) { // the planet's goals, below the facts (chip strings carry their own marks)
+            y -= 6f
+            font.color = cHint
+            for (g in goals) { font.draw(batch, g, left, y); y -= rowH }
+            font.color = Color.WHITE
         }
         gauges.reversed().forEachIndexed { i, (label, _) ->
             font.draw(batch, label, barX - 70f, gaugeBase + i * rowH + 13f)
