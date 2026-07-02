@@ -48,9 +48,11 @@ import io.github.panda17tk.arpg.sim.PlanetScan
 import io.github.panda17tk.arpg.sim.PlanetSocietyState
 import io.github.panda17tk.arpg.sim.RunSession
 import io.github.panda17tk.arpg.sim.SocietyMemorySummary
+import io.github.panda17tk.arpg.sim.SurfaceGoals
 import io.github.panda17tk.arpg.sim.SurfaceObjective
 import io.github.panda17tk.arpg.sim.Tuning
 import io.github.panda17tk.arpg.sim.WorldMode
+import io.github.panda17tk.arpg.sim.WorldState
 import io.github.panda17tk.arpg.ui.Modals
 import io.github.panda17tk.arpg.ui.Overlay
 import io.github.panda17tk.arpg.ui.PauseAction
@@ -139,6 +141,10 @@ class GameScreen : ScreenAdapter() {
     private var lastCardId: Long? = null
     private var cachedCard: PlanetCardInfo? = null
 
+    // Surface goal chips (LP v2.26), rebuilt only when their inputs change (§14.2 — no per-frame strings).
+    private var chipsKey = -1
+    private var cachedChips: List<String> = emptyList()
+
     override fun show() {
         configStore.loadFromDisk()
         uiScale = Gdx.graphics.density.coerceIn(1f, 4f)
@@ -202,6 +208,7 @@ class GameScreen : ScreenAdapter() {
         accumulator = 0f; camInit = false; overlay = Overlay.NONE
         choosing = false; offered = false; choices = emptyList(); lastHp = Float.NaN
         lastCardId = null; cachedCard = null // memory may have changed across the transition → rebuild the scan card
+        chipsKey = -1; cachedChips = emptyList()
     }
 
     /** True when the player is standing on the surface escape pad (the return point). */
@@ -341,12 +348,16 @@ class GameScreen : ScreenAdapter() {
         if (overlay == Overlay.PAUSE) Hud.pause(shapes, batch, font, Fonts.title, hudViewport, Modals.pauseButtons(hudW, hudH, pauseHasMemory()))
         if (overlay == Overlay.HELP) Hud.help(shapes, batch, font, Fonts.title, hudViewport, Modals.helpButtons(hudW, hudH).first(), HELP_LINES)
         if (overlay == Overlay.MEMORY) {
-            val soc = gw.worldState.society
+            val ws = gw.worldState
+            val soc = ws.society
+            var elites = 0
+            with(gw.world) { gw.world.family { all(Mob) }.forEach { if (it[Mob].def.tier != "normal") elites++ } }
+            val goals = ws.biome?.let { SurfaceGoals.allChips(it, ws.context ?: PlanetContext.NEUTRAL, soc, elites) } ?: emptyList()
             Hud.memory(
                 shapes, batch, font, Fonts.title, hudViewport,
-                PlanetLexicon.traitLine(gw.worldState.context ?: PlanetContext.NEUTRAL),
+                PlanetLexicon.traitLine(ws.context ?: PlanetContext.NEUTRAL),
                 SocietyMemorySummary.factLines(soc), SocietyMemorySummary.gauges(soc),
-                Modals.helpButtons(hudW, hudH).first(),
+                Modals.helpButtons(hudW, hudH).first(), goals,
             )
         }
     }
@@ -376,13 +387,33 @@ class GameScreen : ScreenAdapter() {
             biome != null -> SurfaceObjective.hudLine(biome, elites, ws.society, ws.context ?: PlanetContext.NEUTRAL, ws.rememberedPlanet)
             else -> "[L] 離陸して宇宙へ"
         }
+        // Goal chips (LP v2.26) right under the main objective line, rebuilt only when inputs change.
+        val chips = if (biome != null) surfaceChips(biome, ws, elites) else emptyList()
         if (!paused && !choosing) {
             batch.projectionMatrix = hudViewport.camera.combined
             batch.begin()
             glyphLayout.setText(font, hint)
             font.draw(batch, glyphLayout, (hudW - glyphLayout.width) / 2f, hudH - 12f)
+            if (chips.isNotEmpty()) {
+                val joined = chips.joinToString("　　")
+                glyphLayout.setText(font, joined)
+                font.draw(batch, glyphLayout, (hudW - glyphLayout.width) / 2f, hudH - 34f)
+            }
             batch.end()
         }
+    }
+
+    /** The cached surface goal chips (max 2); rebuilt only when the deciding inputs change (§14.2). */
+    private fun surfaceChips(biome: PlanetBiome, ws: WorldState, elites: Int): List<String> {
+        val s = ws.society
+        fun b(v: Boolean) = if (v) 1 else 0
+        val key = (elites shl 5) or (b(s.relicClaimed) shl 4) or (b(s.childKilled) shl 3) or
+            (b(s.childHarmed) shl 2) or (b(s.apexKilled) shl 1) or b(s.leaderDefeated)
+        if (key != chipsKey) {
+            cachedChips = SurfaceGoals.chipsFor(biome, ws.context ?: PlanetContext.NEUTRAL, s, elites)
+            chipsKey = key
+        }
+        return cachedChips
     }
 
     private fun trackPlayerHitShake() {
