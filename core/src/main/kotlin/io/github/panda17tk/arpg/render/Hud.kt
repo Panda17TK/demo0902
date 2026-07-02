@@ -8,7 +8,10 @@ import com.badlogic.gdx.graphics.g2d.GlyphLayout
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.utils.viewport.Viewport
+import io.github.panda17tk.arpg.sim.EventKind
 import io.github.panda17tk.arpg.sim.PlanetCardInfo
+import io.github.panda17tk.arpg.sim.PlanetEvent
+import io.github.panda17tk.arpg.sim.Tuning
 import io.github.panda17tk.arpg.ui.HudLayout
 import io.github.panda17tk.arpg.ui.UiButton
 import io.github.panda17tk.arpg.ui.filledSegments
@@ -250,6 +253,33 @@ object Hud {
         font.color = cHint
         glyph.setText(font, hint)
         font.draw(batch, glyph, card.centerX - glyph.width / 2f, card.y + HudLayout.CARD_PAD + HudLayout.CARD_HINT_H - 4f)
+        font.color = Color.WHITE
+        batch.end()
+    }
+
+    /**
+     * Surface event feed (LP v2.24): up to a few short lines top-left, under the stats row.
+     * Oldest at the top, newest stacking downward; each line fades over its last moments.
+     * Colours by kind: hostile red / mercy green / ecology amber / neutral ink.
+     */
+    fun eventFeed(batch: SpriteBatch, font: BitmapFont, vp: Viewport, events: List<PlanetEvent>) {
+        if (events.isEmpty()) return
+        val l = HudLayout.of(vp.worldWidth, vp.worldHeight)
+        batch.projectionMatrix = vp.camera.combined
+        batch.begin()
+        var y = l.stats.y - 8f
+        for (e in events) {
+            val alpha = ((Tuning.EVENT_FEED_LIFE - e.age) / Tuning.EVENT_FEED_FADE).coerceIn(0f, 1f)
+            val base = when (e.kind) {
+                EventKind.HOSTILE -> cHpLo
+                EventKind.MERCY -> cHpHi
+                EventKind.ECOLOGY -> cReload
+                EventKind.NEUTRAL -> cHudInk
+            }
+            font.setColor(base.r, base.g, base.b, alpha)
+            font.draw(batch, e.text, l.stats.x, y)
+            y -= 20f
+        }
         font.color = Color.WHITE
         batch.end()
     }

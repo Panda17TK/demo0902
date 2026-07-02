@@ -24,4 +24,7 @@ class WorldState(
     var rememberedPlanet: Boolean = false,
     /** On a SURFACE, the return-visit greeting this planet's memory warrants (null on a first visit / faint memory). */
     var returnVisitGreeting: SocietySpeechTrigger? = null,
+    /** On a SURFACE, the live event feed (LP v2.24) — filled/aged by EventFeedSystem, drawn by Hud.eventFeed.
+     *  Lives here so every transition resets it for free (the WorldState is rebuilt per landing). */
+    val recentEvents: MutableList<PlanetEvent> = mutableListOf(),
 )

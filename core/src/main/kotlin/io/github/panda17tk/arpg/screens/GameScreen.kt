@@ -308,6 +308,8 @@ class GameScreen : ScreenAdapter() {
             runTime, gw.gameOver.kills, blocks,
         )
         drawObjectiveHint(paused, hudW, hudH)
+        // Surface event feed (LP v2.24): drawn whenever on a surface; aging freezes with the sim while paused.
+        if (gw.worldState.mode == WorldMode.SURFACE) Hud.eventFeed(batch, font, hudViewport, gw.worldState.recentEvents)
 
         if (touchEnabled && !paused && !choosing && !gw.gameOver.isOver) {
             val landLabel = if (gw.worldState.mode == WorldMode.SURFACE) "発進" else "着陸"
