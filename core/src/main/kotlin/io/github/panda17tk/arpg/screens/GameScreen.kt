@@ -43,11 +43,8 @@ import io.github.panda17tk.arpg.save.Scores
 import io.github.panda17tk.arpg.sim.Drift
 import io.github.panda17tk.arpg.sim.PlanetCardInfo
 import io.github.panda17tk.arpg.sim.PlanetContext
-import io.github.panda17tk.arpg.sim.PlanetMemoryBook
 import io.github.panda17tk.arpg.sim.PlanetScan
-import io.github.panda17tk.arpg.sim.ReturnSpawn
-import io.github.panda17tk.arpg.sim.ReturnVisitLine
-import io.github.panda17tk.arpg.sim.SocietySpeechLines
+import io.github.panda17tk.arpg.sim.RunSession
 import io.github.panda17tk.arpg.sim.SurfaceObjective
 import io.github.panda17tk.arpg.sim.Tuning
 import io.github.panda17tk.arpg.sim.WorldMode
@@ -130,13 +127,10 @@ class GameScreen : ScreenAdapter() {
     private val glyphLayout = GlyphLayout()
     private var uiScale = 1f
 
-    // Living Planets run state: the star system's seed, surface seed, and per-planet memory.
-    private var spaceSeed = 1L            // the current star system's seed (stable, so round-trips return to it)
-    private var surfSeed = 100L           // surface seed, varied per landing
-    private var returnSpawn: Pair<Float, Float>? = null // where to re-emerge in space after taking off
-    private val planetMemory = PlanetMemoryBook() // per-planet society memory, persists across landings this run
-    private var landedPlanetId: Long? = null      // id of the planet we're on, so takeoff folds memory back in
-    private var rememberedT = 0f                  // seconds left to show the return-visit greeting in the HUD
+    // Living Planets run state (R1): seeds + per-planet memory live in the pure RunSession; this class
+    // only executes the transitions it plans. rememberedT is a draw-side timer, so it stays here.
+    private val session = RunSession()
+    private var rememberedT = 0f // seconds left to show the return-visit greeting in the HUD
 
     // Pre-landing scan card (LP v2.23), rebuilt only when the latched candidate's id changes (FR-1.6).
     private var lastCardId: Long? = null
@@ -161,9 +155,8 @@ class GameScreen : ScreenAdapter() {
 
     /** Build (or rebuild) the run and reset per-run screen state (Phase 7 restart). */
     private fun newRun() {
-        spaceSeed = 1L; surfSeed = 100L; returnSpawn = null
-        planetMemory.memories.clear(); landedPlanetId = null // a fresh run forgets every planet
-        gw = WorldFactory.create(input, configStore.config, seed = spaceSeed)
+        session.reset() // a fresh run forgets every planet
+        gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed)
         accumulator = 0f
         camInit = false
         choosing = false
@@ -182,21 +175,17 @@ class GameScreen : ScreenAdapter() {
         val ws = gw.worldState
         if (ws.mode == WorldMode.SPACE) {
             val cand = ws.landingCandidate ?: return
-            returnSpawn = ReturnSpawn.beside(cand) // remember where to re-emerge on takeoff
-            surfSeed += 1
-            landedPlanetId = cand.id
-            val known = planetMemory.knows(cand.id)
-            val recalled = planetMemory.recall(cand.id)
-            transitionWorld(WorldMode.SURFACE, cand.biome, surfSeed, null, cand.context)
-            gw.worldState.society = recalled // seed this visit from the planet's remembered state
+            val plan = session.planLanding(cand) // seeds, memory recall and the greeting all decided in one place
+            transitionWorld(WorldMode.SURFACE, plan.biome, plan.seed, null, plan.context)
+            gw.worldState.society = plan.society // seed this visit from the planet's remembered state
             // Return-visit payoff: a remembered planet greets the player by reputation (shown briefly in the HUD).
-            gw.worldState.rememberedPlanet = known
-            gw.worldState.returnVisitGreeting = if (known) SocietySpeechLines.returnGreeting(recalled) else null
-            rememberedT = if (known && ReturnVisitLine.hudLine(recalled) != null) REMEMBERED_TIME else 0f
+            gw.worldState.rememberedPlanet = plan.known
+            gw.worldState.returnVisitGreeting = plan.greeting
+            rememberedT = if (plan.showGreeting) REMEMBERED_TIME else 0f
         } else {
             if (!playerOnEscapePad()) return // must stand on the escape pad to leave the surface
-            landedPlanetId?.let { planetMemory.remember(it, gw.worldState.society) } // fold the visit back into memory
-            transitionWorld(WorldMode.SPACE, null, spaceSeed, returnSpawn) // same system, beside the planet we left
+            val (seed, spawn) = session.completeTakeoff(gw.worldState.society) // fold the visit back into memory
+            transitionWorld(WorldMode.SPACE, null, seed, spawn) // same system, beside the planet we left
         }
     }
 
@@ -353,7 +342,7 @@ class GameScreen : ScreenAdapter() {
             val cand = ws.landingCandidate ?: run { lastCardId = null; cachedCard = null; return }
             if (paused || choosing || gw.gameOver.isOver) return
             if (cand.id != lastCardId) { // rebuild only when the candidate changes (FR-1.6)
-                cachedCard = PlanetScan.cardFor(cand, planetMemory.knows(cand.id), planetMemory.recall(cand.id))
+                cachedCard = PlanetScan.cardFor(cand, session.memory.knows(cand.id), session.memory.recall(cand.id))
                 lastCardId = cand.id
             }
             cachedCard?.let { Hud.planetScanCard(shapes, batch, font, Fonts.title, hudViewport, it, "[L] 着陸") }
