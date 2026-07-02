@@ -45,6 +45,7 @@ import io.github.panda17tk.arpg.sim.PlanetCardInfo
 import io.github.panda17tk.arpg.sim.PlanetContext
 import io.github.panda17tk.arpg.sim.PlanetLexicon
 import io.github.panda17tk.arpg.sim.PlanetScan
+import io.github.panda17tk.arpg.sim.PlanetSocietyState
 import io.github.panda17tk.arpg.sim.RunSession
 import io.github.panda17tk.arpg.sim.SocietyMemorySummary
 import io.github.panda17tk.arpg.sim.SurfaceObjective
@@ -178,8 +179,8 @@ class GameScreen : ScreenAdapter() {
         if (ws.mode == WorldMode.SPACE) {
             val cand = ws.landingCandidate ?: return
             val plan = session.planLanding(cand) // seeds, memory recall and the greeting all decided in one place
-            transitionWorld(WorldMode.SURFACE, plan.biome, plan.seed, null, plan.context)
-            gw.worldState.society = plan.society // seed this visit from the planet's remembered state
+            // R2: the remembered society goes INTO the factory, so spawn-time consumers see it from tick 0.
+            transitionWorld(WorldMode.SURFACE, plan.biome, plan.seed, null, plan.context, plan.society)
             // Return-visit payoff: a remembered planet greets the player by reputation (shown briefly in the HUD).
             gw.worldState.rememberedPlanet = plan.known
             gw.worldState.returnVisitGreeting = plan.greeting
@@ -191,9 +192,12 @@ class GameScreen : ScreenAdapter() {
         }
     }
 
-    private fun transitionWorld(mode: WorldMode, biome: PlanetBiome?, seed: Long, spawn: Pair<Float, Float>?, context: PlanetContext? = null) {
+    private fun transitionWorld(
+        mode: WorldMode, biome: PlanetBiome?, seed: Long, spawn: Pair<Float, Float>?,
+        context: PlanetContext? = null, society: PlanetSocietyState? = null,
+    ) {
         val carry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
-        gw = WorldFactory.create(input, configStore.config, seed, mode, biome, carry, spawn, context)
+        gw = WorldFactory.create(input, configStore.config, seed, mode, biome, carry, spawn, context, society)
         gw.waveState.num = carry.wave
         accumulator = 0f; camInit = false; overlay = Overlay.NONE
         choosing = false; offered = false; choices = emptyList(); lastHp = Float.NaN
