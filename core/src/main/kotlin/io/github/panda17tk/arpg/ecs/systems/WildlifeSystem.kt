@@ -97,6 +97,7 @@ class WildlifeSystem : IteratingSystem(family { all(Mob, Transform, Velocity, Bo
         val state = WildAI.nextState(
             m.def.wildRole, h.hp / h.hpMax, pdist,
             predatorNear, preyNear, nestThreatened, herdSeparated, m.hunger, effFear,
+            fleeSuppressed = worldState.spawnTweaks.fleeSuppressed, // LP v2.27: gratitude calms herds/hatchlings
         )
         m.wildState = state
         if (state == WildState.Feed || (state == WildState.Chase && preyNear && preyBest < FEED_DIST2)) {
