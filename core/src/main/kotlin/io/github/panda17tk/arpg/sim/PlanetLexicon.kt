@@ -32,6 +32,10 @@ object PlanetLexicon {
         SacredThing.SILENCE -> "静寂"
     }
 
+    /** The one-line character header 「気質　◯◯　　聖　◯◯」 (shared by the scan card and the memory summary). */
+    fun traitLine(ctx: PlanetContext): String =
+        "気質　${temperament(ctx.temperament)}　　聖　${sacred(ctx.sacredThing)}"
+
     /** A spoiler-free omen for the planet's story seed; null when the planet carries none. */
     fun omen(seed: PlanetStorySeed): String? = when (seed) {
         PlanetStorySeed.NONE -> null

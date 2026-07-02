@@ -9,12 +9,14 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.utils.viewport.Viewport
 import io.github.panda17tk.arpg.sim.EventKind
+import io.github.panda17tk.arpg.sim.Mark
 import io.github.panda17tk.arpg.sim.PlanetCardInfo
 import io.github.panda17tk.arpg.sim.PlanetEvent
 import io.github.panda17tk.arpg.sim.Tuning
 import io.github.panda17tk.arpg.ui.HudLayout
 import io.github.panda17tk.arpg.ui.UiButton
 import io.github.panda17tk.arpg.ui.filledSegments
+import kotlin.math.min
 
 /**
  * Screen-space overlay drawing — the in-play ⏸ button, the upgrade intermission, game over,
@@ -254,6 +256,55 @@ object Hud {
         glyph.setText(font, hint)
         font.draw(batch, glyph, card.centerX - glyph.width / 2f, card.y + HudLayout.CARD_PAD + HudLayout.CARD_HINT_H - 4f)
         font.color = Color.WHITE
+        batch.end()
+    }
+
+    /**
+     * Planet-memory summary (LP v2.25): the surface pause's read-only 「この星の記憶」 screen.
+     * Header (traits) → fact lines with a ○/−/× mark → the three feeling gauges → a 戻る button.
+     * Strings and values arrive pre-composed (sim/SocietyMemorySummary + PlanetLexicon); this only paints.
+     */
+    fun memory(
+        shapes: ShapeRenderer, batch: SpriteBatch, font: BitmapFont, titleFont: BitmapFont, vp: Viewport,
+        header: String, facts: List<Pair<String, Mark>>, gauges: List<Pair<String, Float>>, back: UiButton,
+    ) {
+        val w = vp.worldWidth; val h = vp.worldHeight
+        // Gauge bars sit between the back button and the fact list; labels to their left.
+        val barW = min(220f, w * 0.45f)
+        val barX = (w - barW) / 2f + 36f
+        val gaugeBase = back.y + back.h + 24f
+        val rowH = 26f
+
+        Gdx.gl.glEnable(GL20.GL_BLEND)
+        shapes.projectionMatrix = vp.camera.combined
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
+        shapes.color = cScrimDark; shapes.rect(0f, 0f, w, h)
+        shapes.color = cBtn; shapes.rect(back.x, back.y, back.w, back.h)
+        gauges.reversed().forEachIndexed { i, (_, value) ->
+            segBar(shapes, UiButton(barX, gaugeBase + i * rowH, barW, 12f), value, 1f, 8, cStaFill)
+        }
+        shapes.end()
+        frames(shapes, listOf(back))
+
+        batch.projectionMatrix = vp.camera.combined
+        batch.begin()
+        centerText(batch, titleFont, "この星の記憶", w, h * 0.9f)
+        centerText(batch, font, header, w, h * 0.82f)
+        var y = h * 0.74f
+        val left = w * 0.18f
+        for ((text, mark) in facts) {
+            val markGlyph = when (mark) {
+                Mark.DONE -> "○"
+                Mark.NONE -> "−"
+                Mark.BAD -> "×"
+            }
+            font.draw(batch, "$markGlyph  $text", left, y)
+            y -= rowH
+        }
+        gauges.reversed().forEachIndexed { i, (label, _) ->
+            font.draw(batch, label, barX - 70f, gaugeBase + i * rowH + 13f)
+        }
+        centerLabel(batch, font, back.label, back.centerX, back.centerY)
         batch.end()
     }
 
