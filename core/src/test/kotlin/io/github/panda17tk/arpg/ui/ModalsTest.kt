@@ -58,6 +58,14 @@ class ModalsTest {
         assertTrue(nonOverlapping(b), "buttons overlap: $b")
     }
 
+    @Test fun `the surface pause fits four buttons without overlap`() {
+        val b = Modals.pauseButtons(w, h, includeMemory = true)
+        assertEquals(4, b.size)
+        assertEquals("この星の記憶", b[3].label)
+        assertTrue(b.all(::onScreen), "buttons off screen: $b")
+        assertTrue(nonOverlapping(b), "buttons overlap: $b")
+    }
+
     @Test fun `help overlay has one back button on screen`() {
         val b = Modals.helpButtons(w, h)
         assertEquals(1, b.size)

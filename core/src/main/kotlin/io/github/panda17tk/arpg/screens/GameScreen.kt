@@ -43,8 +43,10 @@ import io.github.panda17tk.arpg.save.Scores
 import io.github.panda17tk.arpg.sim.Drift
 import io.github.panda17tk.arpg.sim.PlanetCardInfo
 import io.github.panda17tk.arpg.sim.PlanetContext
+import io.github.panda17tk.arpg.sim.PlanetLexicon
 import io.github.panda17tk.arpg.sim.PlanetScan
 import io.github.panda17tk.arpg.sim.RunSession
+import io.github.panda17tk.arpg.sim.SocietyMemorySummary
 import io.github.panda17tk.arpg.sim.SurfaceObjective
 import io.github.panda17tk.arpg.sim.Tuning
 import io.github.panda17tk.arpg.sim.WorldMode
@@ -332,8 +334,17 @@ class GameScreen : ScreenAdapter() {
                 gw.waveState.num, gw.gameOver.kills, bestText, Modals.gameOverButtons(hudW, hudH).first(),
             )
         }
-        if (overlay == Overlay.PAUSE) Hud.pause(shapes, batch, font, Fonts.title, hudViewport, Modals.pauseButtons(hudW, hudH))
+        if (overlay == Overlay.PAUSE) Hud.pause(shapes, batch, font, Fonts.title, hudViewport, Modals.pauseButtons(hudW, hudH, pauseHasMemory()))
         if (overlay == Overlay.HELP) Hud.help(shapes, batch, font, Fonts.title, hudViewport, Modals.helpButtons(hudW, hudH).first(), HELP_LINES)
+        if (overlay == Overlay.MEMORY) {
+            val soc = gw.worldState.society
+            Hud.memory(
+                shapes, batch, font, Fonts.title, hudViewport,
+                PlanetLexicon.traitLine(gw.worldState.context ?: PlanetContext.NEUTRAL),
+                SocietyMemorySummary.factLines(soc), SocietyMemorySummary.gauges(soc),
+                Modals.helpButtons(hudW, hudH).first(),
+            )
+        }
     }
 
     /** Living Planets: surface exploration objective, or the pre-landing scan card in space (HUD space). */
@@ -424,18 +435,26 @@ class GameScreen : ScreenAdapter() {
         }
     }
 
-    /** Route a tap to the pause/help overlays, or open pause from the in-play ⏸ button (spec §5.2). */
+    /** Whether the pause carries the 4th 「この星の記憶」 entry (surface only — LP v2.25). */
+    private fun pauseHasMemory(): Boolean = gw.worldState.mode == WorldMode.SURFACE
+
+    /** Route a tap to the pause/help/memory overlays, or open pause from the in-play ⏸ button (spec §5.2). */
     private fun handlePauseTaps() {
         if (!tapped) return
         val w = hudViewport.worldWidth; val h = hudViewport.worldHeight
         when (overlay) {
-            Overlay.PAUSE -> when (PauseFlow.action(Modals.hitModal(Modals.pauseButtons(w, h), tapX, tapY) ?: -1)) {
-                PauseAction.RESUME -> overlay = Overlay.NONE
-                PauseAction.RESTART -> { newRun(); overlay = Overlay.NONE }
-                PauseAction.HELP -> overlay = Overlay.HELP
-                null -> {}
+            Overlay.PAUSE -> {
+                val hasMemory = pauseHasMemory()
+                when (PauseFlow.action(Modals.hitModal(Modals.pauseButtons(w, h, hasMemory), tapX, tapY) ?: -1, hasMemory)) {
+                    PauseAction.RESUME -> overlay = Overlay.NONE
+                    PauseAction.RESTART -> { newRun(); overlay = Overlay.NONE }
+                    PauseAction.HELP -> overlay = Overlay.HELP
+                    PauseAction.MEMORY -> overlay = Overlay.MEMORY
+                    null -> {}
+                }
             }
             Overlay.HELP -> if (Modals.hitModal(Modals.helpButtons(w, h), tapX, tapY) != null) overlay = Overlay.PAUSE
+            Overlay.MEMORY -> if (Modals.hitModal(Modals.helpButtons(w, h), tapX, tapY) != null) overlay = Overlay.PAUSE
             Overlay.NONE -> if (!choosing && !gw.gameOver.isOver &&
                 Modals.hitModal(listOf(Modals.pauseButton(w, h)), tapX, tapY) != null) overlay = Overlay.PAUSE
         }

@@ -40,9 +40,13 @@ object Modals {
     fun pauseButton(hudW: Float, hudH: Float): UiButton =
         UiButton(hudW - PAUSE_BTN - MARGIN, hudH - PAUSE_BTN - MARGIN, PAUSE_BTN, PAUSE_BTN, "II")
 
-    /** Pause overlay: 再開 / 最初からやり直す / 操作説明, stacked and centered. */
-    fun pauseButtons(hudW: Float, hudH: Float): List<UiButton> =
-        stack(hudW, hudH, listOf("再開", "最初からやり直す", "操作説明"))
+    /** Pause overlay: 再開 / 最初からやり直す / 操作説明 (+ この星の記憶 on a surface), stacked and centered. */
+    fun pauseButtons(hudW: Float, hudH: Float, includeMemory: Boolean = false): List<UiButton> =
+        stack(
+            hudW, hudH,
+            if (includeMemory) listOf("再開", "最初からやり直す", "操作説明", "この星の記憶")
+            else listOf("再開", "最初からやり直す", "操作説明"),
+        )
 
     /** Help overlay: one 戻る button near the bottom-center. */
     fun helpButtons(hudW: Float, hudH: Float): List<UiButton> {

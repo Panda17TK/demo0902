@@ -27,4 +27,14 @@ class PauseFlowTest {
         assertNull(PauseFlow.action(-1))
         assertNull(PauseFlow.action(3))
     }
+
+    @Test fun `the memory entry only exists on a surface pause`() {
+        assertNull(PauseFlow.action(3, hasMemory = false))
+        assertEquals(PauseAction.MEMORY, PauseFlow.action(3, hasMemory = true))
+        assertNull(PauseFlow.action(4, hasMemory = true))
+    }
+
+    @Test fun `toggle from the memory screen returns to play`() {
+        assertEquals(Overlay.NONE, PauseFlow.toggle(Overlay.MEMORY))
+    }
 }

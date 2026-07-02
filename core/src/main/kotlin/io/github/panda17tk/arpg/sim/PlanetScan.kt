@@ -26,7 +26,7 @@ object PlanetScan {
      */
     fun cardFor(p: PlanetBody, known: Boolean, memory: PlanetSocietyState): PlanetCardInfo = PlanetCardInfo(
         title = p.biome.displayName,
-        traitLine = "気質　${PlanetLexicon.temperament(p.context.temperament)}　　聖　${PlanetLexicon.sacred(p.context.sacredThing)}",
+        traitLine = PlanetLexicon.traitLine(p.context),
         omenLine = PlanetLexicon.omen(p.context.storySeed)?.let { "兆候　$it" },
         memoryLine = if (!known) UNVISITED else ReturnVisitLine.hudLine(memory) ?: FAINT_MEMORY,
     )
