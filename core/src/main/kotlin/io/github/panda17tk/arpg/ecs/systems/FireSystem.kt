@@ -68,7 +68,7 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
                 if (ammo.ammoBeam <= 0) return
                 ammo.ammoBeam--
                 cd.shoot = def.fireRate * mods.fireMul
-                val hit = BeamRay.cast(map, t.x, t.y, dirX, dirY, 700f)
+                val hit = BeamRay.cast(map, t.x, t.y, dirX, dirY, BEAM_RANGE)
                 fx.spawnBeam(t.x, t.y, t.x + dirX * hit.reach, t.y + dirY * hit.reach)
 
                 // --- Beam vs mob: query mobs near the ray, check projection + perpendicular distance ---
@@ -136,6 +136,7 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
     }
 
     companion object {
+        private const val BEAM_RANGE = 1400f    // doubled (was 700) — gun range ×2
         private const val BEAM_BLAST_TILES = 2f // radius-2-tile impact crater
         private const val BEAM_BLAST_DMG = 64f  // splash damage at the blast centre (0 at the rim)
         private val BEAM_SPARK = Color.valueOf("9fe8ff") // pale-cyan beam-impact sparks

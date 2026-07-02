@@ -10,7 +10,7 @@ data class AiConfig(
     val wanderSlow: Float = 0.35f,
     val wanderStuck: Float = 0.8f,
     val flowRebuildInterval: Float = 0.35f,
+    // Mere contact no longer damages the player (only explicit attacks do); dash-rams reuse this knockback.
     val playerKnockback: Float = 260f,
-    val contactDmg: Float = 6f,        // contact tick damage to player
     val iFrameContact: Float = 0.6f,
 )
