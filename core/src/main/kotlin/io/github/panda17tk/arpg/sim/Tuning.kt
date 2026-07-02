@@ -18,4 +18,9 @@ object Tuning {
     const val START_AMMO12 = 24
     const val START_AMMO_BEAM = 6
     const val START_AMMO_NADE = 3
+
+    // Surface event feed (LP v2.24)
+    const val EVENT_FEED_MAX = 4      // most lines shown at once (oldest pushed out)
+    const val EVENT_FEED_LIFE = 6f    // seconds a line lives
+    const val EVENT_FEED_FADE = 1.5f  // it fades over its last this-many seconds
 }

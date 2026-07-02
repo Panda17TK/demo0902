@@ -26,6 +26,7 @@ import io.github.panda17tk.arpg.ecs.systems.BaseSystem
 import io.github.panda17tk.arpg.ecs.systems.BuildSystem
 import io.github.panda17tk.arpg.ecs.systems.EBulletSystem
 import io.github.panda17tk.arpg.ecs.systems.EcologyEventSystem
+import io.github.panda17tk.arpg.ecs.systems.EventFeedSystem
 import io.github.panda17tk.arpg.ecs.systems.FireSystem
 import io.github.panda17tk.arpg.ecs.systems.FlowRebuildSystem
 import io.github.panda17tk.arpg.ecs.systems.GameOverSystem
@@ -145,6 +146,9 @@ object WorldFactory {
                 add(SnapshotSystem())
                 add(EcologyEventSystem()) // record ecology events into society memory before the dead are reaped
                 add(MobDamageSystem(mobGrid))
+                // Feed lines come from society-state EDGES, so this sits right after the tick's main
+                // emitters (EcologyEventSystem). PickupSystem's relic claim lands a tick later — acceptable.
+                add(EventFeedSystem())
                 add(GameOverSystem())
                 add(MovementSystem())
                 add(GravitySystem())
