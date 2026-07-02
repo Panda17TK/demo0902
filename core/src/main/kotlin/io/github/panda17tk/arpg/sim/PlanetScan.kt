@@ -28,6 +28,6 @@ object PlanetScan {
         title = p.biome.displayName,
         traitLine = PlanetLexicon.traitLine(p.context),
         omenLine = PlanetLexicon.omen(p.context.storySeed)?.let { "兆候　$it" },
-        memoryLine = if (!known) UNVISITED else ReturnVisitLine.hudLine(memory) ?: FAINT_MEMORY,
+        memoryLine = if (!known) UNVISITED else ReturnVisitLine.hudLine(memory, (p.id and 0x7fffffff).toInt()) ?: FAINT_MEMORY,
     )
 }

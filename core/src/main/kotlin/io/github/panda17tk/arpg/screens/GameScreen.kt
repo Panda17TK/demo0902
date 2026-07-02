@@ -50,6 +50,7 @@ import io.github.panda17tk.arpg.sim.PlanetScan
 import io.github.panda17tk.arpg.sim.PlanetSocietyState
 import io.github.panda17tk.arpg.sim.RunSession
 import io.github.panda17tk.arpg.sim.SocietyMemorySummary
+import io.github.panda17tk.arpg.sim.ReturnVisitEffects
 import io.github.panda17tk.arpg.sim.RewardBundle
 import io.github.panda17tk.arpg.sim.SurfaceGoals
 import io.github.panda17tk.arpg.sim.SurfaceObjective
@@ -146,6 +147,9 @@ class GameScreen : ScreenAdapter() {
     private var rewardToast: String? = null
     private var rewardToastT = 0f
 
+    // Memory tint per planet id (LP v2.30/10c) — rebuilt only when memory can change (transitions/forget).
+    private var memoryTones: Map<Long, Int> = emptyMap()
+
     // Pre-landing scan card (LP v2.23), rebuilt only when the latched candidate's id changes (FR-1.6).
     private var lastCardId: Long? = null
     private var cachedCard: PlanetCardInfo? = null
@@ -187,6 +191,14 @@ class GameScreen : ScreenAdapter() {
         prevOver = false
         newBest = false
         lastCardId = null; cachedCard = null
+        rebuildMemoryTones()
+    }
+
+    /** LP v2.30/10c: per-planet memory tints, recomputed only when the memory can have changed. */
+    private fun rebuildMemoryTones() {
+        memoryTones = session.memory.memories
+            .mapValues { (_, s) -> ReturnVisitEffects.memoryTone(s) }
+            .filterValues { it != 0 }
     }
 
     /** Land on the hovered planet (SPACE) or take off from the escape pad (SURFACE), carrying run state across. */
@@ -228,6 +240,7 @@ class GameScreen : ScreenAdapter() {
         choosing = false; offered = false; choices = emptyList(); lastHp = Float.NaN
         lastCardId = null; cachedCard = null // memory may have changed across the transition → rebuild the scan card
         chipsKey = -1; cachedChips = emptyList()
+        rebuildMemoryTones()
     }
 
     /** True when the player is standing on the surface escape pad (the return point). */
@@ -275,7 +288,7 @@ class GameScreen : ScreenAdapter() {
 
         // world (procedural sprites — ported from legacy renderer.js + enemy-sprites.js)
         worldViewport.apply()
-        scene.draw(shapes, batch, font, camera, gw, animTime, pose)
+        scene.draw(shapes, batch, font, camera, gw, animTime, pose, memoryTones)
 
         drawHud(paused, sta, staMax, overheat)
     }
@@ -525,6 +538,7 @@ class GameScreen : ScreenAdapter() {
                 0 -> { // confirmed: every star forgets you (memory + disk)
                     session.forgetUniverse()
                     lastCardId = null; cachedCard = null // the scan card must re-read the blank memory
+                    rebuildMemoryTones()
                     overlay = Overlay.PAUSE
                 }
                 1 -> overlay = Overlay.PAUSE

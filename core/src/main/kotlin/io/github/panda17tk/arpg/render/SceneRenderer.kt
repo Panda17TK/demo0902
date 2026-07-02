@@ -68,16 +68,24 @@ class SceneRenderer {
         Color.valueOf("ff6b6b"), Color.valueOf("66e0ff"), Color.valueOf("7fe08a"), Color.valueOf("ffd166"), Color.valueOf("c08bff"),
     )
 
-    /** Draw the whole world-space scene for this frame. The camera must already be positioned. */
+    /**
+     * Draw the whole world-space scene for this frame. The camera must already be positioned.
+     * [memoryTones] (LP v2.30/10c): per-planet-id memory tint — 1 hostile (reddish halo), 2 grateful
+     * (greenish) — so a remembered star reads from across the void. Empty map = no tinting.
+     */
     fun draw(
         shapes: ShapeRenderer, batch: SpriteBatch, font: BitmapFont,
         camera: OrthographicCamera, gw: GameWorld, animTime: Float, pose: PlayerPose,
+        memoryTones: Map<Long, Int> = emptyMap(),
     ) {
+        this.memoryTones = memoryTones
         shapes.projectionMatrix = camera.combined
         drawFilledPass(shapes, camera, gw, animTime, pose)
         drawLinePass(shapes, gw, animTime)
         drawSpeechBubbles(shapes, batch, font, camera, gw)
     }
+
+    private var memoryTones: Map<Long, Int> = emptyMap()
 
     /** Pass 1 (Filled): terrain → drift → facilities → pad → actors → projectiles → FX → pickups → smoke → planets → bases. */
     private fun drawFilledPass(
@@ -291,6 +299,11 @@ class SceneRenderer {
     private fun drawPlanets(shapes: ShapeRenderer, gw: GameWorld) {
         for (p in gw.planets) {
             val r = p.radius
+            // Memory tint (LP v2.30/10c): a remembered star wears its reputation as an outermost glow.
+            when (memoryTones[p.id]) {
+                1 -> { tmpC.set(0.95f, 0.25f, 0.18f, 0.14f); shapes.color = tmpC; shapes.circle(p.cx, p.cy, r * 1.5f, 40) }
+                2 -> { tmpC.set(0.35f, 0.9f, 0.5f, 0.12f); shapes.color = tmpC; shapes.circle(p.cx, p.cy, r * 1.5f, 40) }
+            }
             // halo / ring behind the body (translucent; none for the dead/lonely rocks)
             when (p.biome) {
                 PlanetBiome.MAGMA -> { tmpC.set(0.95f, 0.32f, 0.12f, 0.22f); shapes.color = tmpC; shapes.circle(p.cx, p.cy, r * 1.30f, 40) }
