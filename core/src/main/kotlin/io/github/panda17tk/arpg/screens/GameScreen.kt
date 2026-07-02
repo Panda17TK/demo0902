@@ -39,6 +39,7 @@ import io.github.panda17tk.arpg.render.Hud
 import io.github.panda17tk.arpg.render.PlayerPose
 import io.github.panda17tk.arpg.render.SceneRenderer
 import io.github.panda17tk.arpg.render.TouchOverlay
+import io.github.panda17tk.arpg.save.PreferencesMemoryStore
 import io.github.panda17tk.arpg.save.Scores
 import io.github.panda17tk.arpg.sim.Drift
 import io.github.panda17tk.arpg.sim.PlanetCardInfo
@@ -134,7 +135,7 @@ class GameScreen : ScreenAdapter() {
 
     // Living Planets run state (R1): seeds + per-planet memory live in the pure RunSession; this class
     // only executes the transitions it plans. rememberedT is a draw-side timer, so it stays here.
-    private val session = RunSession()
+    private val session = RunSession(store = PreferencesMemoryStore())
     private var rememberedT = 0f // seconds left to show the return-visit greeting in the HUD
 
     // Pre-landing scan card (LP v2.23), rebuilt only when the latched candidate's id changes (FR-1.6).
@@ -158,6 +159,7 @@ class GameScreen : ScreenAdapter() {
         hudViewport.setUnitsPerPixel(1f / uiScale)
         Sfx.init()
         Scores.load()
+        session.restore() // LP v2.28: the universe remembers you across runs and restarts
         touchEnabled = Gdx.app.type == Application.ApplicationType.Android
         newRun()
     }
@@ -283,6 +285,7 @@ class GameScreen : ScreenAdapter() {
             accumulator = 0f
             if (!prevOver) {
                 newBest = Scores.record(gw.waveState.num, gw.gameOver.kills)
+                session.persist() // LP v2.28: a death checkpoints the universe's memory too
                 Sfx.play("dead"); Haptics.buzz(140)
             }
             val restartTapped = tapped &&
@@ -347,6 +350,7 @@ class GameScreen : ScreenAdapter() {
         }
         if (overlay == Overlay.PAUSE) Hud.pause(shapes, batch, font, Fonts.title, hudViewport, Modals.pauseButtons(hudW, hudH, pauseHasMemory()))
         if (overlay == Overlay.HELP) Hud.help(shapes, batch, font, Fonts.title, hudViewport, Modals.helpButtons(hudW, hudH).first(), HELP_LINES)
+        if (overlay == Overlay.FORGET) Hud.forget(shapes, batch, font, Fonts.title, hudViewport, Modals.forgetButtons(hudW, hudH))
         if (overlay == Overlay.MEMORY) {
             val ws = gw.worldState
             val soc = ws.society
@@ -485,11 +489,21 @@ class GameScreen : ScreenAdapter() {
                     PauseAction.RESTART -> { newRun(); overlay = Overlay.NONE }
                     PauseAction.HELP -> overlay = Overlay.HELP
                     PauseAction.MEMORY -> overlay = Overlay.MEMORY
+                    PauseAction.FORGET -> overlay = Overlay.FORGET
                     null -> {}
                 }
             }
             Overlay.HELP -> if (Modals.hitModal(Modals.helpButtons(w, h), tapX, tapY) != null) overlay = Overlay.PAUSE
             Overlay.MEMORY -> if (Modals.hitModal(Modals.helpButtons(w, h), tapX, tapY) != null) overlay = Overlay.PAUSE
+            Overlay.FORGET -> when (Modals.hitModal(Modals.forgetButtons(w, h), tapX, tapY)) {
+                0 -> { // confirmed: every star forgets you (memory + disk)
+                    session.forgetUniverse()
+                    lastCardId = null; cachedCard = null // the scan card must re-read the blank memory
+                    overlay = Overlay.PAUSE
+                }
+                1 -> overlay = Overlay.PAUSE
+                else -> {}
+            }
             Overlay.NONE -> if (!choosing && !gw.gameOver.isOver &&
                 Modals.hitModal(listOf(Modals.pauseButton(w, h)), tapX, tapY) != null) overlay = Overlay.PAUSE
         }
