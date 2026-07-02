@@ -15,6 +15,7 @@ import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.ecs.world.Pickups
 import io.github.panda17tk.arpg.math.Rng
 import io.github.panda17tk.arpg.pathfinding.SpatialGrid
+import io.github.panda17tk.arpg.sim.WorldState
 
 /** Rebuilds the mob spatial grid each tick and reaps dead mobs (kills++, lifesteal heal). */
 class MobDamageSystem(private val grid: SpatialGrid<Entity>) :
@@ -23,6 +24,7 @@ class MobDamageSystem(private val grid: SpatialGrid<Entity>) :
     private val gameOver: GameOver = world.inject()
     private val fx: Fx = world.inject()
     private val rng: Rng = world.inject()
+    private val worldState: WorldState = world.inject()
     private val players by lazy { world.family { all(PlayerTag, Health, Mods) } }
 
     override fun onTick() {
@@ -44,7 +46,7 @@ class MobDamageSystem(private val grid: SpatialGrid<Entity>) :
             val big = mob.tier != "normal"
             fx.spawnDeath(t.x, t.y, Color.valueOf(mob.def.color.removePrefix("#")), big)
             fx.addShake(if (big) 0.25f else 0.08f, if (big) 9f else 3.5f)
-            if (!wild) Pickups.dropOnKill(world, rng, t.x, t.y, big)
+            if (!wild) Pickups.dropOnKill(world, rng, t.x, t.y, big, worldState.spawnTweaks.bonusMaterialChance)
             // A planet's king/elite drops a biome material (a core/relic) that grants the player a small boon.
             val biome = mob.def.biome
             if (biome != null && big) Pickups.spawn(world, "mat_" + biome.name.lowercase(), 1, t.x, t.y)

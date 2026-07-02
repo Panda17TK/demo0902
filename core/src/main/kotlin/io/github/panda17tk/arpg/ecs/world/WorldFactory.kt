@@ -61,12 +61,16 @@ import io.github.panda17tk.arpg.sim.CreatureState
 import io.github.panda17tk.arpg.sim.GravityField
 import io.github.panda17tk.arpg.sim.PlanetField
 import io.github.panda17tk.arpg.sim.Drift
+import io.github.panda17tk.arpg.config.WildRole
+import io.github.panda17tk.arpg.ecs.components.Mob
 import io.github.panda17tk.arpg.sim.PlanetContext
 import io.github.panda17tk.arpg.sim.PlanetSocietyState
+import io.github.panda17tk.arpg.sim.ReturnVisitEffects
 import io.github.panda17tk.arpg.sim.Planets
 import io.github.panda17tk.arpg.sim.SurfaceEcology
 import io.github.panda17tk.arpg.sim.Tribes
 import io.github.panda17tk.arpg.sim.Tuning
+import io.github.panda17tk.arpg.sim.toPressure
 import io.github.panda17tk.arpg.sim.WallGravity
 import io.github.panda17tk.arpg.sim.WorldMode
 import io.github.panda17tk.arpg.sim.WorldState
@@ -211,7 +215,11 @@ object WorldFactory {
         if (mode == WorldMode.SURFACE && biome != null) {
             val worldW = map.width * Tuning.TILE; val worldH = map.height * Tuning.TILE
             val ecoRng = Rng(seed xor 0x5EED1234L)
-            val ecology = SurfaceEcology.populate(biome, loaded.playerSpawnX, loaded.playerSpawnY, worldW, worldH, ecoRng, context ?: PlanetContext.NEUTRAL)
+            // A remembered planet greets the return visit in its layout (LP v2.27): watch-guards by the pad,
+            // thinned grazers, hungrier predators. A first visit (blank society) is exactly NEUTRAL.
+            val ctx = context ?: PlanetContext.NEUTRAL
+            val tweaks = ReturnVisitEffects.spawnTweaks(worldState.society.toPressure(ctx))
+            val ecology = SurfaceEcology.populate(biome, loaded.playerSpawnX, loaded.playerSpawnY, worldW, worldH, ecoRng, ctx, tweaks)
             for (p in ecology.placements) {
                 val def = config.enemies[p.key] ?: continue
                 val (fx, fy) = snapToFloor(map, p.x, p.y)
@@ -220,8 +228,16 @@ object WorldFactory {
                     dashes = def.tier == "normal" && dashRng.nextFloat() < 0.5f,
                 )
                 if (p.passive) with(world) { e[CreatureMind].state = CreatureState.Ignore } // pacifist until attacked
+                // A disrupted world's hunters start the visit already hungry (placement-time state only).
+                if (tweaks.predatorStartHunger > 0f) with(world) {
+                    val mm = e[Mob]
+                    if (mm.def.wildRole == WildRole.PREDATOR || mm.def.wildRole == WildRole.APEX) {
+                        mm.hunger = maxOf(mm.hunger, tweaks.predatorStartHunger)
+                    }
+                }
             }
             worldState.facilities = ecology.facilities
+            worldState.spawnTweaks = tweaks
         }
 
         return GameWorld(world, player).also {

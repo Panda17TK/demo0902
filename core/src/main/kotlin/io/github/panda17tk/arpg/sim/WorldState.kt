@@ -27,4 +27,6 @@ class WorldState(
     /** On a SURFACE, the live event feed (LP v2.24) — filled/aged by EventFeedSystem, drawn by Hud.eventFeed.
      *  Lives here so every transition resets it for free (the WorldState is rebuilt per landing). */
     val recentEvents: MutableList<PlanetEvent> = mutableListOf(),
+    /** On a SURFACE, how the planet's memory reshaped this landing's spawn (LP v2.27) — set once by WorldFactory. */
+    var spawnTweaks: SpawnTweaks = SpawnTweaks.NEUTRAL,
 )

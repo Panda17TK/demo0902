@@ -27,6 +27,7 @@ object SurfaceEcology {
     fun populate(
         biome: PlanetBiome, spawnX: Float, spawnY: Float, worldW: Float, worldH: Float, rng: Rng,
         context: PlanetContext = PlanetContext.NEUTRAL,
+        tweaks: SpawnTweaks = SpawnTweaks.NEUTRAL,
     ): Society {
         val out = ArrayList<EcologyPlacement>()
         val fac = ArrayList<Facility>()
@@ -93,7 +94,9 @@ object SurfaceEcology {
         // Wildlife layer: mute animals roaming the wider surface, scattered around the landing point (not the
         // camp), so the player crosses an ecosystem on the way to the society. Added last → the leader stays first.
         fun wild(key: String, count: Int, near: Float, far: Float) {
-            repeat(count) {
+            // A disrupted world's grazers are thinned (LP v2.27) — floored at 1 so no group vanishes.
+            val c = if (key in GRAZERS) maxOf(1, (count * tweaks.herbivoreMul).toInt()) else count
+            repeat(c) {
                 val a = rng.nextFloat() * TAU
                 val d = near + (far - near) * rng.nextFloat()
                 out.add(EcologyPlacement(key, clampX(spawnX + cos(a) * d), clampY(spawnY + sin(a) * d), passive = true))
@@ -195,6 +198,14 @@ object SurfaceEcology {
         }
         val ra = rng.nextFloat() * TAU
         fac.add(Facility(FacilityKind.RELIC_ALTAR, clampX(cx + cos(ra) * GUARD), clampY(cy + sin(ra) * GUARD), CAMP_R * 0.6f))
+
+        // Return-visit watch (LP v2.27): a hostile world posts guards right beside the landing pad.
+        // Added LAST so a NEUTRAL run consumes the identical RNG stream (keeps first-visit layouts byte-stable).
+        repeat(tweaks.extraGuardsAtPad) {
+            val a = rng.nextFloat() * TAU
+            val d = Tuning.TILE * (3f + rng.nextFloat()) // 3–4 tiles off the pad
+            out.add(EcologyPlacement(guardianKey(biome), clampX(spawnX + cos(a) * d), clampY(spawnY + sin(a) * d)))
+        }
         return Society(out, fac)
     }
 
@@ -219,6 +230,11 @@ object SurfaceEcology {
         PlanetBiome.GAS -> "wind_jelly"; PlanetBiome.DEAD -> "ash_crow"; PlanetBiome.LONELY -> "silent_watcher"; else -> "star_monk"
     }
     private val PREY = setOf("horn_deer", "moss_hopper", "root_boar", "frost_hare")
+    // Grazers/herds thinned by a disrupted world's herbivoreMul (WildRole PREY/HERD, plant/energy diets).
+    private val GRAZERS = setOf(
+        "horn_deer", "moss_hopper", "frost_hare", "sleeping_calf", "ice_muskox",
+        "basalt_ram", "ash_lizard", "ember_moth", "cloud_plankton", "storm_ray", "star_moth",
+    )
     private fun removePrey(out: MutableList<EcologyPlacement>, n: Int) {
         var removed = 0; val it = out.iterator()
         while (it.hasNext() && removed < n) { if (it.next().key in PREY) { it.remove(); removed++ } }

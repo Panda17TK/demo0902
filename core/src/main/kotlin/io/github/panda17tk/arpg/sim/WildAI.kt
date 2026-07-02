@@ -29,19 +29,22 @@ object WildAI {
         herdSeparated: Boolean,
         hunger: Float,
         fear: Float,
+        fleeSuppressed: Boolean = false, // LP v2.27: a grateful world's herds/hatchlings ignore the player
     ): WildState {
         val playerClose = playerDist < FLEE_DIST
         // A predator nearby always spooks; the player only spooks the timid.
         val spooked = predatorNear || (playerClose && fear >= TIMID)
+        // Gratitude calms herds and hatchlings toward the PLAYER only — a predator still spooks them.
+        val calmSpooked = predatorNear || (playerClose && fear >= TIMID && !fleeSuppressed)
         return when (role) {
             WildRole.HATCHLING ->
-                if (predatorNear || playerClose) WildState.Flee else WildState.Wander
+                if (predatorNear || (playerClose && !fleeSuppressed)) WildState.Flee else WildState.Wander
 
             WildRole.PREY ->
                 if (spooked || hpFrac < WOUNDED) WildState.Flee else WildState.Graze
 
             WildRole.HERD -> when {
-                spooked || hpFrac < WOUNDED -> WildState.Flee
+                calmSpooked || hpFrac < WOUNDED -> WildState.Flee
                 herdSeparated -> WildState.Herd
                 else -> WildState.Graze
             }

@@ -19,8 +19,9 @@ object Pickups {
         }
     }
 
-    /** Enemy death loot: many ammo pickups of mixed kinds (more for bosses) + a chance of med/blocks. */
-    fun dropOnKill(world: World, rng: Rng, x: Float, y: Float, boss: Boolean) {
+    /** Enemy death loot: many ammo pickups of mixed kinds (more for bosses) + a chance of med/blocks.
+     *  [bonusBlocksChance] (LP v2.27): a grateful planet yields materials more readily. */
+    fun dropOnKill(world: World, rng: Rng, x: Float, y: Float, boss: Boolean, bonusBlocksChance: Float = 0f) {
         val n = if (boss) 6 + rng.nextInt(5) else 2 + rng.nextInt(3)
         repeat(n) {
             val (kind, amt) = AMMO[rng.nextInt(AMMO.size)]
@@ -28,7 +29,7 @@ object Pickups {
             spawn(world, kind, amt, x + cos(a) * r, y + sin(a) * r)
         }
         if (boss || rng.nextFloat() < 0.20f) spawn(world, "med", 25, x, y)
-        if (boss || rng.nextFloat() < 0.15f) spawn(world, "blocks", if (boss) 4 else 1, x, y)
+        if (boss || rng.nextFloat() < 0.15f + bonusBlocksChance) spawn(world, "blocks", if (boss) 4 else 1, x, y)
     }
 
     /** Wall/asteroid break loot: many varied drops (materials/ammo/med + rare consumables) via [Loot]. */
