@@ -31,6 +31,13 @@ object ReturnVisitEffects {
     /** Whether the wild's herds/hatchlings stand their ground near the player (grateful worlds). */
     fun fleeSuppressed(p: SocietyPressure): Boolean = p.mercy >= MERCY_GATE
 
+    /** v2.30 (10c): the halo tint a remembered planet wears in space — 0 neutral / 1 hostile / 2 grateful. */
+    fun memoryTone(s: PlanetSocietyState): Int = when {
+        s.hostility >= HOSTILE_GATE && s.hostility >= s.mercy -> 1
+        s.mercy >= MERCY_GATE -> 2
+        else -> 0
+    }
+
     fun spawnTweaks(p: SocietyPressure): SpawnTweaks {
         val hostile = p.hostility >= HOSTILE_GATE
         val grateful = fleeSuppressed(p)
