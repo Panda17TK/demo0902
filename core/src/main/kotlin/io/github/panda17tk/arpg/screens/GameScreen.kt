@@ -41,8 +41,10 @@ import io.github.panda17tk.arpg.render.SceneRenderer
 import io.github.panda17tk.arpg.render.TouchOverlay
 import io.github.panda17tk.arpg.save.Scores
 import io.github.panda17tk.arpg.sim.Drift
+import io.github.panda17tk.arpg.sim.PlanetCardInfo
 import io.github.panda17tk.arpg.sim.PlanetContext
 import io.github.panda17tk.arpg.sim.PlanetMemoryBook
+import io.github.panda17tk.arpg.sim.PlanetScan
 import io.github.panda17tk.arpg.sim.ReturnSpawn
 import io.github.panda17tk.arpg.sim.ReturnVisitLine
 import io.github.panda17tk.arpg.sim.SocietySpeechLines
@@ -136,6 +138,10 @@ class GameScreen : ScreenAdapter() {
     private var landedPlanetId: Long? = null      // id of the planet we're on, so takeoff folds memory back in
     private var rememberedT = 0f                  // seconds left to show the return-visit greeting in the HUD
 
+    // Pre-landing scan card (LP v2.23), rebuilt only when the latched candidate's id changes (FR-1.6).
+    private var lastCardId: Long? = null
+    private var cachedCard: PlanetCardInfo? = null
+
     override fun show() {
         configStore.loadFromDisk()
         uiScale = Gdx.graphics.density.coerceIn(1f, 4f)
@@ -168,6 +174,7 @@ class GameScreen : ScreenAdapter() {
         lastKills = 0
         prevOver = false
         newBest = false
+        lastCardId = null; cachedCard = null
     }
 
     /** Land on the hovered planet (SPACE) or take off from the escape pad (SURFACE), carrying run state across. */
@@ -199,6 +206,7 @@ class GameScreen : ScreenAdapter() {
         gw.waveState.num = carry.wave
         accumulator = 0f; camInit = false; overlay = Overlay.NONE
         choosing = false; offered = false; choices = emptyList(); lastHp = Float.NaN
+        lastCardId = null; cachedCard = null // memory may have changed across the transition → rebuild the scan card
     }
 
     /** True when the player is standing on the surface escape pad (the return point). */
@@ -337,23 +345,32 @@ class GameScreen : ScreenAdapter() {
         if (overlay == Overlay.HELP) Hud.help(shapes, batch, font, Fonts.title, hudViewport, Modals.helpButtons(hudW, hudH).first(), HELP_LINES)
     }
 
-    /** Living Planets: surface exploration objective, or the landing prompt in space (HUD space). */
+    /** Living Planets: surface exploration objective, or the pre-landing scan card in space (HUD space). */
     private fun drawObjectiveHint(paused: Boolean, hudW: Float, hudH: Float) {
         val ws = gw.worldState
+        // SPACE: a latched landing candidate shows the scan card instead of the old one-line hint (LP v2.23).
+        if (ws.mode == WorldMode.SPACE) {
+            val cand = ws.landingCandidate ?: run { lastCardId = null; cachedCard = null; return }
+            if (paused || choosing || gw.gameOver.isOver) return
+            if (cand.id != lastCardId) { // rebuild only when the candidate changes (FR-1.6)
+                cachedCard = PlanetScan.cardFor(cand, planetMemory.knows(cand.id), planetMemory.recall(cand.id))
+                lastCardId = cand.id
+            }
+            cachedCard?.let { Hud.planetScanCard(shapes, batch, font, Fonts.title, hudViewport, it, "[L] 着陸") }
+            return
+        }
         var elites = 0
-        if (ws.mode == WorldMode.SURFACE) with(gw.world) {
+        with(gw.world) {
             gw.world.family { all(Mob) }.forEach { if (it[Mob].def.tier != "normal") elites++ }
         }
         val biome = ws.biome
-        val onPad = ws.mode == WorldMode.SURFACE && playerOnEscapePad()
+        val onPad = playerOnEscapePad()
         val hint = when {
             onPad -> "[L] 脱出パッドから離陸して宇宙へ"
-            ws.mode == WorldMode.SURFACE && biome != null -> SurfaceObjective.hudLine(biome, elites, ws.society, ws.context ?: PlanetContext.NEUTRAL, ws.rememberedPlanet)
-            ws.mode == WorldMode.SURFACE -> "[L] 離陸して宇宙へ"
-            ws.landingCandidate != null -> "[L] 着陸: ${ws.landingCandidate!!.biome.displayName}"
-            else -> null
+            biome != null -> SurfaceObjective.hudLine(biome, elites, ws.society, ws.context ?: PlanetContext.NEUTRAL, ws.rememberedPlanet)
+            else -> "[L] 離陸して宇宙へ"
         }
-        if (hint != null && !paused && !choosing) {
+        if (!paused && !choosing) {
             batch.projectionMatrix = hudViewport.camera.combined
             batch.begin()
             glyphLayout.setText(font, hint)

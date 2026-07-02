@@ -55,6 +55,23 @@ class HudLayoutTest {
             assertTrue(l.hp.y > l.stamina.y, "HP not above stamina at $w x $h")
         }
     }
+
+    @Test fun `the planet scan card fits on screen at every size and line count`() {
+        for ((w, h) in sizes + (384f to 700f)) { // include the minimum ExtendViewport width
+            for (lines in 2..4) {
+                val card = HudLayout.planetCard(w, h, lines)
+                assertTrue(onScreen(card, w, h), "scan card off screen at $w x $h with $lines lines: $card")
+            }
+        }
+    }
+
+    @Test fun `the planet scan card sits below the wave badge`() {
+        for ((w, h) in sizes) {
+            val l = HudLayout.of(w, h)
+            val card = HudLayout.planetCard(w, h, 4)
+            assertTrue(card.y + card.h < l.wave.y, "scan card overlaps the wave badge at $w x $h")
+        }
+    }
 }
 
 class SegmentsTest {

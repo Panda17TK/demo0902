@@ -48,6 +48,20 @@ data class HudLayout(
 
             return HudLayout(wave, hp, stamina, ammo, stats)
         }
+
+        // Planet scan card (LP v2.23): top-centre, below the wave badge + its "残り N" line.
+        const val CARD_LINE_H = 22f
+        const val CARD_TITLE_H = 28f
+        const val CARD_HINT_H = 20f
+        const val CARD_PAD = 10f
+
+        /** The pre-landing scan card rect for [lines] body lines (title + hint rows included in the height). */
+        fun planetCard(hudW: Float, hudH: Float, lines: Int): UiButton {
+            val w = min(360f, hudW * 0.86f)
+            val h = CARD_PAD + CARD_TITLE_H + lines * CARD_LINE_H + CARD_HINT_H + CARD_PAD
+            val y = hudH - PAD - WAVE_H - 24f - h // clear of the wave badge and its foe-count line
+            return UiButton((hudW - w) / 2f, y, w, h, "")
+        }
     }
 }
 

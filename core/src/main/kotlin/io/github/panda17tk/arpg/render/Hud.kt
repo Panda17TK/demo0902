@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.g2d.GlyphLayout
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.utils.viewport.Viewport
+import io.github.panda17tk.arpg.sim.PlanetCardInfo
 import io.github.panda17tk.arpg.ui.HudLayout
 import io.github.panda17tk.arpg.ui.UiButton
 import io.github.panda17tk.arpg.ui.filledSegments
@@ -215,6 +216,41 @@ object Hud {
         // secondary stats (lowest priority)
         val mins = (timeSec / 60f).toInt(); val secs = (timeSec % 60f).toInt()
         font.draw(batch, "時間 %d:%02d  撃破 %d  資材 %d".format(mins, secs, kills, blocks), l.stats.x, l.stats.y + l.stats.h)
+        batch.end()
+    }
+
+    /**
+     * Pre-landing planet scan card (LP v2.23): what the star is + whether it remembers you.
+     * Geometry from HudLayout.planetCard; strings arrive pre-composed (sim/PlanetScan) so this
+     * only paints. Self-manages its shape/batch passes like every other overlay here.
+     */
+    fun planetScanCard(
+        shapes: ShapeRenderer, batch: SpriteBatch, font: BitmapFont, titleFont: BitmapFont, vp: Viewport,
+        info: PlanetCardInfo, hint: String,
+    ) {
+        val lines = info.lines
+        val card = HudLayout.planetCard(vp.worldWidth, vp.worldHeight, lines.size)
+        Gdx.gl.glEnable(GL20.GL_BLEND)
+        shapes.projectionMatrix = vp.camera.combined
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
+        shapes.color = cHudPanel; shapes.rect(card.x, card.y, card.w, card.h)
+        shapes.end()
+        frames(shapes, listOf(card))
+
+        batch.projectionMatrix = vp.camera.combined
+        batch.begin()
+        var y = card.y + card.h - HudLayout.CARD_PAD
+        glyph.setText(titleFont, info.title)
+        titleFont.draw(batch, glyph, card.centerX - glyph.width / 2f, y)
+        y -= HudLayout.CARD_TITLE_H
+        for (line in lines) {
+            font.draw(batch, line, card.x + 14f, y)
+            y -= HudLayout.CARD_LINE_H
+        }
+        font.color = cHint
+        glyph.setText(font, hint)
+        font.draw(batch, glyph, card.centerX - glyph.width / 2f, card.y + HudLayout.CARD_PAD + HudLayout.CARD_HINT_H - 4f)
+        font.color = Color.WHITE
         batch.end()
     }
 
