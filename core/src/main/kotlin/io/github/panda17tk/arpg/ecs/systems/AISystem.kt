@@ -5,6 +5,7 @@ import com.github.quillraven.fleks.IteratingSystem
 import com.github.quillraven.fleks.World.Companion.family
 import io.github.panda17tk.arpg.ai.AiMove
 import io.github.panda17tk.arpg.combat.MobAttacks
+import io.github.panda17tk.arpg.config.AiConfig
 import io.github.panda17tk.arpg.config.FamilyRole
 import io.github.panda17tk.arpg.config.GameConfig
 import io.github.panda17tk.arpg.config.LifeKind
@@ -34,6 +35,7 @@ import io.github.panda17tk.arpg.sim.Dash
 import io.github.panda17tk.arpg.sim.Family
 import io.github.panda17tk.arpg.sim.Leveling
 import io.github.panda17tk.arpg.sim.PlanetField
+import io.github.panda17tk.arpg.sim.AiPressure
 import io.github.panda17tk.arpg.sim.SocietySpeechLines
 import io.github.panda17tk.arpg.sim.SocietyTuning
 import io.github.panda17tk.arpg.sim.SpeechLines
@@ -49,7 +51,12 @@ import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-/** Enemy AI: flow-field chase + separation + contact + data-driven attack dispatch (legacy ai.js + runAttacks). */
+/**
+ * Enemy AI: flow-field chase + separation + contact + data-driven attack dispatch (legacy ai.js +
+ * runAttacks). Each tick runs the same pipeline: decay timers → read the player → scan neighbours
+ * (one grid pass) → flocking → behavioural mind + speech → steer → integrate & collide → contact
+ * damage → attack dispatch. Wild animals are driven by WildlifeSystem instead.
+ */
 class AISystem(private val mobGrid: SpatialGrid<Entity>) :
     IteratingSystem(family { all(Mob, Transform, Velocity, Body, Health, Facing, MobAction, CreatureMind, Speech) }) {
 
@@ -62,6 +69,38 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
     private val worldState: WorldState = world.inject()
 
     private val players by lazy { world.family { all(PlayerTag, Transform, Health, Velocity) } }
+
+    /** The player's pose/components as seen this tick (components null when no player exists). */
+    private class PlayerRef {
+        var x = 0f; var y = 0f
+        var t: Transform? = null; var h: Health? = null; var v: Velocity? = null
+    }
+
+    /** One neighbour-grid pass: separation + same-tribe cohesion + nearest hostile + ward/king context. */
+    private class NeighbourScan {
+        var sepX = 0f; var sepY = 0f
+        var cohX = 0f; var cohY = 0f; var cohN = 0
+        var hostX = 0f; var hostY = 0f; var hostD = Float.MAX_VALUE; var hostFound = false
+        var hostHp: Health? = null; var hostV: Velocity? = null
+        var kingNear = false; var wardThreatened = false; var wardHurt = false
+        var wardNear = false; var wildPredatorNear = false // a wild predator stalking a ward also rouses guardians
+
+        fun reset() {
+            sepX = 0f; sepY = 0f
+            cohX = 0f; cohY = 0f; cohN = 0
+            hostX = 0f; hostY = 0f; hostD = Float.MAX_VALUE; hostFound = false
+            hostHp = null; hostV = null
+            kingNear = false; wardThreatened = false; wardHurt = false
+            wardNear = false; wildPredatorNear = false
+        }
+    }
+
+    // Reusable per-tick scratch (systems tick entities sequentially — never shared across entities).
+    private val playerRef = PlayerRef()
+    private val scan = NeighbourScan()
+    // This tick's AI-chosen step, handed from steer() to integrateAndCollide().
+    private var moveX = 0f
+    private var moveY = 0f
 
     override fun onTickEntity(entity: Entity) {
         val t = entity[Transform]
@@ -78,29 +117,13 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         // Living Planets: how this planet's society currently feels (null in space / when no context) → small nudges.
         val aiP = worldState.context?.let { SocietyTuning.ai(worldState.society.toPressure(it)) }
 
-        // Decay knockback velocity + timers (always)
-        val decay = 0.02f.pow(dt)
-        v.vx *= decay; v.vy *= decay
-        // Decay gravity/crash momentum (drift) lightly so flung mobs coast, then AI reasserts control.
-        val driftDecay = MOB_DRIFT_DECAY.pow(dt)
-        v.driftX *= driftDecay; v.driftY *= driftDecay
-        if (speech.cooldown > 0f) speech.cooldown -= dt
-        if (speech.remaining > 0f) speech.remaining -= dt
-        if (m.bumpCd > 0f) m.bumpCd -= dt
-        if (m.dashCd > 0f) m.dashCd -= dt
-        if (h.hitFlash > 0f) h.hitFlash -= dt
-        for (i in m.attackCd.indices) if (m.attackCd[i] > 0f) m.attackCd[i] -= dt
+        decayMotionAndTimers(m, v, h, speech, dt)
 
         // While charging/blinking, MobActionSystem drives the mob; skip normal AI.
         if (action.charging || action.blinking) return
 
-        // Player data
-        var px = t.x; var py = t.y
-        var playerT: Transform? = null; var playerH: Health? = null; var playerV: Velocity? = null
-        players.forEach { e ->
-            playerT = e[Transform]; playerH = e[Health]; playerV = e[Velocity]
-            px = e[Transform].x; py = e[Transform].y
-        }
+        val player = readPlayer(t)
+        val px = player.x; val py = player.y
 
         val slow = if (m.tier == "normal" && h.hp <= h.hpMax * 0.5f) ai.hpSlowMul else 1f
         val enrage = if (action.enrageT > 0f) action.enrageMul else 1f
@@ -113,14 +136,55 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         val toPy = if (dist > 0f) dy / dist else 0f
         val mind = entity[CreatureMind]
 
-        // Neighbour scan (one pass): separation (any mob) + same-tribe cohesion + nearest hostile-tribe mob.
+        scanNeighbours(entity, t, m, px, py, ai.sepRadius)
+        // A wild predator prowling beside a ward threatens it just as the player would → guardians defend.
+        if (scan.wardNear && scan.wildPredatorNear) scan.wardThreatened = true
+        // Gratitude (LP): a tribe that saw the player drive a predator off a child won't bristle at mere proximity.
+        if (aiP?.gratitude == true && !(scan.wardNear && scan.wildPredatorNear)) scan.wardThreatened = false
+        applyFlocking(t, v, eff, ai.sepRadius)
+
+        val aggressive = advanceMind(mind, m, h, speech, dist, see, dt, aiP)
+
+        // Tactics scale with smarts (tribe intelligence + level): smart tribes take cover + kite.
+        val smarts = Leveling.smarts(tribes.intelligenceOf(m.tribe), m.level)
+        val brawl = aggressive && scan.hostFound && scan.hostD <= HOSTILE_RANGE
+        steer(t, v, f, m, mind, eff, dt, aggressive, brawl, smarts, see, dist, dx, dy, toPx, toPy, px, py)
+        integrateAndCollide(t, v, b)
+
+        resolveContacts(t, v, b, m, h, player, ai, brawl, dist, aggressive)
+        dispatchAttacks(m, t, f, v, action, h, player, ai.iFrameContact, aggressive, dist, toPx, toPy, see)
+    }
+
+    /** Decay knockback/drift velocity and the per-mob timers (always, even while charging). */
+    private fun decayMotionAndTimers(m: Mob, v: Velocity, h: Health, speech: Speech, dt: Float) {
+        val decay = 0.02f.pow(dt)
+        v.vx *= decay; v.vy *= decay
+        // Decay gravity/crash momentum (drift) lightly so flung mobs coast, then AI reasserts control.
+        val driftDecay = MOB_DRIFT_DECAY.pow(dt)
+        v.driftX *= driftDecay; v.driftY *= driftDecay
+        if (speech.cooldown > 0f) speech.cooldown -= dt
+        if (speech.remaining > 0f) speech.remaining -= dt
+        if (m.bumpCd > 0f) m.bumpCd -= dt
+        if (m.dashCd > 0f) m.dashCd -= dt
+        if (h.hitFlash > 0f) h.hitFlash -= dt
+        for (i in m.attackCd.indices) if (m.attackCd[i] > 0f) m.attackCd[i] -= dt
+    }
+
+    /** Read the player's transform/health/velocity into the reusable [playerRef] (defaults to our spot). */
+    private fun readPlayer(t: Transform): PlayerRef {
+        playerRef.x = t.x; playerRef.y = t.y
+        playerRef.t = null; playerRef.h = null; playerRef.v = null
+        players.forEach { e ->
+            playerRef.t = e[Transform]; playerRef.h = e[Health]; playerRef.v = e[Velocity]
+            playerRef.x = e[Transform].x; playerRef.y = e[Transform].y
+        }
+        return playerRef
+    }
+
+    /** Neighbour scan (one grid pass) into the reusable [scan]: separation, cohesion, hostiles, wards. */
+    private fun scanNeighbours(entity: Entity, t: Transform, m: Mob, px: Float, py: Float, sepRadius: Float) {
+        scan.reset()
         val myTribe = m.tribe
-        var sepX = 0f; var sepY = 0f
-        var cohX = 0f; var cohY = 0f; var cohN = 0
-        var hostX = 0f; var hostY = 0f; var hostD = Float.MAX_VALUE; var hostFound = false
-        var hostHp: Health? = null; var hostV: Velocity? = null
-        var kingNear = false; var wardThreatened = false; var wardHurt = false
-        var wardNear = false; var wildPredatorNear = false // a wild predator stalking a ward also rouses guardians
         mobGrid.forNearby(t.x, t.y, COH_RADIUS) { other ->
             if (other == entity) return@forNearby
             with(world) {
@@ -128,40 +192,52 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
                 val ddx = t.x - ot.x; val ddy = t.y - ot.y
                 val d = hypot(ddx, ddy)
                 if (d < 0.0001f) return@forNearby
-                if (d <= ai.sepRadius) { val w = (ai.sepRadius - d) / ai.sepRadius; sepX += ddx / d * w; sepY += ddy / d * w }
+                if (d <= sepRadius) { val w = (sepRadius - d) / sepRadius; scan.sepX += ddx / d * w; scan.sepY += ddy / d * w }
                 if (d < WARD_THREAT_RANGE && om.def.lifeKind == LifeKind.WILDLIFE &&
-                    (om.def.wildRole == WildRole.PREDATOR || om.def.wildRole == WildRole.APEX)) wildPredatorNear = true
+                    (om.def.wildRole == WildRole.PREDATOR || om.def.wildRole == WildRole.APEX)) scan.wildPredatorNear = true
                 if (tribes.areHostile(myTribe, om.tribe)) {
-                    if (d < hostD) { hostD = d; hostX = ot.x; hostY = ot.y; hostFound = true; hostHp = other[Health]; hostV = other[Velocity] }
+                    if (d < scan.hostD) {
+                        scan.hostD = d; scan.hostX = ot.x; scan.hostY = ot.y; scan.hostFound = true
+                        scan.hostHp = other[Health]; scan.hostV = other[Velocity]
+                    }
                 } else if (om.tribe == myTribe) {
-                    cohX += ot.x; cohY += ot.y; cohN++
+                    scan.cohX += ot.x; scan.cohY += ot.y; scan.cohN++
                     val ocm = other[CreatureMind]
-                    if (ocm.familyRole == FamilyRole.KING) kingNear = true
+                    if (ocm.familyRole == FamilyRole.KING) scan.kingNear = true
                     if (Family.isWard(ocm.familyRole)) {
-                        wardNear = true
-                        if (hypot(ot.x - px, ot.y - py) < WARD_THREAT_RANGE) wardThreatened = true
+                        scan.wardNear = true
+                        if (hypot(ot.x - px, ot.y - py) < WARD_THREAT_RANGE) scan.wardThreatened = true
                         val oh = other[Health]
-                        if (oh.hp <= oh.hpMax * WARD_HURT_FRAC) wardHurt = true // a wounded ward calls defenders to a fury
+                        if (oh.hp <= oh.hpMax * WARD_HURT_FRAC) scan.wardHurt = true // a wounded ward calls defenders to a fury
                     }
                 }
             }
         }
-        // A wild predator prowling beside a ward threatens it just as the player would → guardians defend.
-        if (wardNear && wildPredatorNear) wardThreatened = true
-        // Gratitude (LP): a tribe that saw the player drive a predator off a child won't bristle at mere proximity.
-        if (aiP?.gratitude == true && !(wardNear && wildPredatorNear)) wardThreatened = false
-        if (sepX != 0f || sepY != 0f) {
-            val l = sqrt(sepX * sepX + sepY * sepY)
-            v.vx += sepX / l * eff * 0.5f; v.vy += sepY / l * eff * 0.5f
+    }
+
+    /** Separation pushes away from crowding neighbours; cohesion drifts toward the same-tribe centroid (herding). */
+    private fun applyFlocking(t: Transform, v: Velocity, eff: Float, sepRadius: Float) {
+        if (scan.sepX != 0f || scan.sepY != 0f) {
+            val l = sqrt(scan.sepX * scan.sepX + scan.sepY * scan.sepY)
+            v.vx += scan.sepX / l * eff * 0.5f; v.vy += scan.sepY / l * eff * 0.5f
         }
         // Cohesion: drift toward the same-tribe centroid when it isn't already crowding us (herding).
-        if (cohN > 0) {
-            val ccx = cohX / cohN - t.x; val ccy = cohY / cohN - t.y
+        if (scan.cohN > 0) {
+            val ccx = scan.cohX / scan.cohN - t.x; val ccy = scan.cohY / scan.cohN - t.y
             val cl = hypot(ccx, ccy)
-            if (cl > ai.sepRadius) { v.vx += ccx / cl * eff * COH_W; v.vy += ccy / cl * eff * COH_W }
+            if (cl > sepRadius) { v.vx += ccx / cl * eff * COH_W; v.vy += ccy / cl * eff * COH_W }
         }
+    }
 
-        // Living Planets society: a guardian defends a threatened ward; a nearby king steels morale.
+    /**
+     * Living Planets society: advance the behavioural mind (guardians defend threatened wards, a nearby
+     * king steels morale, the society's mood nudges warnings/mercy) and voice any state change.
+     * Returns whether the creature is now aggressive (Hostile / Protect / Rally).
+     */
+    private fun advanceMind(
+        mind: CreatureMind, m: Mob, h: Health, speech: Speech,
+        dist: Float, see: Boolean, dt: Float, aiP: AiPressure?,
+    ): Boolean {
         val guardian = mind.protectiveness >= GUARDIAN_MIN || mind.familyRole == FamilyRole.GUARDIAN
         // Once struck or crowded, a creature commits to the fight and stops issuing warnings.
         if (h.hitFlash > 0f || dist < WARN_NEAR) mind.provoked = true
@@ -173,36 +249,46 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         val prevState = mind.state
         // A child's death (or harm, on a vengeful world) makes guardians treat the very-near player as a threat;
         // a forgiving/indebted world eases creatures toward begging a touch sooner.
-        val rally = guardian && (wardThreatened || (aiP?.rallyEager == true && playerNear))
+        val rally = guardian && (scan.wardThreatened || (aiP?.rallyEager == true && playerNear))
         val effMercy = (mind.mercyThreshold + (aiP?.mercyBoost ?: 0f)).coerceIn(0f, 1f)
-        updateMind(mind, h, dist, dt, rally, kingNear, wardHurt, playerNear, canWarn, effMercy)
+        updateMind(mind, h, dist, dt, rally, scan.kingNear, scan.wardHurt, playerNear, canWarn, effMercy)
         val aggressive = mind.state == CreatureState.Hostile || mind.state == CreatureState.Protect ||
             mind.state == CreatureState.Rally
         if (speech.canSpeak && mind.state != prevState && speech.cooldown <= 0f) {
-            // A reacting creature voices the society's memory first — a child-killer is named as one (inert if blank).
-            val socLine = if (aggressive) SocietySpeechLines.triggerFor(worldState.society)?.let { SocietySpeechLines.pick(it, rng.nextInt(1000)) } else null
-            if (socLine != null) {
-                speech.text = socLine; speech.remaining = BUBBLE_TIME; speech.cooldown = SPEECH_CD
-            } else {
-                var trig = SpeechLines.forState(mind.state)
-                // Flavour the first encounter: kings decree, lone survivors muse, guards rally to the throne.
-                if (trig == SpeechLines.Trigger.Warn) {
-                    if (mind.familyRole == FamilyRole.KING) trig = SpeechLines.Trigger.KingEncounter
-                    else if (m.def.biome == PlanetBiome.LONELY) trig = SpeechLines.Trigger.LonelyEncounter
-                } else if (trig == SpeechLines.Trigger.ProtectChild && kingNear) {
-                    trig = SpeechLines.Trigger.ProtectKing
-                }
-                if (trig != null) {
-                    val line = SpeechLines.pick(trig, rng.nextInt(1000))
-                    if (line != null) { speech.text = line; speech.remaining = BUBBLE_TIME; speech.cooldown = SPEECH_CD }
-                }
+            speak(speech, mind, m, aggressive)
+        }
+        return aggressive
+    }
+
+    /** Voice a mind-state change: the society's memory first, then the state's flavour line. */
+    private fun speak(speech: Speech, mind: CreatureMind, m: Mob, aggressive: Boolean) {
+        // A reacting creature voices the society's memory first — a child-killer is named as one (inert if blank).
+        val socLine = if (aggressive) SocietySpeechLines.triggerFor(worldState.society)?.let { SocietySpeechLines.pick(it, rng.nextInt(1000)) } else null
+        if (socLine != null) {
+            speech.text = socLine; speech.remaining = BUBBLE_TIME; speech.cooldown = SPEECH_CD
+        } else {
+            var trig = SpeechLines.forState(mind.state)
+            // Flavour the first encounter: kings decree, lone survivors muse, guards rally to the throne.
+            if (trig == SpeechLines.Trigger.Warn) {
+                if (mind.familyRole == FamilyRole.KING) trig = SpeechLines.Trigger.KingEncounter
+                else if (m.def.biome == PlanetBiome.LONELY) trig = SpeechLines.Trigger.LonelyEncounter
+            } else if (trig == SpeechLines.Trigger.ProtectChild && scan.kingNear) {
+                trig = SpeechLines.Trigger.ProtectKing
+            }
+            if (trig != null) {
+                val line = SpeechLines.pick(trig, rng.nextInt(1000))
+                if (line != null) { speech.text = line; speech.remaining = BUBBLE_TIME; speech.cooldown = SPEECH_CD }
             }
         }
+    }
 
-        // Tactics scale with smarts (tribe intelligence + level): smart tribes take cover + kite.
-        val smarts = Leveling.smarts(tribes.intelligenceOf(myTribe), m.level)
+    /** Pick this tick's movement (flee/hide/brawl/cover/kite/chase), set facing, and queue a dash burst. */
+    private fun steer(
+        t: Transform, v: Velocity, f: Facing, m: Mob, mind: CreatureMind, eff: Float, dt: Float,
+        aggressive: Boolean, brawl: Boolean, smarts: Float, see: Boolean,
+        dist: Float, dx: Float, dy: Float, toPx: Float, toPy: Float, px: Float, py: Float,
+    ) {
         val hasRanged = m.def.attacks.any { it.type == "shot" }
-        val brawl = aggressive && hostFound && hostD <= HOSTILE_RANGE
         val cover = if (aggressive && !brawl && smarts > COVER_SMARTS && see) coverDir(t.x, t.y, px, py) else null
         // Rallying defenders surge; everyone else moves at their normal effective speed.
         val moveEff = eff * if (mind.state == CreatureState.Rally) RALLY_SPEED else 1f
@@ -222,7 +308,7 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
             }
         } else if (brawl) {
             // Frontline: charge the rival-tribe mob.
-            val bdx = hostX - t.x; val bdy = hostY - t.y; val bd = hypot(bdx, bdy)
+            val bdx = scan.hostX - t.x; val bdy = scan.hostY - t.y; val bd = hypot(bdx, bdy)
             if (bd > 0f) { mvx = bdx / bd * moveEff * dt; mvy = bdy / bd * moveEff * dt; f.x = bdx / bd; f.y = bdy / bd }
         } else if (cover != null) {
             // Smart: slip toward a wall to shield from the player, still facing them to fire.
@@ -244,10 +330,14 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
             v.driftX = ddx; v.driftY = ddy
             m.dashCd = Dash.COOLDOWN
         }
+        moveX = mvx; moveY = mvy
+    }
+
+    private fun integrateAndCollide(t: Transform, v: Velocity, b: Body) {
         // Drift (gravity / dash / knockback momentum) rides on top of AI movement; mobs stop at walls, no damage.
-        val r1 = Collision.moveAndCollide(map, t.x, t.y, b.halfW, b.halfH, mvx + (v.vx + v.driftX) * dt, 0f)
+        val r1 = Collision.moveAndCollide(map, t.x, t.y, b.halfW, b.halfH, moveX + (v.vx + v.driftX) * deltaTime, 0f)
         if (r1.hitX) v.driftX = 0f
-        val r2 = Collision.moveAndCollide(map, r1.x, r1.y, b.halfW, b.halfH, 0f, mvy + (v.vy + v.driftY) * dt)
+        val r2 = Collision.moveAndCollide(map, r1.x, r1.y, b.halfW, b.halfH, 0f, moveY + (v.vy + v.driftY) * deltaTime)
         if (r2.hitY) v.driftY = 0f
         t.x = r2.x; t.y = r2.y
         // Solid planets: push out + a slight rebound. No crash/fall damage.
@@ -257,17 +347,21 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
             val (rdx, rdy) = CrashModel.rebound(v.driftX, v.driftY, pc.normalX, pc.normalY, MOB_CRASH_RESTITUTION)
             v.driftX = rdx; v.driftY = rdy
         }
+    }
 
-        val pt = playerT; val ph = playerH; val pv = playerV
-
-        // Contact damage: brawl a hostile-tribe mob if we're locked onto one, else bump the player.
+    /** Contact damage: brawl a hostile-tribe mob if we're locked onto one, else bump the player. */
+    private fun resolveContacts(
+        t: Transform, v: Velocity, b: Body, m: Mob, h: Health, player: PlayerRef,
+        ai: AiConfig, brawl: Boolean, dist: Float, aggressive: Boolean,
+    ) {
+        val pt = player.t; val ph = player.h; val pv = player.v
         if (brawl && m.bumpCd <= 0f) {
-            val hh = hostHp; val hv = hostV
-            if (hh != null && hv != null && hostD < (b.halfW + 14f)) {
-                val nl = hostD.coerceAtLeast(0.0001f)
+            val hh = scan.hostHp; val hv = scan.hostV
+            if (hh != null && hv != null && scan.hostD < (b.halfW + 14f)) {
+                val nl = scan.hostD.coerceAtLeast(0.0001f)
                 hh.hp -= MOB_VS_MOB_DMG
-                hv.vx += (hostX - t.x) / nl * m.def.contactKB; hv.vy += (hostY - t.y) / nl * m.def.contactKB
-                v.vx -= (hostX - t.x) / nl * m.def.contactKB * 0.5f; v.vy -= (hostY - t.y) / nl * m.def.contactKB * 0.5f
+                hv.vx += (scan.hostX - t.x) / nl * m.def.contactKB; hv.vy += (scan.hostY - t.y) / nl * m.def.contactKB
+                v.vx -= (scan.hostX - t.x) / nl * m.def.contactKB * 0.5f; v.vy -= (scan.hostY - t.y) / nl * m.def.contactKB * 0.5f
                 m.bumpCd = 0.4f
                 if (hh.hp <= 0f) { // killing blow on a rival tribe → gain XP, level up past the threshold
                     m.xp += Leveling.xpForKill(m.level)
@@ -284,20 +378,26 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
                 m.bumpCd = 0.28f
             }
         }
+    }
 
-        // Data-driven attack dispatch (legacy runAttacks). Non-hostile creatures (fleeing/begging/hiding) hold fire.
-        if (aggressive && pt != null && ph != null && pv != null) {
-            val usable = Leveling.attacksForLevel(m.level, m.def.attacks.size) // level unlocks more skills
-            m.def.attacks.forEachIndexed { i, atk ->
-                if (i < usable && m.attackCd[i] <= 0f) {
-                    val executed = MobAttacks.tryAttack(
-                        world, atk, m.def, t, f, v, action, h, ph, pv,
-                        dist, toPx, toPy, see, ai.iFrameContact,
-                        config, m.waveNum, rng,
-                    )
-                    // Enraged bosses attack faster too (legacy cdScale = 1/enrageMul).
-                    if (executed) m.attackCd[i] = atk.cd * if (action.enrageT > 0f) 1f / action.enrageMul else 1f
-                }
+    /** Data-driven attack dispatch (legacy runAttacks). Non-hostile creatures (fleeing/begging/hiding) hold fire. */
+    private fun dispatchAttacks(
+        m: Mob, t: Transform, f: Facing, v: Velocity, action: MobAction, h: Health,
+        player: PlayerRef, iFrameContact: Float, aggressive: Boolean,
+        dist: Float, toPx: Float, toPy: Float, see: Boolean,
+    ) {
+        val pt = player.t; val ph = player.h; val pv = player.v
+        if (!aggressive || pt == null || ph == null || pv == null) return
+        val usable = Leveling.attacksForLevel(m.level, m.def.attacks.size) // level unlocks more skills
+        m.def.attacks.forEachIndexed { i, atk ->
+            if (i < usable && m.attackCd[i] <= 0f) {
+                val executed = MobAttacks.tryAttack(
+                    world, atk, m.def, t, f, v, action, h, ph, pv,
+                    dist, toPx, toPy, see, iFrameContact,
+                    config, m.waveNum, rng,
+                )
+                // Enraged bosses attack faster too (legacy cdScale = 1/enrageMul).
+                if (executed) m.attackCd[i] = atk.cd * if (action.enrageT > 0f) 1f / action.enrageMul else 1f
             }
         }
     }
