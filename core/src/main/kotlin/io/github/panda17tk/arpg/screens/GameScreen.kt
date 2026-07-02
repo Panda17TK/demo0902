@@ -27,6 +27,7 @@ import io.github.panda17tk.arpg.ecs.components.Stamina
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.ecs.world.GameWorld
 import io.github.panda17tk.arpg.ecs.world.PlayerCarry
+import io.github.panda17tk.arpg.ecs.world.RewardApply
 import io.github.panda17tk.arpg.ecs.world.WorldFactory
 import io.github.panda17tk.arpg.input.Haptics
 import io.github.panda17tk.arpg.input.InputState
@@ -49,8 +50,10 @@ import io.github.panda17tk.arpg.sim.PlanetScan
 import io.github.panda17tk.arpg.sim.PlanetSocietyState
 import io.github.panda17tk.arpg.sim.RunSession
 import io.github.panda17tk.arpg.sim.SocietyMemorySummary
+import io.github.panda17tk.arpg.sim.RewardBundle
 import io.github.panda17tk.arpg.sim.SurfaceGoals
 import io.github.panda17tk.arpg.sim.SurfaceObjective
+import io.github.panda17tk.arpg.sim.TakeoffReward
 import io.github.panda17tk.arpg.sim.Tuning
 import io.github.panda17tk.arpg.sim.WorldMode
 import io.github.panda17tk.arpg.sim.WorldState
@@ -66,6 +69,7 @@ import kotlin.math.pow
 /** Half-extent of the toroidal box the drifting debris wraps within (matches WorldFactory's seed range). */
 private const val DRIFT_RANGE = 1400f
 private const val REMEMBERED_TIME = 5f // seconds the HUD greets a returning player on a remembered planet
+private const val TOAST_TIME = 3f      // seconds the takeoff send-off toast rides the space HUD (LP v2.29)
 
 /**
  * Fixed-timestep simulation + render interpolation, porting the legacy main.js loop.
@@ -138,6 +142,10 @@ class GameScreen : ScreenAdapter() {
     private val session = RunSession(store = PreferencesMemoryStore())
     private var rememberedT = 0f // seconds left to show the return-visit greeting in the HUD
 
+    // Takeoff send-off toast (LP v2.29): one line in the SPACE HUD for a few seconds after leaving.
+    private var rewardToast: String? = null
+    private var rewardToastT = 0f
+
     // Pre-landing scan card (LP v2.23), rebuilt only when the latched candidate's id changes (FR-1.6).
     private var lastCardId: Long? = null
     private var cachedCard: PlanetCardInfo? = null
@@ -195,7 +203,16 @@ class GameScreen : ScreenAdapter() {
             rememberedT = if (plan.showGreeting) REMEMBERED_TIME else 0f
         } else {
             if (!playerOnEscapePad()) return // must stand on the escape pad to leave the surface
-            val (seed, spawn) = session.completeTakeoff(gw.worldState.society) // fold the visit back into memory
+            // Takeoff send-off (LP v2.29): the star's parting gift, applied BEFORE the transition so
+            // PlayerCarry hauls it into space. A child-killer gets nothing, and is told so.
+            val soc = gw.worldState.society
+            val reward = gw.worldState.biome?.let {
+                TakeoffReward.compute(soc, it, gw.worldState.context ?: PlanetContext.NEUTRAL)
+            } ?: RewardBundle()
+            RewardApply.apply(gw.world, gw.player, reward)
+            rewardToast = TakeoffReward.toastFor(reward, soc.childKilled)
+            rewardToastT = if (rewardToast != null) TOAST_TIME else 0f
+            val (seed, spawn) = session.completeTakeoff(soc) // fold the visit back into memory
             transitionWorld(WorldMode.SPACE, null, seed, spawn) // same system, beside the planet we left
         }
     }
@@ -247,6 +264,7 @@ class GameScreen : ScreenAdapter() {
         if (!paused) gw.worldState.drift?.let { Drift.advance(it, px, py, DRIFT_RANGE, delta) }
         // The return-visit greeting fades after a few seconds, then the surface objective reverts to normal.
         if (rememberedT > 0f && !paused) { rememberedT -= delta; if (rememberedT <= 0f) gw.worldState.rememberedPlanet = false }
+        if (rewardToastT > 0f && !paused) { rewardToastT -= delta; if (rewardToastT <= 0f) rewardToast = null }
         val playerHit = pit > 0f && ((pit * 20f).toInt() % 2 == 0)
         val pose = PlayerPose(px, py, fx, fy, dashing = input.dash && sta > 0f, hit = playerHit, muzzle = input.fire)
 
@@ -371,6 +389,14 @@ class GameScreen : ScreenAdapter() {
         val ws = gw.worldState
         // SPACE: a latched landing candidate shows the scan card instead of the old one-line hint (LP v2.23).
         if (ws.mode == WorldMode.SPACE) {
+            // The takeoff send-off toast (LP v2.29) rides the top of the space HUD for a few seconds.
+            if (rewardToastT > 0f && rewardToast != null && !paused && !choosing && !gw.gameOver.isOver) {
+                batch.projectionMatrix = hudViewport.camera.combined
+                batch.begin()
+                glyphLayout.setText(font, rewardToast)
+                font.draw(batch, glyphLayout, (hudW - glyphLayout.width) / 2f, hudH - 12f)
+                batch.end()
+            }
             val cand = ws.landingCandidate ?: run { lastCardId = null; cachedCard = null; return }
             if (paused || choosing || gw.gameOver.isOver) return
             if (cand.id != lastCardId) { // rebuild only when the candidate changes (FR-1.6)
