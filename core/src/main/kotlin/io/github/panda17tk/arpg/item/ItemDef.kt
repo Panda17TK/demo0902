@@ -35,6 +35,12 @@ data class ItemDef(
     val desc: String = "",
     // RANGED_WEAPON: which WeaponDef id this gun behaves as (pistol / shotgun / mg / beam / grenade).
     val weaponType: String? = null,
+    // RANGED_WEAPON grades (v2.37): per-gun handling tweaks, applied only while this gun is BOTH
+    // equipped and the active weapon. Damage rides the existing gunMul.
+    val fireRateMul: Float = 1f,  // shot-cooldown multiplier (< 1 = faster 連射)
+    val reloadMul: Float = 1f,    // reload-time multiplier (< 1 = faster 装填)
+    val blastMul: Float = 1f,     // explosion/blast radius multiplier (grenade detonation, beam crater)
+    val wallDmgMul: Float = 1f,   // bullet damage vs destructible blocks (ブロックの壊しやすさ)
     // THRUSTER
     val thrusterClass: ThrusterClass = ThrusterClass.STANDARD,
     val accelMul: Float = 1f,   // thrust ramp multiplier

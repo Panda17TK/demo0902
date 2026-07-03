@@ -1,0 +1,95 @@
+package io.github.panda17tk.arpg.ecs.world
+
+import io.github.panda17tk.arpg.combat.Weapons
+import io.github.panda17tk.arpg.ecs.components.Ammo
+import io.github.panda17tk.arpg.ecs.components.Arsenal
+import io.github.panda17tk.arpg.ecs.components.Bullet
+import io.github.panda17tk.arpg.ecs.components.Cooldowns
+import io.github.panda17tk.arpg.ecs.components.Gear
+import io.github.panda17tk.arpg.ecs.components.Grenade
+import io.github.panda17tk.arpg.input.InputState
+import io.github.panda17tk.arpg.item.EquipSlot
+import io.github.panda17tk.arpg.item.ItemCatalog
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+
+/** v2.37 weapon grades: per-gun handling riding into the fired projectiles + infinite mg/beam. */
+class WorldWeaponGradeTest {
+    private fun world(input: InputState) = WorldFactory.create(input, seed = 3L)
+
+    /** Equip [gunId] (swapping whatever is in RANGED into the backpack) and point Arsenal at its type. */
+    private fun equipGun(gw: GameWorld, gunId: String) = with(gw.world) {
+        val gear = gw.player[Gear]
+        val item = ItemCatalog.byId(gunId)!!
+        val prev = gear.loadout.set(EquipSlot.RANGED, item)
+        if (prev != null) gear.backpack.add(prev)
+        val ars = gw.player[Arsenal]
+        ars.curW = ars.weapons.indexOfFirst { it.def.id == item.weaponType }
+    }
+
+    @Test fun `mg and beam run on infinite ammo`() {
+        assertTrue(Weapons.ALL.first { it.id == "mg" }.infiniteAmmo)
+        assertTrue(Weapons.ALL.first { it.id == "beam" }.infiniteAmmo)
+    }
+
+    @Test fun `the beam fires with an empty reserve`() {
+        val input = InputState()
+        val gw = world(input)
+        with(gw.world) {
+            gw.player[Ammo].ammoBeam = 0
+            gw.player[Arsenal].curW = gw.player[Arsenal].weapons.indexOfFirst { it.def.id == "beam" }
+        }
+        input.fireRelease = true // beam is manual-fire: shoots on the release edge
+        gw.world.update(1f / 60f)
+        with(gw.world) {
+            assertTrue(gw.player[Cooldowns].shoot > 0f, "the beam should have fired despite 0 reserve")
+        }
+    }
+
+    @Test fun `a demolition shotgun's pellets carry its wall multiplier`() {
+        val input = InputState()
+        val gw = world(input)
+        equipGun(gw, "gun_shotgun_3") // wallDmgMul 2.5
+        input.fire = true
+        gw.world.update(1f / 60f)
+        val bullets = gw.world.family { all(Bullet) }
+        assertTrue(bullets.numEntities > 0, "the shotgun should have fired")
+        with(gw.world) { bullets.forEach { e -> assertEquals(2.5f, e[Bullet].wallMul, 1e-4f) } }
+    }
+
+    @Test fun `a wide-blast grenade carries its blast multiplier`() {
+        val input = InputState()
+        val gw = world(input)
+        equipGun(gw, "gun_grenade_2") // blastMul 1.6
+        input.fireRelease = true // grenade is manual-fire too
+        gw.world.update(1f / 60f)
+        val grenades = gw.world.family { all(Grenade) }
+        assertTrue(grenades.numEntities > 0, "the grenade should have been thrown")
+        with(gw.world) { grenades.forEach { e -> assertEquals(1.6f, e[Grenade].blastMul, 1e-4f) } }
+    }
+
+    @Test fun `number-key switching keeps an equipped graded gun of the same type`() {
+        val input = InputState()
+        val gw = world(input)
+        equipGun(gw, "gun_mg_2")
+        input.weaponSlot = with(gw.world) { gw.player[Arsenal] }.weapons.indexOfFirst { it.def.id == "mg" }
+        gw.world.update(1f / 60f)
+        with(gw.world) {
+            assertEquals("gun_mg_2", gw.player[Gear].loadout.ranged?.id) // the grade survives re-selection
+        }
+    }
+
+    @Test fun `number-key switching to another type equips an owned gun of that type`() {
+        val input = InputState()
+        val gw = world(input)
+        equipGun(gw, "gun_mg_2") // starter gun_pistol went to the backpack
+        input.weaponSlot = with(gw.world) { gw.player[Arsenal] }.weapons.indexOfFirst { it.def.id == "shotgun" }
+        gw.world.update(1f / 60f)
+        with(gw.world) {
+            val gear = gw.player[Gear]
+            assertEquals("gun_shotgun", gear.loadout.ranged?.id) // the owned starter shotgun swapped in
+            assertTrue(gear.backpack.any { it.id == "gun_mg_2" }) // the graded mg went back to the backpack
+        }
+    }
+}

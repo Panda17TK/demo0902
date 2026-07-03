@@ -26,6 +26,18 @@ object Actors {
     private val THRUST_OUT = Color(1f, 0.40f, 0.10f, 0.45f)  // soft orange plume (the trailing tail)
     private val THRUST_MID = Color(1f, 0.62f, 0.18f, 0.80f)  // orange body
     private val THRUST_CORE = Color(1f, 0.93f, 0.70f, 0.95f) // hot near-white nozzle
+    private val OC_OUT = Color(0.25f, 0.55f, 1f, 0.45f)      // v2.37: an OC thruster burns blue
+    private val OC_MID = Color(0.45f, 0.75f, 1f, 0.80f)
+    private val OC_CORE = Color(0.85f, 0.95f, 1f, 0.95f)
+    private val BEAM_TIP = Color.valueOf("9fe8ff")           // v2.37: the beam gun's glowing emitter
+    // v2.37 suit tints (lerped over PLAYER so the silhouette stays recognizable)
+    private val SUIT_LIGHT = Color.valueOf("9fb4c8")
+    private val SUIT_COMBAT = Color.valueOf("7d9a6f")
+    private val SUIT_HEAVY = Color.valueOf("6a7480")
+    private val SUIT_RELIC = Color.valueOf("9a86c8")
+    private val SUIT_THERMAL = Color.valueOf("c88a6a")
+    private val SUIT_INSULATED = Color.valueOf("8ad0e0")
+    private val suitTmp = Color()
     private val EYE_DARK = Color.valueOf("16202e")
     private val RED_EYE = Color.valueOf("ff5a5a")
     private val BOSS_EYE = Color.valueOf("ffd166")
@@ -50,29 +62,73 @@ object Actors {
         s.color = pupil; s.circle(cx - spread + ex, cy + ry + ey, r, 8); s.circle(cx + spread + ex, cy + ry + ey, r, 8)
     }
 
-    fun drawPlayer(s: ShapeRenderer, x: Float, y: Float, faceX: Float, faceY: Float, dashing: Boolean, hitFlash: Boolean, muzzle: Boolean, t: Float = 0f) {
+    /** v2.37: the gear shows on the body — [weaponType] shapes the gun, [armorId] tints the suit,
+     *  and an OC thruster ([oc]) burns blue-white instead of orange. */
+    @Suppress("LongParameterList")
+    fun drawPlayer(
+        s: ShapeRenderer, x: Float, y: Float, faceX: Float, faceY: Float,
+        dashing: Boolean, hitFlash: Boolean, muzzle: Boolean, t: Float = 0f,
+        weaponType: String? = null, armorId: String? = null, oc: Boolean = false,
+    ) {
         val r = Tuning.PLAYER_RADIUS; val w = r * 2f; val h = r * 2f
+        val suit = suitColor(armorId)
         s.color = SHADOW; ellipseC(s, x, y + h / 2f - 1f, w * 0.46f, h * 0.18f)
         if (dashing) {
-            s.color = dashTmp.set(PLAYER).also { it.a = 0.25f }; Draw.roundedRect(s, x - faceX * 8f - w / 2f, y - faceY * 8f - h / 2f, w, h, 5f)
+            s.color = dashTmp.set(suit).also { it.a = 0.25f }; Draw.roundedRect(s, x - faceX * 8f - w / 2f, y - faceY * 8f - h / 2f, w, h, 5f)
             // Two thruster flames out the back (opposite facing), one off each shoulder, with a slight flicker tail.
             val bx = -faceX; val by = -faceY; val perpX = -faceY; val perpY = faceX
             val flick = 0.82f + 0.18f * sin(t * 42f)
             for (sgn in intArrayOf(-1, 1)) {
                 val nx = x + bx * (r * 0.55f) + perpX * sgn * r * 0.42f
                 val ny = y + by * (r * 0.55f) + perpY * sgn * r * 0.42f
-                s.color = THRUST_OUT; s.circle(nx + bx * 9f * flick, ny + by * 9f * flick, r * 0.30f * flick, 8)  // trailing tail
-                s.color = THRUST_MID; s.circle(nx + bx * 5f * flick, ny + by * 5f * flick, r * 0.40f * flick, 8)  // body
-                s.color = THRUST_CORE; s.circle(nx + bx * 1.5f, ny + by * 1.5f, r * 0.26f * flick, 8)             // hot nozzle
+                s.color = if (oc) OC_OUT else THRUST_OUT; s.circle(nx + bx * 9f * flick, ny + by * 9f * flick, r * 0.30f * flick, 8)
+                s.color = if (oc) OC_MID else THRUST_MID; s.circle(nx + bx * 5f * flick, ny + by * 5f * flick, r * 0.40f * flick, 8)
+                s.color = if (oc) OC_CORE else THRUST_CORE; s.circle(nx + bx * 1.5f, ny + by * 1.5f, r * 0.26f * flick, 8)
             }
         }
-        s.color = GUN; Draw.orientedRect(s, x, y, faceX, faceY, 6f, 12f, 2.5f)
-        s.color = GUN_TIP; Draw.orientedRect(s, x, y, faceX, faceY, 15f, 3f, 1.5f)
+        drawGun(s, x, y, faceX, faceY, weaponType)
         if (muzzle) { s.color = MUZZLE; Draw.orientedRect(s, x, y, faceX, faceY, 18f, 6f, 3.5f) }
-        s.color = if (hitFlash) PLAYER_HIT else PLAYER
+        s.color = if (hitFlash) PLAYER_HIT else suit
         Draw.roundedRect(s, x - w / 2f, y - h / 2f, w, h, 6f)
         s.color = BELLY; Draw.roundedRect(s, x - w / 2f + 3f, y - h / 2f + 3f, w - 6f, h * 0.45f, 4f)
         eyes(s, x, y, 4f, -2f, faceX, faceY, EYE_DARK, 1.5f, true)
+    }
+
+    /** Each weapon type gets its own silhouette: stub pistol, wide shotgun, long mg, glowing beam, grenade tube. */
+    private fun drawGun(s: ShapeRenderer, x: Float, y: Float, fx: Float, fy: Float, weaponType: String?) {
+        when (weaponType) {
+            "shotgun" -> {
+                s.color = GUN; Draw.orientedRect(s, x, y, fx, fy, 5f, 10f, 3.5f)
+                s.color = GUN_TIP; Draw.orientedRect(s, x, y, fx, fy, 12f, 4f, 2.6f)
+            }
+            "mg" -> {
+                s.color = GUN; Draw.orientedRect(s, x, y, fx, fy, 6f, 15f, 2.5f)
+                s.color = GUN_TIP; Draw.orientedRect(s, x, y, fx, fy, 18f, 4f, 1.4f)
+            }
+            "beam" -> {
+                s.color = GUN; Draw.orientedRect(s, x, y, fx, fy, 6f, 11f, 2f)
+                s.color = BEAM_TIP; s.circle(x + fx * 18f, y + fy * 18f, 2.8f, 8)
+            }
+            "grenade" -> {
+                s.color = GUN; Draw.orientedRect(s, x, y, fx, fy, 4f, 8f, 3.5f)
+                s.color = GUN_TIP; Draw.orientedRect(s, x, y, fx, fy, 10f, 2.5f, 3f)
+            }
+            else -> { // pistol / unknown: the classic sidearm
+                s.color = GUN; Draw.orientedRect(s, x, y, fx, fy, 6f, 12f, 2.5f)
+                s.color = GUN_TIP; Draw.orientedRect(s, x, y, fx, fy, 15f, 3f, 1.5f)
+            }
+        }
+    }
+
+    /** The suit's base color: the armor tints the classic blue — subtle, but you can tell at a glance. */
+    private fun suitColor(armorId: String?): Color = when (armorId) {
+        "armor_light" -> suitTmp.set(PLAYER).lerp(SUIT_LIGHT, 0.35f)
+        "armor_combat" -> suitTmp.set(PLAYER).lerp(SUIT_COMBAT, 0.45f)
+        "armor_heavy" -> suitTmp.set(PLAYER).lerp(SUIT_HEAVY, 0.55f)
+        "armor_relic" -> suitTmp.set(PLAYER).lerp(SUIT_RELIC, 0.45f)
+        "armor_thermal" -> suitTmp.set(PLAYER).lerp(SUIT_THERMAL, 0.5f)
+        "armor_insulated" -> suitTmp.set(PLAYER).lerp(SUIT_INSULATED, 0.5f)
+        else -> PLAYER // pilot suit / none: the classic blue
     }
 
     @Suppress("LongParameterList")

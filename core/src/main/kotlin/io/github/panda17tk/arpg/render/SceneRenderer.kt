@@ -30,10 +30,13 @@ import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.sin
 
-/** The player's interpolated pose + per-frame visual flags, computed by GameScreen for the camera too. */
+/** The player's interpolated pose + per-frame visual flags, computed by GameScreen for the camera too.
+ *  v2.37: the gear look rides along — the active weapon type shapes the drawn gun, the armor tints
+ *  the suit, and an OC thruster burns blue-white. */
 class PlayerPose(
     val x: Float, val y: Float, val faceX: Float, val faceY: Float,
     val dashing: Boolean, val hit: Boolean, val muzzle: Boolean,
+    val weaponType: String? = null, val armorId: String? = null, val oc: Boolean = false,
 )
 
 /**
@@ -100,7 +103,10 @@ class SceneRenderer {
         drawFacilities(shapes, gw, animTime)
         drawEscapePad(shapes, gw)
         drawMobs(shapes, gw, animTime)
-        Actors.drawPlayer(shapes, pose.x, pose.y, pose.faceX, pose.faceY, pose.dashing, pose.hit, pose.muzzle, animTime)
+        Actors.drawPlayer(
+            shapes, pose.x, pose.y, pose.faceX, pose.faceY, pose.dashing, pose.hit, pose.muzzle, animTime,
+            pose.weaponType, pose.armorId, pose.oc,
+        )
         drawProjectiles(shapes, gw, animTime)
         drawFx(shapes, gw)
         drawPickups(shapes, gw, animTime)

@@ -7,6 +7,7 @@ import io.github.panda17tk.arpg.combat.Reload
 import io.github.panda17tk.arpg.config.GameConfig
 import io.github.panda17tk.arpg.ecs.components.Ammo
 import io.github.panda17tk.arpg.ecs.components.Arsenal
+import io.github.panda17tk.arpg.ecs.components.Gear
 import io.github.panda17tk.arpg.ecs.components.PlayerTag
 import io.github.panda17tk.arpg.input.InputState
 
@@ -34,7 +35,10 @@ class ReloadSystem : IteratingSystem(family { all(PlayerTag, Arsenal, Ammo) }) {
         val w = arsenal.current; val size = w.def.magSize ?: return // beam: no magazine
         if (w.reloadT > 0f) return
         if (w.mag >= size || (!w.def.infiniteAmmo && ammo.get(w.def.ammoType) <= 0)) { w.autoReloadTimer = 0f; return }
-        val time = if (w.def.reloadTime > 0f) w.def.reloadTime else config.player.autoReloadDelay
+        // v2.37: the equipped gun's grade speeds (or slows) its reload while it's the active weapon.
+        val gradeReload = entity.getOrNull(Gear)?.loadout?.ranged
+            ?.takeIf { it.weaponType == w.def.id }?.reloadMul ?: 1f
+        val time = (if (w.def.reloadTime > 0f) w.def.reloadTime else config.player.autoReloadDelay) * gradeReload
         // Auto-reload ONLY when the magazine is shot dry; a manual reload (R / button) is still allowed any time.
         // No quiet-delay auto-reload — stopping fire with rounds left keeps them chambered.
         when {

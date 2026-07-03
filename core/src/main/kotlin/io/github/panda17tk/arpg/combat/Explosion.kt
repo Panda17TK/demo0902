@@ -13,9 +13,10 @@ object Explosion {
     /** Linear falloff: 1 at center, 0 at [radius]. */
     fun falloff(dist: Float, radius: Float): Float = (1f - dist / radius).coerceIn(0f, 1f)
 
-    /** Damage destructible WALL tiles within explodeRadius of (x,y) with wallDmg*(1-d/r) (legacy). */
-    fun applyWallDamage(map: TileMap, x: Float, y: Float, cfg: PlayerConfig) {
-        val r = cfg.explodeRadius
+    /** Damage destructible WALL tiles within explodeRadius·[radiusMul] of (x,y) with wallDmg*(1-d/r).
+     *  [radiusMul] (v2.37) lets a graded grenade widen its wall crater along with the blast. */
+    fun applyWallDamage(map: TileMap, x: Float, y: Float, cfg: PlayerConfig, radiusMul: Float = 1f) {
+        val r = cfg.explodeRadius * radiusMul
         val tx0 = maxOf(1, floor((x - r) / Tuning.TILE).toInt())
         val ty0 = maxOf(1, floor((y - r) / Tuning.TILE).toInt())
         val tx1 = minOf(map.width - 2, floor((x + r) / Tuning.TILE).toInt())
