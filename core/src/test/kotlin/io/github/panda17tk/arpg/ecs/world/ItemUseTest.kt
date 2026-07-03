@@ -70,6 +70,21 @@ class ItemUseTest {
         assertEquals(1, gw.world.family { all(Smoke) }.numEntities)
     }
 
+    @Test fun `timed resistances set their buff timers`() {
+        val gw = world()
+        with(gw.world) {
+            assertNotNull(ItemUse.use(gw.world, gw.player, ItemCatalog.byId("coat_heat")!!))
+            assertNotNull(ItemUse.use(gw.world, gw.player, ItemCatalog.byId("coat_cold")!!))
+            assertNotNull(ItemUse.use(gw.world, gw.player, ItemCatalog.byId("field_magnet")!!))
+            assertNotNull(ItemUse.use(gw.world, gw.player, ItemCatalog.byId("patch_regen")!!))
+            val bf = gw.player[Buff]
+            assertEquals(60f, bf.heatProofT, 1e-3f)
+            assertEquals(60f, bf.coldProofT, 1e-3f)
+            assertEquals(45f, bf.magnetT, 1e-3f)
+            assertEquals(20f, bf.regenT, 1e-3f)
+        }
+    }
+
     @Test fun `equipment and lore are not usable`() {
         val gw = world()
         assertNull(ItemUse.use(gw.world, gw.player, ItemCatalog.byId("acc_boots")!!))

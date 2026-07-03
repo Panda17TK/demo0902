@@ -35,6 +35,10 @@ object ItemUse {
             }
             ConsumeKind.STAMINA_INF -> { player[Buff].staminaInfT = item.power; "体が軽い　${item.power.toInt()}秒間スタミナ消費なし" }
             ConsumeKind.DASH_UP -> { player[Buff].dashUpT = item.power; "反応が研ぎ澄まされた　${item.power.toInt()}秒間ダッシュ強化" }
+            ConsumeKind.HEAT_PROOF -> { player[Buff].heatProofT = item.power; "${item.power.toInt()}秒間マグマダメージ無効" }
+            ConsumeKind.COLD_PROOF -> { player[Buff].coldProofT = item.power; "${item.power.toInt()}秒間 雪と氷の影響なし" }
+            ConsumeKind.MAGNET -> { player[Buff].magnetT = item.power; "${item.power.toInt()}秒間ドロップ品を引き寄せる" }
+            ConsumeKind.REGEN -> { player[Buff].regenT = item.power; "${item.power.toInt()}秒間HPが回復し続ける" }
             ConsumeKind.SMOKE -> {
                 val t = player[Transform]
                 world.entity {

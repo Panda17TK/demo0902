@@ -2,7 +2,7 @@ package io.github.panda17tk.arpg.core
 
 /** App-wide constants. Simulation timing mirrors the legacy fixed-step loop (spec §7). */
 object Constants {
-    const val APP_TITLE = "ARPG Survival"
+    const val APP_TITLE = "drift"
     const val VERSION_NAME = "2.0.0"
 
     /** Fixed simulation timestep (seconds). */

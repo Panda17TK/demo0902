@@ -17,6 +17,7 @@ import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.ecs.components.Velocity
 import io.github.panda17tk.arpg.input.InputState
 import io.github.panda17tk.arpg.item.FullThrottle
+import io.github.panda17tk.arpg.item.ItemTrait
 import io.github.panda17tk.arpg.map.Biome
 import io.github.panda17tk.arpg.map.Biomes
 import io.github.panda17tk.arpg.map.TileMap
@@ -57,6 +58,10 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         if (h.hitFlash > 0f) h.hitFlash -= dt
         if (bf.staminaInfT > 0f) bf.staminaInfT -= dt
         if (bf.dashUpT > 0f) bf.dashUpT -= dt
+        if (bf.heatProofT > 0f) bf.heatProofT -= dt
+        if (bf.coldProofT > 0f) bf.coldProofT -= dt
+        if (bf.magnetT > 0f) bf.magnetT -= dt
+        if (bf.regenT > 0f) bf.regenT -= dt
         val staInf = bf.staminaInfT > 0f // pickup buff: dash freely without draining stamina
 
         val mv = Locomotion.keyboardDirection(input.left, input.right, input.up, input.down)
@@ -91,14 +96,18 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         val ft = input.fullThrottle && loadout.hasOverclockThruster && !s.overheat && (s.value > 0f || staInf)
         val gearAccel = loadout.thrustAccelMul * (if (ft) FullThrottle.ACCEL_MUL else 1f)
         val gearCruise = loadout.thrustCruiseMul * (if (ft) FullThrottle.CRUISE_MUL else 1f)
+        // Special effects (v2.35): worn traits or their timed consumable coatings negate a hazard outright.
+        val heatProof = loadout.has(ItemTrait.HEAT_PROOF) || bf.heatProofT > 0f
+        val coldProof = loadout.has(ItemTrait.COLD_PROOF) || bf.coldProofT > 0f
         // Normal-move speed cap scales with buffs/snow; dashes are bounded only by the hard ceiling.
         val cruise = Locomotion.speed(false, config.player) * mods.moveMul * loadout.moveMul * gearCruise *
-            (if (bf.dashUpT > 0f) DASH_UP_MUL else 1f) * (if (snow) SNOW_SLOW else 1f)
+            (if (bf.dashUpT > 0f) DASH_UP_MUL else 1f) * (if (snow && !coldProof) SNOW_SLOW else 1f)
         val hardCap = V_HARD * mods.moveMul * (if (bf.dashUpT > 0f) DASH_UP_MUL else 1f)
         // Zero friction in open space; a planet surface (ice especially) restores ground drag so you stop.
+        // Cold-proof soles grip the ice: it behaves like ordinary ground.
         val decay = when {
             worldState.mode != WorldMode.SURFACE -> SPACE_DECAY
-            worldState.biome == PlanetBiome.ICE -> ICE_COAST
+            worldState.biome == PlanetBiome.ICE && !coldProof -> ICE_COAST
             else -> SURFACE_COAST
         }
         // Thrust direction: the facing for a button dash, the move stick otherwise.
@@ -151,10 +160,14 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
             if (s.value <= 0.05f) s.overheat = true            // fully drained → overheat (no stamina actions)
             if (s.value >= s.max - 0.05f) s.overheat = false   // fully recovered → clear overheat
         }
-        // Terrain effects: magma block burns HP; grass restores stamina; a magma planet surface burns everywhere.
+        // Terrain effects: magma block burns HP; grass restores stamina; a magma planet surface burns
+        // everywhere. Heat-proof gear/coating (v2.35) cuts the burn completely.
         val onMagmaSurface = worldState.mode == WorldMode.SURFACE && worldState.biome == PlanetBiome.MAGMA
-        if (magma || onMagmaSurface) h.hp = (h.hp - MAGMA_DPS * dt).coerceAtLeast(0f)
+        if ((magma || onMagmaSurface) && !heatProof) h.hp = (h.hp - MAGMA_DPS * dt).coerceAtLeast(0f)
         if (grass) s.value = (s.value + GRASS_STA * dt).coerceAtMost(s.max)
+        // Passive regeneration (v2.35): worn repair patches + the timed regen pack, additive; never revives.
+        val regen = loadout.hpRegen + (if (bf.regenT > 0f) PATCH_REGEN else 0f)
+        if (regen > 0f && h.hp > 0f) h.hp = (h.hp + regen * dt).coerceAtMost(h.hpMax)
     }
 
     companion object {
@@ -176,6 +189,7 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         private const val SNOW_SLOW = 0.62f // snow block underfoot → slower
         private const val MAGMA_DPS = 8f // magma block burns HP/sec
         private const val GRASS_STA = 16f // grass block restores stamina/sec
+        private const val PATCH_REGEN = 2.5f // HP/sec while the timed regen pack (v2.35) runs
         private const val IMPACT_MIN_SPEED = 220f // above this, a wall/planet smack jolts the screen (no damage)
         private const val IMPACT_SHAKE_K = 0.022f // shake magnitude per unit of impact speed
         private const val IMPACT_SHAKE_MAX = 16f // …capped so a hard hit doesn't nauseate
