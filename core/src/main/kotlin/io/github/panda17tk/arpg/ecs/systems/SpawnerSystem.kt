@@ -47,16 +47,21 @@ class SpawnerSystem : IteratingSystem(family { all(PlayerTag, Transform) }) {
         val dt = deltaTime
         w.elapsed += dt
 
+        // v2.36: drifters don't count — a coasting stranger at the far edge of space neither eats
+        // the live cap nor keeps a cleared wave open.
+        var waveMobs = 0
+        mobs.forEach { m -> if (!m[Mob].drifter) waveMobs++ }
+
         if (w.phase == "active") {
             if (w.toSpawn > 0) {
                 w.spawnCd -= dt
-                if (w.spawnCd <= 0f && mobs.numEntities < liveCap(w.num, c)) {
+                if (w.spawnCd <= 0f && waveMobs < liveCap(w.num, c)) {
                     val n = spawnNormal(pt, w.num)
                     if (n > 0) { w.toSpawn -= n; w.spawnCd = spawnInterval(w.num, c) }
                     else w.spawnCd = 0.2f
                 }
             }
-            if (w.toSpawn <= 0 && mobs.numEntities == 0 && w.elapsed > c.firstWaveDelay) {
+            if (w.toSpawn <= 0 && waveMobs == 0 && w.elapsed > c.firstWaveDelay) {
                 w.phase = "intermission"
                 w.interT = c.intermission
             }

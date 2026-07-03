@@ -215,6 +215,35 @@ object WorldFactory {
             )
         }
 
+        // v2.36: space is inhabited — drifters coast through the void on their own momentum from the
+        // start. They aggro like any mob when approached, but SpawnerSystem excludes them from wave
+        // completion and live caps, so a drifter at the map's far edge never stalls the wave train.
+        if (mode != WorldMode.SURFACE) {
+            val driftersRng = Rng(seed xor 0x00D21F7E5L)
+            val normalKeys = config.enemies.filterValues { it.tier == "normal" && it.biome == null }.keys.toList()
+            if (normalKeys.isNotEmpty()) {
+                repeat(SPACE_DRIFTERS) {
+                    val def = config.enemies[normalKeys[driftersRng.nextInt(normalKeys.size)]] ?: return@repeat
+                    val ang = driftersRng.nextFloat() * TAU
+                    val dist = DRIFTER_MIN_DIST + driftersRng.nextFloat() * DRIFTER_RANGE
+                    val rawX = (spawnX + kotlin.math.cos(ang) * dist).coerceIn(Tuning.TILE * 2f, map.width * Tuning.TILE - Tuning.TILE * 2f)
+                    val rawY = (spawnY + kotlin.math.sin(ang) * dist).coerceIn(Tuning.TILE * 2f, map.height * Tuning.TILE - Tuning.TILE * 2f)
+                    val (fx2, fy2) = snapToFloor(map, rawX, rawY)
+                    val e = MobFactory.spawn(
+                        world, def, fx2, fy2, tribe = tribes.tribeOf(fx2, fy2),
+                        dashes = driftersRng.nextFloat() < 0.5f, drifter = true,
+                    )
+                    // Their opening momentum: a lazy coast in a random direction (below the ram threshold).
+                    val va = driftersRng.nextFloat() * TAU
+                    val sp = DRIFTER_SPEED_MIN + driftersRng.nextFloat() * (DRIFTER_SPEED_MAX - DRIFTER_SPEED_MIN)
+                    with(world) {
+                        e[Velocity].driftX = kotlin.math.cos(va) * sp
+                        e[Velocity].driftY = kotlin.math.sin(va) * sp
+                    }
+                }
+            }
+        }
+
         // Living Planets: landing on a planet lays out its inhabitants once (its society/ecology), not a wave.
         if (mode == WorldMode.SURFACE && biome != null) {
             val worldW = map.width * Tuning.TILE; val worldH = map.height * Tuning.TILE
@@ -272,4 +301,11 @@ object WorldFactory {
         }
         return x to y
     }
+
+    private const val TAU = 6.2831855f
+    private const val SPACE_DRIFTERS = 30      // v2.36: creatures adrift in space from world creation
+    private const val DRIFTER_MIN_DIST = 600f  // ...scattered in a ring well clear of the spawn
+    private const val DRIFTER_RANGE = 1800f
+    private const val DRIFTER_SPEED_MIN = 40f  // opening coast speed; max stays below the 150 ram threshold
+    private const val DRIFTER_SPEED_MAX = 140f
 }

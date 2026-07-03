@@ -18,6 +18,9 @@ class Mob(
     var xp: Float = 0f,
     val dashes: Boolean = false, // ~half of each tribe's rank-and-file dash (facing-thrust inertial burst)
     var dashCd: Float = 0f,
+    // v2.36: space drifters coast through the void from world creation. They fight like anyone else
+    // but never count toward wave completion / live caps (a far-off drifter can't stall a wave).
+    val drifter: Boolean = false,
     // Wildlife runtime (WildlifeSystem / WildPredationSystem only; ignored by hostile/sapient mobs).
     var wildState: WildState = WildState.Wander,
     var hunger: Float = 0f,   // 0..1, climbs over time; a predator hunts when high, drops while feeding

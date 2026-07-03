@@ -131,18 +131,21 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         val r1 = Collision.moveAndCollide(map, t.x, t.y, b.halfW, b.halfH, (v.vx + v.driftX) * dt, 0f)
         val r2 = Collision.moveAndCollide(map, r1.x, r1.y, b.halfW, b.halfH, 0f, (v.vy + v.driftY) * dt)
         t.x = r2.x; t.y = r2.y
-        if (r1.hitX) { v.vx = 0f; v.driftX = 0f } // stop at the wall — no crash/fall damage
+        if (r1.hitX) { v.vx = 0f; v.driftX = 0f } // stop at the wall
         if (r2.hitY) { v.vy = 0f; v.driftY = 0f }
-        // Solid planets: push out + a slight rebound. No crash/fall damage.
+        // Solid planets: push out + a slight rebound.
         val pc = CircleCollision.resolve(t.x, t.y, b.halfW, v.vx + v.driftX, v.vy + v.driftY, planetField.planets)
         if (pc.hit) {
             t.x = pc.x; t.y = pc.y
             val (rdx, rdy) = CrashModel.rebound(v.driftX, v.driftY, pc.normalX, pc.normalY, CRASH_RESTITUTION)
             v.driftX = rdx; v.driftY = rdy
         }
-        // A fast smack into a wall or planet jolts the screen, scaled by speed — but never costs HP.
+        // A fast smack into a wall or planet jolts the screen, scaled by speed — and past the damage
+        // threshold it hurts (v2.36): 1..5 HP scaling with impact speed. Gentle bumps stay free.
         if ((r1.hitX || r2.hitY || pc.hit) && impactSpeed > IMPACT_MIN_SPEED) {
             fx.addShake(IMPACT_SHAKE_T, (impactSpeed * IMPACT_SHAKE_K).coerceAtMost(IMPACT_SHAKE_MAX))
+            val crash = CrashModel.damage(impactSpeed, CRASH_DMG_MIN_SPEED, CRASH_DMG_K)
+            if (crash > 0f) h.hp = (h.hp - crash.coerceIn(CRASH_DMG_MIN, CRASH_DMG_MAX)).coerceAtLeast(0f)
         }
         // Stamina: a button dash drains hard, a stick dash barely sips, otherwise it regenerates.
         if (staInf) {
@@ -190,7 +193,11 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         private const val MAGMA_DPS = 8f // magma block burns HP/sec
         private const val GRASS_STA = 16f // grass block restores stamina/sec
         private const val PATCH_REGEN = 2.5f // HP/sec while the timed regen pack (v2.35) runs
-        private const val IMPACT_MIN_SPEED = 220f // above this, a wall/planet smack jolts the screen (no damage)
+        private const val IMPACT_MIN_SPEED = 220f // above this, a wall/planet smack jolts the screen
+        private const val CRASH_DMG_MIN_SPEED = 320f // above this, the smack also costs HP (v2.36)
+        private const val CRASH_DMG_K = 0.008f // damage per unit of speed past the threshold (~1 HP at 445)
+        private const val CRASH_DMG_MIN = 1f // a damaging crash costs at least 1 HP...
+        private const val CRASH_DMG_MAX = 5f // ...and at most 5, however hard the slam
         private const val IMPACT_SHAKE_K = 0.022f // shake magnitude per unit of impact speed
         private const val IMPACT_SHAKE_MAX = 16f // …capped so a hard hit doesn't nauseate
         private const val IMPACT_SHAKE_T = 0.2f // shake duration (s)
