@@ -14,6 +14,7 @@ import io.github.panda17tk.arpg.ecs.components.PlayerTag
 import io.github.panda17tk.arpg.ecs.components.Smoke
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.item.ItemCatalog
+import io.github.panda17tk.arpg.item.ItemTrait
 import io.github.panda17tk.arpg.math.Rng
 import io.github.panda17tk.arpg.sim.Consequence
 import io.github.panda17tk.arpg.sim.PlanetContext
@@ -33,7 +34,10 @@ class PickupSystem : IteratingSystem(family { all(Pickup, Transform) }) {
         with(world) {
             players.forEach { p ->
                 val pt = p[Transform]
-                if (abs(pt.x - t.x) < PICK_R && abs(pt.y - t.y) < PICK_R) {
+                // v2.35: a worn magnet (or the timed field magnet) widens the collection reach ×3.
+                val magnet = p[Buff].magnetT > 0f || p.getOrNull(Gear)?.loadout?.has(ItemTrait.MAGNET) == true
+                val pickR = if (magnet) PICK_R * MAGNET_MUL else PICK_R
+                if (abs(pt.x - t.x) < pickR && abs(pt.y - t.y) < pickR) {
                     when (pk.kind) {
                         "blocks" -> p[Materials].blocks += pk.amount
                         "med" -> { val h = p[Health]; h.hp = minOf(h.hpMax, h.hp + pk.amount) }
@@ -81,6 +85,7 @@ class PickupSystem : IteratingSystem(family { all(Pickup, Transform) }) {
     companion object {
         private const val LIFE = 14f
         private const val PICK_R = 18f
+        private const val MAGNET_MUL = 3f // v2.35: the magnet trait/buff triples the collection reach
         private const val ITEM_PREFIX = "item:" // v2.33: equipment pickups carry their catalog id
         private const val NATURE_HP = 8f      // nature core: a little more max HP (and a top-up)
         private const val MAGMA_GUN = 0.1f    // magma core: +10% bullet damage

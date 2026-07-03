@@ -10,8 +10,18 @@ enum class ItemKind { THRUSTER, ARMOR, RANGED_WEAPON, MELEE_WEAPON, ACCESSORY, C
 /** Thruster classes: OC (overclocked) thrusters unlock the full-throttle mode. */
 enum class ThrusterClass { STANDARD, OC }
 
-/** What using a CONSUMABLE does (v2.34). The magnitude rides in [ItemDef.power]. */
-enum class ConsumeKind { NONE, HEAL, STAMINA, STAMINA_INF, DASH_UP, SMOKE, BLOCKS, AMMO_ALL }
+/** What using a CONSUMABLE does (v2.34). The magnitude rides in [ItemDef.power] — for the timed
+ *  resistances (v2.35: HEAT_PROOF / COLD_PROOF / MAGNET / REGEN) it is the duration in seconds. */
+enum class ConsumeKind { NONE, HEAL, STAMINA, STAMINA_INF, DASH_UP, SMOKE, BLOCKS, AMMO_ALL, HEAT_PROOF, COLD_PROOF, MAGNET, REGEN }
+
+/**
+ * On/off special effects a piece of equipment can carry (v2.35). Wearing ANY equipped item with
+ * the trait grants it outright:
+ *  - HEAT_PROOF: magma damage is cut completely (溶岩床・マグマ惑星の熱を無効)
+ *  - COLD_PROOF: snow no longer slows and ice no longer slides (雪の減速・氷の滑りを無効)
+ *  - MAGNET: pickups are collected from much further away (ドロップ品を引き寄せる)
+ */
+enum class ItemTrait { HEAT_PROOF, COLD_PROOF, MAGNET }
 
 /**
  * One item in the world (v2.33 装備/インベントリ). Pure data — behaviour stays in the systems that
@@ -41,6 +51,9 @@ data class ItemDef(
     // CONSUMABLE (v2.34): what using it does + how strongly (HP healed, blocks gained, buff seconds…)
     val consume: ConsumeKind = ConsumeKind.NONE,
     val power: Float = 0f,
+    // Special effects (v2.35): on/off traits + passive HP regeneration per second while equipped
+    val traits: Set<ItemTrait> = emptySet(),
+    val hpRegen: Float = 0f,
     // LORE (v2.34): the readable text — newline-separated lines shown in the inventory's reading view
     val lore: String = "",
 )
@@ -95,6 +108,9 @@ class Loadout(
     val gunMul: Float get() = equipped().fold(1f) { a, i -> a * i.gunMul }
     val meleeDmgMul: Float get() = (melee?.meleeDmgMul ?: 1f)
     val meleeReachMul: Float get() = (melee?.meleeReachMul ?: 1f)
+    // v2.35 special effects: any equipped piece carrying the trait grants it; regen stacks additively.
+    fun has(trait: ItemTrait): Boolean = equipped().any { trait in it.traits }
+    val hpRegen: Float get() = equipped().fold(0f) { a, i -> a + i.hpRegen }
 
     companion object {
         fun compatible(slot: EquipSlot, kind: ItemKind): Boolean = when (slot) {

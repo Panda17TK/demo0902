@@ -65,4 +65,22 @@ class LoadoutTest {
         assertEquals(1.4f, l.meleeReachMul, 1e-4f)
         assertTrue(l.meleeDmgMul > 1f)
     }
+
+    @Test fun `traits come from any equipped piece - armor or accessory`() {
+        val armor = Loadout(armor = ItemCatalog.byId("armor_thermal"))
+        assertTrue(armor.has(ItemTrait.HEAT_PROOF))
+        assertFalse(armor.has(ItemTrait.COLD_PROOF))
+        val acc = Loadout()
+        acc.set(EquipSlot.ACC2, ItemCatalog.byId("acc_gripsole")!!)
+        assertTrue(acc.has(ItemTrait.COLD_PROOF))
+        assertFalse(Loadout().has(ItemTrait.MAGNET))
+    }
+
+    @Test fun `hp regen stacks additively across equipped pieces`() {
+        val l = Loadout()
+        assertEquals(0f, l.hpRegen, 1e-6f)
+        l.set(EquipSlot.ACC1, ItemCatalog.byId("acc_repair")!!)
+        l.set(EquipSlot.ACC2, ItemCatalog.byId("acc_repair")!!)
+        assertEquals(3f, l.hpRegen, 1e-4f)
+    }
 }
