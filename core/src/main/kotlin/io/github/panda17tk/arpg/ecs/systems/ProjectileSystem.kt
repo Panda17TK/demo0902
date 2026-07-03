@@ -86,7 +86,8 @@ class ProjectileSystem(private val mobGrid: SpatialGrid<Entity>) :
             val wall = step.wallTile
             if (wall != null) {
                 fx.spawnChips(t.x, t.y, 5, chipColor)
-                if (Tiles.damageTile(map, wall.first, wall.second, b.dmg).broke) {
+                // v2.37: demolition-grade guns chew through blocks faster (wallMul from the equipped gun).
+                if (Tiles.damageTile(map, wall.first, wall.second, b.dmg * b.wallMul).broke) {
                     flow.rebuild(map, playerTileX(), playerTileY(), FlowRebuildSystem.MAX_DIST)
                     Pickups.dropOnWall(world, rng, (wall.first + 0.5f) * Tuning.TILE, (wall.second + 0.5f) * Tuning.TILE)
                 }
@@ -108,14 +109,15 @@ class ProjectileSystem(private val mobGrid: SpatialGrid<Entity>) :
                 }
             }
             if (map.solidAt(tx, ty) || g.fuse <= 0f || prox) {
-                detonate(t.x, t.y, if (prox) Tuning.TILE * 2f else config.player.explodeRadius)
+                // v2.37: the grenade's grade widens the whole blast (mob damage + wall crater alike).
+                detonate(t.x, t.y, (if (prox) Tuning.TILE * 2f else config.player.explodeRadius) * g.blastMul, g.blastMul)
                 world -= entity
             }
         }
     }
 
-    private fun detonate(ex: Float, ey: Float, r: Float) {
-        Explosion.applyWallDamage(map, ex, ey, config.player)
+    private fun detonate(ex: Float, ey: Float, r: Float, blastMul: Float = 1f) {
+        Explosion.applyWallDamage(map, ex, ey, config.player, blastMul)
         flow.rebuild(map, playerTileX(), playerTileY(), FlowRebuildSystem.MAX_DIST)
         val maxDmg = config.player.explodeDmg
         mobGrid.forNearby(ex, ey, r + 24f) { mobEntity ->

@@ -62,14 +62,21 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
         val t = entity[Transform]; val f = entity[Facing]
         val ammo = entity[Ammo]; val mods = entity[Mods]
         val gearGun = entity[Gear].loadout.gunMul // v2.33: scopes etc. sweeten the guns
+        // v2.37 weapon grades: handling tweaks apply only while the equipped gun IS the active weapon.
+        val gradeItem = entity[Gear].loadout.ranged?.takeIf { it.weaponType == def.id }
+        val gradeFireRate = gradeItem?.fireRateMul ?: 1f
+        val gradeBlast = gradeItem?.blastMul ?: 1f
+        val gradeWall = gradeItem?.wallDmgMul ?: 1f
         val aim = atan2(f.y, f.x)
         val dirX = cos(aim); val dirY = sin(aim)
 
         when (def.id) {
             "beam" -> {
-                if (ammo.ammoBeam <= 0) return
-                ammo.ammoBeam--
-                cd.shoot = def.fireRate * mods.fireMul
+                if (!def.infiniteAmmo) { // v2.37: the beam runs on the ship's reactor — no ammo
+                    if (ammo.ammoBeam <= 0) return
+                    ammo.ammoBeam--
+                }
+                cd.shoot = def.fireRate * mods.fireMul * gradeFireRate
                 val hit = BeamRay.cast(map, t.x, t.y, dirX, dirY, BEAM_RANGE)
                 fx.spawnBeam(t.x, t.y, t.x + dirX * hit.reach, t.y + dirY * hit.reach)
 
@@ -95,7 +102,7 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
                 // radius-2 blast crater at the impact point (clears walls + damages mobs), punching a hole in cover.
                 if (hit.hitWall) {
                     val bx = (hit.wallTileX + 0.5f) * Tuning.TILE; val by = (hit.wallTileY + 0.5f) * Tuning.TILE
-                    val r = Tuning.TILE * BEAM_BLAST_TILES
+                    val r = Tuning.TILE * BEAM_BLAST_TILES * gradeBlast // v2.37: high-output beams crater wider
                     val broke = Explosion.blastWalls(map, bx, by, r)
                     mobGrid.forNearby(bx, by, r + 24f) { mobEntity ->
                         val mobT = with(world) { mobEntity[Transform] }
@@ -116,21 +123,21 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
             }
             "grenade" -> {
                 if (w.mag <= 0) return
-                w.mag--; cd.shoot = def.fireRate * mods.fireMul
+                w.mag--; cd.shoot = def.fireRate * mods.fireMul * gradeFireRate
                 world.entity {
                     it += Transform(x = t.x + dirX * Tuning.MUZZLE_OFFSET, y = t.y + dirY * Tuning.MUZZLE_OFFSET)
-                    it += Grenade(dirX * config.player.grenadeSpeed, dirY * config.player.grenadeSpeed, config.player.grenadeFuse)
+                    it += Grenade(dirX * config.player.grenadeSpeed, dirY * config.player.grenadeSpeed, config.player.grenadeFuse, blastMul = gradeBlast)
                 }
             }
             else -> {
                 if (w.mag <= 0) return
-                w.mag--; cd.shoot = def.fireRate * mods.fireMul
+                w.mag--; cd.shoot = def.fireRate * mods.fireMul * gradeFireRate
                 val angles = Firing.bulletAngles(aim, def.spread, def.pellets, rng)
                 for (a in angles) {
                     val vx = cos(a) * config.player.bulletSpeed; val vy = sin(a) * config.player.bulletSpeed
                     world.entity {
                         it += Transform(x = t.x + cos(a) * Tuning.MUZZLE_OFFSET, y = t.y + sin(a) * Tuning.MUZZLE_OFFSET)
-                        it += Bullet(vx, vy, config.player.bulletLife, def.dmg * mods.gunMul * gearGun)
+                        it += Bullet(vx, vy, config.player.bulletLife, def.dmg * mods.gunMul * gearGun, wallMul = gradeWall)
                     }
                 }
             }

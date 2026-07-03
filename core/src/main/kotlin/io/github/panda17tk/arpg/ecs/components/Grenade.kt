@@ -4,7 +4,7 @@ import com.github.quillraven.fleks.Component
 import com.github.quillraven.fleks.ComponentType
 
 /** Thrown grenade: velocity + fuse (s). Explodes on solid tile or fuse end. */
-class Grenade(var vx: Float, var vy: Float, var fuse: Float) : Component<Grenade> {
+class Grenade(var vx: Float, var vy: Float, var fuse: Float, val blastMul: Float = 1f) : Component<Grenade> {
     override fun type() = Grenade
     companion object : ComponentType<Grenade>()
 }

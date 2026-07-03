@@ -340,7 +340,13 @@ class GameScreen : ScreenAdapter() {
         if (rememberedT > 0f && !paused) { rememberedT -= simDelta; if (rememberedT <= 0f) gw.worldState.rememberedPlanet = false }
         if (rewardToastT > 0f && !paused) { rewardToastT -= simDelta; if (rewardToastT <= 0f) rewardToast = null }
         val playerHit = pit > 0f && ((pit * 20f).toInt() % 2 == 0)
-        val pose = PlayerPose(px, py, fx, fy, dashing = input.dash && sta > 0f, hit = playerHit, muzzle = input.fire)
+        // v2.37: the gear look — the active weapon shapes the drawn gun, armor tints the suit, OC burns blue.
+        val gearLook = with(gw.world) { gw.player[Gear].loadout }
+        val activeWeapon = with(gw.world) { gw.player[Arsenal].current.def.id }
+        val pose = PlayerPose(
+            px, py, fx, fy, dashing = input.dash && sta > 0f, hit = playerHit, muzzle = input.fire,
+            weaponType = activeWeapon, armorId = gearLook.armor?.id, oc = gearLook.hasOverclockThruster,
+        )
 
         updateCamera(delta, px, py, fx, fy)
         if (gw.fx.shakeMag > 0f) { camera.position.add(gw.fx.shakeX(), gw.fx.shakeY(), 0f); camera.update() }

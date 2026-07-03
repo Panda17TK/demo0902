@@ -23,12 +23,21 @@ object ItemCatalog {
         ItemDef("armor_relic", "遺物合金の胸当て", ItemKind.ARMOR, desc = "死せる星の合金　被ダメ -35% 銃 +5%", damageMul = 0.65f, gunMul = 1.05f),
         ItemDef("armor_thermal", "耐熱スーツ", ItemKind.ARMOR, desc = "マグマの熱を完全に遮断　被ダメ -10%", damageMul = 0.9f, traits = setOf(ItemTrait.HEAT_PROOF)),
         ItemDef("armor_insulated", "防寒スーツ", ItemKind.ARMOR, desc = "雪の減速と氷の滑りを無効　被ダメ -10%", damageMul = 0.9f, traits = setOf(ItemTrait.COLD_PROOF)),
-        // --- 遠距離武器 (the classic guns as items; 種類 = weaponType) ---
-        ItemDef("gun_pistol", "ピストル", ItemKind.RANGED_WEAPON, desc = "種類:ピストル　無限予備弾", weaponType = "pistol"),
+        // --- 遠距離武器 (the classic guns as items; 種類 = weaponType, v2.37 でグレード制) ---
+        ItemDef("gun_pistol", "ピストル", ItemKind.RANGED_WEAPON, desc = "種類:ピストル　弾薬無限", weaponType = "pistol"),
         ItemDef("gun_shotgun", "ショットガン", ItemKind.RANGED_WEAPON, desc = "種類:ショットガン", weaponType = "shotgun"),
-        ItemDef("gun_mg", "マシンガン", ItemKind.RANGED_WEAPON, desc = "種類:マシンガン", weaponType = "mg"),
-        ItemDef("gun_beam", "ビーム", ItemKind.RANGED_WEAPON, desc = "種類:ビーム　貫通+壁爆破", weaponType = "beam"),
+        ItemDef("gun_mg", "マシンガン", ItemKind.RANGED_WEAPON, desc = "種類:マシンガン　弾薬無限", weaponType = "mg"),
+        ItemDef("gun_beam", "ビーム", ItemKind.RANGED_WEAPON, desc = "種類:ビーム　貫通+壁爆破　弾薬無限", weaponType = "beam"),
         ItemDef("gun_grenade", "グレネード", ItemKind.RANGED_WEAPON, desc = "種類:グレネード", weaponType = "grenade"),
+        // 上位グレード (v2.37): 同じ種類のまま、威力・連射・装填・爆風・ブロック破壊が変わる
+        ItemDef("gun_pistol_2", "ピストルM2", ItemKind.RANGED_WEAPON, desc = "種類:ピストル　威力+25% 装填-30%", weaponType = "pistol", gunMul = 1.25f, reloadMul = 0.7f),
+        ItemDef("gun_pistol_3", "ピストルM3", ItemKind.RANGED_WEAPON, desc = "種類:ピストル　威力+50% 連射+18%", weaponType = "pistol", gunMul = 1.5f, fireRateMul = 0.85f),
+        ItemDef("gun_shotgun_2", "ショットガン改", ItemKind.RANGED_WEAPON, desc = "種類:ショットガン　威力+30% 装填-20%", weaponType = "shotgun", gunMul = 1.3f, reloadMul = 0.8f),
+        ItemDef("gun_shotgun_3", "解体ショットガン", ItemKind.RANGED_WEAPON, desc = "種類:ショットガン　ブロック破壊2.5倍 威力+15%", weaponType = "shotgun", gunMul = 1.15f, wallDmgMul = 2.5f),
+        ItemDef("gun_mg_2", "マシンガン改", ItemKind.RANGED_WEAPON, desc = "種類:マシンガン　連射+43% 威力+10%", weaponType = "mg", fireRateMul = 0.7f, gunMul = 1.1f),
+        ItemDef("gun_mg_3", "重機関銃", ItemKind.RANGED_WEAPON, desc = "種類:マシンガン　威力+40% ブロック破壊1.5倍 連射は重め", weaponType = "mg", gunMul = 1.4f, fireRateMul = 1.15f, wallDmgMul = 1.5f),
+        ItemDef("gun_beam_2", "高出力ビーム", ItemKind.RANGED_WEAPON, desc = "種類:ビーム　威力+30% 着弾爆風1.5倍", weaponType = "beam", gunMul = 1.3f, blastMul = 1.5f),
+        ItemDef("gun_grenade_2", "拡散グレネード", ItemKind.RANGED_WEAPON, desc = "種類:グレネード　爆風1.6倍 装填-15%", weaponType = "grenade", blastMul = 1.6f, reloadMul = 0.85f),
         // --- 近距離武器 (melee) ---
         ItemDef("melee_knife", "コンバットナイフ", ItemKind.MELEE_WEAPON, desc = "素早い標準ナイフ"),
         ItemDef("melee_blade", "プラズマブレード", ItemKind.MELEE_WEAPON, desc = "近接ダメージ +30%", meleeDmgMul = 1.3f),
