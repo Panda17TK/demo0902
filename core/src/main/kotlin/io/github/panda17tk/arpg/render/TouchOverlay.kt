@@ -82,5 +82,7 @@ object TouchOverlay {
         TouchButton.WALL -> "壁"
         TouchButton.WEAPON -> "武器"
         TouchButton.LAND -> landLabel
+        TouchButton.INV -> "持物"
+        TouchButton.FULL -> "全開"
     }
 }

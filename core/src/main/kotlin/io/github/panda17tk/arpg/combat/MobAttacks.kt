@@ -47,11 +47,12 @@ object MobAttacks {
         config: GameConfig,
         waveNum: Int,
         rng: Rng,
+        dmgTakenMul: Float = 1f, // v2.33: armor — scales damage the player takes
     ): Boolean = when (spec.type) {
         "melee" -> when {
             dist >= spec.range -> false
             spec.arc < 360f && acos((mobFacing.x * toPx + mobFacing.y * toPy).coerceIn(-1f, 1f)) > (spec.arc * PI.toFloat() / 180f) / 2f -> false
-            else -> { hitPlayer(playerH, playerV, spec.dmg, toPx, toPy, def.contactKB, iFrameMelee); true }
+            else -> { hitPlayer(playerH, playerV, spec.dmg * dmgTakenMul, toPx, toPy, def.contactKB, iFrameMelee); true }
         }
         "shot" -> if (!see) false else { fire(world, mobT, atan2(toPy, toPx), spec.speed, spec.dmg, spec.life); true }
         "lunge" -> if (!see || dist > spec.range) false else {
@@ -85,7 +86,7 @@ object MobAttacks {
             }
             true
         }
-        "slam" -> if (dist > spec.range) false else { hitPlayer(playerH, playerV, spec.dmg, toPx, toPy, spec.power, iFrameMelee); true }
+        "slam" -> if (dist > spec.range) false else { hitPlayer(playerH, playerV, spec.dmg * dmgTakenMul, toPx, toPy, spec.power, iFrameMelee); true }
         "charge" -> if (!see || dist > spec.range || dist < 40f) false else {
             mobVel.vx += toPx * spec.power; mobVel.vy += toPy * spec.power; true
         }

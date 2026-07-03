@@ -7,6 +7,7 @@ import io.github.panda17tk.arpg.config.GameConfig
 import io.github.panda17tk.arpg.ecs.components.Body
 import io.github.panda17tk.arpg.ecs.components.Buff
 import io.github.panda17tk.arpg.ecs.components.Facing
+import io.github.panda17tk.arpg.ecs.components.Gear
 import io.github.panda17tk.arpg.ecs.components.Fx
 import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Mods
@@ -15,6 +16,7 @@ import io.github.panda17tk.arpg.ecs.components.Stamina
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.ecs.components.Velocity
 import io.github.panda17tk.arpg.input.InputState
+import io.github.panda17tk.arpg.item.FullThrottle
 import io.github.panda17tk.arpg.map.Biome
 import io.github.panda17tk.arpg.map.Biomes
 import io.github.panda17tk.arpg.map.TileMap
@@ -83,8 +85,14 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         val dashing = mode == SpaceDrive.Mode.BUTTON_DASH || mode == SpaceDrive.Mode.STICK_DASH
         tag.dashing = dashing
 
+        // v2.33: the equipped thruster shapes thrust; an OC thruster's FULL THROTTLE (held) trades
+        // stamina for 3× thrust and a 2× cruise cap. Armor/accessories fold into the move multiplier.
+        val loadout = entity[Gear].loadout
+        val ft = input.fullThrottle && loadout.hasOverclockThruster && !s.overheat && (s.value > 0f || staInf)
+        val gearAccel = loadout.thrustAccelMul * (if (ft) FullThrottle.ACCEL_MUL else 1f)
+        val gearCruise = loadout.thrustCruiseMul * (if (ft) FullThrottle.CRUISE_MUL else 1f)
         // Normal-move speed cap scales with buffs/snow; dashes are bounded only by the hard ceiling.
-        val cruise = Locomotion.speed(false, config.player) * mods.moveMul *
+        val cruise = Locomotion.speed(false, config.player) * mods.moveMul * loadout.moveMul * gearCruise *
             (if (bf.dashUpT > 0f) DASH_UP_MUL else 1f) * (if (snow) SNOW_SLOW else 1f)
         val hardCap = V_HARD * mods.moveMul * (if (bf.dashUpT > 0f) DASH_UP_MUL else 1f)
         // Zero friction in open space; a planet surface (ice especially) restores ground drag so you stop.
@@ -104,7 +112,8 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         v.vy *= 0.0001f.pow(dt)
         val (nvx, nvy) = SpaceDrive.step(
             v.driftX, v.driftY, tx, ty, mode,
-            MOVE_ACCEL, STICK_DASH_ACCEL, BUTTON_DASH_ACCEL, cruise, decay, hardCap, dt, walkCapMul,
+            MOVE_ACCEL * gearAccel, STICK_DASH_ACCEL * gearAccel, BUTTON_DASH_ACCEL * gearAccel,
+            cruise, decay, hardCap, dt, walkCapMul,
         )
         v.driftX = nvx; v.driftY = nvy
 
@@ -130,13 +139,15 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         if (staInf) {
             s.value = s.max; s.overheat = false
         } else {
-            val drain = when (mode) {
+            var drain = when (mode) {
                 SpaceDrive.Mode.BUTTON_DASH -> BUTTON_DASH_DRAIN
                 SpaceDrive.Mode.STICK_DASH -> STICK_DASH_DRAIN
                 else -> 0f
             }
+            // Full throttle: its own burn (twice the dash rate — スタミナ消費2倍) + doubled dash costs.
+            if (ft) drain = drain * FullThrottle.DRAIN_MUL + BUTTON_DASH_DRAIN * FullThrottle.DRAIN_MUL
             s.value = if (drain > 0f) (s.value - drain * dt).coerceAtLeast(0f)
-            else (s.value + config.player.staRegen * dt).coerceAtMost(s.max)
+            else (s.value + config.player.staRegen * loadout.staRegenMul * dt).coerceAtMost(s.max)
             if (s.value <= 0.05f) s.overheat = true            // fully drained → overheat (no stamina actions)
             if (s.value >= s.max - 0.05f) s.overheat = false   // fully recovered → clear overheat
         }

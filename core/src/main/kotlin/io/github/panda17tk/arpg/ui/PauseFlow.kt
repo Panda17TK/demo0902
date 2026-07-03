@@ -1,7 +1,8 @@
 package io.github.panda17tk.arpg.ui
 
-/** Which blocking overlay is active (pure — no libGDX). */
-enum class Overlay { NONE, PAUSE, HELP, MEMORY, FORGET }
+/** Which blocking overlay is active (pure — no libGDX). INVENTORY (v2.33) is special: it does not
+ *  freeze the sim — the world crawls at 0.01× speed behind it. */
+enum class Overlay { NONE, PAUSE, HELP, MEMORY, FORGET, INVENTORY }
 
 /** What a pause-overlay tap resolves to; the screen performs the side effects. */
 enum class PauseAction { RESUME, RESTART, HELP, MEMORY, FORGET }

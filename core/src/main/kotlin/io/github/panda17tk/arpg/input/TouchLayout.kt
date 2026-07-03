@@ -1,6 +1,6 @@
 package io.github.panda17tk.arpg.input
 
-enum class TouchButton { FIRE, MELEE, DASH, RELOAD, WALL, WEAPON, LAND }
+enum class TouchButton { FIRE, MELEE, DASH, RELOAD, WALL, WEAPON, LAND, INV, FULL }
 
 /**
  * Pure geometry + hit-testing for the on-screen touch controls (no libGDX deps → unit-testable).
@@ -28,6 +28,8 @@ class TouchLayout(var screenW: Float = 0f, var screenH: Float = 0f) {
         Triple(TouchButton.MELEE, 0.78f, 0.23f),
         Triple(TouchButton.WALL, 0.855f, 0.36f),
         Triple(TouchButton.LAND, 0.62f, 0.82f), // contextual: only shown near a planet / on the escape pad
+        Triple(TouchButton.INV, 0.955f, 0.49f),  // inventory (v2.33) — edge of the right cluster
+        Triple(TouchButton.FULL, 0.685f, 0.10f), // OC full throttle (v2.33) — only with an OC thruster
     )
 
     fun all(): List<TouchButton> = buttons.map { it.first }

@@ -10,6 +10,7 @@ object KeyboardInput {
     private var prevR = false
     private var prevL = false
     private var prevK = false
+    private var prevI = false
 
     fun poll(state: InputState) {
         val k = Gdx.input
@@ -28,6 +29,8 @@ object KeyboardInput {
         val j = k.isKeyPressed(Keys.J); state.melee = j && !prevJ; prevJ = j
         val r = k.isKeyPressed(Keys.R); state.reload = r && !prevR; prevR = r
         val lKey = k.isKeyPressed(Keys.L); state.land = lKey && !prevL; prevL = lKey // land / take off
+        val iKey = k.isKeyPressed(Keys.I); state.inventory = iKey && !prevI; prevI = iKey // inventory (v2.33)
+        state.fullThrottle = k.isKeyPressed(Keys.O) // OC thruster full throttle, held (v2.33)
         state.weaponSlot = when {
             k.isKeyPressed(Keys.NUM_1) -> 0
             k.isKeyPressed(Keys.NUM_2) -> 1

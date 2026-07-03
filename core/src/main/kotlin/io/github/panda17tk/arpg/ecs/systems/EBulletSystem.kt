@@ -7,6 +7,7 @@ import com.github.quillraven.fleks.World.Companion.family
 import io.github.panda17tk.arpg.ecs.components.Body
 import io.github.panda17tk.arpg.ecs.components.EBullet
 import io.github.panda17tk.arpg.ecs.components.Fx
+import io.github.panda17tk.arpg.ecs.components.Gear
 import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.PlayerTag
 import io.github.panda17tk.arpg.ecs.components.Transform
@@ -35,7 +36,11 @@ class EBulletSystem : IteratingSystem(family { all(EBullet, Transform) }) {
         val dt = deltaTime
 
         var pt: Transform? = null; var ph: Health? = null; var pv: Velocity? = null; var pb: Body? = null; var pdash = false
-        players.forEach { e -> pt = e[Transform]; ph = e[Health]; pv = e[Velocity]; pb = e[Body]; pdash = e[PlayerTag].dashing }
+        var pDmgMul = 1f // v2.33: armor — scales enemy-bullet damage to the player
+        players.forEach { e ->
+            pt = e[Transform]; ph = e[Health]; pv = e[Velocity]; pb = e[Body]; pdash = e[PlayerTag].dashing
+            pDmgMul = e.getOrNull(Gear)?.loadout?.damageTakenMul ?: 1f
+        }
 
         if (b.homing > 0f && pt != null) {
             val twoPi = (Math.PI * 2.0).toFloat()
@@ -68,7 +73,7 @@ class EBulletSystem : IteratingSystem(family { all(EBullet, Transform) }) {
                     return
                 }
                 if (h.iTime <= 0f) {
-                    h.hp -= b.dmg; h.iTime = 0.8f
+                    h.hp -= b.dmg * pDmgMul; h.iTime = 0.8f
                     val d = hypot(p.x - t.x, p.y - t.y).coerceAtLeast(0.0001f)
                     vel.vx += (p.x - t.x) / d * 180f; vel.vy += (p.y - t.y) / d * 180f
                 }

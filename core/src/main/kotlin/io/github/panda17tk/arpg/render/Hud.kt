@@ -13,7 +13,10 @@ import io.github.panda17tk.arpg.sim.Mark
 import io.github.panda17tk.arpg.sim.PlanetCardInfo
 import io.github.panda17tk.arpg.sim.PlanetEvent
 import io.github.panda17tk.arpg.sim.Tuning
+import io.github.panda17tk.arpg.sim.VisitedMap
 import io.github.panda17tk.arpg.ui.HudLayout
+import io.github.panda17tk.arpg.ui.InvTab
+import io.github.panda17tk.arpg.ui.InventoryLayout
 import io.github.panda17tk.arpg.ui.UiButton
 import io.github.panda17tk.arpg.ui.filledSegments
 import kotlin.math.min
@@ -383,6 +386,101 @@ object Hud {
         }
         font.color = Color.WHITE
         batch.end()
+    }
+
+    /**
+     * インベントリ (v2.33): a light scrim (the world crawls at 0.01× behind it), the tab strip,
+     * one tab's body, and the close button. Pure painting — GameScreen owns the tab state and
+     * acts on taps against the same InventoryLayout rects.
+     */
+    @Suppress("LongParameterList")
+    fun inventory(
+        shapes: ShapeRenderer, batch: SpriteBatch, font: BitmapFont, titleFont: BitmapFont, vp: Viewport,
+        tab: InvTab,
+        slotTexts: List<String>,   // EQUIP rows, aligned with InventoryLayout.slotRows
+        itemLines: List<String>,   // ITEMS tab body lines (already formatted, may be empty)
+        visited: VisitedMap?, playerTx: Int, playerTy: Int, // MAP tab
+        savedNote: String?,        // SAVE tab: a brief 「セーブした」 flash
+    ) {
+        val w = vp.worldWidth; val h = vp.worldHeight
+        val panel = InventoryLayout.panel(w, h)
+        val tabs = InventoryLayout.tabs(w, h)
+        val body = InventoryLayout.body(w, h)
+        val close = InventoryLayout.closeButton(w, h)
+        val slotRows = if (tab == InvTab.EQUIP) InventoryLayout.slotRows(w, h) else emptyList()
+        val save = if (tab == InvTab.SAVE) InventoryLayout.saveButton(w, h) else null
+
+        Gdx.gl.glEnable(GL20.GL_BLEND)
+        shapes.projectionMatrix = vp.camera.combined
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
+        shapes.color = cScrim; shapes.rect(0f, 0f, w, h)
+        shapes.color = cCard; shapes.rect(panel.x, panel.y, panel.w, panel.h)
+        tabs.forEachIndexed { i, t ->
+            shapes.color = if (i == tab.ordinal) cBtnGo else cBtn
+            shapes.rect(t.x, t.y, t.w, t.h)
+        }
+        slotRows.forEach { r -> shapes.color = cBtn; shapes.rect(r.x, r.y, r.w, r.h) }
+        save?.let { shapes.color = cBtnGo; shapes.rect(it.x, it.y, it.w, it.h) }
+        shapes.color = cBtn; shapes.rect(close.x, close.y, close.w, close.h)
+        if (tab == InvTab.MAP && visited != null) drawVisitedMap(shapes, body, visited, playerTx, playerTy)
+        shapes.end()
+        frames(shapes, tabs + slotRows + listOfNotNull(save) + listOf(close))
+
+        batch.projectionMatrix = vp.camera.combined
+        batch.begin()
+        tabs.forEach { centerLabel(batch, font, it.label, it.centerX, it.centerY) }
+        when (tab) {
+            InvTab.EQUIP -> {
+                slotRows.forEachIndexed { i, r ->
+                    font.draw(batch, slotTexts.getOrElse(i) { "" }, r.x + 12f, r.centerY + 7f)
+                }
+                font.color = cHint
+                centerText(batch, font, "スロットをタップで持物と交換", w, body.y + 16f)
+                font.color = Color.WHITE
+            }
+            InvTab.ITEMS -> {
+                var y = body.y + body.h - 10f
+                if (itemLines.isEmpty()) {
+                    font.color = cHint; font.draw(batch, "持物は空", body.x + 12f, y); font.color = Color.WHITE
+                } else {
+                    for (line in itemLines) {
+                        font.draw(batch, line, body.x + 12f, y)
+                        y -= 24f
+                        if (y < body.y + 12f) break // clip to the body — no scroll, the list is short
+                    }
+                }
+            }
+            InvTab.MAP -> {
+                font.color = cHint
+                centerText(batch, font, "通った場所だけが描かれる", w, body.y + 16f)
+                font.color = Color.WHITE
+            }
+            InvTab.SAVE -> {
+                save?.let { centerLabel(batch, titleFont, it.label, it.centerX, it.centerY) }
+                font.color = cHint
+                centerText(batch, font, "この場でランを保存する（やられると消える）", w, body.y + body.h * 0.30f)
+                font.color = Color.WHITE
+                savedNote?.let { centerText(batch, font, it, w, body.y + body.h * 0.22f) }
+            }
+        }
+        centerLabel(batch, font, close.label, close.centerX, close.centerY)
+        batch.end()
+    }
+
+    /** MAP tab: visited tiles as tiny rects fitted to the body; the player as a bright dot. */
+    private fun drawVisitedMap(shapes: ShapeRenderer, body: UiButton, visited: VisitedMap, playerTx: Int, playerTy: Int) {
+        if (visited.w <= 0 || visited.h <= 0) return
+        val scale = min(body.w / visited.w, body.h / visited.h)
+        val ox = body.x + (body.w - visited.w * scale) / 2f
+        // World tiles are y-down; HUD space is y-up — flip so north on the map is up on the screen.
+        val oy = body.y + (body.h - visited.h * scale) / 2f
+        val cell = scale.coerceAtLeast(1f)
+        shapes.color = cHudInk
+        visited.forEachVisited { tx, ty ->
+            shapes.rect(ox + tx * scale, oy + (visited.h - 1 - ty) * scale, cell, cell)
+        }
+        shapes.color = cReload
+        shapes.rect(ox + playerTx * scale - cell, oy + (visited.h - 1 - playerTy) * scale - cell, cell * 3f, cell * 3f)
     }
 
     private fun segBar(shapes: ShapeRenderer, b: UiButton, value: Float, max: Float, count: Int, fill: Color) {

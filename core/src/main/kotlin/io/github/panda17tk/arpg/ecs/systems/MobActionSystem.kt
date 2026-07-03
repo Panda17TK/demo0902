@@ -7,6 +7,7 @@ import com.github.quillraven.fleks.World.Companion.family
 import io.github.panda17tk.arpg.config.GameConfig
 import io.github.panda17tk.arpg.ecs.components.Body
 import io.github.panda17tk.arpg.ecs.components.Fx
+import io.github.panda17tk.arpg.ecs.components.Gear
 import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Mob
 import io.github.panda17tk.arpg.ecs.components.MobAction
@@ -57,7 +58,7 @@ class MobActionSystem : IteratingSystem(family { all(Mob, Transform, MobAction, 
                         val d = hypot(pt.x - t.x, pt.y - t.y)
                         val reach = (if (atk.reach > 0f) atk.reach else atk.range) + 11f
                         if (d < reach && ph.iTime <= 0f) {
-                            ph.hp -= atk.dmg
+                            ph.hp -= atk.dmg * (e.getOrNull(Gear)?.loadout?.damageTakenMul ?: 1f) // v2.33: armor
                             ph.iTime = config.ai.iFrameContact
                             val dd = d.coerceAtLeast(0.0001f)
                             pv.vx += (pt.x - t.x) / dd * atk.kb; pv.vy += (pt.y - t.y) / dd * atk.kb

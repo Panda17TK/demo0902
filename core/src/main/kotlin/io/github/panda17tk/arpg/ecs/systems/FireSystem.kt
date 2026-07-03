@@ -15,6 +15,7 @@ import io.github.panda17tk.arpg.ecs.components.Body
 import io.github.panda17tk.arpg.ecs.components.Bullet
 import io.github.panda17tk.arpg.ecs.components.Cooldowns
 import io.github.panda17tk.arpg.ecs.components.Facing
+import io.github.panda17tk.arpg.ecs.components.Gear
 import io.github.panda17tk.arpg.ecs.components.Fx
 import io.github.panda17tk.arpg.ecs.components.Grenade
 import io.github.panda17tk.arpg.ecs.components.Health
@@ -60,6 +61,7 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
 
         val t = entity[Transform]; val f = entity[Facing]
         val ammo = entity[Ammo]; val mods = entity[Mods]
+        val gearGun = entity[Gear].loadout.gunMul // v2.33: scopes etc. sweeten the guns
         val aim = atan2(f.y, f.x)
         val dirX = cos(aim); val dirY = sin(aim)
 
@@ -86,7 +88,7 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
                     val mobV = with(world) { mobEntity[Velocity] }
                     val mobA = with(world) { mobEntity[MobAction] }
                     val mobDodge = with(world) { mobEntity[Mob].def.dodge }
-                    MobDamage.hurt(mobH, mobV, mobA, mobDodge, def.dmg * mods.gunMul, 0f, 0f, 0f, rng.nextFloat())
+                    MobDamage.hurt(mobH, mobV, mobA, mobDodge, def.dmg * mods.gunMul * gearGun, 0f, 0f, 0f, rng.nextFloat())
                 }
 
                 // Beam doesn't pierce walls: it stops at one and detonates. One-shot the hit wall and carve a
@@ -128,7 +130,7 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
                     val vx = cos(a) * config.player.bulletSpeed; val vy = sin(a) * config.player.bulletSpeed
                     world.entity {
                         it += Transform(x = t.x + cos(a) * Tuning.MUZZLE_OFFSET, y = t.y + sin(a) * Tuning.MUZZLE_OFFSET)
-                        it += Bullet(vx, vy, config.player.bulletLife, def.dmg * mods.gunMul)
+                        it += Bullet(vx, vy, config.player.bulletLife, def.dmg * mods.gunMul * gearGun)
                     }
                 }
             }

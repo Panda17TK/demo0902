@@ -64,6 +64,7 @@ class SceneRenderer {
     private val cAmmoNade = Color.valueOf("ff6b6b")
     private val cBlocks = Color.valueOf("b48a5a")
     private val cMed = Color.valueOf("7fe08a")
+    private val cItem = Color.valueOf("c08bff") // v2.33: equipment spoils glow purple
     private val tribeColors = arrayOf(
         Color.valueOf("ff6b6b"), Color.valueOf("66e0ff"), Color.valueOf("7fe08a"), Color.valueOf("ffd166"), Color.valueOf("c08bff"),
     )
@@ -471,7 +472,7 @@ class SceneRenderer {
         "ammoNade" -> cAmmoNade
         "blocks" -> cBlocks
         "med" -> cMed
-        else -> Color.WHITE
+        else -> if (kind.startsWith("item:")) cItem else Color.WHITE
     }
 
     private companion object {
