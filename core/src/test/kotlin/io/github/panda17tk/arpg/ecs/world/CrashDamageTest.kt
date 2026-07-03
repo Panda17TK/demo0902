@@ -8,24 +8,39 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-/** Regression for the self-destruct bug: collisions push out and rebound, but never deal crash/fall damage. */
+/**
+ * Crash damage rules (v2.36): a hard slam into a planet/wall costs 1..5 HP scaling with impact
+ * speed; gentle bumps stay free. (Supersedes the old "collisions never deal damage" contract.)
+ */
 class CrashDamageTest {
-    @Test fun `slamming the player into a planet deals no crash damage`() {
+    /** Build a space world with the player just inside the first planet's surface, driving inward at [speed]. */
+    private fun slam(speed: Float): GameWorld {
         val gw = WorldFactory.create(InputState(), seed = 1L) // SPACE stage — has planets
         val planet = gw.planets.firstOrNull()
         assertTrue(planet != null, "the space stage should have planets")
         with(gw.world) {
             val t = gw.player[Transform]; val v = gw.player[Velocity]; val h = gw.player[Health]
-            h.hp = h.hpMax; h.iTime = 0f // vulnerable, so old crash damage would have landed
-            // drop the player just inside the planet surface, driving hard toward its centre
+            h.hp = h.hpMax; h.iTime = 0f
             t.x = planet!!.cx + planet.radius - 2f; t.y = planet.cy
             t.prevX = t.x; t.prevY = t.y
-            v.driftX = -6000f
+            v.driftX = -speed
         }
         gw.world.update(1f / 60f)
-        with(gw.world) {
-            val h = gw.player[Health]
-            assertEquals(h.hpMax, h.hp, 1e-3f) // no HP lost to the impact
-        }
+        return gw
+    }
+
+    private fun lost(gw: GameWorld): Float = with(gw.world) { gw.player[Health].hpMax - gw.player[Health].hp }
+
+    @Test fun `a gentle bump costs nothing`() {
+        assertEquals(0f, lost(slam(280f)), 1e-3f) // below the 320 damage threshold (shake only)
+    }
+
+    @Test fun `a mid-speed crash costs about 1 HP`() {
+        val l = lost(slam(500f)) // (500-320) * 0.008 = 1.44
+        assertTrue(l in 1f..2f, "expected ~1.4 HP lost, got $l")
+    }
+
+    @Test fun `even the hardest slam is capped at 5 HP`() {
+        assertEquals(5f, lost(slam(6000f)), 1e-3f)
     }
 }
