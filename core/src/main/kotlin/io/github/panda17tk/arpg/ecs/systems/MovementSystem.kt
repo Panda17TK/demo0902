@@ -152,12 +152,12 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         private const val MOVE_ACCEL = 213.3f // walk ramp (v2.31: 1/3 of the old 640) — a weighty, from-zero start;
         // in space the cruise cap is reached in ~0.5s; on a surface, ground friction (0.02) now balances the
         // lighter thrust at ~55 u/s, so surface walking tops out below the cruise cap — deliberate heaviness.
-        private const val STICK_DASH_ACCEL = 96f // big-stick boost: a gentle accel toward the 2× cruise cap
-        private const val BUTTON_DASH_ACCEL = 660f // dash button: a firm thrust along the facing toward the 3× cap
+        private const val STICK_DASH_ACCEL = 32f // v2.32: 1/3 of 96 — the stick boost builds gently
+        private const val BUTTON_DASH_ACCEL = 220f // v2.32: 1/3 of 660 — the dash winds up instead of kicking
         private const val STICK_DASH_MIN = 0.85f // move-stick deflection (0..1) that trips a stick dash
         private const val V_HARD = 1000f // absolute speed ceiling (zero-friction safety; not tied to dash state)
-        private const val BUTTON_DASH_DRAIN = 70f // stamina/sec while button-dashing (expensive)
-        private const val STICK_DASH_DRAIN = 7f // stamina/sec while stick-dashing (very cheap)
+        private const val BUTTON_DASH_DRAIN = 35f // v2.32: half of 70 — dashing costs less
+        private const val STICK_DASH_DRAIN = 3.5f // v2.32: half of 7
         private const val SPACE_WALK_MUL = 0.5f // open space: normal-move cap is half (calmer cruising; dashes unaffected)
         private const val SPACE_DECAY = 1f // open space: zero friction — momentum is conserved
         private const val SURFACE_COAST = 0.02f // planet ground: friction stops you fast (no space inertia)
