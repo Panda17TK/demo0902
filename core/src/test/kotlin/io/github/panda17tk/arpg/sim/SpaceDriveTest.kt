@@ -6,6 +6,19 @@ import org.junit.jupiter.api.Test
 import kotlin.math.hypot
 
 class SpaceDriveTest {
+    @Test fun `walking starts from zero velocity and ramps by acceleration only`() {
+        // v2.31 movement feel: no initial velocity — the very first frame carries only accel × dt.
+        val dt = 1f / 60f
+        val (vx, vy) = SpaceDrive.step(
+            0f, 0f, 1f, 0f, SpaceDrive.Mode.WALK,
+            walkAccel = 213.3f, stickAccel = 96f, buttonAccel = 660f,
+            cruise = 102f, decay = 1f, hardCap = 1000f, dt = dt,
+        )
+        assertEquals(213.3f * dt, vx, 0.01f)
+        assertEquals(0f, vy)
+    }
+
+
     private val dt = 1f / 60f
     private val cruise = 100f
     private val walk = 600f

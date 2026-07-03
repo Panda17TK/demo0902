@@ -62,6 +62,7 @@ import io.github.panda17tk.arpg.ui.Modals
 import io.github.panda17tk.arpg.ui.Overlay
 import io.github.panda17tk.arpg.ui.PauseAction
 import io.github.panda17tk.arpg.ui.PauseFlow
+import io.github.panda17tk.arpg.ui.TransitionFade
 import io.github.panda17tk.arpg.upgrade.Upgrade
 import io.github.panda17tk.arpg.upgrade.Upgrades
 import kotlin.math.hypot
@@ -150,6 +151,9 @@ class GameScreen : ScreenAdapter() {
     // Memory tint per planet id (LP v2.30/10c) — rebuilt only when memory can change (transitions/forget).
     private var memoryTones: Map<Long, Int> = emptyMap()
 
+    // Landing/takeoff fade (10b): OUT → swap the world behind black → IN. Gameplay input pauses meanwhile.
+    private val fade = TransitionFade()
+
     // Pre-landing scan card (LP v2.23), rebuilt only when the latched candidate's id changes (FR-1.6).
     private var lastCardId: Long? = null
     private var cachedCard: PlanetCardInfo? = null
@@ -199,6 +203,13 @@ class GameScreen : ScreenAdapter() {
         memoryTones = session.memory.memories
             .mapValues { (_, s) -> ReturnVisitEffects.memoryTone(s) }
             .filterValues { it != 0 }
+    }
+
+    /** Whether a landing/takeoff would actually happen right now (used to gate the fade, 10b). */
+    private fun canTransitionNow(): Boolean = if (gw.worldState.mode == WorldMode.SPACE) {
+        gw.worldState.landingCandidate != null
+    } else {
+        playerOnEscapePad()
     }
 
     /** Land on the hovered planet (SPACE) or take off from the escape pad (SURFACE), carrying run state across. */
@@ -258,9 +269,14 @@ class GameScreen : ScreenAdapter() {
         handlePauseTaps()
         val paused = overlay != Overlay.NONE
 
-        pollGameplayTouch(paused)
-        // Living Planets: land on / leave a planet (L key or the touch LAND button) — rebuilds the world.
-        if (!paused && !choosing && !gw.gameOver.isOver && input.land) handleLanding()
+        pollGameplayTouch(paused || fade.blocksInput)
+        // Living Planets: land on / leave a planet (L key or the touch LAND button). The fade wraps the
+        // rebuild: OUT → (world swap behind black) → IN, and gameplay input is ignored meanwhile (10b).
+        if (!paused && !choosing && !gw.gameOver.isOver && !fade.blocksInput && input.land && canTransitionNow()) {
+            fade.start()
+            Sfx.play(if (gw.worldState.mode == WorldMode.SPACE) "land" else "takeoff")
+        }
+        if (!paused && fade.update(delta)) handleLanding() // the OUT leg just completed → swap behind black
 
         if (!advanceSim(delta, paused)) return // restarted this frame — draw from the fresh run next frame
         val alpha = (accumulator / Constants.FIXED_DT).coerceIn(0f, 1f)
@@ -395,6 +411,7 @@ class GameScreen : ScreenAdapter() {
                 Modals.helpButtons(hudW, hudH).first(), goals,
             )
         }
+        Hud.fade(shapes, hudViewport, fade.alpha) // landing/takeoff scrim covers everything (10b)
     }
 
     /** Living Planets: surface exploration objective, or the pre-landing scan card in space (HUD space). */
@@ -415,6 +432,7 @@ class GameScreen : ScreenAdapter() {
             if (cand.id != lastCardId) { // rebuild only when the candidate changes (FR-1.6)
                 cachedCard = PlanetScan.cardFor(cand, session.memory.knows(cand.id), session.memory.recall(cand.id))
                 lastCardId = cand.id
+                Sfx.play("scan") // 10a: a fresh scan pings once per newly latched planet
             }
             cachedCard?.let { Hud.planetScanCard(shapes, batch, font, Fonts.title, hudViewport, it, "[L] 着陸") }
             return
