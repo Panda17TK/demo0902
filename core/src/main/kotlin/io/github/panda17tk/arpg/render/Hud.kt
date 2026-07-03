@@ -47,6 +47,17 @@ object Hud {
     private val cHudInk = Color(0.85f, 0.88f, 0.95f, 1f)
     private val cReload = Color.valueOf("ffd166")
 
+    /** Full-screen black scrim for the landing/takeoff fade (LP 10b). Draw LAST so it covers everything. */
+    fun fade(shapes: ShapeRenderer, vp: Viewport, alpha: Float) {
+        if (alpha <= 0f) return
+        Gdx.gl.glEnable(GL20.GL_BLEND)
+        shapes.projectionMatrix = vp.camera.combined
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
+        shapes.setColor(0f, 0f, 0f, alpha.coerceIn(0f, 1f))
+        shapes.rect(0f, 0f, vp.worldWidth, vp.worldHeight)
+        shapes.end()
+    }
+
     /** Small translucent ⏸ pill in the corner, drawn during play (bars drawn as shapes — no glyph). */
     fun pauseButton(shapes: ShapeRenderer, vp: Viewport, b: UiButton) {
         Gdx.gl.glEnable(GL20.GL_BLEND)

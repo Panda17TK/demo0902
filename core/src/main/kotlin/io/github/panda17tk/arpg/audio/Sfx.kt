@@ -23,6 +23,10 @@ object Sfx {
         gen("kill", freq = 320f, ms = 140, noise = 0.4f)
         gen("levelup", freq = 880f, ms = 240, noise = 0f)
         gen("dead", freq = 110f, ms = 420, noise = 0.3f)
+        // LP v2.30 (10a): landing / takeoff / scan cues — low rumble down, brighter rise, a clean ping.
+        gen("land", freq = 180f, ms = 300, noise = 0.25f)
+        gen("takeoff", freq = 460f, ms = 320, noise = 0.15f)
+        gen("scan", freq = 990f, ms = 110, noise = 0f)
     }
 
     fun play(name: String) {
