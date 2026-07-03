@@ -6,11 +6,16 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class TouchButtonsTest {
-    @Test fun `by default only dash, melee and weapon are shown`() {
+    @Test fun `by default only dash, melee, weapon and inventory are shown`() {
         assertEquals(
-            setOf(TouchButton.DASH, TouchButton.MELEE, TouchButton.WEAPON),
+            setOf(TouchButton.DASH, TouchButton.MELEE, TouchButton.WEAPON, TouchButton.INV),
             TouchButtons.visible(blocks = 0, mag = 30, magSize = 30, canLand = false),
         )
+    }
+
+    @Test fun `full throttle appears only with an OC thruster equipped`() {
+        assertTrue(TouchButton.FULL in TouchButtons.visible(blocks = 0, mag = 30, magSize = 30, canLand = false, hasOverclock = true))
+        assertFalse(TouchButton.FULL in TouchButtons.visible(blocks = 0, mag = 30, magSize = 30, canLand = false, hasOverclock = false))
     }
 
     @Test fun `reload appears only when the magazine is not full`() {

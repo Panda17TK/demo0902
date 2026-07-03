@@ -11,6 +11,7 @@ import io.github.panda17tk.arpg.ecs.components.Body
 import io.github.panda17tk.arpg.ecs.components.Cooldowns
 import io.github.panda17tk.arpg.ecs.components.EBullet
 import io.github.panda17tk.arpg.ecs.components.Facing
+import io.github.panda17tk.arpg.ecs.components.Gear
 import io.github.panda17tk.arpg.ecs.components.Fx
 import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Mob
@@ -71,7 +72,8 @@ class MeleeSystem(private val mobGrid: SpatialGrid<Entity>) :
         }
 
         // --- Melee vs mob: 180° arc at meleeReach (legacy melee.js meleeHit) ---
-        val reach = config.player.meleeReach
+        val gearMelee = entity[Gear].loadout // v2.33: the equipped melee arm shapes reach + damage
+        val reach = config.player.meleeReach * gearMelee.meleeReachMul
         val arc = PI.toFloat()          // 180°
         val faceAng = atan2(f.y, f.x)
         mobGrid.forNearby(t.x, t.y, reach + 24f) { mobEntity ->
@@ -90,7 +92,7 @@ class MeleeSystem(private val mobGrid: SpatialGrid<Entity>) :
                     val mobDodge = with(world) { mobEntity[Mob].def.dodge }
                     val nx = if (dist > 0f) ddx / dist else 1f
                     val ny = if (dist > 0f) ddy / dist else 0f
-                    MobDamage.hurt(mobH, mobV, mobA, mobDodge, outcome.dmg * mods.meleeMul, nx, ny, 450f, rng.nextFloat())
+                    MobDamage.hurt(mobH, mobV, mobA, mobDodge, outcome.dmg * mods.meleeMul * gearMelee.meleeDmgMul, nx, ny, 450f, rng.nextFloat())
                 }
             }
         }

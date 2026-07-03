@@ -3,6 +3,7 @@ package io.github.panda17tk.arpg.ecs.world
 import com.github.quillraven.fleks.World
 import io.github.panda17tk.arpg.ecs.components.Pickup
 import io.github.panda17tk.arpg.ecs.components.Transform
+import io.github.panda17tk.arpg.item.ItemCatalog
 import io.github.panda17tk.arpg.math.Rng
 import kotlin.math.cos
 import kotlin.math.sin
@@ -11,6 +12,7 @@ import kotlin.math.sin
 object Pickups {
     private val AMMO = arrayOf("ammo9" to 12, "ammo12" to 4, "ammoBeam" to 2, "ammoNade" to 1)
     private const val TAU = 6.2831855f
+    private const val ITEM_CHANCE = 0.06f // v2.33: a normal kill's chance to drop an equipment item
 
     fun spawn(world: World, kind: String, amount: Int, x: Float, y: Float) {
         world.entity {
@@ -30,6 +32,10 @@ object Pickups {
         }
         if (boss || rng.nextFloat() < 0.20f) spawn(world, "med", 25, x, y)
         if (boss || rng.nextFloat() < 0.15f + bonusBlocksChance) spawn(world, "blocks", if (boss) 4 else 1, x, y)
+        // v2.33: equipment enters the world as kill spoils — rare from normals, guaranteed off a boss.
+        if (boss || rng.nextFloat() < ITEM_CHANCE) {
+            spawn(world, "item:" + ItemCatalog.dropFor(rng.nextInt(1000)).id, 1, x, y)
+        }
     }
 
     /** Wall/asteroid break loot: many varied drops (materials/ammo/med + rare consumables) via [Loot]. */

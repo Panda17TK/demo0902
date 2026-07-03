@@ -11,6 +11,7 @@ import io.github.panda17tk.arpg.ecs.components.Cooldowns
 import io.github.panda17tk.arpg.ecs.components.CreatureMind
 import io.github.panda17tk.arpg.ecs.components.Facing
 import io.github.panda17tk.arpg.ecs.components.Fx
+import io.github.panda17tk.arpg.ecs.components.Gear
 import io.github.panda17tk.arpg.ecs.components.GameOver
 import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Materials
@@ -46,6 +47,7 @@ import io.github.panda17tk.arpg.ecs.systems.WeaponSwitchSystem
 import io.github.panda17tk.arpg.ecs.systems.WildPredationSystem
 import io.github.panda17tk.arpg.ecs.systems.WildlifeSystem
 import io.github.panda17tk.arpg.input.InputState
+import io.github.panda17tk.arpg.item.ItemCatalog
 import io.github.panda17tk.arpg.map.MapLoader
 import io.github.panda17tk.arpg.map.Stages
 import io.github.panda17tk.arpg.map.SurfaceStages
@@ -70,6 +72,7 @@ import io.github.panda17tk.arpg.sim.Planets
 import io.github.panda17tk.arpg.sim.SurfaceEcology
 import io.github.panda17tk.arpg.sim.Tribes
 import io.github.panda17tk.arpg.sim.Tuning
+import io.github.panda17tk.arpg.sim.VisitedMap
 import io.github.panda17tk.arpg.sim.toPressure
 import io.github.panda17tk.arpg.sim.WallGravity
 import io.github.panda17tk.arpg.sim.WorldMode
@@ -196,6 +199,7 @@ object WorldFactory {
             it += Cooldowns()
             it += Health(config.player.hpMax, config.player.hpMax)
             it += Velocity()
+            it += Gear(ItemCatalog.starterLoadout(), ItemCatalog.starterBackpack()) // v2.33 装備+持物
         }
         carry?.applyTo(world, player) // carry HP/ammo/upgrades across a SPACE⇄SURFACE landing
 
@@ -250,6 +254,7 @@ object WorldFactory {
             it.gravityField = gravityField
             it.planets = planetField.planets
             it.worldState = worldState
+            it.visited = VisitedMap(map.width, map.height)
         }
     }
 

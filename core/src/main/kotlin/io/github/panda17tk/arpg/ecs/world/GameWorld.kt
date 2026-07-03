@@ -10,6 +10,7 @@ import io.github.panda17tk.arpg.pathfinding.FlowField
 import io.github.panda17tk.arpg.sim.Base
 import io.github.panda17tk.arpg.sim.GravityField
 import io.github.panda17tk.arpg.sim.PlanetBody
+import io.github.panda17tk.arpg.sim.VisitedMap
 import io.github.panda17tk.arpg.sim.WorldState
 
 class GameWorld(val world: World, val player: Entity) {
@@ -22,4 +23,5 @@ class GameWorld(val world: World, val player: Entity) {
     var gravityField: GravityField = GravityField()
     var planets: List<PlanetBody> = emptyList()
     var worldState: WorldState = WorldState()
+    lateinit var visited: VisitedMap // v2.33: fog-of-war record for the inventory MAP tab
 }

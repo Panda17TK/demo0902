@@ -13,6 +13,7 @@ import io.github.panda17tk.arpg.config.WildRole
 import io.github.panda17tk.arpg.ecs.components.Body
 import io.github.panda17tk.arpg.ecs.components.CreatureMind
 import io.github.panda17tk.arpg.ecs.components.Facing
+import io.github.panda17tk.arpg.ecs.components.Gear
 import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Mob
 import io.github.panda17tk.arpg.ecs.components.MobAction
@@ -74,6 +75,7 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
     private class PlayerRef {
         var x = 0f; var y = 0f
         var t: Transform? = null; var h: Health? = null; var v: Velocity? = null
+        var dmgMul = 1f // v2.33: armor — how much of incoming damage the player actually takes
     }
 
     /** One neighbour-grid pass: separation + same-tribe cohesion + nearest hostile + ward/king context. */
@@ -173,10 +175,11 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
     /** Read the player's transform/health/velocity into the reusable [playerRef] (defaults to our spot). */
     private fun readPlayer(t: Transform): PlayerRef {
         playerRef.x = t.x; playerRef.y = t.y
-        playerRef.t = null; playerRef.h = null; playerRef.v = null
+        playerRef.t = null; playerRef.h = null; playerRef.v = null; playerRef.dmgMul = 1f
         players.forEach { e ->
             playerRef.t = e[Transform]; playerRef.h = e[Health]; playerRef.v = e[Velocity]
             playerRef.x = e[Transform].x; playerRef.y = e[Transform].y
+            playerRef.dmgMul = e.getOrNull(Gear)?.loadout?.damageTakenMul ?: 1f
         }
         return playerRef
     }
@@ -401,7 +404,7 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
                 val executed = MobAttacks.tryAttack(
                     world, atk, m.def, t, f, v, action, h, ph, pv,
                     dist, toPx, toPy, see, iFrameContact,
-                    config, m.waveNum, rng,
+                    config, m.waveNum, rng, player.dmgMul,
                 )
                 // Enraged bosses attack faster too (legacy cdScale = 1/enrageMul).
                 if (executed) m.attackCd[i] = atk.cd * if (action.enrageT > 0f) 1f / action.enrageMul else 1f

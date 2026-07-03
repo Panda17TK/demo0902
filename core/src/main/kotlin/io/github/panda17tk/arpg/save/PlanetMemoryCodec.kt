@@ -58,6 +58,10 @@ object PlanetMemoryCodec {
         null // corrupt/alien JSON → the caller starts from a blank memory
     }
 
+    /** Public converters (v2.33): the run save embeds one society snapshot using the same DTO. */
+    fun dtoOf(s: PlanetSocietyState): PlanetMemoryDto = s.toDto()
+    fun stateOf(d: PlanetMemoryDto): PlanetSocietyState = d.toState()
+
     private fun PlanetSocietyState.toDto() = PlanetMemoryDto(
         childHarmed, childKilled, wildPredatorThreatenedChild, predatorKilledNearChild,
         hatchlingKilled, nestMotherKilled, apexKilled, surrenderKilled, surrenderedSpared,

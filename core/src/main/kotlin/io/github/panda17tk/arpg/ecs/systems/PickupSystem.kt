@@ -5,6 +5,7 @@ import com.github.quillraven.fleks.IteratingSystem
 import com.github.quillraven.fleks.World.Companion.family
 import io.github.panda17tk.arpg.ecs.components.Ammo
 import io.github.panda17tk.arpg.ecs.components.Buff
+import io.github.panda17tk.arpg.ecs.components.Gear
 import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Materials
 import io.github.panda17tk.arpg.ecs.components.Mods
@@ -12,6 +13,7 @@ import io.github.panda17tk.arpg.ecs.components.Pickup
 import io.github.panda17tk.arpg.ecs.components.PlayerTag
 import io.github.panda17tk.arpg.ecs.components.Smoke
 import io.github.panda17tk.arpg.ecs.components.Transform
+import io.github.panda17tk.arpg.item.ItemCatalog
 import io.github.panda17tk.arpg.math.Rng
 import io.github.panda17tk.arpg.sim.Consequence
 import io.github.panda17tk.arpg.sim.PlanetContext
@@ -42,7 +44,13 @@ class PickupSystem : IteratingSystem(family { all(Pickup, Transform) }) {
                             world.entity { it += Transform(x = pp.x, y = pp.y, prevX = pp.x, prevY = pp.y); it += Smoke(radius = 80f, life = 5f) }
                         }
                         "mat_nature", "mat_magma", "mat_ice", "mat_gas", "mat_dead", "mat_lonely" -> applyMaterial(p, pk.kind)
-                        else -> { val a = p[Ammo]; a.set(pk.kind, a.get(pk.kind) + pk.amount) }
+                        else -> if (pk.kind.startsWith(ITEM_PREFIX)) { // v2.33: equipment spoils → backpack
+                            ItemCatalog.byId(pk.kind.removePrefix(ITEM_PREFIX))?.let { item ->
+                                p.getOrNull(Gear)?.backpack?.add(item)
+                            }
+                        } else {
+                            val a = p[Ammo]; a.set(pk.kind, a.get(pk.kind) + pk.amount)
+                        }
                     }
                     world -= entity
                     return@forEach
@@ -73,6 +81,7 @@ class PickupSystem : IteratingSystem(family { all(Pickup, Transform) }) {
     companion object {
         private const val LIFE = 14f
         private const val PICK_R = 18f
+        private const val ITEM_PREFIX = "item:" // v2.33: equipment pickups carry their catalog id
         private const val NATURE_HP = 8f      // nature core: a little more max HP (and a top-up)
         private const val MAGMA_GUN = 0.1f    // magma core: +10% bullet damage
         private const val ICE_FIRE = 0.9f     // ice core: 10% snappier fire interval

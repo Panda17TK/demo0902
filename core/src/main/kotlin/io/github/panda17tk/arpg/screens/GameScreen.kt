@@ -19,6 +19,7 @@ import io.github.panda17tk.arpg.core.Constants
 import io.github.panda17tk.arpg.ecs.components.Ammo
 import io.github.panda17tk.arpg.ecs.components.Arsenal
 import io.github.panda17tk.arpg.ecs.components.Facing
+import io.github.panda17tk.arpg.ecs.components.Gear
 import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Materials
 import io.github.panda17tk.arpg.ecs.components.Mob
@@ -26,9 +27,13 @@ import io.github.panda17tk.arpg.ecs.components.Mods
 import io.github.panda17tk.arpg.ecs.components.Stamina
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.ecs.world.GameWorld
+import io.github.panda17tk.arpg.ecs.world.GearOps
 import io.github.panda17tk.arpg.ecs.world.PlayerCarry
 import io.github.panda17tk.arpg.ecs.world.RewardApply
 import io.github.panda17tk.arpg.ecs.world.WorldFactory
+import io.github.panda17tk.arpg.item.EquipSlot
+import io.github.panda17tk.arpg.item.ItemCatalog
+import io.github.panda17tk.arpg.item.Loadout
 import io.github.panda17tk.arpg.input.Haptics
 import io.github.panda17tk.arpg.input.InputState
 import io.github.panda17tk.arpg.input.KeyboardInput
@@ -40,7 +45,10 @@ import io.github.panda17tk.arpg.render.Hud
 import io.github.panda17tk.arpg.render.PlayerPose
 import io.github.panda17tk.arpg.render.SceneRenderer
 import io.github.panda17tk.arpg.render.TouchOverlay
+import io.github.panda17tk.arpg.save.PlanetMemoryCodec
 import io.github.panda17tk.arpg.save.PreferencesMemoryStore
+import io.github.panda17tk.arpg.save.PreferencesRunSaveStore
+import io.github.panda17tk.arpg.save.RunSaveDto
 import io.github.panda17tk.arpg.save.Scores
 import io.github.panda17tk.arpg.sim.Drift
 import io.github.panda17tk.arpg.sim.PlanetCardInfo
@@ -58,6 +66,8 @@ import io.github.panda17tk.arpg.sim.TakeoffReward
 import io.github.panda17tk.arpg.sim.Tuning
 import io.github.panda17tk.arpg.sim.WorldMode
 import io.github.panda17tk.arpg.sim.WorldState
+import io.github.panda17tk.arpg.ui.InvTab
+import io.github.panda17tk.arpg.ui.InventoryLayout
 import io.github.panda17tk.arpg.ui.Modals
 import io.github.panda17tk.arpg.ui.Overlay
 import io.github.panda17tk.arpg.ui.PauseAction
@@ -65,6 +75,7 @@ import io.github.panda17tk.arpg.ui.PauseFlow
 import io.github.panda17tk.arpg.ui.TransitionFade
 import io.github.panda17tk.arpg.upgrade.Upgrade
 import io.github.panda17tk.arpg.upgrade.Upgrades
+import kotlin.math.floor
 import kotlin.math.hypot
 import kotlin.math.pow
 
@@ -72,6 +83,9 @@ import kotlin.math.pow
 private const val DRIFT_RANGE = 1400f
 private const val REMEMBERED_TIME = 5f // seconds the HUD greets a returning player on a remembered planet
 private const val TOAST_TIME = 3f      // seconds the takeoff send-off toast rides the space HUD (LP v2.29)
+private const val INV_TIME_SCALE = 0.01f // v2.33: the world crawls at this speed behind the inventory
+private const val VISIT_RADIUS = 2     // v2.33: tiles around the player marked as explored each frame
+private const val SAVED_NOTE_TIME = 2f // seconds the 「セーブした」 flash stays on the SAVE tab
 
 /**
  * Fixed-timestep simulation + render interpolation, porting the legacy main.js loop.
@@ -130,6 +144,8 @@ class GameScreen : ScreenAdapter() {
         "近接：ボタン / J",
         "リロード：ボタン / R",
         "武器切替・壁設置：ボタン / 数字",
+        "インベントリ：持物ボタン / I",
+        "フルスロットル：全開ボタン / O（OCスラスター装備時）",
         "ポーズ：右上ボタン / Esc・P",
     )
 
@@ -143,6 +159,12 @@ class GameScreen : ScreenAdapter() {
     // only executes the transitions it plans. rememberedT is a draw-side timer, so it stays here.
     private val session = RunSession(store = PreferencesMemoryStore())
     private var rememberedT = 0f // seconds left to show the return-visit greeting in the HUD
+
+    // Inventory overlay (v2.33): tab state + the run-save backend + the SAVE tab's confirmation flash.
+    private val runStore = PreferencesRunSaveStore()
+    private var invTab = InvTab.EQUIP
+    private var savedNoteT = 0f
+    private var worldSeed = 1L // the seed the CURRENT world was built with (goes into the run save)
 
     // Takeoff send-off toast (LP v2.29): one line in the SPACE HUD for a few seconds after leaving.
     private var rewardToast: String? = null
@@ -177,12 +199,14 @@ class GameScreen : ScreenAdapter() {
         Scores.load()
         session.restore() // LP v2.28: the universe remembers you across runs and restarts
         touchEnabled = Gdx.app.type == Application.ApplicationType.Android
-        newRun()
+        if (!tryRestoreRun()) newRun() // v2.33: a saved run resumes where it left off
     }
 
     /** Build (or rebuild) the run and reset per-run screen state (Phase 7 restart). */
     private fun newRun() {
         session.reset() // a fresh run forgets every planet
+        runStore.clear() // v2.33: restarting abandons the saved run
+        worldSeed = session.spaceSeed
         gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed)
         accumulator = 0f
         camInit = false
@@ -245,6 +269,7 @@ class GameScreen : ScreenAdapter() {
         context: PlanetContext? = null, society: PlanetSocietyState? = null,
     ) {
         val carry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
+        worldSeed = seed
         gw = WorldFactory.create(input, configStore.config, seed, mode, biome, carry, spawn, context, society)
         gw.waveState.num = carry.wave
         accumulator = 0f; camInit = false; overlay = Overlay.NONE
@@ -267,18 +292,28 @@ class GameScreen : ScreenAdapter() {
         if ((Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE) || Gdx.input.isKeyJustPressed(Input.Keys.P)) &&
             !choosing && !gw.gameOver.isOver) overlay = PauseFlow.toggle(overlay)
         handlePauseTaps()
-        val paused = overlay != Overlay.NONE
 
-        pollGameplayTouch(paused || fade.blocksInput)
+        pollGameplayTouch(overlay != Overlay.NONE || fade.blocksInput)
+        // v2.33: the I key / INV button toggles the inventory. Unlike pause it does not freeze the
+        // sim — the world crawls at INV_TIME_SCALE behind the panel (装備・持物・マップ・セーブ).
+        if (input.inventory && !choosing && !gw.gameOver.isOver &&
+            (overlay == Overlay.NONE || overlay == Overlay.INVENTORY)
+        ) {
+            overlay = if (overlay == Overlay.INVENTORY) Overlay.NONE else Overlay.INVENTORY
+        }
+        val paused = overlay != Overlay.NONE && overlay != Overlay.INVENTORY // sim-freezing overlays
+        val simDelta = delta * if (overlay == Overlay.INVENTORY) INV_TIME_SCALE else 1f
+        if (savedNoteT > 0f) savedNoteT -= delta
+
         // Living Planets: land on / leave a planet (L key or the touch LAND button). The fade wraps the
         // rebuild: OUT → (world swap behind black) → IN, and gameplay input is ignored meanwhile (10b).
-        if (!paused && !choosing && !gw.gameOver.isOver && !fade.blocksInput && input.land && canTransitionNow()) {
+        if (overlay == Overlay.NONE && !choosing && !gw.gameOver.isOver && !fade.blocksInput && input.land && canTransitionNow()) {
             fade.start()
             Sfx.play(if (gw.worldState.mode == WorldMode.SPACE) "land" else "takeoff")
         }
         if (!paused && fade.update(delta)) handleLanding() // the OUT leg just completed → swap behind black
 
-        if (!advanceSim(delta, paused)) return // restarted this frame — draw from the fresh run next frame
+        if (!advanceSim(simDelta, paused)) return // restarted this frame — draw from the fresh run next frame
         val alpha = (accumulator / Constants.FIXED_DT).coerceIn(0f, 1f)
 
         // interpolated player position + state
@@ -290,10 +325,12 @@ class GameScreen : ScreenAdapter() {
             fx = f.x; fy = f.y; sta = s.value; staMax = s.max; pit = gw.player[Health].iTime; overheat = s.overheat
         }
         // flow the cosmetic debris/asteroid field around the player (space only; wraps toroidally)
-        if (!paused) gw.worldState.drift?.let { Drift.advance(it, px, py, DRIFT_RANGE, delta) }
+        if (!paused) gw.worldState.drift?.let { Drift.advance(it, px, py, DRIFT_RANGE, simDelta) }
+        // v2.33: mark the tiles around the player as explored (the inventory MAP tab draws only these).
+        if (!paused) gw.visited.mark(floor(px / Tuning.TILE).toInt(), floor(py / Tuning.TILE).toInt(), VISIT_RADIUS)
         // The return-visit greeting fades after a few seconds, then the surface objective reverts to normal.
-        if (rememberedT > 0f && !paused) { rememberedT -= delta; if (rememberedT <= 0f) gw.worldState.rememberedPlanet = false }
-        if (rewardToastT > 0f && !paused) { rewardToastT -= delta; if (rewardToastT <= 0f) rewardToast = null }
+        if (rememberedT > 0f && !paused) { rememberedT -= simDelta; if (rememberedT <= 0f) gw.worldState.rememberedPlanet = false }
+        if (rewardToastT > 0f && !paused) { rewardToastT -= simDelta; if (rewardToastT <= 0f) rewardToast = null }
         val playerHit = pit > 0f && ((pit * 20f).toInt() % 2 == 0)
         val pose = PlayerPose(px, py, fx, fy, dashing = input.dash && sta > 0f, hit = playerHit, muzzle = input.fire)
 
@@ -319,7 +356,8 @@ class GameScreen : ScreenAdapter() {
             val ws = gw.worldState
             val canLand = (ws.mode == WorldMode.SPACE && ws.landingCandidate != null) ||
                 (ws.mode == WorldMode.SURFACE && playerOnEscapePad())
-            touch.poll(input, hudViewport, tBlocks, tw.mag, tw.def.magSize, canLand)
+            val hasOverclock = with(gw.world) { gw.player[Gear].loadout.hasOverclockThruster }
+            touch.poll(input, hudViewport, tBlocks, tw.mag, tw.def.magSize, canLand, hasOverclock)
         }
     }
 
@@ -333,6 +371,7 @@ class GameScreen : ScreenAdapter() {
             if (!prevOver) {
                 newBest = Scores.record(gw.waveState.num, gw.gameOver.kills)
                 session.persist() // LP v2.28: a death checkpoints the universe's memory too
+                runStore.clear() // v2.33: death consumes the saved run (roguelite — no retry from the save)
                 Sfx.play("dead"); Haptics.buzz(140)
             }
             val restartTapped = tapped &&
@@ -374,11 +413,11 @@ class GameScreen : ScreenAdapter() {
         // Surface event feed (LP v2.24): drawn whenever on a surface; aging freezes with the sim while paused.
         if (gw.worldState.mode == WorldMode.SURFACE) Hud.eventFeed(batch, font, hudViewport, gw.worldState.recentEvents)
 
-        if (touchEnabled && !paused && !choosing && !gw.gameOver.isOver) {
+        if (touchEnabled && overlay == Overlay.NONE && !choosing && !gw.gameOver.isOver) {
             val landLabel = if (gw.worldState.mode == WorldMode.SURFACE) "発進" else "着陸"
             TouchOverlay.draw(shapes, batch, font, hudViewport, touch, landLabel)
         }
-        if (!paused && !choosing && !gw.gameOver.isOver) Hud.pauseButton(shapes, hudViewport, Modals.pauseButton(hudW, hudH))
+        if (overlay == Overlay.NONE && !choosing && !gw.gameOver.isOver) Hud.pauseButton(shapes, hudViewport, Modals.pauseButton(hudW, hudH))
         if (choosing) {
             val cfg = configStore.config.upgrades
             Hud.upgradeCards(
@@ -395,6 +434,7 @@ class GameScreen : ScreenAdapter() {
                 gw.waveState.num, gw.gameOver.kills, bestText, Modals.gameOverButtons(hudW, hudH).first(),
             )
         }
+        if (overlay == Overlay.INVENTORY) drawInventory()
         if (overlay == Overlay.PAUSE) Hud.pause(shapes, batch, font, Fonts.title, hudViewport, Modals.pauseButtons(hudW, hudH, pauseHasMemory()))
         if (overlay == Overlay.HELP) Hud.help(shapes, batch, font, Fonts.title, hudViewport, Modals.helpButtons(hudW, hudH).first(), HELP_LINES)
         if (overlay == Overlay.FORGET) Hud.forget(shapes, batch, font, Fonts.title, hudViewport, Modals.forgetButtons(hudW, hudH))
@@ -562,9 +602,132 @@ class GameScreen : ScreenAdapter() {
                 1 -> overlay = Overlay.PAUSE
                 else -> {}
             }
+            Overlay.INVENTORY -> handleInventoryTap(w, h)
             Overlay.NONE -> if (!choosing && !gw.gameOver.isOver &&
                 Modals.hitModal(listOf(Modals.pauseButton(w, h)), tapX, tapY) != null) overlay = Overlay.PAUSE
         }
+    }
+
+    /** Route a tap inside the inventory overlay (v2.33): tabs, slot cycling, save, close. */
+    private fun handleInventoryTap(w: Float, h: Float) {
+        Modals.hitModal(InventoryLayout.tabs(w, h), tapX, tapY)?.let { invTab = InvTab.entries[it]; return }
+        if (InventoryLayout.closeButton(w, h).contains(tapX, tapY)) { overlay = Overlay.NONE; return }
+        when (invTab) {
+            InvTab.EQUIP -> {
+                val row = Modals.hitModal(InventoryLayout.slotRows(w, h), tapX, tapY) ?: return
+                GearOps.cycleSlot(gw.world, gw.player, InventoryLayout.SLOT_ORDER[row])
+            }
+            InvTab.SAVE -> if (InventoryLayout.saveButton(w, h).contains(tapX, tapY)) saveRun()
+            InvTab.ITEMS, InvTab.MAP -> {}
+        }
+    }
+
+    /** The inventory overlay's view model → Hud.inventory (v2.33). */
+    private fun drawInventory() {
+        val gear = with(gw.world) { gw.player[Gear] }
+        val slotTexts = InventoryLayout.SLOT_ORDER.mapIndexed { i, slot ->
+            "${InventoryLayout.SLOT_LABELS[i]}：${gear.loadout.get(slot)?.name ?: "（なし）"}"
+        }
+        // The backpack, grouped so duplicates read as ×N; each line carries the item's one-line pitch.
+        val itemLines = gear.backpack.groupBy { it.id }.map { (_, items) ->
+            val d = items.first()
+            val count = if (items.size > 1) "　×${items.size}" else ""
+            if (d.desc.isEmpty()) "${d.name}$count" else "${d.name}$count　─　${d.desc}"
+        }
+        val (ptx, pty) = with(gw.world) {
+            val t = gw.player[Transform]
+            floor(t.x / Tuning.TILE).toInt() to floor(t.y / Tuning.TILE).toInt()
+        }
+        Hud.inventory(
+            shapes, batch, font, Fonts.title, hudViewport, invTab,
+            slotTexts, itemLines, gw.visited, ptx, pty,
+            if (savedNoteT > 0f) "セーブした" else null,
+        )
+    }
+
+    /** v2.33 SAVE tab: snapshot the run (world identity + player state + gear) and persist it. */
+    private fun saveRun() {
+        val ws = gw.worldState
+        val dto = with(gw.world) {
+            val t = gw.player[Transform]; val hlt = gw.player[Health]; val sta = gw.player[Stamina]
+            val ammo = gw.player[Ammo]; val mods = gw.player[Mods]
+            val ars = gw.player[Arsenal]; val gear = gw.player[Gear]
+            RunSaveDto(
+                mode = ws.mode.name, biome = ws.biome?.name,
+                spaceSeed = session.spaceSeed, surfSeed = session.surfSeed, worldSeed = worldSeed,
+                landedPlanetId = session.landedPlanetId,
+                returnX = session.returnSpawn?.first, returnY = session.returnSpawn?.second,
+                wave = gw.waveState.num,
+                px = t.x, py = t.y,
+                hp = hlt.hp, hpMax = hlt.hpMax, stamina = sta.value,
+                ammo9 = ammo.ammo9, ammo12 = ammo.ammo12, ammoBeam = ammo.ammoBeam, ammoNade = ammo.ammoNade,
+                blocks = gw.player[Materials].blocks,
+                mags = ars.weapons.map { it.mag },
+                gunMul = mods.gunMul, fireMul = mods.fireMul, meleeMul = mods.meleeMul, moveMul = mods.moveMul,
+                ammoMul = mods.ammoMul, healOnKill = mods.healOnKill, wallHp = mods.wallHp,
+                loadout = EquipSlot.entries.mapNotNull { s -> gear.loadout.get(s)?.let { s.name to it.id } }.toMap(),
+                backpack = gear.backpack.map { it.id },
+                curWeapon = ars.curW,
+                society = if (ws.mode == WorldMode.SURFACE) PlanetMemoryCodec.dtoOf(ws.society) else null,
+            )
+        }
+        runStore.save(dto)
+        session.persist() // the universe's memory checkpoints alongside the run
+        savedNoteT = SAVED_NOTE_TIME
+    }
+
+    /**
+     * v2.33: rebuild the saved run, if one exists and parses. The world regenerates deterministically
+     * from its saved seed (enemy positions reset — the save keeps the player, gear and progress).
+     * Returns false when there is no usable save, in which case the caller starts a fresh run.
+     */
+    private fun tryRestoreRun(): Boolean {
+        val dto = runStore.load() ?: return false
+        val mode = WorldMode.entries.firstOrNull { it.name == dto.mode } ?: return false
+        val biome = dto.biome?.let { b -> PlanetBiome.entries.firstOrNull { it.name == b } }
+        if (mode == WorldMode.SURFACE && biome == null) return false
+        session.spaceSeed = dto.spaceSeed
+        session.surfSeed = dto.surfSeed
+        session.landedPlanetId = dto.landedPlanetId
+        val rx = dto.returnX; val ry = dto.returnY
+        session.returnSpawn = if (rx != null && ry != null) rx to ry else null
+        // The planet's soul is deterministic from its id + biome — no need to have saved it.
+        val context = if (mode == WorldMode.SURFACE && dto.landedPlanetId != null && biome != null) {
+            PlanetContext.contextFor(dto.landedPlanetId, biome)
+        } else null
+        val society = dto.society?.let { PlanetMemoryCodec.stateOf(it) }
+        worldSeed = dto.worldSeed
+        gw = WorldFactory.create(
+            input, configStore.config, dto.worldSeed, mode, biome,
+            carry = null, playerSpawn = dto.px to dto.py, context = context, society = society,
+        )
+        gw.waveState.num = dto.wave
+        with(gw.world) {
+            val hlt = gw.player[Health]
+            hlt.hpMax = dto.hpMax; hlt.hp = dto.hp.coerceIn(0.1f, dto.hpMax)
+            gw.player[Stamina].value = dto.stamina
+            val ammo = gw.player[Ammo]
+            ammo.ammo9 = dto.ammo9; ammo.ammo12 = dto.ammo12; ammo.ammoBeam = dto.ammoBeam; ammo.ammoNade = dto.ammoNade
+            gw.player[Materials].blocks = dto.blocks
+            val mods = gw.player[Mods]
+            mods.gunMul = dto.gunMul; mods.fireMul = dto.fireMul; mods.meleeMul = dto.meleeMul; mods.moveMul = dto.moveMul
+            mods.ammoMul = dto.ammoMul; mods.healOnKill = dto.healOnKill; mods.wallHp = dto.wallHp
+            val ars = gw.player[Arsenal]
+            dto.mags.forEachIndexed { i, m -> if (i < ars.weapons.size) ars.weapons[i].mag = m }
+            ars.curW = dto.curWeapon.coerceIn(0, ars.weapons.size - 1)
+            val gear = gw.player[Gear]
+            for (slot in EquipSlot.entries) {
+                val item = dto.loadout[slot.name]?.let { ItemCatalog.byId(it) } ?: continue
+                if (Loadout.compatible(slot, item.kind)) gear.loadout.set(slot, item)
+            }
+            gear.backpack.clear()
+            dto.backpack.mapNotNullTo(gear.backpack) { ItemCatalog.byId(it) }
+        }
+        accumulator = 0f; camInit = false; choosing = false; offered = false; choices = emptyList()
+        overlay = Overlay.NONE; lastHp = Float.NaN; lastKills = 0; prevOver = false; newBest = false
+        lastCardId = null; cachedCard = null; chipsKey = -1; cachedChips = emptyList()
+        rebuildMemoryTones()
+        return true
     }
 
     private fun step(delta: Float) {
