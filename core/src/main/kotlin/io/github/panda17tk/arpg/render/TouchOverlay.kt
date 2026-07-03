@@ -26,6 +26,7 @@ object TouchOverlay {
     private val cAimGuide = Color(1f, 0.5f, 0.4f, 0.06f)
     private val cBtn = Color(1f, 1f, 1f, 0.14f)
     private val cBtnPressed = Color(1f, 1f, 1f, 0.34f)
+    private val cLand = Color(0.30f, 0.85f, 0.45f, 0.30f) // v2.34: LAND glows green — it's the button that matters
 
     fun draw(
         shapes: ShapeRenderer, batch: SpriteBatch, font: BitmapFont, vp: Viewport,
@@ -53,7 +54,7 @@ object TouchOverlay {
         for (b in l.all()) {
             if (b !in touch.visibleButtons) continue
             val pressed = b in touch.pressedButtons
-            shapes.color = if (pressed) cBtnPressed else cBtn
+            shapes.color = if (pressed) cBtnPressed else if (b == TouchButton.LAND) cLand else cBtn
             shapes.circle(l.centerX(b), l.centerY(b), l.radiusOf(b) * (if (pressed) 1.16f else 1f), 22)
         }
         shapes.end()

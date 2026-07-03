@@ -28,11 +28,14 @@ import io.github.panda17tk.arpg.ecs.components.Stamina
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.ecs.world.GameWorld
 import io.github.panda17tk.arpg.ecs.world.GearOps
+import io.github.panda17tk.arpg.ecs.world.ItemUse
 import io.github.panda17tk.arpg.ecs.world.PlayerCarry
 import io.github.panda17tk.arpg.ecs.world.RewardApply
 import io.github.panda17tk.arpg.ecs.world.WorldFactory
 import io.github.panda17tk.arpg.item.EquipSlot
 import io.github.panda17tk.arpg.item.ItemCatalog
+import io.github.panda17tk.arpg.item.ItemDef
+import io.github.panda17tk.arpg.item.ItemKind
 import io.github.panda17tk.arpg.item.Loadout
 import io.github.panda17tk.arpg.input.Haptics
 import io.github.panda17tk.arpg.input.InputState
@@ -66,6 +69,7 @@ import io.github.panda17tk.arpg.sim.TakeoffReward
 import io.github.panda17tk.arpg.sim.Tuning
 import io.github.panda17tk.arpg.sim.WorldMode
 import io.github.panda17tk.arpg.sim.WorldState
+import io.github.panda17tk.arpg.ui.HudLayout
 import io.github.panda17tk.arpg.ui.InvTab
 import io.github.panda17tk.arpg.ui.InventoryLayout
 import io.github.panda17tk.arpg.ui.Modals
@@ -160,10 +164,13 @@ class GameScreen : ScreenAdapter() {
     private val session = RunSession(store = PreferencesMemoryStore())
     private var rememberedT = 0f // seconds left to show the return-visit greeting in the HUD
 
-    // Inventory overlay (v2.33): tab state + the run-save backend + the SAVE tab's confirmation flash.
+    // Inventory overlay (v2.33): tab state + the run-save backend + a brief note flash (セーブした /
+    // a consumable's effect). readingLore (v2.34) is the readable currently open on the ITEMS tab.
     private val runStore = PreferencesRunSaveStore()
     private var invTab = InvTab.EQUIP
-    private var savedNoteT = 0f
+    private var invNote: String? = null
+    private var invNoteT = 0f
+    private var readingLore: ItemDef? = null
     private var worldSeed = 1L // the seed the CURRENT world was built with (goes into the run save)
 
     // Takeoff send-off toast (LP v2.29): one line in the SPACE HUD for a few seconds after leaving.
@@ -300,10 +307,11 @@ class GameScreen : ScreenAdapter() {
             (overlay == Overlay.NONE || overlay == Overlay.INVENTORY)
         ) {
             overlay = if (overlay == Overlay.INVENTORY) Overlay.NONE else Overlay.INVENTORY
+            readingLore = null
         }
         val paused = overlay != Overlay.NONE && overlay != Overlay.INVENTORY // sim-freezing overlays
         val simDelta = delta * if (overlay == Overlay.INVENTORY) INV_TIME_SCALE else 1f
-        if (savedNoteT > 0f) savedNoteT -= delta
+        if (invNoteT > 0f) invNoteT -= delta
 
         // Living Planets: land on / leave a planet (L key or the touch LAND button). The fade wraps the
         // rebuild: OUT → (world swap behind black) → IN, and gameplay input is ignored meanwhile (10b).
@@ -474,7 +482,10 @@ class GameScreen : ScreenAdapter() {
                 lastCardId = cand.id
                 Sfx.play("scan") // 10a: a fresh scan pings once per newly latched planet
             }
-            cachedCard?.let { Hud.planetScanCard(shapes, batch, font, Fonts.title, hudViewport, it, "[L] 着陸") }
+            cachedCard?.let {
+                val hint = if (touchEnabled) "カードをタップで着陸" else "[L] 着陸" // v2.34: the card itself is the landing button on touch
+                Hud.planetScanCard(shapes, batch, font, Fonts.title, hudViewport, it, hint)
+            }
             return
         }
         var elites = 0
@@ -603,22 +614,55 @@ class GameScreen : ScreenAdapter() {
                 else -> {}
             }
             Overlay.INVENTORY -> handleInventoryTap(w, h)
-            Overlay.NONE -> if (!choosing && !gw.gameOver.isOver &&
-                Modals.hitModal(listOf(Modals.pauseButton(w, h)), tapX, tapY) != null) overlay = Overlay.PAUSE
+            Overlay.NONE -> if (!choosing && !gw.gameOver.isOver) {
+                if (Modals.hitModal(listOf(Modals.pauseButton(w, h)), tapX, tapY) != null) {
+                    overlay = Overlay.PAUSE
+                } else if (touchEnabled && !fade.blocksInput && gw.worldState.mode == WorldMode.SPACE &&
+                    canTransitionNow() && cachedCard?.let { HudLayout.planetCard(w, h, it.lines.size).contains(tapX, tapY) } == true
+                ) {
+                    // v2.34: on touch, tapping the scan card lands — the card is a big, obvious target where
+                    // the player is already looking, so landing no longer depends on reaching the LAND button.
+                    fade.start()
+                    Sfx.play("land")
+                }
+            }
         }
     }
 
-    /** Route a tap inside the inventory overlay (v2.33): tabs, slot cycling, save, close. */
+    /** Route a tap inside the inventory overlay (v2.33): tabs, slot cycling, item use/read, save, close. */
     private fun handleInventoryTap(w: Float, h: Float) {
-        Modals.hitModal(InventoryLayout.tabs(w, h), tapX, tapY)?.let { invTab = InvTab.entries[it]; return }
-        if (InventoryLayout.closeButton(w, h).contains(tapX, tapY)) { overlay = Overlay.NONE; return }
+        Modals.hitModal(InventoryLayout.tabs(w, h), tapX, tapY)?.let {
+            invTab = InvTab.entries[it]; readingLore = null; return
+        }
+        if (InventoryLayout.closeButton(w, h).contains(tapX, tapY)) { overlay = Overlay.NONE; readingLore = null; return }
         when (invTab) {
             InvTab.EQUIP -> {
                 val row = Modals.hitModal(InventoryLayout.slotRows(w, h), tapX, tapY) ?: return
                 GearOps.cycleSlot(gw.world, gw.player, InventoryLayout.SLOT_ORDER[row])
             }
+            InvTab.ITEMS -> handleItemsTap(w, h)
             InvTab.SAVE -> if (InventoryLayout.saveButton(w, h).contains(tapX, tapY)) saveRun()
-            InvTab.ITEMS, InvTab.MAP -> {}
+            InvTab.MAP -> {}
+        }
+    }
+
+    /** ITEMS tab tap (v2.34): reading → back; a consumable row → use one; a lore row → open it. */
+    private fun handleItemsTap(w: Float, h: Float) {
+        if (readingLore != null) { readingLore = null; return } // any tap closes the reading view
+        val gear = with(gw.world) { gw.player[Gear] }
+        val groups = ItemCatalog.grouped(gear.backpack)
+        val idx = Modals.hitModal(InventoryLayout.itemRows(w, h, groups.size), tapX, tapY) ?: return
+        val item = groups[idx].first
+        when (item.kind) {
+            ItemKind.CONSUMABLE -> {
+                val note = ItemUse.use(gw.world, gw.player, item) ?: return // wasted use → keep the item
+                val at = gear.backpack.indexOfFirst { it.id == item.id }
+                if (at >= 0) gear.backpack.removeAt(at)
+                invNote = note; invNoteT = SAVED_NOTE_TIME
+            }
+            ItemKind.LORE -> readingLore = item
+            // Equipment swaps in from the EQUIP tab's slots, not from the list.
+            ItemKind.THRUSTER, ItemKind.ARMOR, ItemKind.RANGED_WEAPON, ItemKind.MELEE_WEAPON, ItemKind.ACCESSORY -> {}
         }
     }
 
@@ -628,11 +672,14 @@ class GameScreen : ScreenAdapter() {
         val slotTexts = InventoryLayout.SLOT_ORDER.mapIndexed { i, slot ->
             "${InventoryLayout.SLOT_LABELS[i]}：${gear.loadout.get(slot)?.name ?: "（なし）"}"
         }
-        // The backpack, grouped so duplicates read as ×N; each line carries the item's one-line pitch.
-        val itemLines = gear.backpack.groupBy { it.id }.map { (_, items) ->
-            val d = items.first()
-            val count = if (items.size > 1) "　×${items.size}" else ""
-            if (d.desc.isEmpty()) "${d.name}$count" else "${d.name}$count　─　${d.desc}"
+        // The backpack, grouped so duplicates read as ×N; a marker tells apart what a tap does (v2.34).
+        val itemLines = ItemCatalog.grouped(gear.backpack).map { (d, n) ->
+            val count = if (n > 1) "　×$n" else ""
+            when (d.kind) {
+                ItemKind.CONSUMABLE -> "【使】${d.name}$count　─　${d.desc}"
+                ItemKind.LORE -> "【読】『${d.name}』$count　─　${d.desc}"
+                else -> if (d.desc.isEmpty()) "${d.name}$count" else "${d.name}$count　─　${d.desc}"
+            }
         }
         val (ptx, pty) = with(gw.world) {
             val t = gw.player[Transform]
@@ -641,7 +688,8 @@ class GameScreen : ScreenAdapter() {
         Hud.inventory(
             shapes, batch, font, Fonts.title, hudViewport, invTab,
             slotTexts, itemLines, gw.visited, ptx, pty,
-            if (savedNoteT > 0f) "セーブした" else null,
+            if (invNoteT > 0f) invNote else null,
+            loreTitle = readingLore?.name, loreLines = readingLore?.lore?.split("\n") ?: emptyList(),
         )
     }
 
@@ -673,7 +721,7 @@ class GameScreen : ScreenAdapter() {
         }
         runStore.save(dto)
         session.persist() // the universe's memory checkpoints alongside the run
-        savedNoteT = SAVED_NOTE_TIME
+        invNote = "セーブした"; invNoteT = SAVED_NOTE_TIME
     }
 
     /**

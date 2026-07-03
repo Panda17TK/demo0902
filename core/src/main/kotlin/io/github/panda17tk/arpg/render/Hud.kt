@@ -398,9 +398,10 @@ object Hud {
         shapes: ShapeRenderer, batch: SpriteBatch, font: BitmapFont, titleFont: BitmapFont, vp: Viewport,
         tab: InvTab,
         slotTexts: List<String>,   // EQUIP rows, aligned with InventoryLayout.slotRows
-        itemLines: List<String>,   // ITEMS tab body lines (already formatted, may be empty)
+        itemLines: List<String>,   // ITEMS tab rows (already formatted, aligned with itemRows)
         visited: VisitedMap?, playerTx: Int, playerTy: Int, // MAP tab
-        savedNote: String?,        // SAVE tab: a brief 「セーブした」 flash
+        note: String?,             // brief flash on ITEMS/SAVE (「セーブした」, a consumable's effect…)
+        loreTitle: String? = null, loreLines: List<String> = emptyList(), // v2.34: the open readable
     ) {
         val w = vp.worldWidth; val h = vp.worldHeight
         val panel = InventoryLayout.panel(w, h)
@@ -439,15 +440,27 @@ object Hud {
                 font.color = Color.WHITE
             }
             InvTab.ITEMS -> {
-                var y = body.y + body.h - 10f
-                if (itemLines.isEmpty()) {
-                    font.color = cHint; font.draw(batch, "持物は空", body.x + 12f, y); font.color = Color.WHITE
-                } else {
-                    for (line in itemLines) {
+                if (loreTitle != null) {
+                    // Reading view (v2.34): the open readable's title + its text, tap anywhere to return.
+                    centerText(batch, titleFont, loreTitle, w, body.y + body.h - 12f)
+                    var y = body.y + body.h - 52f
+                    for (line in loreLines) {
                         font.draw(batch, line, body.x + 12f, y)
                         y -= 24f
-                        if (y < body.y + 12f) break // clip to the body — no scroll, the list is short
+                        if (y < body.y + 34f) break
                     }
+                    font.color = cHint
+                    centerText(batch, font, "タップで戻る", w, body.y + 16f)
+                    font.color = Color.WHITE
+                } else {
+                    val rows = InventoryLayout.itemRows(w, h, itemLines.size)
+                    rows.forEachIndexed { i, r -> font.draw(batch, itemLines[i], r.x + 12f, r.y + 18f) }
+                    if (itemLines.isEmpty()) {
+                        font.color = cHint; font.draw(batch, "持物は空", body.x + 12f, body.y + body.h - 10f); font.color = Color.WHITE
+                    }
+                    font.color = cHint
+                    centerText(batch, font, note ?: "タップ：消費アイテムを使う / 読み物を読む", w, body.y + 14f)
+                    font.color = Color.WHITE
                 }
             }
             InvTab.MAP -> {
@@ -460,7 +473,7 @@ object Hud {
                 font.color = cHint
                 centerText(batch, font, "この場でランを保存する（やられると消える）", w, body.y + body.h * 0.30f)
                 font.color = Color.WHITE
-                savedNote?.let { centerText(batch, font, it, w, body.y + body.h * 0.22f) }
+                note?.let { centerText(batch, font, it, w, body.y + body.h * 0.22f) }
             }
         }
         centerLabel(batch, font, close.label, close.centerX, close.centerY)
