@@ -34,7 +34,9 @@ class LandingSystem : IntervalSystem() {
     }
 
     companion object {
-        private val LAND_RANGE = Tuning.TILE * 6f // hover within ~6 tiles of the surface to land (forgiving in vast space)
-        private const val GRACE_TICKS = 48        // ~0.8s at 60Hz fixed step
+        // v2.34: widened 6→12 tiles + a ~3s grace. Space is frictionless and the v2.31/32 thrust nerfs made
+        // braking slow — the old 6-tile/0.8s window often closed before a touch player could reach the button.
+        private val LAND_RANGE = Tuning.TILE * 12f // hover within ~12 tiles of the surface to land
+        private const val GRACE_TICKS = 180        // ~3s at 60Hz fixed step
     }
 }

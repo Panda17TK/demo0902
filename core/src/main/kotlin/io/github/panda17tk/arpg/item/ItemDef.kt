@@ -3,11 +3,15 @@ package io.github.panda17tk.arpg.item
 /** The seven equipment slots (v2.33): thruster / armor / ranged / melee / three accessories. */
 enum class EquipSlot { THRUSTER, ARMOR, RANGED, MELEE, ACC1, ACC2, ACC3 }
 
-/** What an item IS — which slot family it can occupy. */
-enum class ItemKind { THRUSTER, ARMOR, RANGED_WEAPON, MELEE_WEAPON, ACCESSORY }
+/** What an item IS — which slot family it can occupy. CONSUMABLE is used from the ITEMS tab;
+ *  LORE (読み物 — v2.34) is a readable that deepens the world and is never equipped or spent. */
+enum class ItemKind { THRUSTER, ARMOR, RANGED_WEAPON, MELEE_WEAPON, ACCESSORY, CONSUMABLE, LORE }
 
 /** Thruster classes: OC (overclocked) thrusters unlock the full-throttle mode. */
 enum class ThrusterClass { STANDARD, OC }
+
+/** What using a CONSUMABLE does (v2.34). The magnitude rides in [ItemDef.power]. */
+enum class ConsumeKind { NONE, HEAL, STAMINA, STAMINA_INF, DASH_UP, SMOKE, BLOCKS, AMMO_ALL }
 
 /**
  * One item in the world (v2.33 装備/インベントリ). Pure data — behaviour stays in the systems that
@@ -34,6 +38,11 @@ data class ItemDef(
     val moveMul: Float = 1f,
     val staRegenMul: Float = 1f,
     val gunMul: Float = 1f,
+    // CONSUMABLE (v2.34): what using it does + how strongly (HP healed, blocks gained, buff seconds…)
+    val consume: ConsumeKind = ConsumeKind.NONE,
+    val power: Float = 0f,
+    // LORE (v2.34): the readable text — newline-separated lines shown in the inventory's reading view
+    val lore: String = "",
 )
 
 /**

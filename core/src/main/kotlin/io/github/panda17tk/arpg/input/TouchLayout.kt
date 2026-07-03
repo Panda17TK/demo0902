@@ -42,7 +42,7 @@ class TouchLayout(var screenW: Float = 0f, var screenH: Float = 0f) {
     /** Which action button (if any) contains the point. Returns null inside the stick zone. */
     /** Dash / weapon / reload are a touch larger for easier tapping. */
     fun radiusOf(b: TouchButton): Float = buttonRadius * when (b) {
-        TouchButton.LAND -> 1.55f // a big, obvious "land here" target
+        TouchButton.LAND -> 1.8f // a big, obvious "land here" target (v2.34: grown again — it IS the landing UX)
         TouchButton.DASH, TouchButton.WEAPON, TouchButton.RELOAD -> 1.18f
         else -> 1f
     }

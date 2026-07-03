@@ -63,6 +63,21 @@ object InventoryLayout {
         return SLOT_ORDER.mapIndexed { i, _ -> UiButton(b.x, top - i * (rowH + ROW_GAP), b.w, rowH, SLOT_LABELS[i]) }
     }
 
+    const val ITEM_ROW_H = 24f
+
+    /**
+     * ITEMS tab (v2.34): one tappable row per backpack group, top-down. Rows past what fits in
+     * the body (minus a hint line at the bottom) are dropped — the drawn list clips identically,
+     * so drawing and hit-testing stay in step.
+     */
+    fun itemRows(hudW: Float, hudH: Float, count: Int): List<UiButton> {
+        val b = body(hudW, hudH)
+        val fits = ((b.h - 28f) / ITEM_ROW_H).toInt().coerceAtLeast(0)
+        return (0 until minOf(count, fits)).map { i ->
+            UiButton(b.x, b.y + b.h - (i + 1) * ITEM_ROW_H, b.w, ITEM_ROW_H)
+        }
+    }
+
     /** SAVE tab: one big save button centered in the body. */
     fun saveButton(hudW: Float, hudH: Float): UiButton {
         val b = body(hudW, hudH)
