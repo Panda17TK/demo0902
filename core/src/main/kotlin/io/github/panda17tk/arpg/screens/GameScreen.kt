@@ -34,6 +34,7 @@ import io.github.panda17tk.arpg.ecs.world.PlayerCarry
 import io.github.panda17tk.arpg.ecs.world.RewardApply
 import io.github.panda17tk.arpg.ecs.world.WorldFactory
 import io.github.panda17tk.arpg.item.EquipSlot
+import io.github.panda17tk.arpg.item.GearCraft
 import io.github.panda17tk.arpg.item.ItemCatalog
 import io.github.panda17tk.arpg.item.ItemDef
 import io.github.panda17tk.arpg.item.ItemKind
@@ -80,6 +81,7 @@ import io.github.panda17tk.arpg.ui.InvTab
 import io.github.panda17tk.arpg.ui.InventoryLayout
 import io.github.panda17tk.arpg.ui.Logbook
 import io.github.panda17tk.arpg.ui.Modals
+import io.github.panda17tk.arpg.ui.Onboarding
 import io.github.panda17tk.arpg.ui.Overlay
 import io.github.panda17tk.arpg.ui.PauseAction
 import io.github.panda17tk.arpg.ui.PauseFlow
@@ -100,6 +102,7 @@ private const val GATE_SHARDS = 3        // v2.44: gate shards a jump consumes (
 private const val GATE_TAP_R = 96f       // v2.44: world-px radius that counts as tapping the jump gate
 private const val SETTINGS_PREFS = "drift-settings" // v2.39: device-level settings (not run state)
 private const val SETTINGS_SWAP = "controlSwap"
+private const val SETTINGS_ONBOARD = "onboardDone" // v2.47: the first-run walkthrough ran once
 private const val SAVED_NOTE_TIME = 2f // seconds the 「セーブした」 flash stays on the SAVE tab
 
 /**
@@ -189,6 +192,8 @@ class GameScreen : ScreenAdapter() {
     private var worldSeed = 1L // the seed the CURRENT world was built with (goes into the run save)
     // v2.39: swap the touch roles — melee on the right stick, gun on the ML button (persisted).
     private var controlSwap = false
+    // v2.47: the very first run walks the basics once; completion persists across launches.
+    private var onboardDone = true
     // v2.43: stall slots already bought this landing (the stock is per-planet deterministic).
     private val marketSold = mutableSetOf<Int>()
 
@@ -232,6 +237,7 @@ class GameScreen : ScreenAdapter() {
         session.restore() // LP v2.28: the universe remembers you across runs and restarts
         touchEnabled = Gdx.app.type == Application.ApplicationType.Android
         controlSwap = try { Gdx.app.getPreferences(SETTINGS_PREFS).getBoolean(SETTINGS_SWAP, false) } catch (_: Throwable) { false }
+        onboardDone = try { Gdx.app.getPreferences(SETTINGS_PREFS).getBoolean(SETTINGS_ONBOARD, false) } catch (_: Throwable) { true }
         if (!tryRestoreRun()) newRun() // v2.33: a saved run resumes where it left off
     }
 
@@ -505,6 +511,7 @@ class GameScreen : ScreenAdapter() {
             runTime, gw.gameOver.kills, blocks, dust,
         )
         drawObjectiveHint(paused, hudW, hudH)
+        drawOnboarding(paused, hudW)
         // Surface event feed (LP v2.24): drawn whenever on a surface; aging freezes with the sim while paused.
         if (gw.worldState.mode == WorldMode.SURFACE) Hud.eventFeed(batch, font, hudViewport, gw.worldState.recentEvents)
 
@@ -547,6 +554,28 @@ class GameScreen : ScreenAdapter() {
             )
         }
         Hud.fade(shapes, hudViewport, fade.alpha) // landing/takeoff scrim covers everything (10b)
+    }
+
+    /** v2.47 オンボーディング: the first run's four timed hints, low on the screen, then never again. */
+    private fun drawOnboarding(paused: Boolean, hudW: Float) {
+        if (onboardDone || paused || choosing || gw.gameOver.isOver || overlay != Overlay.NONE) return
+        val line = Onboarding.lineFor(runTime, touchEnabled)
+        if (line == null) {
+            if (runTime >= Onboarding.END) {
+                onboardDone = true
+                try {
+                    val p = Gdx.app.getPreferences(SETTINGS_PREFS)
+                    p.putBoolean(SETTINGS_ONBOARD, true)
+                    p.flush()
+                } catch (_: Throwable) { /* persist best-effort */ }
+            }
+            return
+        }
+        batch.projectionMatrix = hudViewport.camera.combined
+        batch.begin()
+        glyphLayout.setText(font, line)
+        font.draw(batch, glyphLayout, (hudW - glyphLayout.width) / 2f, 190f)
+        batch.end()
     }
 
     /** Living Planets: surface exploration objective, or the pre-landing scan card in space (HUD space). */
@@ -874,8 +903,21 @@ class GameScreen : ScreenAdapter() {
                 invNote = note; invNoteT = SAVED_NOTE_TIME
             }
             ItemKind.LORE -> readingLore = item
-            // Equipment swaps in from the EQUIP tab's slots, not from the list.
-            ItemKind.THRUSTER, ItemKind.ARMOR, ItemKind.RANGED_WEAPON, ItemKind.MELEE_WEAPON, ItemKind.ACCESSORY -> {}
+            // v2.47 合成: tapping a stacked weapon row (×2以上) hones two copies into one "+1".
+            // Other equipment swaps in from the EQUIP tab's slots, not from the list.
+            ItemKind.RANGED_WEAPON, ItemKind.MELEE_WEAPON -> {
+                if (groups[idx].second >= 2 && GearCraft.craftable(item)) {
+                    repeat(2) {
+                        val at = gear.backpack.indexOfFirst { it.id == item.id }
+                        if (at >= 0) gear.backpack.removeAt(at)
+                    }
+                    val up = GearCraft.honed(item)
+                    gear.backpack.add(up)
+                    invNote = "合成: ${item.name} ×2 → ${up.name}"; invNoteT = SAVED_NOTE_TIME
+                    Sfx.play("levelup")
+                }
+            }
+            ItemKind.THRUSTER, ItemKind.ARMOR, ItemKind.ACCESSORY -> {}
         }
     }
 
@@ -888,10 +930,12 @@ class GameScreen : ScreenAdapter() {
         // The backpack, grouped so duplicates read as ×N; a marker tells apart what a tap does (v2.34).
         val itemLines = ItemCatalog.grouped(gear.backpack).map { (d, n) ->
             val count = if (n > 1) "　×$n" else ""
+            // v2.47 合成: a stacked, still-honable weapon advertises the merge its tap performs.
+            val craft = if (n >= 2 && GearCraft.craftable(d)) "【合成可】" else ""
             when (d.kind) {
                 ItemKind.CONSUMABLE -> "【使】${d.name}$count　─　${d.desc}"
                 ItemKind.LORE -> "【読】『${d.name}』$count　─　${d.desc}"
-                else -> if (d.desc.isEmpty()) "${d.name}$count" else "${d.name}$count　─　${d.desc}"
+                else -> if (d.desc.isEmpty()) "$craft${d.name}$count" else "$craft${d.name}$count　─　${d.desc}"
             }
         }
         val (ptx, pty) = with(gw.world) {
