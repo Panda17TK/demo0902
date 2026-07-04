@@ -3,8 +3,8 @@ package io.github.panda17tk.arpg.ui
 import io.github.panda17tk.arpg.item.EquipSlot
 import kotlin.math.min
 
-/** The inventory overlay's four tabs (v2.33): 装備 / アイテム / マップ / セーブ. */
-enum class InvTab { EQUIP, ITEMS, MAP, SAVE }
+/** The inventory overlay's tabs (v2.33; v2.43 adds the planet market): 装備/アイテム/マップ/市/セーブ. */
+enum class InvTab { EQUIP, ITEMS, MAP, MARKET, SAVE }
 
 /**
  * Pure geometry for the inventory overlay (v2.33) — same policy as Modals/HudLayout: drawing
@@ -17,7 +17,7 @@ object InventoryLayout {
     const val PAD = 12f
     const val ROW_GAP = 8f
 
-    val TAB_LABELS = listOf("装備", "アイテム", "マップ", "セーブ")
+    val TAB_LABELS = listOf("装備", "アイテム", "マップ", "市", "セーブ")
     val SLOT_ORDER = listOf(
         EquipSlot.THRUSTER, EquipSlot.ARMOR, EquipSlot.RANGED, EquipSlot.MELEE,
         EquipSlot.ACC1, EquipSlot.ACC2, EquipSlot.ACC3,
@@ -34,7 +34,8 @@ object InventoryLayout {
     /** Four equal tabs across the panel's top edge, in [TAB_LABELS] order. */
     fun tabs(hudW: Float, hudH: Float): List<UiButton> {
         val p = panel(hudW, hudH)
-        val tabW = (p.w - PAD * 2f - ROW_GAP * 3f) / 4f
+        val n = TAB_LABELS.size
+        val tabW = (p.w - PAD * 2f - ROW_GAP * (n - 1)) / n
         val y = p.y + p.h - PAD - TAB_H
         return TAB_LABELS.mapIndexed { i, lab -> UiButton(p.x + PAD + i * (tabW + ROW_GAP), y, tabW, TAB_H, lab) }
     }
@@ -82,6 +83,16 @@ object InventoryLayout {
     fun controlToggle(hudW: Float, hudH: Float): UiButton {
         val b = body(hudW, hudH)
         return UiButton(b.x, b.y, b.w, 30f, "")
+    }
+
+    /** MARKET tab (v2.43): one tappable row per stall slot, top-down, leaving a footer line. */
+    fun marketRows(hudW: Float, hudH: Float, count: Int): List<UiButton> {
+        val b = body(hudW, hudH)
+        val rowH = 34f
+        val fits = ((b.h - 30f) / rowH).toInt().coerceAtLeast(0)
+        return (0 until minOf(count, fits)).map { i ->
+            UiButton(b.x, b.y + b.h - (i + 1) * rowH, b.w, rowH - 4f)
+        }
     }
 
     /** SAVE tab: one big save button centered in the body. */

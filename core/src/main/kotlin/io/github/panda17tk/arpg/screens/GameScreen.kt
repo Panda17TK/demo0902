@@ -37,6 +37,7 @@ import io.github.panda17tk.arpg.item.ItemCatalog
 import io.github.panda17tk.arpg.item.ItemDef
 import io.github.panda17tk.arpg.item.ItemKind
 import io.github.panda17tk.arpg.item.Loadout
+import io.github.panda17tk.arpg.item.Market
 import io.github.panda17tk.arpg.input.Haptics
 import io.github.panda17tk.arpg.input.InputState
 import io.github.panda17tk.arpg.input.KeyboardInput
@@ -178,6 +179,8 @@ class GameScreen : ScreenAdapter() {
     private var worldSeed = 1L // the seed the CURRENT world was built with (goes into the run save)
     // v2.39: swap the touch roles — melee on the right stick, gun on the ML button (persisted).
     private var controlSwap = false
+    // v2.43: stall slots already bought this landing (the stock is per-planet deterministic).
+    private val marketSold = mutableSetOf<Int>()
 
     // Takeoff send-off toast (LP v2.29): one line in the SPACE HUD for a few seconds after leaving.
     private var rewardToast: String? = null
@@ -233,6 +236,7 @@ class GameScreen : ScreenAdapter() {
         prevOver = false
         newBest = false
         lastCardId = null; cachedCard = null
+        marketSold.clear()
         rebuildMemoryTones()
     }
 
@@ -290,6 +294,7 @@ class GameScreen : ScreenAdapter() {
         choosing = false; offered = false; choices = emptyList(); lastHp = Float.NaN
         lastCardId = null; cachedCard = null // memory may have changed across the transition → rebuild the scan card
         chipsKey = -1; cachedChips = emptyList()
+        marketSold.clear()
         rebuildMemoryTones()
     }
 
@@ -423,6 +428,7 @@ class GameScreen : ScreenAdapter() {
         hudViewport.apply()
         val hudW = hudViewport.worldWidth; val hudH = hudViewport.worldHeight
         val blocks = with(gw.world) { gw.player[Materials].blocks }
+        val dust = with(gw.world) { gw.player[Materials].dust }
         val ammo = with(gw.world) { gw.player[Ammo] }
         val hp = with(gw.world) { gw.player[Health].hp }
         val hpMax = with(gw.world) { gw.player[Health].hpMax }
@@ -435,7 +441,7 @@ class GameScreen : ScreenAdapter() {
             gw.waveState.num, foes,
             hp, hpMax, sta, staMax, overheat,
             wpn.def.name, wpn.mag, wpn.def.magSize, reloadFrac, reserveStr,
-            runTime, gw.gameOver.kills, blocks,
+            runTime, gw.gameOver.kills, blocks, dust,
         )
         drawObjectiveHint(paused, hudW, hudH)
         // Surface event feed (LP v2.24): drawn whenever on a surface; aging freezes with the sim while paused.
@@ -704,6 +710,7 @@ class GameScreen : ScreenAdapter() {
                 GearOps.cycleSlot(gw.world, gw.player, InventoryLayout.SLOT_ORDER[row])
             }
             InvTab.ITEMS -> handleItemsTap(w, h)
+            InvTab.MARKET -> handleMarketTap(w, h)
             InvTab.SAVE -> if (InventoryLayout.saveButton(w, h).contains(tapX, tapY)) saveRun()
             InvTab.MAP -> {}
         }
@@ -748,13 +755,56 @@ class GameScreen : ScreenAdapter() {
             val t = gw.player[Transform]
             floor(t.x / Tuning.TILE).toInt() to floor(t.y / Tuning.TILE).toInt()
         }
+        val (marketLines, marketFooter) = marketView()
         Hud.inventory(
             shapes, batch, font, Fonts.title, hudViewport, invTab,
             slotTexts, itemLines, gw.visited, ptx, pty,
             if (invNoteT > 0f) invNote else null,
             loreTitle = readingLore?.name, loreLines = readingLore?.lore?.split("\n") ?: emptyList(),
             controlLabel = "操作: " + (if (controlSwap) "銃=ボタン / 近接=右スティック" else "近接=ボタン / 銃=右スティック") + "　(タップで入替)",
+            marketLines = marketLines, marketFooter = marketFooter,
         )
+    }
+
+    /** v2.43 市: rows + footer for the MARKET tab. A hostile world's stalls are simply shut. */
+    private fun marketView(): Pair<List<String>, String> {
+        val ws = gw.worldState
+        val planetId = session.landedPlanetId
+        if (ws.mode != WorldMode.SURFACE || planetId == null) {
+            return emptyList<String>() to "市は惑星の地表でのみ開かれる"
+        }
+        if (!Market.isOpen(ws.society.hostility)) {
+            return emptyList<String>() to "この星はあなたと取引しない"
+        }
+        val dust = with(gw.world) { gw.player[Materials].dust }
+        val lines = Market.stockFor(planetId).mapIndexed { i, item ->
+            if (i in marketSold) "─ 売約済 ─"
+            else "${'$'}{item.name}　【${'$'}{Market.priceFor(item, ws.society.mercy)}屑】"
+        }
+        return lines to "所持 星屑 ${'$'}dust　行をタップで購入"
+    }
+
+    /** v2.43: buy the tapped stall slot if it's still there and the dust covers it. */
+    private fun handleMarketTap(w: Float, h: Float) {
+        val ws = gw.worldState
+        val planetId = session.landedPlanetId ?: return
+        if (ws.mode != WorldMode.SURFACE || !Market.isOpen(ws.society.hostility)) return
+        val stock = Market.stockFor(planetId)
+        val idx = Modals.hitModal(InventoryLayout.marketRows(w, h, stock.size), tapX, tapY) ?: return
+        if (idx in marketSold) return
+        val item = stock[idx]
+        val price = Market.priceFor(item, ws.society.mercy)
+        with(gw.world) {
+            val mats = gw.player[Materials]
+            if (mats.dust < price) {
+                invNote = "星屑が足りない（${'$'}price 必要）"; invNoteT = SAVED_NOTE_TIME
+                return
+            }
+            mats.dust -= price
+            gw.player[Gear].backpack.add(item)
+            marketSold.add(idx)
+            invNote = "${'$'}{item.name} を購入した（-${'$'}price屑）"; invNoteT = SAVED_NOTE_TIME
+        }
     }
 
     /** v2.39: flip the touch roles of the ML button and the right stick, and persist the choice. */
@@ -786,6 +836,7 @@ class GameScreen : ScreenAdapter() {
                 hp = hlt.hp, hpMax = hlt.hpMax, stamina = sta.value,
                 ammo9 = ammo.ammo9, ammo12 = ammo.ammo12, ammoBeam = ammo.ammoBeam, ammoNade = ammo.ammoNade,
                 blocks = gw.player[Materials].blocks,
+                dust = gw.player[Materials].dust,
                 mags = ars.weapons.map { it.mag },
                 gunMul = mods.gunMul, fireMul = mods.fireMul, meleeMul = mods.meleeMul, moveMul = mods.moveMul,
                 ammoMul = mods.ammoMul, healOnKill = mods.healOnKill, wallHp = mods.wallHp,
@@ -833,6 +884,7 @@ class GameScreen : ScreenAdapter() {
             val ammo = gw.player[Ammo]
             ammo.ammo9 = dto.ammo9; ammo.ammo12 = dto.ammo12; ammo.ammoBeam = dto.ammoBeam; ammo.ammoNade = dto.ammoNade
             gw.player[Materials].blocks = dto.blocks
+            gw.player[Materials].dust = dto.dust
             val mods = gw.player[Mods]
             mods.gunMul = dto.gunMul; mods.fireMul = dto.fireMul; mods.meleeMul = dto.meleeMul; mods.moveMul = dto.moveMul
             mods.ammoMul = dto.ammoMul; mods.healOnKill = dto.healOnKill; mods.wallHp = dto.wallHp
@@ -850,6 +902,7 @@ class GameScreen : ScreenAdapter() {
         accumulator = 0f; camInit = false; choosing = false; offered = false; choices = emptyList()
         overlay = Overlay.NONE; lastHp = Float.NaN; lastKills = 0; prevOver = false; newBest = false
         lastCardId = null; cachedCard = null; chipsKey = -1; cachedChips = emptyList()
+        marketSold.clear()
         rebuildMemoryTones()
         return true
     }

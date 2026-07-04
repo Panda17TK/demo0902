@@ -40,6 +40,7 @@ class PickupSystem : IteratingSystem(family { all(Pickup, Transform) }) {
                 if (abs(pt.x - t.x) < pickR && abs(pt.y - t.y) < pickR) {
                     when (pk.kind) {
                         "blocks" -> p[Materials].blocks += pk.amount
+                        "dust" -> p[Materials].dust += pk.amount // 星屑 (v2.43)
                         "med" -> { val h = p[Health]; h.hp = minOf(h.hpMax, h.hp + pk.amount) }
                         "staminaInf" -> p[Buff].staminaInfT = 6f
                         "dashUp" -> p[Buff].dashUpT = 8f
