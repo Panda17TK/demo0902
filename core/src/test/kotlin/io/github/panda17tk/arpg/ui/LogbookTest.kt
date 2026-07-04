@@ -15,7 +15,8 @@ class LogbookTest {
         assertTrue(lines[0].contains("第2星系") && lines[0].contains("9"))
         assertTrue(lines[1].contains("肩書")) // v2.49: the header tracks the network's verdict
         assertTrue(lines[2].contains("41") && lines[2].contains("120") && lines[2].contains("1"))
-        assertTrue(lines[3].contains("15") && lines[3].contains("200"))
+        assertTrue(lines[3].contains("同期復旧")) // v2.52: repair is the run's true progress line
+        assertTrue(lines[4].contains("15") && lines[4].contains("200"))
         assertTrue(lines.any { it.contains("星の記憶") })
         assertTrue(lines.any { it.contains("星7") })
     }

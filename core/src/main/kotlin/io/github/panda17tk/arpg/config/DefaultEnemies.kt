@@ -6,7 +6,7 @@ import io.github.panda17tk.arpg.planet.PlanetBiome
  * The built-in enemy roster (legacy enemies.js), grouped by home: the space waves + bosses,
  * then each planet's society (Living Planets sapients) and its wildlife food web.
  *
- * NOTE: insertion order is part of the contract — SpawnerSystem/BaseSystem snapshot filtered
+ * NOTE: insertion order is part of the contract — DesyncSurgeSystem/BaseSystem snapshot filtered
  * key lists and index them with the seeded RNG, so reordering entries changes deterministic
  * spawns. New enemies belong at the end of their section.
  */

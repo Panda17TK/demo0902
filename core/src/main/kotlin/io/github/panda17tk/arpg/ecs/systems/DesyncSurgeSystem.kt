@@ -22,11 +22,13 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * Wave-based spawner (legacy spawner.js). Spawns normal enemies over time during a wave;
- * when the wave is cleared, an intermission passes, then the next (scaled) wave starts.
- * Boss waves (midBossEvery/bossEvery) are wired in Phase 6b once boss entities/attacks exist.
+ * v2.52 同期乱流 (formerly SpawnerSystem — the wave spawner, reread through the 惑星サーバー
+ * fiction): the broken preservation network periodically vents unprocessed persona fragments
+ * and defence processes into open space. A "wave" is one surge; the intermission is the network
+ * catching its breath; deeper surges leak deeper layers of the roster (see [surgePool]).
+ * Surfaces never surge — planets place their society once and let it live (SurfaceEcology).
  */
-class SpawnerSystem : IteratingSystem(family { all(PlayerTag, Transform) }) {
+class DesyncSurgeSystem : IteratingSystem(family { all(PlayerTag, Transform) }) {
     private val wave: WaveState = world.inject()
     private val config: GameConfig = world.inject()
     private val map: TileMap = world.inject()
@@ -131,9 +133,18 @@ class SpawnerSystem : IteratingSystem(family { all(PlayerTag, Transform) }) {
     // v2.48 惑星サーバー: the purge sweep fields only the preservation machinery.
     private val purgeKeys: List<String> = WaveEvents.PURGE_KEYS.filter { it in normalKeys }
 
+    /**
+     * v2.52: which slice of the roster this surge depth can vent. Early surges leak only the
+     * shallow processes; as the desync deepens, older and stranger layers surface — the roster's
+     * insertion order doubles as its stratigraphy (basic → v2.39 → v2.41 → the machinery).
+     */
+    private fun surgePool(waveNum: Int): List<String> =
+        if (wave.event == WaveEvent.PURGE && purgeKeys.isNotEmpty()) purgeKeys
+        else normalKeys.take((3 + waveNum).coerceAtMost(normalKeys.size))
+
     /** Spawn a same-tribe herd (3..6) clustered around one tile so tribes pop in groups. Returns the count. */
     private fun spawnNormal(pt: Transform, waveNum: Int): Int {
-        val pool = if (wave.event == WaveEvent.PURGE && purgeKeys.isNotEmpty()) purgeKeys else normalKeys
+        val pool = surgePool(waveNum)
         if (pool.isEmpty()) return 0
         val tile = pickTile(pt) ?: return 0
         val tribe = tribes.tribeOf(tile.first, tile.second)
