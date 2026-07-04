@@ -107,6 +107,7 @@ private const val INV_TIME_SCALE = 0.01f // v2.33: the world crawls at this spee
 private const val PLANET_TAP_PAD = 48f   // v2.38: extra world-px around a planet that still counts as tapping it
 // v2.44/v2.52: base gate-shard cost; a well-restored network (SyncRestoration) asks one less.
 private const val GATE_TAP_R = 96f       // v2.44: world-px radius that counts as tapping the jump gate
+private const val TRAINING_SEED = 4242L   // v2.53: the simulation always rebuilds the same arena
 private const val SETTINGS_PREFS = "drift-settings" // v2.39: device-level settings (not run state)
 private const val SETTINGS_SWAP = "controlSwap"
 private const val SETTINGS_ONBOARD = "onboardDone" // v2.47: the first-run walkthrough ran once
@@ -201,6 +202,10 @@ class GameScreen : ScreenAdapter() {
     private var controlSwap = false
     // v2.47: the very first run walks the basics once; completion persists across launches.
     private var onboardDone = true
+    // v2.53 旧式戦闘訓練: the walled-off wave simulation. Entering snapshots the real run's
+    // player (gear/materials/wave); exiting restores it — training gains stay in the training.
+    private var simMode = false
+    private var preSimCarry: PlayerCarry? = null
     // v2.43: stall slots already bought this landing (the stock is per-planet deterministic).
     private val marketSold = mutableSetOf<Int>()
 
@@ -248,8 +253,33 @@ class GameScreen : ScreenAdapter() {
         if (!tryRestoreRun()) newRun() // v2.33: a saved run resumes where it left off
     }
 
+    /** v2.53: enter/exit the old-style combat simulation. The universe's memory, the saved run
+     *  and the real player snapshot are all untouched — a simulation leaves no trace but skill. */
+    private fun toggleTraining() {
+        if (!simMode) {
+            simMode = true
+            preSimCarry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
+            worldSeed = TRAINING_SEED
+            gw = WorldFactory.create(input, configStore.config, seed = TRAINING_SEED, carry = preSimCarry)
+        } else {
+            simMode = false
+            worldSeed = session.spaceSeed
+            gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed, carry = preSimCarry)
+            gw.waveState.num = preSimCarry?.wave ?: 1
+            preSimCarry = null
+        }
+        accumulator = 0f; camInit = false; choosing = false; offered = false; choices = emptyList()
+        lastHp = Float.NaN; lastCardId = null; cachedCard = null
+        chipsKey = -1; cachedChips = emptyList(); questChipKey = -1; questChip = null
+        marketSold.clear(); pendingJump = false
+        rewardToast = if (simMode) "旧式戦闘シミュレーション起動 — 成果は持ち出せない" else "訓練環境を終了した"
+        rewardToastT = TOAST_TIME
+        rebuildMemoryTones()
+    }
+
     /** Build (or rebuild) the run and reset per-run screen state (Phase 7 restart). */
     private fun newRun() {
+        simMode = false; preSimCarry = null // v2.53: a real restart always leaves the simulation
         session.reset() // a fresh run forgets every planet
         runStore.clear() // v2.33: restarting abandons the saved run
         worldSeed = session.spaceSeed
@@ -291,7 +321,9 @@ class GameScreen : ScreenAdapter() {
     }
 
     /** Whether a landing/takeoff would actually happen right now (used to gate the fade, 10b). */
-    private fun canTransitionNow(): Boolean = if (gw.worldState.mode == WorldMode.SPACE) {
+    private fun canTransitionNow(): Boolean = if (simMode) {
+        false // v2.53: the simulation has no planets worth the name — no landings
+    } else if (gw.worldState.mode == WorldMode.SPACE) {
         gw.worldState.landingCandidate != null
     } else {
         playerOnEscapePad()
@@ -426,7 +458,7 @@ class GameScreen : ScreenAdapter() {
             Sfx.play("scan")
         }
         // v2.51: a wreck the drifter closes in on broadcasts its distress log — once per wreck.
-        if (!paused && gw.worldState.mode == WorldMode.SPACE) {
+        if (!paused && !simMode && gw.worldState.mode == WorldMode.SPACE) {
             val (wpx, wpy) = with(gw.world) { val t = gw.player[Transform]; t.x to t.y }
             gw.worldState.wrecks.forEachIndexed { i, w ->
                 if (i !in gw.worldState.wreckLogShown && hypot(wpx - w.first, wpy - w.second) < Tuning.TILE * 3f) {
@@ -498,16 +530,19 @@ class GameScreen : ScreenAdapter() {
         if (gw.gameOver.isOver) {
             accumulator = 0f
             if (!prevOver) {
-                newBest = Scores.record(gw.waveState.num, gw.gameOver.kills)
+                // v2.53: a death inside the simulation is a simulated death — no records, no losses.
+                newBest = if (!simMode) Scores.record(gw.waveState.num, gw.gameOver.kills) else false
                 session.persist() // LP v2.28: a death checkpoints the universe's memory too
-                runStore.clear() // v2.33: death consumes the saved run (roguelite — no retry from the save)
+                if (!simMode) runStore.clear() // v2.33: death consumes the saved run (roguelite)
                 // v2.46 遺品: death leaves half the dust and every gate shard where you fell —
                 // the NEXT run can fly back and reclaim the bundle.
-                val relic = with(gw.world) {
-                    val t = gw.player[Transform]; val m = gw.player[Materials]
-                    DeathRelic.of(t.x, t.y, m.dust, m.shards, gw.worldState.mode == WorldMode.SPACE)
+                if (!simMode) {
+                    val relic = with(gw.world) {
+                        val t = gw.player[Transform]; val m = gw.player[Materials]
+                        DeathRelic.of(t.x, t.y, m.dust, m.shards, gw.worldState.mode == WorldMode.SPACE)
+                    }
+                    if (relic != null) relicStore.save(relic) else relicStore.clear()
                 }
-                if (relic != null) relicStore.save(relic) else relicStore.clear()
                 Sfx.play("dead"); Haptics.buzz(140)
             }
             val restartTapped = tapped &&
@@ -545,6 +580,7 @@ class GameScreen : ScreenAdapter() {
             hp, hpMax, sta, staMax, overheat,
             wpn.def.name, wpn.mag, wpn.def.magSize, reloadFrac, reserveStr,
             runTime, gw.gameOver.kills, blocks, dust,
+            simMode = simMode,
         )
         drawObjectiveHint(paused, hudW, hudH)
         drawOnboarding(paused, hudW)
@@ -573,7 +609,7 @@ class GameScreen : ScreenAdapter() {
             )
         }
         if (overlay == Overlay.INVENTORY) drawInventory()
-        if (overlay == Overlay.PAUSE) Hud.pause(shapes, batch, font, Fonts.title, hudViewport, Modals.pauseButtons(hudW, hudH, pauseHasMemory()))
+        if (overlay == Overlay.PAUSE) Hud.pause(shapes, batch, font, Fonts.title, hudViewport, Modals.pauseButtons(hudW, hudH, pauseHasMemory(), simMode))
         if (overlay == Overlay.HELP) Hud.help(shapes, batch, font, Fonts.title, hudViewport, Modals.helpButtons(hudW, hudH).first(), HELP_LINES)
         if (overlay == Overlay.FORGET) Hud.forget(shapes, batch, font, Fonts.title, hudViewport, Modals.forgetButtons(hudW, hudH))
         if (overlay == Overlay.MEMORY) {
@@ -626,6 +662,16 @@ class GameScreen : ScreenAdapter() {
                 glyphLayout.setText(font, rewardToast)
                 font.draw(batch, glyphLayout, (hudW - glyphLayout.width) / 2f, hudH - 12f)
                 batch.end()
+            }
+            if (simMode) { // v2.53: the simulation is combat only — say so, plainly
+                if (!paused && !choosing && !gw.gameOver.isOver) {
+                    batch.projectionMatrix = hudViewport.camera.combined
+                    batch.begin()
+                    glyphLayout.setText(font, "訓練環境 — 模擬戦闘のみ（ポーズから終了）")
+                    font.draw(batch, glyphLayout, (hudW - glyphLayout.width) / 2f, hudH - 12f)
+                    batch.end()
+                }
+                return
             }
             val cand = ws.landingCandidate ?: run {
                 lastCardId = null; cachedCard = null
@@ -831,7 +877,7 @@ class GameScreen : ScreenAdapter() {
     private fun gateNeed(): Int = SyncRestoration.gateShardsNeeded(syncPercent())
 
     /** v2.44: a jump is possible right now — in space, at the gate, holding enough gate shards. */
-    private fun canJumpNow(): Boolean = gw.worldState.mode == WorldMode.SPACE && nearGate() &&
+    private fun canJumpNow(): Boolean = !simMode && gw.worldState.mode == WorldMode.SPACE && nearGate() &&
         with(gw.world) { gw.player[Materials].shards } >= gateNeed()
 
     /**
@@ -866,11 +912,12 @@ class GameScreen : ScreenAdapter() {
         when (overlay) {
             Overlay.PAUSE -> {
                 val hasMemory = pauseHasMemory()
-                when (PauseFlow.action(Modals.hitModal(Modals.pauseButtons(w, h, hasMemory), tapX, tapY) ?: -1, hasMemory)) {
+                when (PauseFlow.action(Modals.hitModal(Modals.pauseButtons(w, h, hasMemory, simMode), tapX, tapY) ?: -1, hasMemory)) {
                     PauseAction.RESUME -> overlay = Overlay.NONE
                     PauseAction.RESTART -> { newRun(); overlay = Overlay.NONE }
                     PauseAction.HELP -> overlay = Overlay.HELP
                     PauseAction.MEMORY -> overlay = Overlay.MEMORY
+                    PauseAction.SIM -> { toggleTraining(); overlay = Overlay.NONE } // v2.53
                     PauseAction.FORGET -> overlay = Overlay.FORGET
                     null -> {}
                 }
@@ -924,7 +971,9 @@ class GameScreen : ScreenAdapter() {
             }
             InvTab.ITEMS -> handleItemsTap(w, h)
             InvTab.MARKET -> handleMarketTap(w, h)
-            InvTab.SAVE -> if (InventoryLayout.saveButton(w, h).contains(tapX, tapY)) saveRun()
+            InvTab.SAVE -> if (InventoryLayout.saveButton(w, h).contains(tapX, tapY)) {
+                if (simMode) { invNote = "訓練環境ではセーブできない"; invNoteT = SAVED_NOTE_TIME } else saveRun()
+            }
             InvTab.MAP -> {}
             InvTab.LOG -> {} // v2.46: the logbook is read-only
         }
