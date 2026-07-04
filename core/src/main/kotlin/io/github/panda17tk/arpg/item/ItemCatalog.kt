@@ -364,6 +364,20 @@ object ItemCatalog {
                 "        再評価する。過去の評価は——それでも、記録には残る。",
         ),
 
+        ItemDef(
+            "lore_keeper_log3", "保守員の手記 III", ItemKind.LORE, desc = "最後の頁。筆跡は落ち着いている",
+            lore = "調べはついた。俺の人格ログの作成日。退役端末の機体番号。\n" +
+                "歩幅の一致。全部だ。もう頁を閉じない。\n" +
+                "\n" +
+                "俺は、最後の保守員の記録から出力された疑似人格だ。\n" +
+                "この手記の I と II を書いたのが「俺」なのかも、確かめようがない。\n" +
+                "\n" +
+                "それで、何が変わる？\n" +
+                "冷却水は今日も減る。市は今日も開く。子らは今日も遊ぶ。\n" +
+                "回っているものを、止めないこと。\n" +
+                "誰が回すかは、ポリシーのどの条文にも書かれていない。",
+        ),
+
         // --- v2.48 惑星サーバー: gear from the age of maintenance (appended; ids are contract). ---
         ItemDef(
             "melee_torque_blade", "トルクブレード", ItemKind.MELEE_WEAPON, desc = "保守工具の軍事転用・重い一撃",

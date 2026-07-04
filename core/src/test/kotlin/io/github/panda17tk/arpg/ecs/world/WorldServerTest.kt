@@ -59,4 +59,19 @@ class WorldServerTest {
         val lines = (0L..40L).flatMap { id -> PlanetBiome.entries.map { MemoryCoreLog.lineFor(id, it) } }.toSet()
         assertTrue(lines.size > 5, "expected variety, got ${lines.size}")
     }
+
+    @Test fun `the revelation deepens with the star systems (v2_49)`() {
+        // System 1: routine logs. Systems 2-3: the network starts matching. 4+: it says it plainly.
+        val early = (0L..30L).map { MemoryCoreLog.lineFor(it, PlanetBiome.ICE, system = 1) }
+        val aware = (0L..30L).map { MemoryCoreLog.lineFor(it, PlanetBiome.ICE, system = 2) }
+        val reveal = (0L..30L).map { MemoryCoreLog.lineFor(it, PlanetBiome.ICE, system = 5) }
+        assertTrue(early.none { it.contains("最終保守員") }, "system 1 must not spoil the reveal")
+        assertTrue(aware.any { it.contains("照合") }, "systems 2-3 hint at the signature match")
+        assertTrue(reveal.any { it.contains("最終保守員") || it.contains("出力") }, "system 4+ states the truth")
+        // Deterministic at every stage.
+        assertEquals(
+            MemoryCoreLog.lineFor(7L, PlanetBiome.GAS, system = 5),
+            MemoryCoreLog.lineFor(7L, PlanetBiome.GAS, system = 5),
+        )
+    }
 }

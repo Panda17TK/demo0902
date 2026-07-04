@@ -429,7 +429,10 @@ class GameScreen : ScreenAdapter() {
                 if (hypot(cpx - core.first, cpy - core.second) < Tuning.TILE * 2f) {
                     gw.worldState.coreLogShown = true
                     gw.worldState.recentEvents.add(
-                        PlanetEvent(MemoryCoreLog.lineFor(session.landedPlanetId ?: 0L, gw.worldState.biome), EventKind.NEUTRAL),
+                        PlanetEvent(
+                            MemoryCoreLog.lineFor(session.landedPlanetId ?: 0L, gw.worldState.biome, session.spaceSeed.toInt()),
+                            EventKind.NEUTRAL,
+                        ),
                     )
                     Sfx.play("scan")
                 }
