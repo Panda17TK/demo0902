@@ -85,6 +85,12 @@ object InventoryLayout {
         return UiButton(b.x, b.y, b.w, 30f, "")
     }
 
+    /** EQUIP tab (v2.56): the button-layout editor entry strip, just above the control toggle. */
+    fun layoutEditToggle(hudW: Float, hudH: Float): UiButton {
+        val b = body(hudW, hudH)
+        return UiButton(b.x, b.y + 34f, b.w, 30f, "")
+    }
+
     /** MARKET tab (v2.43): one tappable row per stall slot, top-down, leaving a footer line. */
     fun marketRows(hudW: Float, hudH: Float, count: Int): List<UiButton> {
         val b = body(hudW, hudH)

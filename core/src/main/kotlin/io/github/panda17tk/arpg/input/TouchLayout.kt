@@ -16,6 +16,11 @@ enum class TouchButton { FIRE, MELEE, DASH, RELOAD, WALL, WEAPON, LAND, INV, FUL
  * from the screen edges, so no button clips or crowds on any aspect ratio.
  */
 class TouchLayout(var screenW: Float = 0f, var screenH: Float = 0f) {
+    /** v2.56: user overrides from the layout editor — fraction centres + size multipliers.
+     *  Applied on top of the default hub-and-arc geometry; positions clamp into the right
+     *  (non-stick) zone and onto the screen, so a saved layout can never strand a button. */
+    var tweaks: Map<TouchButton, ButtonTweak> = emptyMap()
+
     private val minDim get() = minOf(screenW, screenH)
     val stickRadius get() = minDim * 0.14f
     val stickCx get() = screenW * 0.20f
@@ -44,7 +49,7 @@ class TouchLayout(var screenW: Float = 0f, var screenH: Float = 0f) {
 
     fun all(): List<TouchButton> = order
 
-    fun centerX(b: TouchButton): Float = when (b) {
+    private fun baseCenterX(b: TouchButton): Float = when (b) {
         TouchButton.DASH -> hubX
         TouchButton.MELEE -> arcX(180f, orbit1)   // inner arc, thumb-nearest first
         TouchButton.WEAPON -> arcX(135f, orbit1)
@@ -56,7 +61,7 @@ class TouchLayout(var screenW: Float = 0f, var screenH: Float = 0f) {
         TouchButton.FIRE -> screenW * 0.62f // legacy id (fire lives on the aim stick)
     }
 
-    fun centerY(b: TouchButton): Float = when (b) {
+    private fun baseCenterY(b: TouchButton): Float = when (b) {
         TouchButton.DASH -> hubY
         TouchButton.MELEE -> arcY(180f, orbit1)
         TouchButton.WEAPON -> arcY(135f, orbit1)
@@ -71,10 +76,25 @@ class TouchLayout(var screenW: Float = 0f, var screenH: Float = 0f) {
     /** Left half of the screen is the movement-stick zone. */
     fun isInStickZone(x: Float, y: Float): Boolean = x < screenW * 0.45f
 
-    fun radiusOf(b: TouchButton): Float = when (b) {
+    private fun baseRadius(b: TouchButton): Float = when (b) {
         TouchButton.DASH -> dashRadius
         TouchButton.LAND -> buttonRadius * 1.8f // a big, obvious "land here" target (v2.34)
         else -> buttonRadius
+    }
+
+    fun radiusOf(b: TouchButton): Float = baseRadius(b) * (tweaks[b]?.scale ?: 1f)
+
+    fun centerX(b: TouchButton): Float {
+        val t = tweaks[b] ?: return baseCenterX(b)
+        val r = radiusOf(b)
+        // Stay tappable: inside the screen AND inside the right (non-stick) zone.
+        return (t.fx * screenW).coerceIn(maxOf(r, screenW * 0.46f + r), screenW - r)
+    }
+
+    fun centerY(b: TouchButton): Float {
+        val t = tweaks[b] ?: return baseCenterY(b)
+        val r = radiusOf(b)
+        return (t.fy * screenH).coerceIn(r, screenH - r)
     }
 
     fun button(x: Float, y: Float): TouchButton? {

@@ -42,7 +42,10 @@ import io.github.panda17tk.arpg.item.Loadout
 import io.github.panda17tk.arpg.item.Market
 import io.github.panda17tk.arpg.input.Haptics
 import io.github.panda17tk.arpg.input.InputState
+import io.github.panda17tk.arpg.input.ButtonTweak
 import io.github.panda17tk.arpg.input.KeyboardInput
+import io.github.panda17tk.arpg.input.LayoutTweaks
+import io.github.panda17tk.arpg.input.TouchButton
 import io.github.panda17tk.arpg.input.TouchControls
 import io.github.panda17tk.arpg.math.Rng
 import io.github.panda17tk.arpg.planet.PlanetBiome
@@ -112,6 +115,7 @@ private const val HINT_TOP = 138f          // v2.54: hint panels start below the
 private const val SETTINGS_PREFS = "drift-settings" // v2.39: device-level settings (not run state)
 private const val SETTINGS_SWAP = "controlSwap"
 private const val SETTINGS_ONBOARD = "onboardDone" // v2.47: the first-run walkthrough ran once
+private const val SETTINGS_LAYOUT = "buttonLayout" // v2.56: the layout editor's saved tweaks
 private const val SAVED_NOTE_TIME = 2f // seconds the 「セーブした」 flash stays on the SAVE tab
 
 /**
@@ -203,6 +207,11 @@ class GameScreen : ScreenAdapter() {
     private var controlSwap = false
     // v2.47: the very first run walks the basics once; completion persists across launches.
     private var onboardDone = true
+    // v2.56 ボタン配置エディタ: drag to move, toolbar to resize; saved as screen fractions.
+    private var layoutEditing = false
+    private var editTarget: TouchButton? = null
+    private var layoutDragging = false
+
     // v2.53 旧式戦闘訓練: the walled-off wave simulation. Entering snapshots the real run's
     // player (gear/materials/wave); exiting restores it — training gains stay in the training.
     private var simMode = false
@@ -251,6 +260,9 @@ class GameScreen : ScreenAdapter() {
         touchEnabled = Gdx.app.type == Application.ApplicationType.Android
         controlSwap = try { Gdx.app.getPreferences(SETTINGS_PREFS).getBoolean(SETTINGS_SWAP, false) } catch (_: Throwable) { false }
         onboardDone = try { Gdx.app.getPreferences(SETTINGS_PREFS).getBoolean(SETTINGS_ONBOARD, false) } catch (_: Throwable) { true }
+        touch.layout.tweaks = try {
+            LayoutTweaks.fromJson(Gdx.app.getPreferences(SETTINGS_PREFS).getString(SETTINGS_LAYOUT, ""))
+        } catch (_: Throwable) { emptyMap() }
         if (!tryRestoreRun()) newRun() // v2.33: a saved run resumes where it left off
     }
 
@@ -396,19 +408,20 @@ class GameScreen : ScreenAdapter() {
         KeyboardInput.poll(input)
         pollTap()
         if ((Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE) || Gdx.input.isKeyJustPressed(Input.Keys.P)) &&
-            !choosing && !gw.gameOver.isOver) overlay = PauseFlow.toggle(overlay)
-        handlePauseTaps()
+            !choosing && !gw.gameOver.isOver && !layoutEditing) overlay = PauseFlow.toggle(overlay)
+        if (layoutEditing) handleLayoutEdit() // v2.56: the editor swallows all input while open
+        if (!layoutEditing) handlePauseTaps()
 
-        pollGameplayTouch(overlay != Overlay.NONE || fade.blocksInput)
+        pollGameplayTouch(overlay != Overlay.NONE || fade.blocksInput || layoutEditing)
         // v2.33: the I key / INV button toggles the inventory. Unlike pause it does not freeze the
         // sim — the world crawls at INV_TIME_SCALE behind the panel (装備・持物・マップ・セーブ).
-        if (input.inventory && !choosing && !gw.gameOver.isOver &&
+        if (input.inventory && !choosing && !gw.gameOver.isOver && !layoutEditing &&
             (overlay == Overlay.NONE || overlay == Overlay.INVENTORY)
         ) {
             overlay = if (overlay == Overlay.INVENTORY) Overlay.NONE else Overlay.INVENTORY
             readingLore = null
         }
-        val paused = overlay != Overlay.NONE && overlay != Overlay.INVENTORY // sim-freezing overlays
+        val paused = (overlay != Overlay.NONE && overlay != Overlay.INVENTORY) || layoutEditing // sim-freezing overlays
         val simDelta = delta * if (overlay == Overlay.INVENTORY) INV_TIME_SCALE else 1f
         if (invNoteT > 0f) invNoteT -= delta
 
@@ -588,11 +601,20 @@ class GameScreen : ScreenAdapter() {
         // Surface event feed (LP v2.24): drawn whenever on a surface; aging freezes with the sim while paused.
         if (gw.worldState.mode == WorldMode.SURFACE) Hud.eventFeed(batch, font, hudViewport, gw.worldState.recentEvents)
 
-        if (touchEnabled && overlay == Overlay.NONE && !choosing && !gw.gameOver.isOver) {
+        if (layoutEditing) { // v2.56: the editor shows EVERY button, a halo on the selection, and its toolbar
+            val landLabel = if (gw.worldState.mode == WorldMode.SURFACE) "発進" else "着陸"
+            TouchOverlay.draw(shapes, batch, font, hudViewport, touch, landLabel, controlSwap, showAll = true, editTarget = editTarget)
+            Hud.buttonRow(shapes, batch, font, hudViewport, Modals.layoutEditButtons(hudW, hudH))
+            Hud.hintPanel(
+                shapes, batch, font, hudViewport,
+                listOf("ボタン配置エディタ", "ドラッグで移動　選択して[大きく/小さく]　[完了]で保存"),
+                hudH - HINT_TOP,
+            )
+        } else if (touchEnabled && overlay == Overlay.NONE && !choosing && !gw.gameOver.isOver) {
             val landLabel = if (gw.worldState.mode == WorldMode.SURFACE) "発進" else "着陸"
             TouchOverlay.draw(shapes, batch, font, hudViewport, touch, landLabel, controlSwap)
         }
-        if (overlay == Overlay.NONE && !choosing && !gw.gameOver.isOver) Hud.pauseButton(shapes, hudViewport, Modals.pauseButton(hudW, hudH))
+        if (overlay == Overlay.NONE && !choosing && !gw.gameOver.isOver && !layoutEditing) Hud.pauseButton(shapes, hudViewport, Modals.pauseButton(hudW, hudH))
         if (choosing) {
             val cfg = configStore.config.upgrades
             Hud.upgradeCards(
@@ -944,6 +966,11 @@ class GameScreen : ScreenAdapter() {
         if (InventoryLayout.closeButton(w, h).contains(tapX, tapY)) { overlay = Overlay.NONE; readingLore = null; return }
         when (invTab) {
             InvTab.EQUIP -> {
+                // v2.56: the layout-editor strip sits just above the control toggle.
+                if (InventoryLayout.layoutEditToggle(w, h).contains(tapX, tapY)) {
+                    layoutEditing = true; editTarget = null; overlay = Overlay.NONE; readingLore = null
+                    return
+                }
                 if (InventoryLayout.controlToggle(w, h).contains(tapX, tapY)) { toggleControlSwap(); return }
                 val row = Modals.hitModal(InventoryLayout.slotRows(w, h), tapX, tapY) ?: return
                 GearOps.cycleSlot(gw.world, gw.player, InventoryLayout.SLOT_ORDER[row])
@@ -992,6 +1019,56 @@ class GameScreen : ScreenAdapter() {
     }
 
     /** The inventory overlay's view model → Hud.inventory (v2.33). */
+    /** v2.56 ボタン配置エディタ: drag any button to move it; the toolbar resizes/resets/saves. */
+    private fun handleLayoutEdit() {
+        val w = hudViewport.worldWidth; val h = hudViewport.worldHeight
+        val toolbar = Modals.layoutEditButtons(w, h)
+        if (tapped) {
+            when (Modals.hitModal(toolbar, tapX, tapY)) {
+                0 -> editTarget?.let { nudgeScale(it, +0.1f) }
+                1 -> editTarget?.let { nudgeScale(it, -0.1f) }
+                2 -> { touch.layout.tweaks = emptyMap(); editTarget = null; saveLayoutTweaks() }
+                3 -> { saveLayoutTweaks(); layoutEditing = false; layoutDragging = false; return }
+                else -> {}
+            }
+        }
+        if (Gdx.input.isTouched(0)) {
+            tmpTap.set(Gdx.input.getX(0).toFloat(), Gdx.input.getY(0).toFloat(), 0f)
+            hudViewport.unproject(tmpTap)
+            val x = tmpTap.x; val y = tmpTap.y
+            if (!layoutDragging && Modals.hitModal(toolbar, x, y) == null) {
+                val l = touch.layout
+                val hit = l.all().firstOrNull { hypot(x - l.centerX(it), y - l.centerY(it)) <= l.radiusOf(it) + 8f }
+                if (hit != null) { layoutDragging = true; editTarget = hit }
+            }
+            if (layoutDragging) editTarget?.let { b ->
+                val cur = touch.layout.tweaks[b]
+                setTweak(b, x / w, y / h, cur?.scale ?: 1f)
+            }
+        } else {
+            layoutDragging = false
+        }
+    }
+
+    private fun nudgeScale(b: TouchButton, d: Float) {
+        val cur = touch.layout.tweaks[b]
+        val fx = cur?.fx ?: (touch.layout.centerX(b) / hudViewport.worldWidth)
+        val fy = cur?.fy ?: (touch.layout.centerY(b) / hudViewport.worldHeight)
+        setTweak(b, fx, fy, (cur?.scale ?: 1f) + d)
+    }
+
+    private fun setTweak(b: TouchButton, fx: Float, fy: Float, scale: Float) {
+        touch.layout.tweaks = touch.layout.tweaks + (b to LayoutTweaks.sanitize(ButtonTweak(fx, fy, scale)))
+    }
+
+    private fun saveLayoutTweaks() {
+        try {
+            val prefs = Gdx.app.getPreferences(SETTINGS_PREFS)
+            prefs.putString(SETTINGS_LAYOUT, LayoutTweaks.toJson(touch.layout.tweaks))
+            prefs.flush()
+        } catch (_: Throwable) { /* persist best-effort */ }
+    }
+
     private fun drawInventory() {
         val gear = with(gw.world) { gw.player[Gear] }
         val slotTexts = InventoryLayout.SLOT_ORDER.mapIndexed { i, slot ->
@@ -1021,6 +1098,7 @@ class GameScreen : ScreenAdapter() {
             controlLabel = "操作: " + (if (controlSwap) "銃=ボタン / 近接=右スティック" else "近接=ボタン / 銃=右スティック") + "　(タップで入替)",
             marketLines = marketLines, marketFooter = marketFooter,
             logLines = if (invTab == InvTab.LOG) logbookLines() else emptyList(),
+            layoutEditLabel = "ボタン配置を編集　(タップで開く)", // v2.56
         )
     }
 

@@ -52,6 +52,15 @@ object Modals {
             },
         )
 
+    /** v2.56 ボタン配置エディタ: [大きく][小さく][リセット][完了] in one row below the HUD band. */
+    fun layoutEditButtons(hudW: Float, hudH: Float): List<UiButton> {
+        val labels = listOf("大きく", "小さく", "リセット", "完了")
+        val gap = 8f
+        val bw = (hudW - 2f * MARGIN - gap * (labels.size - 1)) / labels.size
+        val y = hudH - 190f
+        return labels.mapIndexed { i, lab -> UiButton(MARGIN + i * (bw + gap), y, bw, 48f, lab) }
+    }
+
     /** LP v2.28: the 2-step confirmation for 「宇宙の記憶を消す」 — [消す][戻る], stacked and centered. */
     fun forgetButtons(hudW: Float, hudH: Float): List<UiButton> =
         stack(hudW, hudH, listOf("消す", "戻る"))
