@@ -188,6 +188,7 @@ object Hud {
         hp: Float, hpMax: Float, sta: Float, staMax: Float, overheat: Boolean,
         weaponName: String, mag: Int, magSize: Int?, reloadFrac: Float, reserveStr: String,
         timeSec: Float, kills: Int, blocks: Int, dust: Int = 0,
+        simMode: Boolean = false, // v2.53: the old-style combat simulation shows the old badge
     ) {
         val w = vp.worldWidth; val h = vp.worldHeight
         val l = HudLayout.of(w, h)
@@ -214,14 +215,17 @@ object Hud {
 
         batch.projectionMatrix = vp.camera.combined
         batch.begin()
-        // v2.50 同期汚染: the badge reads as sector degradation, not an arcade wave counter.
-        font.draw(batch, "同期汚染", l.wave.x + 8f, l.wave.y + l.wave.h - 8f)
+        // v2.50 同期汚染: the badge reads as sector degradation, not an arcade wave counter —
+        // except inside the v2.53 training simulation, which proudly keeps the old word.
+        font.draw(batch, if (simMode) "ウェーブ(旧式)" else "同期汚染", l.wave.x + 8f, l.wave.y + l.wave.h - 8f)
         glyph.setText(titleFont, "$waveNum")
         titleFont.draw(batch, glyph, l.wave.x + l.wave.w - glyph.width - 10f, l.wave.y + l.wave.h - 3f)
         glyph.setText(font, "残プロセス $foes")
         font.draw(batch, glyph, l.wave.centerX - glyph.width / 2f, l.wave.y - 2f)
-        glyph.setText(font, "宙域安定 ${DesyncGauge.stability(waveNum)}%")
-        font.draw(batch, glyph, l.wave.centerX - glyph.width / 2f, l.wave.y - 16f)
+        if (!simMode) {
+            glyph.setText(font, "宙域安定 ${DesyncGauge.stability(waveNum)}%")
+            font.draw(batch, glyph, l.wave.centerX - glyph.width / 2f, l.wave.y - 16f)
+        }
         // HP / stamina numbers overlaid right-aligned WITHIN their bars (kept inside the left zone)
         glyph.setText(font, "${hp.toInt()}/${hpMax.toInt()}")
         font.draw(batch, glyph, l.hp.x + l.hp.w - glyph.width - 3f, l.hp.y + l.hp.h - 1f)
