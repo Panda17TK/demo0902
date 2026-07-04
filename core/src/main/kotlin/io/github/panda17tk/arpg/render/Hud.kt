@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.g2d.GlyphLayout
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.utils.viewport.Viewport
+import io.github.panda17tk.arpg.sim.DesyncGauge
 import io.github.panda17tk.arpg.sim.EventKind
 import io.github.panda17tk.arpg.sim.Mark
 import io.github.panda17tk.arpg.sim.PlanetCardInfo
@@ -94,7 +95,7 @@ object Hud {
         batch.projectionMatrix = vp.camera.combined
         batch.begin()
         val top = cards.first()
-        centerText(batch, font, "ウェーブ $waveNum クリア！  強化を選択", w, top.y + top.h + 40f)
+        centerText(batch, font, "同期汚染 $waveNum を収束 — 保守パッチを選択", w, top.y + top.h + 40f)
         cards.forEachIndexed { i, c ->
             font.draw(batch, "${i + 1})  ${titles.getOrElse(i) { "" }}", c.x + 16f, c.y + c.h - 16f)
             font.draw(batch, descs.getOrElse(i) { "" }, c.x + 16f, c.y + 30f)
@@ -119,7 +120,7 @@ object Hud {
         batch.projectionMatrix = vp.camera.combined
         batch.begin()
         centerText(batch, titleFont, "ゲームオーバー", w, h / 2f + 96f)
-        centerText(batch, font, "ウェーブ $waveNum    撃破 $kills", w, h / 2f + 48f)
+        centerText(batch, font, "同期汚染 $waveNum    撃破 $kills", w, h / 2f + 48f)
         centerText(batch, font, bestText, w, h / 2f + 16f)
         centerLabel(batch, font, restart.label, restart.centerX, restart.centerY)
         font.color = cHint
@@ -213,12 +214,14 @@ object Hud {
 
         batch.projectionMatrix = vp.camera.combined
         batch.begin()
-        // wave badge: small label + big right-aligned number, "残り N" centered just below
-        font.draw(batch, "ウェーブ", l.wave.x + 8f, l.wave.y + l.wave.h - 8f)
+        // v2.50 同期汚染: the badge reads as sector degradation, not an arcade wave counter.
+        font.draw(batch, "同期汚染", l.wave.x + 8f, l.wave.y + l.wave.h - 8f)
         glyph.setText(titleFont, "$waveNum")
         titleFont.draw(batch, glyph, l.wave.x + l.wave.w - glyph.width - 10f, l.wave.y + l.wave.h - 3f)
-        glyph.setText(font, "残り $foes")
+        glyph.setText(font, "残プロセス $foes")
         font.draw(batch, glyph, l.wave.centerX - glyph.width / 2f, l.wave.y - 2f)
+        glyph.setText(font, "宙域安定 ${DesyncGauge.stability(waveNum)}%")
+        font.draw(batch, glyph, l.wave.centerX - glyph.width / 2f, l.wave.y - 16f)
         // HP / stamina numbers overlaid right-aligned WITHIN their bars (kept inside the left zone)
         glyph.setText(font, "${hp.toInt()}/${hpMax.toInt()}")
         font.draw(batch, glyph, l.hp.x + l.hp.w - glyph.width - 3f, l.hp.y + l.hp.h - 1f)

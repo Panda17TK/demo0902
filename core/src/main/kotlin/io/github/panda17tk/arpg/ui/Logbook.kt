@@ -9,6 +9,8 @@ object Logbook {
         system: Int, wave: Int, kills: Int, dust: Int, shards: Int,
         bestWave: Int, bestKills: Int,
         planetLines: List<String>,
+        epithet: String = "異邦人",
+        stability: Int = 100,
     ): List<String> {
         // v2.49 段階開示: the logbook's own header quietly tracks what the network now knows.
         val title = when {
@@ -16,11 +18,12 @@ object Logbook {
             system >= 2 -> "肩書 漂流者（署名照合中）"
             else -> "肩書 漂流者（未照合）"
         }
+        // v2.50 同期汚染: progression reads as sector state, not an arcade wave count.
         val head = listOf(
-            "第${system}星系　ウェーブ $wave",
-            title,
+            "第${system}星系　同期汚染 Lv.$wave　宙域安定 $stability%",
+            "$title　呼び名 『$epithet』",
             "今回の撃破 $kills　星屑 $dust　ゲート鍵 $shards",
-            "自己ベスト　ウェーブ $bestWave　撃破 $bestKills",
+            "自己ベスト　汚染深度 $bestWave　撃破 $bestKills",
             "",
             "── 星の記憶 ──",
         )

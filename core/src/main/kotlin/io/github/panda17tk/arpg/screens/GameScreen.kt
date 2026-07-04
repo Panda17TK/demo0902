@@ -60,7 +60,9 @@ import io.github.panda17tk.arpg.save.PreferencesRelicStore
 import io.github.panda17tk.arpg.save.PreferencesRunSaveStore
 import io.github.panda17tk.arpg.save.RunSaveDto
 import io.github.panda17tk.arpg.save.Scores
+import io.github.panda17tk.arpg.sim.DesyncGauge
 import io.github.panda17tk.arpg.sim.Drift
+import io.github.panda17tk.arpg.sim.Epithet
 import io.github.panda17tk.arpg.sim.EventKind
 import io.github.panda17tk.arpg.sim.MemoryCoreLog
 import io.github.panda17tk.arpg.sim.PlanetCardInfo
@@ -549,8 +551,8 @@ class GameScreen : ScreenAdapter() {
             )
         }
         if (gw.gameOver.isOver) {
-            val bestText = if (newBest) "自己ベスト更新！  ウェーブ ${Scores.bestWave}"
-                else "ベスト  ウェーブ ${Scores.bestWave}  撃破 ${Scores.bestKills}"
+            val bestText = if (newBest) "自己ベスト更新！  汚染深度 ${Scores.bestWave}"
+                else "ベスト  汚染深度 ${Scores.bestWave}  撃破 ${Scores.bestKills}"
             Hud.gameOver(
                 shapes, batch, font, Fonts.title, hudViewport,
                 gw.waveState.num, gw.gameOver.kills, bestText, Modals.gameOverButtons(hudW, hudH).first(),
@@ -986,6 +988,8 @@ class GameScreen : ScreenAdapter() {
         return Logbook.lines(
             session.spaceSeed.toInt(), gw.waveState.num, gw.gameOver.kills, dust, shards,
             Scores.bestWave, Scores.bestKills, planetLines,
+            epithet = Epithet.of(session.memory.memories.values),
+            stability = DesyncGauge.stability(gw.waveState.num),
         )
     }
 
