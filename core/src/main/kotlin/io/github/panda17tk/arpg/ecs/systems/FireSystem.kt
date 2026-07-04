@@ -115,7 +115,9 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
                 // radius-2 blast crater at the impact point (clears walls + damages mobs), punching a hole in cover.
                 if (hit.hitWall) {
                     val bx = (hit.wallTileX + 0.5f) * Tuning.TILE; val by = (hit.wallTileY + 0.5f) * Tuning.TILE
-                    val r = Tuning.TILE * BEAM_BLAST_TILES * gradeBlast // v2.37: high-output beams crater wider
+                    // v2.37/40: high-output beams crater wider — and a charged shot's impact blast
+                    // grows with the ray (up to 2× radius and damage at full charge).
+                    val r = Tuning.TILE * BEAM_BLAST_TILES * gradeBlast * (1f + charge)
                     val broke = Explosion.blastWalls(map, bx, by, r)
                     mobGrid.forNearby(bx, by, r + 24f) { mobEntity ->
                         val mobT = with(world) { mobEntity[Transform] }
@@ -127,7 +129,7 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
                             val mobA = with(world) { mobEntity[MobAction] }
                             val mobDodge = with(world) { mobEntity[Mob].def.dodge }
                             val nx = if (d > 0f) ddx / d else dirX; val ny = if (d > 0f) ddy / d else dirY
-                            MobDamage.hurt(mobH, mobV, mobA, mobDodge, BEAM_BLAST_DMG * fall, nx, ny, 240f * fall, rng.nextFloat())
+                            MobDamage.hurt(mobH, mobV, mobA, mobDodge, BEAM_BLAST_DMG * chargeDmg * fall, nx, ny, 240f * fall, rng.nextFloat())
                         }
                     }
                     if (broke) flow.rebuild(map, floor(t.x / Tuning.TILE).toInt(), floor(t.y / Tuning.TILE).toInt(), FlowRebuildSystem.MAX_DIST)
@@ -145,12 +147,16 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
             else -> {
                 if (w.mag <= 0) return
                 w.mag--; cd.shoot = def.fireRate * mods.fireMul * gradeFireRate
-                val angles = Firing.bulletAngles(aim, def.spread, def.pellets, rng)
+                // v2.40 variants: the equipped gun shapes the ballistics — spread, muzzle velocity, homing.
+                val spread = def.spread * (gradeItem?.spreadMul ?: 1f)
+                val bulletSpeed = config.player.bulletSpeed * (gradeItem?.bulletSpeedMul ?: 1f)
+                val homing = gradeItem?.homing ?: 0f
+                val angles = Firing.bulletAngles(aim, spread, def.pellets, rng)
                 for (a in angles) {
-                    val vx = cos(a) * config.player.bulletSpeed; val vy = sin(a) * config.player.bulletSpeed
+                    val vx = cos(a) * bulletSpeed; val vy = sin(a) * bulletSpeed
                     world.entity {
                         it += Transform(x = t.x + cos(a) * Tuning.MUZZLE_OFFSET, y = t.y + sin(a) * Tuning.MUZZLE_OFFSET)
-                        it += Bullet(vx, vy, config.player.bulletLife, def.dmg * mods.gunMul * gearGun, wallMul = gradeWall)
+                        it += Bullet(vx, vy, config.player.bulletLife, def.dmg * mods.gunMul * gearGun, wallMul = gradeWall, homing = homing)
                     }
                 }
             }

@@ -4,7 +4,7 @@ import com.github.quillraven.fleks.Component
 import com.github.quillraven.fleks.ComponentType
 
 /** Player bullet: velocity, remaining life (s), damage. (Mob hits wire in Phase 5.) */
-class Bullet(var vx: Float, var vy: Float, var life: Float, var dmg: Float, val wallMul: Float = 1f) : Component<Bullet> {
+class Bullet(var vx: Float, var vy: Float, var life: Float, var dmg: Float, val wallMul: Float = 1f, val homing: Float = 0f) : Component<Bullet> {
     override fun type() = Bullet
     companion object : ComponentType<Bullet>()
 }

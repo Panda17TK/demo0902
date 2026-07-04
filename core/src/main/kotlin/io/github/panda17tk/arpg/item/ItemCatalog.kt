@@ -47,6 +47,16 @@ object ItemCatalog {
         ItemDef("gun_smg_2", "サブマシンガン改", ItemKind.RANGED_WEAPON, desc = "種類:SMG　威力+20% 装填-25%", weaponType = "smg", gunMul = 1.2f, reloadMul = 0.75f),
         ItemDef("gun_rifle", "ライフル", ItemKind.RANGED_WEAPON, desc = "種類:ライフル　単発高威力・高精度", weaponType = "rifle"),
         ItemDef("gun_rifle_2", "マークスマンライフル", ItemKind.RANGED_WEAPON, desc = "種類:ライフル　威力+35% 装填-20%", weaponType = "rifle", gunMul = 1.35f, reloadMul = 0.8f),
+        // 弾道バリアント (v2.40): 同じ種類でも連射・拡散・弾速・追尾・威力が別物 — 敵と壁の奥から拾い集める
+        ItemDef("gun_pistol_rapid", "速射ピストル", ItemKind.RANGED_WEAPON, desc = "種類:ピストル　連射+67% 威力-15%", weaponType = "pistol", fireRateMul = 0.6f, gunMul = 0.85f),
+        ItemDef("gun_pistol_heavy", "大口径ピストル", ItemKind.RANGED_WEAPON, desc = "種類:ピストル　威力+80% 弾速+20% 連射は重い", weaponType = "pistol", gunMul = 1.8f, fireRateMul = 1.4f, bulletSpeedMul = 1.2f),
+        ItemDef("gun_pistol_seeker", "誘導ピストル", ItemKind.RANGED_WEAPON, desc = "種類:ピストル　弾が敵を追尾する", weaponType = "pistol", homing = 3f, gunMul = 0.9f),
+        ItemDef("gun_mg_storm", "ストームマシンガン", ItemKind.RANGED_WEAPON, desc = "種類:マシンガン　連射+82% 拡散1.8倍 弾幕向き", weaponType = "mg", fireRateMul = 0.55f, spreadMul = 1.8f, gunMul = 0.9f),
+        ItemDef("gun_mg_precise", "精密マシンガン", ItemKind.RANGED_WEAPON, desc = "種類:マシンガン　拡散1/3 弾速+30% 威力+15%", weaponType = "mg", spreadMul = 0.3f, bulletSpeedMul = 1.3f, gunMul = 1.15f),
+        ItemDef("gun_shotgun_wide", "ワイドショットガン", ItemKind.RANGED_WEAPON, desc = "種類:ショットガン　拡散1.7倍の面制圧", weaponType = "shotgun", spreadMul = 1.7f, gunMul = 0.9f),
+        ItemDef("gun_shotgun_slug", "スラッグショットガン", ItemKind.RANGED_WEAPON, desc = "種類:ショットガン　集弾スラッグ 威力+50% 弾速+40%", weaponType = "shotgun", spreadMul = 0.15f, gunMul = 1.5f, bulletSpeedMul = 1.4f),
+        ItemDef("gun_smg_seeker", "誘導SMG", ItemKind.RANGED_WEAPON, desc = "種類:SMG　弾が敵を追尾する 威力-10%", weaponType = "smg", homing = 2.5f, gunMul = 0.9f),
+        ItemDef("gun_rifle_rail", "レールライフル", ItemKind.RANGED_WEAPON, desc = "種類:ライフル　弾速2倍 威力+60% ブロック破壊1.5倍", weaponType = "rifle", bulletSpeedMul = 2f, gunMul = 1.6f, reloadMul = 1.2f, wallDmgMul = 1.5f),
         // --- 近距離武器 (melee) ---
         ItemDef("melee_knife", "コンバットナイフ", ItemKind.MELEE_WEAPON, desc = "素早い標準ナイフ"),
         ItemDef("melee_blade", "プラズマブレード", ItemKind.MELEE_WEAPON, desc = "近接ダメージ +30%", meleeDmgMul = 1.3f),
@@ -228,6 +238,11 @@ object ItemCatalog {
         }
         return pool[r % pool.size]
     }
+
+    private val guns = ALL.filter { it.kind == ItemKind.RANGED_WEAPON }
+
+    /** v2.40: a deterministic GUN pick — the deep-wall caches yield weapons, nothing else. */
+    fun gunFor(roll: Int): ItemDef = guns[((roll % guns.size) + guns.size) % guns.size]
 
     /** The backpack grouped for display: one row per distinct item (first-encounter order) with its count. */
     fun grouped(backpack: List<ItemDef>): List<Pair<ItemDef, Int>> =

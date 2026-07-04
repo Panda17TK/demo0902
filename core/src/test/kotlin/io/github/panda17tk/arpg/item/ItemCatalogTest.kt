@@ -80,6 +80,22 @@ class ItemCatalogTest {
         }
     }
 
+    @Test fun `ballistic variants exist and their tweaks live only on guns`() {
+        assertTrue(ItemCatalog.byId("gun_pistol_seeker")!!.homing > 0f)
+        assertTrue(ItemCatalog.byId("gun_shotgun_wide")!!.spreadMul > 1f)
+        assertTrue(ItemCatalog.byId("gun_rifle_rail")!!.bulletSpeedMul >= 2f)
+        assertTrue(ItemCatalog.ALL.count { it.kind == ItemKind.RANGED_WEAPON } >= 20) // 拾い集める価値のある数
+        for (i in ItemCatalog.ALL.filter { it.kind != ItemKind.RANGED_WEAPON }) {
+            assertTrue(i.spreadMul == 1f && i.bulletSpeedMul == 1f && i.homing == 0f, i.id)
+        }
+    }
+
+    @Test fun `gunFor picks a gun for any roll`() {
+        for (roll in listOf(0, 7, 999, -3, Int.MAX_VALUE)) {
+            assertEquals(ItemKind.RANGED_WEAPON, ItemCatalog.gunFor(roll).kind)
+        }
+    }
+
     @Test fun `grouped folds duplicates in first-encounter order`() {
         val boots = ItemCatalog.byId("acc_boots")!!
         val spray = ItemCatalog.byId("med_spray")!!
