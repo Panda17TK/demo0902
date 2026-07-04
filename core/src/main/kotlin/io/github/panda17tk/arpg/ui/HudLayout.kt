@@ -24,27 +24,28 @@ data class HudLayout(
         const val GAP = 8f
         const val ICON_W = 22f
 
-        fun of(hudW: Float, hudH: Float): HudLayout {
-            // Top row: centered wave badge.
-            val waveW = min(160f, hudW * 0.5f)
-            val waveY = hudH - PAD - WAVE_H
-            val wave = UiButton((hudW - waveW) / 2f, waveY, waveW, WAVE_H, "WAVE")
+        const val STRIP_H = 26f
 
-            // Second band (below the wave row): HP + stamina stacked on the left.
-            val hpY = waveY - GAP - BAR_H
+        fun of(hudW: Float, hudH: Float): HudLayout {
+            // v2.55 modern band: ONE slim full-width status strip up top (同期汚染/残プロセス/
+            // 宙域安定 all inside it — nothing dangles below to collide with the bars), clear of
+            // the top-right ⏸ button. Then bars left / weapon right in clean columns, stats last.
+            val stripW = hudW - 2f * PAD - 56f // the top-right corner belongs to the pause button
+            val wave = UiButton(PAD, hudH - PAD - STRIP_H, stripW, STRIP_H, "STATUS")
+
+            val hpY = wave.y - GAP - BAR_H
             val staY = hpY - GAP - BAR_H
-            val barW = min(150f, hudW * 0.30f) // narrow → numbers overlay inside, clear of the centre
+            val barW = (hudW - 2f * PAD) * 0.40f
             val hp = UiButton(PAD + ICON_W, hpY, barW, BAR_H, "HP")
             val stamina = UiButton(PAD + ICON_W, staY, barW, BAR_H, "ST")
 
-            // Weapon/ammo panel on the right, spanning the two bar rows, below the ⏸ button.
-            val ammoW = min(150f, hudW * 0.34f)
-            val ammoH = 2f * BAR_H + GAP
-            val ammo = UiButton(hudW - PAD - ammoW, staY, ammoW, ammoH, "")
+            // Weapon/ammo panel fills the right column of the two bar rows; its right edge stops
+            // short of the pause button's column so the regions can never collide.
+            val ammoX = PAD + ICON_W + barW + 16f
+            val ammo = UiButton(ammoX, staY, (hudW - 62f) - ammoX, 2f * BAR_H + GAP, "")
 
-            // Secondary stats (time/kills/materials) — lowest priority, below the stamina row.
-            val statsW = min(hudW - 2f * PAD, hudW * 0.6f)
-            val stats = UiButton(PAD, staY - GAP - 16f, statsW, 16f, "")
+            // Secondary stats (time/kills/materials/dust) — full width, auto-fitted at draw time.
+            val stats = UiButton(PAD, staY - GAP - 16f, hudW - 2f * PAD, 16f, "")
 
             return HudLayout(wave, hp, stamina, ammo, stats)
         }

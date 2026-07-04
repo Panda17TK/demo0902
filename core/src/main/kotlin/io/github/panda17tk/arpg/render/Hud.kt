@@ -220,6 +220,16 @@ object Hud {
         batch.end()
     }
 
+    /** v2.55: draw [text] with its left edge at (x, baselineY), auto-shrunk to fit [maxW]. */
+    private fun fitText(batch: SpriteBatch, font: BitmapFont, text: String, x: Float, baselineY: Float, maxW: Float) {
+        val bx = font.data.scaleX; val by = font.data.scaleY
+        glyph.setText(font, text)
+        val fit = min(1f, maxW / glyph.width.coerceAtLeast(1f))
+        if (fit < 1f) { font.data.setScale(bx * fit, by * fit); glyph.setText(font, text) }
+        font.draw(batch, glyph, x, baselineY)
+        if (fit < 1f) font.data.setScale(bx, by)
+    }
+
     fun liveHud(
         shapes: ShapeRenderer, batch: SpriteBatch, font: BitmapFont, titleFont: BitmapFont, vp: Viewport,
         waveNum: Int, foes: Int,
@@ -255,17 +265,11 @@ object Hud {
 
         batch.projectionMatrix = vp.camera.combined
         batch.begin()
-        // v2.50 同期汚染: the badge reads as sector degradation, not an arcade wave counter —
-        // except inside the v2.53 training simulation, which proudly keeps the old word.
-        font.draw(batch, if (simMode) "ウェーブ(旧式)" else "同期汚染", l.wave.x + 8f, l.wave.y + l.wave.h - 8f)
-        glyph.setText(titleFont, "$waveNum")
-        titleFont.draw(batch, glyph, l.wave.x + l.wave.w - glyph.width - 10f, l.wave.y + l.wave.h - 3f)
-        glyph.setText(font, "残プロセス $foes")
-        font.draw(batch, glyph, l.wave.centerX - glyph.width / 2f, l.wave.y - 2f)
-        if (!simMode) {
-            glyph.setText(font, "宙域安定 ${DesyncGauge.stability(waveNum)}%")
-            font.draw(batch, glyph, l.wave.centerX - glyph.width / 2f, l.wave.y - 16f)
-        }
+        // v2.55: the whole sector status lives INSIDE the slim top strip — one auto-fitted line,
+        // nothing dangling below it to collide with the bars (the old badge did exactly that).
+        val strip = if (simMode) "ウェーブ(旧式) $waveNum　残り $foes"
+            else "同期汚染 $waveNum　残プロセス $foes　宙域安定 ${DesyncGauge.stability(waveNum)}%"
+        fitText(batch, font, strip, l.wave.x + 8f, l.wave.y + l.wave.h - 6f, l.wave.w - 16f)
         // HP / stamina numbers overlaid right-aligned WITHIN their bars (kept inside the left zone)
         glyph.setText(font, "${hp.toInt()}/${hpMax.toInt()}")
         font.draw(batch, glyph, l.hp.x + l.hp.w - glyph.width - 3f, l.hp.y + l.hp.h - 1f)
@@ -273,16 +277,17 @@ object Hud {
             glyph.setText(font, "過熱!")
             font.draw(batch, glyph, l.stamina.x + l.stamina.w - glyph.width - 3f, l.stamina.y + l.stamina.h - 1f)
         }
-        // weapon panel (right zone): name + big mag, reserve / reloading below — right-aligned, compact
-        font.draw(batch, weaponName, l.ammo.x + 30f, l.ammo.y + l.ammo.h - 4f)
+        // weapon panel (right column): mag right-aligned, the name auto-fits the space that's left.
         val magStr = magSize?.let { "$mag/$it" } ?: "INF"
         glyph.setText(font, magStr)
-        font.draw(batch, glyph, l.ammo.x + l.ammo.w - glyph.width - 6f, l.ammo.y + l.ammo.h - 4f)
+        val magW = glyph.width
+        font.draw(batch, glyph, l.ammo.x + l.ammo.w - magW - 6f, l.ammo.y + l.ammo.h - 4f)
+        fitText(batch, font, weaponName, l.ammo.x + 28f, l.ammo.y + l.ammo.h - 4f, l.ammo.w - 28f - magW - 12f)
         glyph.setText(font, if (reloadFrac > 0f) "装填中" else "予備 $reserveStr")
         font.draw(batch, glyph, l.ammo.x + l.ammo.w - glyph.width - 6f, l.ammo.y + 14f)
-        // secondary stats (lowest priority)
+        // secondary stats — full width, auto-fitted (v2.55: no more spill on narrow phones)
         val mins = (timeSec / 60f).toInt(); val secs = (timeSec % 60f).toInt()
-        font.draw(batch, "時間 %d:%02d  撃破 %d  資材 %d  星屑 %d".format(mins, secs, kills, blocks, dust), l.stats.x, l.stats.y + l.stats.h)
+        fitText(batch, font, "時間 %d:%02d  撃破 %d  資材 %d  星屑 %d".format(mins, secs, kills, blocks, dust), l.stats.x, l.stats.y + l.stats.h, l.stats.w)
         batch.end()
     }
 
