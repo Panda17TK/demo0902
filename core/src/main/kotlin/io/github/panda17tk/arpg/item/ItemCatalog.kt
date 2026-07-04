@@ -66,6 +66,7 @@ object ItemCatalog {
         ItemDef("melee_cleaver", "大鉈", ItemKind.MELEE_WEAPON, desc = "振りが大きい　攻撃範囲1.5倍 近接 +20%", meleeDmgMul = 1.2f, meleeArcMul = 1.5f),
         ItemDef("melee_halberd", "ハルバード", ItemKind.MELEE_WEAPON, desc = "広く長い　範囲1.3倍 リーチ +30% 近接 +15%", meleeDmgMul = 1.15f, meleeReachMul = 1.3f, meleeArcMul = 1.3f),
         ItemDef("melee_resonant", "振動ブレード", ItemKind.MELEE_WEAPON, desc = "斬撃が波になって飛ぶ　近接 +10%", meleeDmgMul = 1.1f, meleeWave = true),
+        ItemDef("melee_hammer", "破砕ハンマー", ItemKind.MELEE_WEAPON, desc = "狭く重い一撃　近接 +60% 範囲は狭め", meleeDmgMul = 1.6f, meleeArcMul = 0.85f, meleeReachMul = 1.1f),
         // --- 装飾品 (accessories ×3 slots) ---
         ItemDef("acc_boots", "ランナーブーツ", ItemKind.ACCESSORY, desc = "移動速度 +10%", moveMul = 1.1f),
         ItemDef("acc_charm", "代謝促進バンド", ItemKind.ACCESSORY, desc = "スタミナ回復 +30%", staRegenMul = 1.3f),
@@ -82,6 +83,9 @@ object ItemCatalog {
         ItemDef("acc_repair", "自己修復パッチ", ItemKind.ACCESSORY, desc = "HPを毎秒 1.5 回復", hpRegen = 1.5f),
         ItemDef("acc_gyro", "ジャイロスタビライザー", ItemKind.ACCESSORY, desc = "激突ダメージ無効", traits = setOf(ItemTrait.CRASH_PROOF)),
         ItemDef("acc_grip", "反動制御グリップ", ItemKind.ACCESSORY, desc = "銃 +6% 近接 +3%", gunMul = 1.06f, meleeDmgMul = 1.03f),
+        ItemDef("acc_underlay", "装甲下地", ItemKind.ACCESSORY, desc = "被ダメ -7% HP毎秒0.5回復", damageMul = 0.93f, hpRegen = 0.5f),
+        ItemDef("acc_lightframe", "軽合金フレーム", ItemKind.ACCESSORY, desc = "移動 +12%　代わりに被ダメ +5%", moveMul = 1.12f, damageMul = 1.05f),
+        ItemDef("acc_lens", "集束レンズ", ItemKind.ACCESSORY, desc = "銃 +12%　少し重い(移動 -3%)", gunMul = 1.12f, moveMul = 0.97f),
         // --- 消費アイテム (consumables — used from the ITEMS tab, v2.34) ---
         ItemDef("med_spray", "応急スプレー", ItemKind.CONSUMABLE, desc = "HP 25 回復", consume = ConsumeKind.HEAL, power = 25f),
         ItemDef("med_kit", "野戦メディキット", ItemKind.CONSUMABLE, desc = "HP 60 回復", consume = ConsumeKind.HEAL, power = 60f),
@@ -93,6 +97,12 @@ object ItemCatalog {
         ItemDef("smoke_bomb", "煙幕弾", ItemKind.CONSUMABLE, desc = "足元に煙幕を張る", consume = ConsumeKind.SMOKE, power = 5f),
         ItemDef("repair_pack", "携行資材パック", ItemKind.CONSUMABLE, desc = "壁材 +3", consume = ConsumeKind.BLOCKS, power = 3f),
         ItemDef("ammo_cache", "弾薬コンテナ", ItemKind.CONSUMABLE, desc = "全弾薬 +20", consume = ConsumeKind.AMMO_ALL, power = 20f),
+        ItemDef("med_gel", "高密度メディゲル", ItemKind.CONSUMABLE, desc = "HP 200 回復", consume = ConsumeKind.HEAL, power = 200f),
+        ItemDef("stim_combat", "戦闘刺激剤", ItemKind.CONSUMABLE, desc = "15秒間ダッシュ強化", consume = ConsumeKind.DASH_UP, power = 15f),
+        ItemDef("sta_conc", "濃縮スタミナ剤", ItemKind.CONSUMABLE, desc = "10秒間スタミナ消費なし", consume = ConsumeKind.STAMINA_INF, power = 10f),
+        ItemDef("repair_crate", "資材クレート", ItemKind.CONSUMABLE, desc = "壁材 +8", consume = ConsumeKind.BLOCKS, power = 8f),
+        ItemDef("ammo_case_l", "大型弾薬ケース", ItemKind.CONSUMABLE, desc = "全弾薬 +50", consume = ConsumeKind.AMMO_ALL, power = 50f),
+        ItemDef("coat_heat_long", "長時間耐熱コーティング", ItemKind.CONSUMABLE, desc = "180秒間マグマダメージ無効", consume = ConsumeKind.HEAT_PROOF, power = 180f),
         ItemDef("coat_heat", "耐熱コーティング", ItemKind.CONSUMABLE, desc = "60秒間マグマダメージ無効", consume = ConsumeKind.HEAT_PROOF, power = 60f),
         ItemDef("coat_cold", "防寒コーティング", ItemKind.CONSUMABLE, desc = "60秒間 雪の減速と氷の滑りを無効", consume = ConsumeKind.COLD_PROOF, power = 60f),
         ItemDef("field_magnet", "携行磁石", ItemKind.CONSUMABLE, desc = "45秒間ドロップ品を引き寄せる", consume = ConsumeKind.MAGNET, power = 45f),
@@ -189,6 +199,22 @@ object ItemCatalog {
                 "賞金: 星系通貨で山ひとつ。\n" +
                 "\n" +
                 "余白の落書き:『星は忘れないぞ。おまえが誰でも。』",
+        ),
+        ItemDef(
+            "lore_drifter_log", "漂流者の通信記録", ItemKind.LORE, desc = "途切れ途切れの受信ログ",
+            lore = "…応答なし。三十七日目。\n" +
+                "燃料はある。行き先がない。\n" +
+                "こちらの姿を見て逃げる船があった。無理もない、\n" +
+                "漂っているだけの相手ほど不気味なものはない。\n" +
+                "…もし誰かがこれを拾ったら。撃つ前に、一度だけ灯りを点滅させてほしい。",
+        ),
+        ItemDef(
+            "lore_crystal_note", "結晶の観測ノート", ItemKind.LORE, desc = "几帳面な字で書かれている",
+            lore = "観測 14 日目。結晶は音に反応する。正確には——音を「覚える」。\n" +
+                "叩けば、昨日叩いた音が返ってくることがある。\n" +
+                "この宙域の岩に結晶が多いのは、つまり、\n" +
+                "ここでかつて多くの音がしたということだ。\n" +
+                "戦の音でなければよいが。",
         ),
         ItemDef(
             "lore_recipe", "『星の粥』のレシピ", ItemKind.LORE, desc = "油染みたメモ",
