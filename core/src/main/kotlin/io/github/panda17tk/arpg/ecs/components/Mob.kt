@@ -21,6 +21,8 @@ class Mob(
     // v2.36: space drifters coast through the void from world creation. They fight like anyone else
     // but never count toward wave completion / live caps (a far-off drifter can't stall a wave).
     val drifter: Boolean = false,
+    // v2.45 賞金首: a named bounty head bursts into this much dust when it falls (0 = not a bounty).
+    var bountyDust: Int = 0,
     // Wildlife runtime (WildlifeSystem / WildPredationSystem only; ignored by hostile/sapient mobs).
     var wildState: WildState = WildState.Wander,
     var hunger: Float = 0f,   // 0..1, climbs over time; a predator hunts when high, drops while feeding

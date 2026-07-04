@@ -12,9 +12,12 @@ import io.github.panda17tk.arpg.ecs.components.Mob
 import io.github.panda17tk.arpg.ecs.components.Mods
 import io.github.panda17tk.arpg.ecs.components.PlayerTag
 import io.github.panda17tk.arpg.ecs.components.Transform
+import io.github.panda17tk.arpg.ecs.components.WaveState
 import io.github.panda17tk.arpg.ecs.world.Pickups
 import io.github.panda17tk.arpg.math.Rng
 import io.github.panda17tk.arpg.pathfinding.SpatialGrid
+import io.github.panda17tk.arpg.sim.WaveEvent
+import io.github.panda17tk.arpg.sim.WaveEvents
 import io.github.panda17tk.arpg.sim.WorldState
 
 /** Rebuilds the mob spatial grid each tick and reaps dead mobs (kills++, lifesteal heal). */
@@ -25,6 +28,7 @@ class MobDamageSystem(private val grid: SpatialGrid<Entity>) :
     private val fx: Fx = world.inject()
     private val rng: Rng = world.inject()
     private val worldState: WorldState = world.inject()
+    private val waveState: WaveState = world.inject()
     private val players by lazy { world.family { all(PlayerTag, Health, Mods) } }
 
     override fun onTick() {
@@ -39,14 +43,24 @@ class MobDamageSystem(private val grid: SpatialGrid<Entity>) :
             // A wild animal's death is part of the ecosystem, not the player's score — no kill count,
             // no lifesteal, no loot farm (a wolf eating a deer must not tick the player's tally).
             val wild = mob.def.lifeKind == LifeKind.WILDLIFE
+            val big = mob.tier != "normal"
             if (!wild) {
                 gameOver.kills++
                 healOnKill()
+                // v2.45 星の依頼: the visit's tallies quests are paid from at takeoff.
+                worldState.questKills++
+                if (big) worldState.questElites++
             }
-            val big = mob.tier != "normal"
             fx.spawnDeath(t.x, t.y, Color.valueOf(mob.def.color.removePrefix("#")), big)
             fx.addShake(if (big) 0.25f else 0.08f, if (big) 9f else 3.5f)
-            if (!wild) Pickups.dropOnKill(world, rng, t.x, t.y, big, worldState.spawnTweaks.bonusMaterialChance)
+            // v2.45: a magnetic-storm wave shakes double dust from every kill.
+            val dustMul = if (waveState.event == WaveEvent.STORM) WaveEvents.STORM_DUST_MUL else 1
+            if (!wild) Pickups.dropOnKill(world, rng, t.x, t.y, big, worldState.spawnTweaks.bonusMaterialChance, dustMul)
+            // v2.45 賞金首: a bounty head bursts into its dust pile, and the HUD says so.
+            if (mob.bountyDust > 0) {
+                Pickups.spawn(world, "dust", mob.bountyDust, t.x, t.y - 8f)
+                waveState.announce = "賞金首を討ち取った（+${mob.bountyDust}屑）"
+            }
             // A planet's king/elite drops a biome material (a core/relic) that grants the player a small boon.
             val biome = mob.def.biome
             if (biome != null && big) Pickups.spawn(world, "mat_" + biome.name.lowercase(), 1, t.x, t.y)
