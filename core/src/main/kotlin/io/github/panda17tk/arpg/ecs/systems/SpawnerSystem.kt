@@ -14,6 +14,8 @@ import io.github.panda17tk.arpg.map.TileMap
 import io.github.panda17tk.arpg.math.Rng
 import io.github.panda17tk.arpg.sim.Tribes
 import io.github.panda17tk.arpg.sim.Tuning
+import io.github.panda17tk.arpg.sim.WaveEvent
+import io.github.panda17tk.arpg.sim.WaveEvents
 import io.github.panda17tk.arpg.sim.WorldMode
 import io.github.panda17tk.arpg.sim.WorldState
 import kotlin.math.cos
@@ -77,11 +79,37 @@ class SpawnerSystem : IteratingSystem(family { all(PlayerTag, Transform) }) {
         wave.phase = "active"
         wave.toSpawn = minOf(c.maxQuota, c.baseQuota + (n - 1) * c.quotaPerWave)
         wave.spawnCd = 0.4f
-        // Boss waves: a boss every bossEvery, else a midboss every midBossEvery (legacy spawner).
-        when {
-            c.bossEvery > 0 && n % c.bossEvery == 0 -> spawnBoss(pt, n, bossKeys)
-            c.midBossEvery > 0 && n % c.midBossEvery == 0 -> spawnBoss(pt, n, midBossKeys)
+        // v2.45 イベントウェーブ: the wave's flavor is fixed by its number (learnable rhythm).
+        wave.event = WaveEvents.eventFor(n)
+        if (wave.event == WaveEvent.HORDE) {
+            wave.toSpawn = (wave.toSpawn * WaveEvents.HORDE_QUOTA_MUL).toInt()
         }
+        var bountyName: String? = null
+        if (wave.event == WaveEvent.BOUNTY) bountyName = spawnBounty(pt, n)
+        // Boss waves: a boss every bossEvery, else a midboss every midBossEvery (legacy spawner).
+        val bossLine = when {
+            c.bossEvery > 0 && n % c.bossEvery == 0 -> { spawnBoss(pt, n, bossKeys); "⚠ 強大な気配が近づく" }
+            c.midBossEvery > 0 && n % c.midBossEvery == 0 -> { spawnBoss(pt, n, midBossKeys); "強敵の気配" }
+            else -> null
+        }
+        // One toast line for the screen to pick up: the boss telegraph and/or the event flavor.
+        wave.announce = listOfNotNull(bossLine, WaveEvents.announceFor(wave.event, bountyName))
+            .joinToString("　").ifEmpty { null }
+    }
+
+    /** v2.45 賞金首: one named, leveled-up midboss whose fall bursts into a dust pile. */
+    private fun spawnBounty(pt: Transform, n: Int): String? {
+        if (midBossKeys.isEmpty()) return null
+        val tile = pickTile(pt) ?: return null
+        val def = config.enemies[midBossKeys[rng.nextInt(midBossKeys.size)]] ?: return null
+        val name = WaveEvents.bountyName(rng)
+        val e = MobFactory.spawn(world, def, tile.first, tile.second, n, config.waves.hpScalePerWave, config.waves.speedScalePerWave, tribe = tribes.tribeOf(tile.first, tile.second))
+        with(world) {
+            val m = e[Mob]
+            m.level = 7 // a bounty head outclasses an ordinary midboss (5) but not a boss (10)
+            m.bountyDust = WaveEvents.bountyReward(n)
+        }
+        return name
     }
 
     private fun spawnBoss(pt: Transform, n: Int, keys: List<String>) {
@@ -92,7 +120,10 @@ class SpawnerSystem : IteratingSystem(family { all(PlayerTag, Transform) }) {
     }
 
     private fun liveCap(n: Int, c: WaveConfig): Int = minOf(c.maxLiveCap, c.liveCapBase + n * c.liveCapPerWave)
-    private fun spawnInterval(n: Int, c: WaveConfig): Float = maxOf(c.minSpawnInterval, c.spawnIntervalBase - n * c.spawnIntervalPerWave)
+    private fun spawnInterval(n: Int, c: WaveConfig): Float {
+        val base = maxOf(c.minSpawnInterval, c.spawnIntervalBase - n * c.spawnIntervalPerWave)
+        return if (wave.event == WaveEvent.HORDE) base * WaveEvents.HORDE_INTERVAL_MUL else base
+    }
 
     /** Spawn a same-tribe herd (3..6) clustered around one tile so tribes pop in groups. Returns the count. */
     private fun spawnNormal(pt: Transform, waveNum: Int): Int {
@@ -103,7 +134,9 @@ class SpawnerSystem : IteratingSystem(family { all(PlayerTag, Transform) }) {
         repeat(3 + rng.nextInt(4)) {
             val def = config.enemies[normalKeys[rng.nextInt(normalKeys.size)]] ?: return@repeat
             val a = rng.nextFloat() * 6.2831855f; val r = rng.nextFloat() * Tuning.TILE * 2.5f
-            MobFactory.spawn(world, def, tile.first + cos(a) * r, tile.second + sin(a) * r, waveNum, config.waves.hpScalePerWave, config.waves.speedScalePerWave, tribe = tribe, dashes = rng.nextFloat() < 0.5f)
+            // v2.45: a magnetic storm agitates everyone — nearly the whole herd dashes.
+            val dashChance = if (wave.event == WaveEvent.STORM) WaveEvents.STORM_DASH_CHANCE else 0.5f
+            MobFactory.spawn(world, def, tile.first + cos(a) * r, tile.second + sin(a) * r, waveNum, config.waves.hpScalePerWave, config.waves.speedScalePerWave, tribe = tribe, dashes = rng.nextFloat() < dashChance)
             spawned++
         }
         return spawned

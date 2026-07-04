@@ -24,7 +24,7 @@ object Pickups {
 
     /** Enemy death loot: many ammo pickups of mixed kinds (more for bosses) + a chance of med/blocks.
      *  [bonusBlocksChance] (LP v2.27): a grateful planet yields materials more readily. */
-    fun dropOnKill(world: World, rng: Rng, x: Float, y: Float, boss: Boolean, bonusBlocksChance: Float = 0f) {
+    fun dropOnKill(world: World, rng: Rng, x: Float, y: Float, boss: Boolean, bonusBlocksChance: Float = 0f, dustMul: Int = 1) {
         val n = if (boss) 6 + rng.nextInt(5) else 2 + rng.nextInt(3)
         repeat(n) {
             val (kind, amt) = AMMO[rng.nextInt(AMMO.size)]
@@ -32,7 +32,8 @@ object Pickups {
             spawn(world, kind, amt, x + cos(a) * r, y + sin(a) * r)
         }
         // v2.43: every kill sheds 星屑 — the trade currency the planet markets deal in.
-        spawn(world, "dust", if (boss) 30 + rng.nextInt(21) else 2 + rng.nextInt(4), x, y)
+        // v2.45: a magnetic storm shakes loose dustMul× as much.
+        spawn(world, "dust", (if (boss) 30 + rng.nextInt(21) else 2 + rng.nextInt(4)) * dustMul, x, y)
         // v2.44: a boss guards a gate-key shard — three of them open the jump gate.
         if (boss) spawn(world, "shard", 1, x + 10f, y)
         if (boss || rng.nextFloat() < 0.20f) spawn(world, "med", 25, x, y)

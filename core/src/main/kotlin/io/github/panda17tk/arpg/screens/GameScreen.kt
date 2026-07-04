@@ -44,6 +44,8 @@ import io.github.panda17tk.arpg.input.KeyboardInput
 import io.github.panda17tk.arpg.input.TouchControls
 import io.github.panda17tk.arpg.math.Rng
 import io.github.panda17tk.arpg.planet.PlanetBiome
+import io.github.panda17tk.arpg.planet.PlanetQuest
+import io.github.panda17tk.arpg.planet.QuestKind
 import io.github.panda17tk.arpg.render.Fonts
 import io.github.panda17tk.arpg.render.Hud
 import io.github.panda17tk.arpg.render.PlayerPose
@@ -204,6 +206,9 @@ class GameScreen : ScreenAdapter() {
     // Surface goal chips (LP v2.26), rebuilt only when their inputs change (§14.2 — no per-frame strings).
     private var chipsKey = -1
     private var cachedChips: List<String> = emptyList()
+    // v2.45 星の依頼: the quest chip cache (progress-keyed, same no-per-frame-strings policy).
+    private var questChipKey = -1
+    private var questChip: String? = null
 
     override fun show() {
         configStore.loadFromDisk()
@@ -242,6 +247,7 @@ class GameScreen : ScreenAdapter() {
         newBest = false
         pendingJump = false
         lastCardId = null; cachedCard = null
+        questChipKey = -1; questChip = null
         marketSold.clear()
         rebuildMemoryTones()
     }
@@ -281,7 +287,17 @@ class GameScreen : ScreenAdapter() {
                 TakeoffReward.compute(soc, it, gw.worldState.context ?: PlanetContext.NEUTRAL)
             } ?: RewardBundle()
             RewardApply.apply(gw.world, gw.player, reward)
-            rewardToast = TakeoffReward.toastFor(reward, soc.childKilled)
+            var toast = TakeoffReward.toastFor(reward, soc.childKilled)
+            // v2.45 星の依頼: a fulfilled request pays dust at takeoff — same no-pay rule for child-killers.
+            val quest = gw.worldState.biome?.let { b -> session.landedPlanetId?.let { PlanetQuest.questFor(it, b) } }
+            if (quest != null && !soc.childKilled) {
+                val prog = when (quest.kind) { QuestKind.ELITES -> gw.worldState.questElites; QuestKind.KILLS -> gw.worldState.questKills }
+                if (prog >= quest.target) {
+                    with(gw.world) { gw.player[Materials].dust += quest.rewardDust }
+                    toast = listOfNotNull(toast, "依頼達成 +${quest.rewardDust}屑").joinToString("　")
+                }
+            }
+            rewardToast = toast
             rewardToastT = if (rewardToast != null) TOAST_TIME else 0f
             val (seed, spawn) = session.completeTakeoff(soc) // fold the visit back into memory
             transitionWorld(WorldMode.SPACE, null, seed, spawn) // same system, beside the planet we left
@@ -300,6 +316,7 @@ class GameScreen : ScreenAdapter() {
         choosing = false; offered = false; choices = emptyList(); lastHp = Float.NaN
         lastCardId = null; cachedCard = null // memory may have changed across the transition → rebuild the scan card
         chipsKey = -1; cachedChips = emptyList()
+        questChipKey = -1; questChip = null
         marketSold.clear()
         rebuildMemoryTones()
     }
@@ -370,6 +387,13 @@ class GameScreen : ScreenAdapter() {
         // The return-visit greeting fades after a few seconds, then the surface objective reverts to normal.
         if (rememberedT > 0f && !paused) { rememberedT -= simDelta; if (rememberedT <= 0f) gw.worldState.rememberedPlanet = false }
         if (rewardToastT > 0f && !paused) { rewardToastT -= simDelta; if (rewardToastT <= 0f) rewardToast = null }
+        // v2.45: the sim leaves one-shot announcements (event waves, boss telegraph, bounty kill)
+        // on the WaveState; the screen turns them into the same toast the send-off gift uses.
+        if (!paused) gw.waveState.announce?.let {
+            rewardToast = it; rewardToastT = TOAST_TIME
+            gw.waveState.announce = null
+            Sfx.play("scan")
+        }
         val playerHit = pit > 0f && ((pit * 20f).toInt() % 2 == 0)
         // v2.37: the gear look — the active weapon shapes the drawn gun, armor tints the suit, OC burns blue.
         val gearLook = with(gw.world) { gw.player[Gear].loadout }
@@ -588,7 +612,9 @@ class GameScreen : ScreenAdapter() {
             else -> "[L] 離陸して宇宙へ"
         }
         // Goal chips (LP v2.26) right under the main objective line, rebuilt only when inputs change.
-        val chips = if (biome != null) surfaceChips(biome, ws, elites) else emptyList()
+        // v2.45: the planet's standing request (星の依頼) rides the same chip row with live progress.
+        val chips = (if (biome != null) surfaceChips(biome, ws, elites) else emptyList()) +
+            listOfNotNull(questChip(ws))
         if (!paused && !choosing) {
             batch.projectionMatrix = hudViewport.camera.combined
             batch.begin()
@@ -601,6 +627,20 @@ class GameScreen : ScreenAdapter() {
             }
             batch.end()
         }
+    }
+
+    /** v2.45 星の依頼: the quest chip, rebuilt only when progress toward the target changes (§14.2). */
+    private fun questChip(ws: WorldState): String? {
+        val pid = session.landedPlanetId ?: return null
+        val b = ws.biome ?: return null
+        val q = PlanetQuest.questFor(pid, b)
+        val prog = when (q.kind) { QuestKind.ELITES -> ws.questElites; QuestKind.KILLS -> ws.questKills }
+        val key = prog.coerceAtMost(q.target)
+        if (key != questChipKey) {
+            questChip = if (prog >= q.target) "依頼達成 — 離陸で${q.rewardDust}屑" else "${q.line}　$prog/${q.target}"
+            questChipKey = key
+        }
+        return questChip
     }
 
     /** The cached surface goal chips (max 2); rebuilt only when the deciding inputs change (§14.2). */

@@ -31,4 +31,7 @@ class WorldState(
     var spawnTweaks: SpawnTweaks = SpawnTweaks.NEUTRAL,
     /** In SPACE, the system's jump gate (v2.44) — 3 key shards open the way to the next star system. */
     var gate: Pair<Float, Float>? = null,
+    /** v2.45 星の依頼: this visit's kill tallies (any hostile / elite tier) — reset with the WorldState. */
+    var questKills: Int = 0,
+    var questElites: Int = 0,
 )
