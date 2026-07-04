@@ -29,6 +29,7 @@ import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.ecs.world.GameWorld
 import io.github.panda17tk.arpg.ecs.world.GearOps
 import io.github.panda17tk.arpg.ecs.world.ItemUse
+import io.github.panda17tk.arpg.ecs.world.Pickups
 import io.github.panda17tk.arpg.ecs.world.PlayerCarry
 import io.github.panda17tk.arpg.ecs.world.RewardApply
 import io.github.panda17tk.arpg.ecs.world.WorldFactory
@@ -51,8 +52,10 @@ import io.github.panda17tk.arpg.render.Hud
 import io.github.panda17tk.arpg.render.PlayerPose
 import io.github.panda17tk.arpg.render.SceneRenderer
 import io.github.panda17tk.arpg.render.TouchOverlay
+import io.github.panda17tk.arpg.save.DeathRelic
 import io.github.panda17tk.arpg.save.PlanetMemoryCodec
 import io.github.panda17tk.arpg.save.PreferencesMemoryStore
+import io.github.panda17tk.arpg.save.PreferencesRelicStore
 import io.github.panda17tk.arpg.save.PreferencesRunSaveStore
 import io.github.panda17tk.arpg.save.RunSaveDto
 import io.github.panda17tk.arpg.save.Scores
@@ -75,6 +78,7 @@ import io.github.panda17tk.arpg.sim.WorldState
 import io.github.panda17tk.arpg.ui.HudLayout
 import io.github.panda17tk.arpg.ui.InvTab
 import io.github.panda17tk.arpg.ui.InventoryLayout
+import io.github.panda17tk.arpg.ui.Logbook
 import io.github.panda17tk.arpg.ui.Modals
 import io.github.panda17tk.arpg.ui.Overlay
 import io.github.panda17tk.arpg.ui.PauseAction
@@ -176,6 +180,8 @@ class GameScreen : ScreenAdapter() {
     // Inventory overlay (v2.33): tab state + the run-save backend + a brief note flash (セーブした /
     // a consumable's effect). readingLore (v2.34) is the readable currently open on the ITEMS tab.
     private val runStore = PreferencesRunSaveStore()
+    // v2.46 遺品回収: what the last death left floating in the void (half the dust, every shard).
+    private val relicStore = PreferencesRelicStore()
     private var invTab = InvTab.EQUIP
     private var invNote: String? = null
     private var invNoteT = 0f
@@ -249,6 +255,18 @@ class GameScreen : ScreenAdapter() {
         lastCardId = null; cachedCard = null
         questChipKey = -1; questChip = null
         marketSold.clear()
+        // v2.46 遺品回収: the previous death's bundle drifts where you fell (a fresh run rebuilds
+        // the same first system, so the spot is real). A surface death washes up near the start.
+        relicStore.load()?.let { r ->
+            val (sx, sy) = with(gw.world) { val t = gw.player[Transform]; t.x to t.y }
+            val rx = if (r.space) r.x else sx + 380f
+            val ry = if (r.space) r.y else sy
+            if (r.dust > 0) Pickups.spawn(gw.world, "dust", r.dust, rx, ry)
+            if (r.shards > 0) Pickups.spawn(gw.world, "shard", r.shards, rx + 14f, ry)
+            relicStore.clear()
+            rewardToast = "遺品を検知 — 前回の星屑${r.dust}" + (if (r.shards > 0) "とゲート鍵${r.shards}" else "") + "が漂っている"
+            rewardToastT = TOAST_TIME
+        }
         rebuildMemoryTones()
     }
 
@@ -441,6 +459,13 @@ class GameScreen : ScreenAdapter() {
                 newBest = Scores.record(gw.waveState.num, gw.gameOver.kills)
                 session.persist() // LP v2.28: a death checkpoints the universe's memory too
                 runStore.clear() // v2.33: death consumes the saved run (roguelite — no retry from the save)
+                // v2.46 遺品: death leaves half the dust and every gate shard where you fell —
+                // the NEXT run can fly back and reclaim the bundle.
+                val relic = with(gw.world) {
+                    val t = gw.player[Transform]; val m = gw.player[Materials]
+                    DeathRelic.of(t.x, t.y, m.dust, m.shards, gw.worldState.mode == WorldMode.SPACE)
+                }
+                if (relic != null) relicStore.save(relic) else relicStore.clear()
                 Sfx.play("dead"); Haptics.buzz(140)
             }
             val restartTapped = tapped &&
@@ -830,6 +855,7 @@ class GameScreen : ScreenAdapter() {
             InvTab.MARKET -> handleMarketTap(w, h)
             InvTab.SAVE -> if (InventoryLayout.saveButton(w, h).contains(tapX, tapY)) saveRun()
             InvTab.MAP -> {}
+            InvTab.LOG -> {} // v2.46: the logbook is read-only
         }
     }
 
@@ -880,6 +906,22 @@ class GameScreen : ScreenAdapter() {
             loreTitle = readingLore?.name, loreLines = readingLore?.lore?.split("\n") ?: emptyList(),
             controlLabel = "操作: " + (if (controlSwap) "銃=ボタン / 近接=右スティック" else "近接=ボタン / 銃=右スティック") + "　(タップで入替)",
             marketLines = marketLines, marketFooter = marketFooter,
+            logLines = if (invTab == InvTab.LOG) logbookLines() else emptyList(),
+        )
+    }
+
+    /** v2.46 航海日誌: the run's present tense + all-time bests + what each visited star remembers. */
+    private fun logbookLines(): List<String> {
+        val (dust, shards) = with(gw.world) {
+            val m = gw.player[Materials]; m.dust to m.shards
+        }
+        val planetLines = session.memory.memories.entries.take(10).map { (id, s) ->
+            val facts = SocietyMemorySummary.factLines(s)
+            "星$id　" + (facts.firstOrNull()?.first ?: "記憶は薄い")
+        }
+        return Logbook.lines(
+            session.spaceSeed.toInt(), gw.waveState.num, gw.gameOver.kills, dust, shards,
+            Scores.bestWave, Scores.bestKills, planetLines,
         )
     }
 

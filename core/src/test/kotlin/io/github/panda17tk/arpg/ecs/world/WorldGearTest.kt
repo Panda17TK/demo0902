@@ -67,13 +67,17 @@ class WorldGearTest {
 
     @Test fun `a boss kill always drops an equipment item pickup`() {
         val gw = WorldFactory.create(InputState(), seed = 3L)
-        Pickups.dropOnKill(gw.world, Rng(1L), 500f, 500f, boss = true)
-        val kinds = mutableListOf<String>()
-        with(gw.world) {
-            gw.world.family { all(Pickup, Transform) }.forEach { kinds.add(it[Pickup].kind) }
+        fun itemKinds(): List<String> {
+            val kinds = mutableListOf<String>()
+            with(gw.world) {
+                gw.world.family { all(Pickup, Transform) }.forEach { kinds.add(it[Pickup].kind) }
+            }
+            return kinds.filter { it.startsWith("item:") }
         }
-        val itemKinds = kinds.filter { it.startsWith("item:") }
-        assertEquals(1, itemKinds.size)
-        assertNotNull(ItemCatalog.byId(itemKinds.single().removePrefix("item:"))) // the id resolves
+        val before = itemKinds() // v2.46: wrecks pre-seed weapon caches — measure the kill's delta
+        Pickups.dropOnKill(gw.world, Rng(1L), 500f, 500f, boss = true)
+        val after = itemKinds()
+        assertEquals(before.size + 1, after.size)
+        after.forEach { assertNotNull(ItemCatalog.byId(it.removePrefix("item:"))) } // every id resolves
     }
 }

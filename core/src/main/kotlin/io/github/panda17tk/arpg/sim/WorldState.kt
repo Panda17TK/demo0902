@@ -34,4 +34,6 @@ class WorldState(
     /** v2.45 星の依頼: this visit's kill tallies (any hostile / elite tier) — reset with the WorldState. */
     var questKills: Int = 0,
     var questElites: Int = 0,
+    /** v2.46 難破船: wrecked hulls adrift in the system — guarded loot caches worth boarding. */
+    var wrecks: List<Pair<Float, Float>> = emptyList(),
 )

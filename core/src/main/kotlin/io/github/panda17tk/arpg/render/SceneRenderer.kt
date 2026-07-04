@@ -77,6 +77,9 @@ class SceneRenderer {
     private val cShard = Color.valueOf("7de8ff")       // v2.44: gate-key shard cyan
     private val cGateRing = Color(0.35f, 0.8f, 1f, 0.35f)
     private val cGateCore = Color(0.8f, 0.97f, 1f, 0.9f)
+    private val cWreckHull = Color(0.38f, 0.40f, 0.46f, 1f)   // v2.46: dead hull grey-blue
+    private val cWreckDark = Color(0.22f, 0.23f, 0.28f, 1f)   // v2.46: hull shadow / torn plating
+    private val cWreckLight = Color(1f, 0.55f, 0.3f, 0.8f)    // v2.46: a dying emergency lamp
     private val tribeColors = arrayOf(
         Color.valueOf("ff6b6b"), Color.valueOf("66e0ff"), Color.valueOf("7fe08a"), Color.valueOf("ffd166"), Color.valueOf("c08bff"),
     )
@@ -122,6 +125,7 @@ class SceneRenderer {
         drawSmoke(shapes, gw)
         drawPlanets(shapes, gw)
         drawGate(shapes, gw, animTime)
+        drawWrecks(shapes, gw, animTime)
         drawBases(shapes, gw, animTime)
         shapes.end()
     }
@@ -394,6 +398,23 @@ class SceneRenderer {
         for (i in 0 until 8) {
             val a = animTime * 0.7f + i * (6.2831855f / 8f)
             shapes.circle(g.first + cos(a) * 40f, g.second + sin(a) * 40f, 3.2f, 8)
+        }
+    }
+
+    /** v2.46 難破船: a broken hull in two pieces, torn plating, and a slowly blinking distress lamp. */
+    private fun drawWrecks(shapes: ShapeRenderer, gw: GameWorld, animTime: Float) {
+        for ((i, w) in gw.worldState.wrecks.withIndex()) {
+            val (wx, wy) = w
+            val tilt = 18f + i * 31f // each wreck lies at its own angle
+            shapes.color = cWreckHull
+            shapes.rect(wx - 34f, wy - 8f, 34f, 8f, 46f, 15f, 1f, 1f, tilt)
+            shapes.color = cWreckDark
+            shapes.rect(wx + 6f, wy + 2f, 0f, 0f, 26f, 11f, 1f, 1f, tilt - 24f) // sheared-off stern
+            shapes.rect(wx - 14f, wy - 14f, 0f, 0f, 10f, 4f, 1f, 1f, tilt + 40f) // drifting plate
+            // The distress lamp still breathes, slowly — visible from far off.
+            val blink = 0.35f + 0.65f * ((kotlin.math.sin(animTime * 2.1f + i) + 1f) / 2f)
+            shapes.color = cWreckLight
+            shapes.circle(wx + 10f, wy - 4f, 2.6f + 1.4f * blink, 10)
         }
     }
 
