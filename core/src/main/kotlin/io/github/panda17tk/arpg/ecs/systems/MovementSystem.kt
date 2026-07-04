@@ -4,8 +4,10 @@ import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.IteratingSystem
 import com.github.quillraven.fleks.World.Companion.family
 import io.github.panda17tk.arpg.config.GameConfig
+import com.badlogic.gdx.graphics.Color
 import io.github.panda17tk.arpg.ecs.components.Body
 import io.github.panda17tk.arpg.ecs.components.Buff
+import io.github.panda17tk.arpg.ecs.components.Cooldowns
 import io.github.panda17tk.arpg.ecs.components.Facing
 import io.github.panda17tk.arpg.ecs.components.Gear
 import io.github.panda17tk.arpg.ecs.components.Fx
@@ -42,6 +44,7 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
     private val planetField: PlanetField = world.inject()
     private val worldState: WorldState = world.inject()
     private val fx: Fx = world.inject()
+    private var prevDash = false // 縮地 press-edge tracker (single player; system-local scratch)
 
     override fun onTickEntity(entity: Entity) {
         val t = entity[Transform]
@@ -86,8 +89,37 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         // Decide this frame's thrust. Stick dash / button dash need stamina (unless the buff is up);
         // when overheated, a big push or held button just falls back to a capped walk.
         val canDash = staInf || (!s.overheat && s.value > 0f)
-        val mode = SpaceDrive.mode(mv.isMoving, input.moveMag, input.dash, canDash, STICK_DASH_MIN)
-        val dashing = mode == SpaceDrive.Mode.BUTTON_DASH || mode == SpaceDrive.Mode.STICK_DASH
+        var mode = SpaceDrive.mode(mv.isMoving, input.moveMag, input.dash, canDash, STICK_DASH_MIN)
+
+        // v2.42 縮地: under gravity (on a planet surface) the dash button is a SHUKUCHI — an instant
+        // afterimage step — instead of a thruster burn. Space keeps the classic thruster dash.
+        val onSurface = worldState.mode == WorldMode.SURFACE
+        val cds = entity[Cooldowns]
+        if (cds.blink > 0f) cds.blink -= dt
+        var blinked = false
+        if (onSurface && mode == SpaceDrive.Mode.BUTTON_DASH) {
+            if (input.dash && !prevDash && cds.blink <= 0f && canDash) {
+                // Step direction: the move stick if held, else the facing.
+                val bdx = if (mv.isMoving) mv.dirX else f.x
+                val bdy = if (mv.isMoving) mv.dirY else f.y
+                val distMul = if (bf.dashUpT > 0f) DASH_UP_MUL else 1f
+                val blinkDist = BLINK_DIST * distMul
+                // Afterimages along the path, then the wall-clipped step itself.
+                for (k in 1..BLINK_IMAGES) {
+                    val fr = k.toFloat() / (BLINK_IMAGES + 1)
+                    fx.spawnAfterimage(t.x + bdx * blinkDist * fr, t.y + bdy * blinkDist * fr, b.halfW * 2f, b.halfH * 2f, BLINK_TINT)
+                }
+                val b1 = Collision.moveAndCollide(map, t.x, t.y, b.halfW, b.halfH, bdx * blinkDist, 0f)
+                val b2 = Collision.moveAndCollide(map, b1.x, b1.y, b.halfW, b.halfH, 0f, bdy * blinkDist)
+                t.x = b2.x; t.y = b2.y
+                if (!staInf) s.value = (s.value - BLINK_COST).coerceAtLeast(0f)
+                cds.blink = BLINK_CD
+                blinked = true
+            }
+            mode = SpaceDrive.Mode.WALK // holding the button never thrusts on the ground — 縮地 only
+        }
+        prevDash = input.dash
+        val dashing = blinked || mode == SpaceDrive.Mode.BUTTON_DASH || mode == SpaceDrive.Mode.STICK_DASH
         tag.dashing = dashing
 
         // v2.33: the equipped thruster shapes thrust; an OC thruster's FULL THROTTLE (held) trades
@@ -197,6 +229,11 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         private const val MAGMA_DPS = 0.05f // magma heat: ~1 HP per 20s (v2.40 — a pressure, not a shredder)
         private const val GRASS_STA = 16f // grass block restores stamina/sec
         private const val PATCH_REGEN = 2.5f // HP/sec while the timed regen pack (v2.35) runs
+        private val BLINK_DIST = Tuning.TILE * 3.5f // v2.42 縮地: instant step length under gravity
+        private const val BLINK_COST = 18f          // stamina per step (a chunk, not a drain)
+        private const val BLINK_CD = 0.55f          // seconds between steps
+        private const val BLINK_IMAGES = 3          // afterimages left along the path
+        private val BLINK_TINT = Color(0.48f, 0.69f, 1f, 0.85f) // the player's blue, ghosted
         private const val IMPACT_MIN_SPEED = 220f // above this, a wall/planet smack jolts the screen
         private const val CRASH_DMG_MIN_SPEED = 320f // above this, the smack also costs HP (v2.36)
         private const val CRASH_DMG_K = 0.008f // damage per unit of speed past the threshold (~1 HP at 445)

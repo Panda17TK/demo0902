@@ -67,6 +67,11 @@ object ItemCatalog {
         ItemDef("melee_halberd", "ハルバード", ItemKind.MELEE_WEAPON, desc = "広く長い　範囲1.3倍 リーチ +30% 近接 +15%", meleeDmgMul = 1.15f, meleeReachMul = 1.3f, meleeArcMul = 1.3f),
         ItemDef("melee_resonant", "振動ブレード", ItemKind.MELEE_WEAPON, desc = "斬撃が波になって飛ぶ　近接 +10%", meleeDmgMul = 1.1f, meleeWave = true),
         ItemDef("melee_hammer", "破砕ハンマー", ItemKind.MELEE_WEAPON, desc = "狭く重い一撃　近接 +60% 範囲は狭め", meleeDmgMul = 1.6f, meleeArcMul = 0.85f, meleeReachMul = 1.1f),
+        // v2.42: 追加の近接効果 — 吹き飛ばし・吸収・広域刈り・鋭い据え斬り
+        ItemDef("melee_maul", "衝角メイス", ItemKind.MELEE_WEAPON, desc = "当てた敵を大きく吹き飛ばす　近接 +20% ノックバック2倍", meleeDmgMul = 1.2f, meleeKbMul = 2f),
+        ItemDef("melee_leech", "吸収ブレード", ItemKind.MELEE_WEAPON, desc = "与ダメージの15%をHPとして回収", meleeDmgMul = 1.05f, meleeLifesteal = 0.15f),
+        ItemDef("melee_scythe", "収穫鎌", ItemKind.MELEE_WEAPON, desc = "ほぼ全周を刈る大鎌　範囲1.8倍 吸収5%", meleeDmgMul = 1.15f, meleeArcMul = 1.8f, meleeLifesteal = 0.05f),
+        ItemDef("melee_edge", "単分子エッジ", ItemKind.MELEE_WEAPON, desc = "鋭すぎて敵が飛ばない　近接 +35% リーチ +20% ノックバック半減", meleeDmgMul = 1.35f, meleeReachMul = 1.2f, meleeKbMul = 0.5f),
         // --- 装飾品 (accessories ×3 slots) ---
         ItemDef("acc_boots", "ランナーブーツ", ItemKind.ACCESSORY, desc = "移動速度 +10%", moveMul = 1.1f),
         ItemDef("acc_charm", "代謝促進バンド", ItemKind.ACCESSORY, desc = "スタミナ回復 +30%", staRegenMul = 1.3f),

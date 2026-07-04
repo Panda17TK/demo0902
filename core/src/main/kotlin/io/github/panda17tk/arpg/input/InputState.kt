@@ -13,7 +13,15 @@ class InputState {
     var dash = false
     var placeWall = false   // edge-triggered: true only on the frame F transitions down
     var fire = false           // held (K)
-    var fireRelease = false    // edge: the frame fire/aim is released — manual-fire weapons (beam/grenade) shoot here
+
+    // v2.42: the manual-fire release is a BUFFERED request, not a one-frame edge. A render frame can
+    // run zero fixed sim steps, and the release can land mid-cooldown/reload — a raw edge got
+    // swallowed in both cases (the "aimed, released, nothing fired" bug). The buffer holds the
+    // request ~0.3s until FireSystem consumes it (or it decays).
+    var fireReleaseT = 0f
+    var fireRelease: Boolean
+        get() = fireReleaseT > 0f
+        set(value) { fireReleaseT = if (value) FIRE_BUFFER else 0f }
     var melee = false          // edge (J)
     var reload = false         // edge (R)
     var land = false           // edge: land on / take off from a planet (L key or the touch LAND button)
@@ -23,4 +31,8 @@ class InputState {
     var aiming = false         // true while the right stick is pushed → face + auto-fire along aim
     var inventory = false      // edge: open/close the inventory screen (I key or the INV button) — v2.33
     var fullThrottle = false   // held: OC thruster full throttle (O key or the FULL button) — v2.33
+
+    companion object {
+        const val FIRE_BUFFER = 0.3f // seconds a manual-fire release stays queued (v2.42)
+    }
 }

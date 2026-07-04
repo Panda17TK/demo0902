@@ -93,7 +93,14 @@ class MeleeSystem(private val mobGrid: SpatialGrid<Entity>) :
                     val mobDodge = with(world) { mobEntity[Mob].def.dodge }
                     val nx = if (dist > 0f) ddx / dist else 1f
                     val ny = if (dist > 0f) ddy / dist else 0f
-                    MobDamage.hurt(mobH, mobV, mobA, mobDodge, outcome.dmg * mods.meleeMul * gearMelee.meleeDmgMul, nx, ny, 450f, rng.nextFloat())
+                    val hpBefore = mobH.hp
+                    val dealt = outcome.dmg * mods.meleeMul * gearMelee.meleeDmgMul
+                    MobDamage.hurt(mobH, mobV, mobA, mobDodge, dealt, nx, ny, 450f * gearMelee.meleeKbMul, rng.nextFloat())
+                    // v2.42: a leeching arm drinks back a fraction of the damage that actually landed.
+                    if (gearMelee.meleeLifesteal > 0f && mobH.hp < hpBefore) {
+                        val ph = entity[Health]
+                        ph.hp = (ph.hp + (hpBefore - mobH.hp) * gearMelee.meleeLifesteal).coerceAtMost(ph.hpMax)
+                    }
                 }
             }
         }

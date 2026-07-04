@@ -51,6 +51,8 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
     override fun onTickEntity(entity: Entity) {
         val cd = entity[Cooldowns]
         if (cd.shoot > 0f) cd.shoot -= deltaTime
+        // v2.42: the buffered manual-fire request decays here (sim time) — see InputState.fireReleaseT.
+        if (input.fireReleaseT > 0f) input.fireReleaseT -= deltaTime
 
         val arsenal = entity[Arsenal]
         val w = arsenal.current; val def = w.def
@@ -83,6 +85,7 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
                     if (ammo.ammoBeam <= 0) return
                     ammo.ammoBeam--
                 }
+                input.fireReleaseT = 0f // the buffered release is consumed by this shot (v2.42)
                 cd.shoot = def.fireRate * mods.fireMul * gradeFireRate
                 // v2.39: cash in the charge — damage up to 2×, the ray visibly fattens, and the
                 // pierce corridor widens with it. (The beam always pierces every mob on the ray.)
@@ -138,6 +141,7 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
             }
             "grenade" -> {
                 if (w.mag <= 0) return
+                input.fireReleaseT = 0f // the buffered release is consumed by this shot (v2.42)
                 w.mag--; cd.shoot = def.fireRate * mods.fireMul * gradeFireRate
                 world.entity {
                     it += Transform(x = t.x + dirX * Tuning.MUZZLE_OFFSET, y = t.y + dirY * Tuning.MUZZLE_OFFSET)

@@ -229,7 +229,10 @@ class SceneRenderer {
                     (1f - ma.chargeT.coerceAtLeast(0f) / windup).coerceIn(0f, 1f)
                 } else -1f
                 val hpFrac = if (mh.hpMax > 0f) mh.hp / mh.hpMax else 1f
-                Actors.drawMob(shapes, mm.kind, mm.tier, mt.x, mt.y, mm.def.w, mm.def.h, Color.valueOf(mm.def.color), mf.x, mf.y, moving, mh.hitFlash > 0f, ma.dodgeT > 0f, chargeProg, ma.enrageT > 0f, hpFrac, e.id * 1.3f, animTime)
+                // v2.42: rank rides into the drawing — family role ornaments + level pips.
+                val role = e.getOrNull(io.github.panda17tk.arpg.ecs.components.CreatureMind)?.familyRole
+                    ?: io.github.panda17tk.arpg.config.FamilyRole.NONE
+                Actors.drawMob(shapes, mm.kind, mm.tier, mt.x, mt.y, mm.def.w, mm.def.h, Color.valueOf(mm.def.color), mf.x, mf.y, moving, mh.hitFlash > 0f, ma.dodgeT > 0f, chargeProg, ma.enrageT > 0f, hpFrac, e.id * 1.3f, animTime, role, mm.level)
             }
         }
     }

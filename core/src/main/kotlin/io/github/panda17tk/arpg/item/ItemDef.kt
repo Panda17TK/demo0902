@@ -57,6 +57,8 @@ data class ItemDef(
     val meleeReachMul: Float = 1f,
     val meleeArcMul: Float = 1f,      // v2.39: swing-arc multiplier (1 = the classic 180°)
     val meleeWave: Boolean = false,   // v2.39: the swing throws a flying slash wave
+    val meleeKbMul: Float = 1f,       // v2.42: knockback multiplier (>1 sends them flying, <1 barely pushes)
+    val meleeLifesteal: Float = 0f,   // v2.42: fraction of dealt melee damage returned as HP
     // General stat multipliers (armor may carry a speed penalty; accessories carry small boons)
     val moveMul: Float = 1f,
     val staRegenMul: Float = 1f,
@@ -123,6 +125,8 @@ class Loadout(
     val meleeReachMul: Float get() = (melee?.meleeReachMul ?: 1f)
     val meleeArcMul: Float get() = (melee?.meleeArcMul ?: 1f)
     val meleeWave: Boolean get() = melee?.meleeWave == true
+    val meleeKbMul: Float get() = (melee?.meleeKbMul ?: 1f)
+    val meleeLifesteal: Float get() = (melee?.meleeLifesteal ?: 0f)
     // v2.35 special effects: any equipped piece carrying the trait grants it; regen stacks additively.
     fun has(trait: ItemTrait): Boolean = equipped().any { trait in it.traits }
     val hpRegen: Float get() = equipped().fold(0f) { a, i -> a + i.hpRegen }
