@@ -91,6 +91,36 @@ class WorldWeaponGradeTest {
         with(gw.world) { grenades.forEach { e -> assertEquals(1.6f, e[Grenade].blastMul, 1e-4f) } }
     }
 
+    @Test fun `a seeker pistol fires homing bullets`() {
+        val input = InputState()
+        val gw = world(input)
+        with(gw.world) {
+            val gear = gw.player[Gear]
+            val prev = gear.loadout.set(EquipSlot.RANGED, ItemCatalog.byId("gun_pistol_seeker")!!)
+            if (prev != null) gear.backpack.add(prev)
+            gw.player[Arsenal].curW = gw.player[Arsenal].weapons.indexOfFirst { it.def.id == "pistol" }
+        }
+        input.fire = true
+        gw.world.update(1f / 60f)
+        val bullets = gw.world.family { all(Bullet) }
+        assertTrue(bullets.numEntities > 0)
+        with(gw.world) { bullets.forEach { e -> assertEquals(3f, e[Bullet].homing, 1e-4f) } }
+    }
+
+    @Test fun `broken walls occasionally hide a weapon cache`() {
+        val gw = world(InputState())
+        val rng = io.github.panda17tk.arpg.math.Rng(42L)
+        repeat(300) { Pickups.dropOnWall(gw.world, rng, 500f, 500f) }
+        var gunDrops = 0
+        with(gw.world) {
+            gw.world.family { all(io.github.panda17tk.arpg.ecs.components.Pickup) }.forEach { e ->
+                val kind = e[io.github.panda17tk.arpg.ecs.components.Pickup].kind
+                if (kind.startsWith("item:") && ItemCatalog.byId(kind.removePrefix("item:"))?.kind?.name == "RANGED_WEAPON") gunDrops++
+            }
+        }
+        assertTrue(gunDrops in 1..30, "expected a few weapon caches out of 300 breaks, got $gunDrops")
+    }
+
     @Test fun `number-key switching keeps an equipped graded gun of the same type`() {
         val input = InputState()
         val gw = world(input)

@@ -26,8 +26,11 @@ import io.github.panda17tk.arpg.pathfinding.FlowField
 import io.github.panda17tk.arpg.pathfinding.SpatialGrid
 import io.github.panda17tk.arpg.sim.Tuning
 import kotlin.math.abs
+import kotlin.math.atan2
+import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.hypot
+import kotlin.math.sin
 
 /** Advances player bullets and grenades; breaks walls; explodes grenades; damages mobs (with dodge). */
 class ProjectileSystem(private val mobGrid: SpatialGrid<Entity>) :
@@ -59,6 +62,25 @@ class ProjectileSystem(private val mobGrid: SpatialGrid<Entity>) :
         val t = entity[Transform]
         if (Bullet in entity) {
             val b = entity[Bullet]
+            // v2.40: seeker rounds bend toward the nearest enemy in range (mirrors EBullet homing).
+            if (b.homing > 0f) {
+                var bestD = Float.MAX_VALUE; var bestX = 0f; var bestY = 0f
+                mobGrid.forNearby(t.x, t.y, HOMING_RANGE) { mobEntity ->
+                    val mt = with(world) { mobEntity[Transform] }
+                    val d = hypot(mt.x - t.x, mt.y - t.y)
+                    if (d < bestD) { bestD = d; bestX = mt.x; bestY = mt.y }
+                }
+                if (bestD < HOMING_RANGE) {
+                    val twoPi = (Math.PI * 2.0).toFloat(); val pi = Math.PI.toFloat()
+                    val want = atan2(bestY - t.y, bestX - t.x)
+                    val cur = atan2(b.vy, b.vx)
+                    val diff = ((want - cur + pi * 3f) % twoPi) - pi
+                    val turn = diff.coerceIn(-b.homing * deltaTime, b.homing * deltaTime)
+                    val sp = hypot(b.vx, b.vy)
+                    val na = cur + turn
+                    b.vx = cos(na) * sp; b.vy = sin(na) * sp
+                }
+            }
             val step = Ballistics.stepBullet(map, t.x, t.y, b.vx, b.vy, b.life, deltaTime)
             t.x = step.x; t.y = step.y; b.life = step.life
 
@@ -140,5 +162,9 @@ class ProjectileSystem(private val mobGrid: SpatialGrid<Entity>) :
         }
         fx.addShake(0.22f, 8f)
         fx.spawnSparks(ex, ey, 14, Color.valueOf("ffb060"))
+    }
+
+    companion object {
+        private const val HOMING_RANGE = 320f // v2.40: seeker rounds track enemies within this radius
     }
 }

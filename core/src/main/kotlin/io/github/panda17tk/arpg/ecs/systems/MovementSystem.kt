@@ -166,8 +166,9 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
             if (s.value <= 0.05f) s.overheat = true            // fully drained → overheat (no stamina actions)
             if (s.value >= s.max - 0.05f) s.overheat = false   // fully recovered → clear overheat
         }
-        // Terrain effects: magma block burns HP; grass restores stamina; a magma planet surface burns
-        // everywhere. Heat-proof gear/coating (v2.35) cuts the burn completely.
+        // Terrain effects: magma heat smolders — ~1 HP per 20 seconds (v2.40; was a fierce 8/s), and
+        // it's a single flag: standing beside ten lava blocks burns no faster than beside one.
+        // A magma planet's surface radiates the same everywhere. Heat-proof gear (v2.35) cuts it to zero.
         val onMagmaSurface = worldState.mode == WorldMode.SURFACE && worldState.biome == PlanetBiome.MAGMA
         if ((magma || onMagmaSurface) && !heatProof) h.hp = (h.hp - MAGMA_DPS * dt).coerceAtLeast(0f)
         if (grass) s.value = (s.value + GRASS_STA * dt).coerceAtMost(s.max)
@@ -193,7 +194,7 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         private const val SURFACE_COAST = 0.02f // planet ground: friction stops you fast (no space inertia)
         private const val ICE_COAST = 0.7f // ice/snow surface: slippery, long glide
         private const val SNOW_SLOW = 0.62f // snow block underfoot → slower
-        private const val MAGMA_DPS = 8f // magma block burns HP/sec
+        private const val MAGMA_DPS = 0.05f // magma heat: ~1 HP per 20s (v2.40 — a pressure, not a shredder)
         private const val GRASS_STA = 16f // grass block restores stamina/sec
         private const val PATCH_REGEN = 2.5f // HP/sec while the timed regen pack (v2.35) runs
         private const val IMPACT_MIN_SPEED = 220f // above this, a wall/planet smack jolts the screen

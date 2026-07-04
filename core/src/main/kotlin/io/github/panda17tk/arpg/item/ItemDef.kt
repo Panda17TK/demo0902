@@ -42,6 +42,10 @@ data class ItemDef(
     val reloadMul: Float = 1f,    // reload-time multiplier (< 1 = faster 装填)
     val blastMul: Float = 1f,     // explosion/blast radius multiplier (grenade detonation, beam crater)
     val wallDmgMul: Float = 1f,   // bullet damage vs destructible blocks (ブロックの壊しやすさ)
+    // v2.40 gun variants: per-gun ballistics — spread, muzzle velocity, and homing shots
+    val spreadMul: Float = 1f,      // bullet spread multiplier (拡散範囲)
+    val bulletSpeedMul: Float = 1f, // muzzle-velocity multiplier (弾速)
+    val homing: Float = 0f,         // rad/s turn toward the nearest enemy (0 = straight; 追尾弾)
     // THRUSTER
     val thrusterClass: ThrusterClass = ThrusterClass.STANDARD,
     val accelMul: Float = 1f,   // thrust ramp multiplier
