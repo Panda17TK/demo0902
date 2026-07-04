@@ -42,7 +42,7 @@ import io.github.panda17tk.arpg.ecs.systems.ProjectileSystem
 import io.github.panda17tk.arpg.ecs.systems.ReloadSystem
 import io.github.panda17tk.arpg.ecs.systems.SmokeSystem
 import io.github.panda17tk.arpg.ecs.systems.SnapshotSystem
-import io.github.panda17tk.arpg.ecs.systems.SpawnerSystem
+import io.github.panda17tk.arpg.ecs.systems.DesyncSurgeSystem
 import io.github.panda17tk.arpg.ecs.systems.WeaponSwitchSystem
 import io.github.panda17tk.arpg.ecs.systems.WildPredationSystem
 import io.github.panda17tk.arpg.ecs.systems.WildlifeSystem
@@ -212,7 +212,7 @@ object WorldFactory {
                 add(WildlifeSystem()) // mute wild animals: graze/herd/flee/hunt (AISystem skips WILDLIFE)
                 add(WildPredationSystem(mobGrid)) // wild predators bite their prey (eats, drops hunger)
                 add(MobActionSystem())
-                add(SpawnerSystem())
+                add(DesyncSurgeSystem())
                 add(BaseSystem())
                 add(PickupSystem())
             }
@@ -249,7 +249,7 @@ object WorldFactory {
         }
 
         // v2.36: space is inhabited — drifters coast through the void on their own momentum from the
-        // start. They aggro like any mob when approached, but SpawnerSystem excludes them from wave
+        // start. They aggro like any mob when approached, but DesyncSurgeSystem excludes them from wave
         // completion and live caps, so a drifter at the map's far edge never stalls the wave train.
         if (mode != WorldMode.SURFACE) {
             val driftersRng = Rng(seed xor 0x00D21F7E5L)

@@ -11,6 +11,7 @@ object Logbook {
         planetLines: List<String>,
         epithet: String = "異邦人",
         stability: Int = 100,
+        syncPercent: Int = 0,
     ): List<String> {
         // v2.49 段階開示: the logbook's own header quietly tracks what the network now knows.
         val title = when {
@@ -23,6 +24,7 @@ object Logbook {
             "第${system}星系　同期汚染 Lv.$wave　宙域安定 $stability%",
             "$title　呼び名 『$epithet』",
             "今回の撃破 $kills　星屑 $dust　ゲート鍵 $shards",
+            "星間同期復旧 $syncPercent%", // v2.52: repair, not pressure, is the run's true progress
             "自己ベスト　汚染深度 $bestWave　撃破 $bestKills",
             "",
             "── 星の記憶 ──",

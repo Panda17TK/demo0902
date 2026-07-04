@@ -77,6 +77,7 @@ import io.github.panda17tk.arpg.sim.ReturnVisitEffects
 import io.github.panda17tk.arpg.sim.RewardBundle
 import io.github.panda17tk.arpg.sim.SurfaceGoals
 import io.github.panda17tk.arpg.sim.SurfaceObjective
+import io.github.panda17tk.arpg.sim.SyncRestoration
 import io.github.panda17tk.arpg.sim.TakeoffReward
 import io.github.panda17tk.arpg.sim.Tuning
 import io.github.panda17tk.arpg.sim.WorldMode
@@ -104,7 +105,7 @@ private const val REMEMBERED_TIME = 5f // seconds the HUD greets a returning pla
 private const val TOAST_TIME = 3f      // seconds the takeoff send-off toast rides the space HUD (LP v2.29)
 private const val INV_TIME_SCALE = 0.01f // v2.33: the world crawls at this speed behind the inventory
 private const val PLANET_TAP_PAD = 48f   // v2.38: extra world-px around a planet that still counts as tapping it
-private const val GATE_SHARDS = 3        // v2.44: gate shards a jump consumes (strong foes drop them)
+// v2.44/v2.52: base gate-shard cost; a well-restored network (SyncRestoration) asks one less.
 private const val GATE_TAP_R = 96f       // v2.44: world-px radius that counts as tapping the jump gate
 private const val SETTINGS_PREFS = "drift-settings" // v2.39: device-level settings (not run state)
 private const val SETTINGS_SWAP = "controlSwap"
@@ -648,8 +649,8 @@ class GameScreen : ScreenAdapter() {
                     // v2.44: the gate line — shard progress while collecting, a live compass once ready.
                     val shards = with(gw.world) { gw.player[Materials].shards }
                     val gateLine = ws.gate?.let { g ->
-                        if (shards < GATE_SHARDS) {
-                            "ゲート鍵 $shards/$GATE_SHARDS（強敵が落とす）"
+                        if (shards < gateNeed()) {
+                            "ゲート鍵 $shards/${gateNeed()}（強敵が落とす）"
                         } else {
                             val dx = g.first - ppx; val dy = g.second - ppy
                             val dist = hypot(dx, dy).toInt()
@@ -823,9 +824,15 @@ class GameScreen : ScreenAdapter() {
         return hypot(ppx - g.first, ppy - g.second) < Tuning.TILE * 4f
     }
 
+    /** v2.52 同期復旧度: derived progression — systems jumped + planets known + planets trusting. */
+    private fun syncPercent(): Int = SyncRestoration.percent(session.spaceSeed.toInt(), session.memory.memories.values)
+
+    /** How many shards THIS jump costs (a 60%+ restored network recognizes the keeper). */
+    private fun gateNeed(): Int = SyncRestoration.gateShardsNeeded(syncPercent())
+
     /** v2.44: a jump is possible right now — in space, at the gate, holding enough gate shards. */
     private fun canJumpNow(): Boolean = gw.worldState.mode == WorldMode.SPACE && nearGate() &&
-        with(gw.world) { gw.player[Materials].shards } >= GATE_SHARDS
+        with(gw.world) { gw.player[Materials].shards } >= gateNeed()
 
     /**
      * v2.44 ジャンプゲート: spend the shards and move the whole run to the NEXT star system.
@@ -836,7 +843,7 @@ class GameScreen : ScreenAdapter() {
         pendingJump = false
         with(gw.world) {
             val m = gw.player[Materials]
-            m.shards = (m.shards - GATE_SHARDS).coerceAtLeast(0)
+            m.shards = (m.shards - gateNeed()).coerceAtLeast(0)
         }
         session.spaceSeed += 1
         session.surfSeed = session.spaceSeed * 100
@@ -1003,6 +1010,7 @@ class GameScreen : ScreenAdapter() {
             Scores.bestWave, Scores.bestKills, planetLines,
             epithet = Epithet.of(session.memory.memories.values),
             stability = DesyncGauge.stability(gw.waveState.num),
+            syncPercent = syncPercent(),
         )
     }
 
