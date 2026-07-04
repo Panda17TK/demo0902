@@ -70,6 +70,63 @@ class MobAttacksTest {
         assertEquals(4f, a.enrageT, 1e-3f); assertEquals(1.6f, a.enrageMul, 1e-3f)
     }
 
+    // --- v2.41 attack types ---
+
+    @Test fun `spiral spawns a full ring with two speeds`() {
+        val w = configureWorld {}
+        assertTrue(fire(w, AttackSpec("spiral", count = 10, speed = 160f, dmg = 7f, life = 2f)))
+        val speeds = mutableSetOf<Int>()
+        with(w) {
+            w.family { all(EBullet) }.forEach { e ->
+                val b = e[EBullet]
+                speeds.add(kotlin.math.hypot(b.vx, b.vy).toInt())
+            }
+        }
+        assertEquals(10, w.family { all(EBullet) }.numEntities)
+        assertTrue(speeds.size >= 2, "spiral should interleave fast and slow rings, saw $speeds")
+    }
+
+    @Test fun `spray fires only with line of sight and jitters its rounds`() {
+        val w = configureWorld {}
+        assertFalse(fire(w, AttackSpec("spray", count = 6, spread = 70f, speed = 210f, dmg = 6f, life = 1.4f), see = false))
+        assertTrue(fire(w, AttackSpec("spray", count = 6, spread = 70f, speed = 210f, dmg = 6f, life = 1.4f)))
+        assertEquals(6, w.family { all(EBullet) }.numEntities)
+    }
+
+    @Test fun `twin shot fires two parallel rounds`() {
+        val w = configureWorld {}
+        assertTrue(fire(w, AttackSpec("twin_shot", speed = 260f, dmg = 9f, life = 1.8f)))
+        assertEquals(2, w.family { all(EBullet) }.numEntities)
+    }
+
+    @Test fun `shockwave shoves even mid-iframe but only damages a naked target`() {
+        val w = configureWorld {}
+        val ph = Health(100f, 100f); val pv = Velocity()
+        // In range, no iframes: damage + shove.
+        assertTrue(
+            MobAttacks.tryAttack(
+                w, AttackSpec("shockwave", range = 250f, dmg = 6f, power = 520f), def,
+                Transform(), Facing(), Velocity(), MobAction(), Health(1000f, 1000f), ph, pv,
+                dist = 200f, toPx = 1f, toPy = 0f, see = true, iFrameMelee = 0.9f,
+                config = GameConfig(), waveNum = 1, rng = Rng(1L),
+            ),
+        )
+        assertEquals(94f, ph.hp, 1e-3f)
+        assertEquals(520f, pv.vx, 1e-3f)
+        // Mid-iframe: the shove still lands, the damage does not.
+        val ph2 = Health(100f, 100f, iTime = 0.5f); val pv2 = Velocity()
+        MobAttacks.tryAttack(
+            w, AttackSpec("shockwave", range = 250f, dmg = 6f, power = 520f), def,
+            Transform(), Facing(), Velocity(), MobAction(), Health(1000f, 1000f), ph2, pv2,
+            dist = 200f, toPx = 1f, toPy = 0f, see = true, iFrameMelee = 0.9f,
+            config = GameConfig(), waveNum = 1, rng = Rng(1L),
+        )
+        assertEquals(100f, ph2.hp, 1e-3f)
+        assertEquals(520f, pv2.vx, 1e-3f)
+        // Out of range: nothing.
+        assertFalse(fire(w.also { }, AttackSpec("shockwave", range = 100f, dmg = 6f, power = 520f)))
+    }
+
     @Test fun `mine spawns one stationary bullet`() {
         val w = configureWorld {}
         assertTrue(fire(w, AttackSpec("mine", dmg = 18f, life = 6f)))

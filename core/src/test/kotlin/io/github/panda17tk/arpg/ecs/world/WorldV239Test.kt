@@ -33,6 +33,16 @@ class WorldV239Test {
         assertTrue(enemies["mortar_bug"]!!.bravery < enemies["lancer"]!!.bravery)
     }
 
+    @Test fun `the v2_41 additions are in the roster with their new attack types`() {
+        val enemies = GameConfig().enemies
+        assertEquals("spiral", enemies["prism"]!!.attacks.single().type)
+        assertEquals("spray", enemies["sprayer"]!!.attacks.single().type)
+        assertTrue(enemies["duelist"]!!.attacks.any { it.type == "twin_shot" })
+        assertTrue(enemies["warden"]!!.attacks.any { it.type == "shockwave" })
+        assertEquals("midboss", enemies["artillery"]!!.tier)
+        assertTrue(enemies["artillery"]!!.attacks.any { it.type == "shockwave" })
+    }
+
     @Test fun `aiming a beam builds charge and firing spends it`() {
         val input = InputState()
         val gw = WorldFactory.create(input, seed = 3L)

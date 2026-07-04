@@ -22,8 +22,9 @@ import kotlin.math.sin
 /**
  * Enemy attack handlers, ported from legacy systems/attacks.js REGISTRY.
  * Returns true if the attack executed (so the caller starts its cooldown).
- * Normal types: melee/shot/lunge/charge_melee/blink. Boss types: burst/nova/summon/slam/
- * charge/homing/heal/enrage/mine/barrage/guard. `charge_melee`/`blink` set MobAction state
+ * Normal types: melee/shot/lunge/charge_melee/blink + v2.41's spiral/spray/twin_shot/shockwave.
+ * Boss types: burst/nova/summon/slam/charge/homing/heal/enrage/mine/barrage/guard.
+ * `charge_melee`/`blink` set MobAction state
  * (finished by MobActionSystem); enrage/guard set MobAction timers (read by AISystem/MobDamage).
  */
 object MobAttacks {
@@ -94,6 +95,21 @@ object MobAttacks {
         "enrage" -> { action.enrageT = spec.duration; action.enrageMul = spec.mul; true }
         "guard" -> { action.guardT = spec.duration; action.guardMul = spec.mul; true }
         "summon" -> { summon(world, config, rng, spec.minion, spec.count, mobT.x, mobT.y, waveNum); true }
+        // --- v2.41 attack types ---
+        // spiral: two interleaved rings (fast + slow) that bloom outward as a slow flower.
+        "spiral" -> { spiral(world, mobT, spec.count, spec.speed, spec.dmg, spec.life); true }
+        // spray: undisciplined suppression fire — random angles in the fan, jittered speeds.
+        "spray" -> if (!see) false else {
+            spray(world, mobT, atan2(toPy, toPx), spec.count, spec.spread, spec.speed, spec.dmg, spec.life, rng); true
+        }
+        // twin_shot: two parallel rounds, one off each shoulder.
+        "twin_shot" -> if (!see) false else { twin(world, mobT, atan2(toPy, toPx), spec.speed, spec.dmg, spec.life); true }
+        // shockwave: a pressure ring — the shove lands even mid-iframe; only naked hits take the (small) damage.
+        "shockwave" -> if (dist > spec.range) false else {
+            playerV.vx += toPx * spec.power; playerV.vy += toPy * spec.power
+            if (playerH.iTime <= 0f) { playerH.hp -= spec.dmg * dmgTakenMul; playerH.iTime = iFrameMelee }
+            true
+        }
         else -> false
     }
 
@@ -128,6 +144,40 @@ object MobAttacks {
         val n = if (count < 1) 1 else count
         for (i in 0 until n) fire(world, mobT, (i.toFloat() / n) * 2f * PI.toFloat(), speed, dmg, life)
     }
+
+    /** v2.41 spiral: a full ring with alternating fast/slow bullets — two rings that drift apart. */
+    private fun spiral(world: World, mobT: Transform, count: Int, speed: Float, dmg: Float, life: Float) {
+        val n = if (count < 1) 1 else count
+        for (i in 0 until n) {
+            val sp = if (i % 2 == 0) speed else speed * 0.55f
+            fire(world, mobT, (i.toFloat() / n) * 2f * PI.toFloat(), sp, dmg, life)
+        }
+    }
+
+    /** v2.41 spray: [count] rounds at random angles inside the fan, speeds jittered ±20%. */
+    @Suppress("LongParameterList")
+    private fun spray(world: World, mobT: Transform, base: Float, count: Int, spreadDeg: Float, speed: Float, dmg: Float, life: Float, rng: Rng) {
+        val n = if (count < 1) 1 else count
+        val spread = spreadDeg * PI.toFloat() / 180f
+        repeat(n) {
+            val a = base + (rng.nextFloat() - 0.5f) * spread
+            fire(world, mobT, a, speed * (0.8f + rng.nextFloat() * 0.4f), dmg, life)
+        }
+    }
+
+    /** v2.41 twin_shot: two parallel rounds offset one half-body to each side of the aim line. */
+    private fun twin(world: World, mobT: Transform, ang: Float, speed: Float, dmg: Float, life: Float) {
+        val px = -sin(ang); val py = cos(ang) // perpendicular to the aim
+        for (sgn in intArrayOf(-1, 1)) {
+            val ox = mobT.x + px * sgn * TWIN_GAP; val oy = mobT.y + py * sgn * TWIN_GAP
+            world.entity {
+                it += Transform(x = ox, y = oy, prevX = ox, prevY = oy)
+                it += EBullet(cos(ang) * speed, sin(ang) * speed, life, dmg)
+            }
+        }
+    }
+
+    private const val TWIN_GAP = 9f // half the shoulder width between the twin rounds
 
     /** Spawn [count] minions of [minion] near (x,y), scaled to [waveNum] (legacy summon). */
     private fun summon(world: World, config: GameConfig, rng: Rng, minion: String, count: Int, x: Float, y: Float, waveNum: Int) {

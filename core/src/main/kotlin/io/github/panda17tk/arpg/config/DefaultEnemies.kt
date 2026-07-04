@@ -109,6 +109,42 @@ private fun spaceEnemies(): Map<String, EnemyDef> = mapOf(
             AttackSpec("melee", cd = 1.4f, dmg = 8f, range = 10f, arc = 180f),
         ),
     ),
+    // --- v2.41: enemies built around the new attack types (spiral / spray / twin_shot / shockwave). ---
+    "prism" to EnemyDef(
+        name = "プリズム", tier = "normal", color = "#8d82c4", hp = 80f, speed = 24f,
+        w = 20f, h = 20f, seeRange = 300f, contactKB = 200f, gravityResponse = 0.4f,
+        bravery = 0.6f, intelligence = 0.2f, // a crystal organism — it doesn't think, it refracts
+        attacks = listOf(
+            AttackSpec("spiral", cd = 4.0f, dmg = 7f, count = 10, speed = 160f, life = 2.2f),
+        ),
+    ),
+    "sprayer" to EnemyDef(
+        name = "スプレイヤー", tier = "normal", color = "#7aa06a", hp = 50f, speed = 40f,
+        w = 17f, h = 15f, seeRange = 340f, contactKB = 200f,
+        bravery = 0.5f, intelligence = 0.3f, canSpeak = true, lifeKind = LifeKind.SAPIENT, // sprays first, thinks later
+        attacks = listOf(
+            AttackSpec("spray", cd = 2.2f, dmg = 6f, count = 6, spread = 70f, speed = 210f, life = 1.4f),
+        ),
+    ),
+    "duelist" to EnemyDef(
+        name = "デュエリスト", tier = "normal", color = "#d08ab8", hp = 55f, speed = 70f,
+        w = 14f, h = 20f, seeRange = 360f, contactKB = 220f,
+        intelligence = 0.75f, bravery = 0.7f, canSpeak = true, lifeKind = LifeKind.SAPIENT, // proud — trades volleys, dodges yours
+        dodge = DodgeSpec(0.30f, 0.18f, 1.8f),
+        attacks = listOf(
+            AttackSpec("twin_shot", cd = 1.6f, dmg = 9f, speed = 260f, life = 1.8f),
+            AttackSpec("melee", cd = 1.8f, dmg = 12f, range = 13f, arc = 120f),
+        ),
+    ),
+    "warden" to EnemyDef(
+        name = "ウォーデン", tier = "normal", color = "#6a9a8a", hp = 110f, speed = 40f,
+        w = 26f, h = 26f, seeRange = 280f, contactKB = 300f,
+        bravery = 0.8f, protectiveness = 0.8f, intelligence = 0.55f, canSpeak = true, lifeKind = LifeKind.SAPIENT, // holds the door
+        attacks = listOf(
+            AttackSpec("shockwave", cd = 3.0f, dmg = 6f, range = 70f, power = 520f),
+            AttackSpec("melee", cd = 1.2f, dmg = 10f, range = 14f, arc = 360f),
+        ),
+    ),
 )
 
 private fun spaceBosses(): Map<String, EnemyDef> = mapOf(
@@ -151,6 +187,18 @@ private fun spaceBosses(): Map<String, EnemyDef> = mapOf(
             AttackSpec("summon", cd = 6.0f, minion = "zombie", count = 3),
             AttackSpec("enrage", cd = 12.0f, mul = 1.6f, duration = 4f),
             AttackSpec("heal", cd = 14.0f, amount = 80f),
+        ),
+    ),
+    // v2.41: a siege-platform midboss built on the new attack kit (appended — key order is contract).
+    "artillery" to EnemyDef(
+        name = "アーティラリー(中ボス)", tier = "midboss", color = "#a08a50", hp = 380f, speed = 30f,
+        w = 36f, h = 30f, seeRange = 460f, contactKB = 320f, gravityResponse = 1.2f,
+        attacks = listOf(
+            AttackSpec("barrage", cd = 3.0f, dmg = 8f, count = 7, spread = 70f, speed = 220f),
+            AttackSpec("mine", cd = 4.0f, dmg = 20f, life = 8f),
+            AttackSpec("shockwave", cd = 5.0f, dmg = 10f, range = 90f, power = 480f),
+            AttackSpec("summon", cd = 9.0f, minion = "mortar_bug", count = 2),
+            AttackSpec("guard", cd = 8.0f, duration = 2f, mul = 0.4f),
         ),
     ),
 )
