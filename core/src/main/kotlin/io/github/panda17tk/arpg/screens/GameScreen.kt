@@ -81,6 +81,7 @@ import io.github.panda17tk.arpg.sim.TakeoffReward
 import io.github.panda17tk.arpg.sim.Tuning
 import io.github.panda17tk.arpg.sim.WorldMode
 import io.github.panda17tk.arpg.sim.WorldState
+import io.github.panda17tk.arpg.sim.WreckLog
 import io.github.panda17tk.arpg.ui.HudLayout
 import io.github.panda17tk.arpg.ui.InvTab
 import io.github.panda17tk.arpg.ui.InventoryLayout
@@ -422,6 +423,18 @@ class GameScreen : ScreenAdapter() {
             rewardToast = it; rewardToastT = TOAST_TIME
             gw.waveState.announce = null
             Sfx.play("scan")
+        }
+        // v2.51: a wreck the drifter closes in on broadcasts its distress log — once per wreck.
+        if (!paused && gw.worldState.mode == WorldMode.SPACE) {
+            val (wpx, wpy) = with(gw.world) { val t = gw.player[Transform]; t.x to t.y }
+            gw.worldState.wrecks.forEachIndexed { i, w ->
+                if (i !in gw.worldState.wreckLogShown && hypot(wpx - w.first, wpy - w.second) < Tuning.TILE * 3f) {
+                    gw.worldState.wreckLogShown.add(i)
+                    rewardToast = WreckLog.lineFor(worldSeed, i)
+                    rewardToastT = TOAST_TIME
+                    Sfx.play("scan")
+                }
+            }
         }
         // v2.48 惑星サーバー: standing before the memory core makes it speak — once per landing,
         // into the surface event feed (the same channel the society's memory already uses).

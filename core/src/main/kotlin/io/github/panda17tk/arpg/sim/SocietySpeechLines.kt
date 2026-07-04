@@ -13,15 +13,15 @@ enum class SocietySpeechTrigger {
 object SocietySpeechLines {
     private val LINES = mapOf(
         SocietySpeechTrigger.ChildHarmed to listOf("弱きものに手を出したな", "子らを奥へ", "その名を覚えた"),
-        SocietySpeechTrigger.ChildKilled to listOf("子を殺したな", "許さぬ", "星がその罪を見ていた"),
+        SocietySpeechTrigger.ChildKilled to listOf("子を殺したな", "許さぬ", "星がその罪を見ていた", "第4条違反を記録した。星は消去APIを持たない"),
         SocietySpeechTrigger.PredatorRepelled to listOf("……今のは、我らの子を守ったのか", "借りはできた", "森は見ていた"),
         SocietySpeechTrigger.ApexKilled to listOf("森の主が沈んだ", "これで均衡は崩れる", "お前は勝った。だが星は痩せる"),
         SocietySpeechTrigger.NestDestroyed to listOf("巣が、壊された", "卵を、よくも", "生まれる前に奪うのか"),
         SocietySpeechTrigger.MercyHigh to listOf("撃つな。この者は子を救った", "ただの狩人ではない", "客人として迎えよ"),
         SocietySpeechTrigger.HostilityHigh to listOf("警告はいらない", "来たぞ、子殺しだ", "星がその名を拒んでいる"),
-        SocietySpeechTrigger.RelicTaken to listOf("聖宝を持ち去る気か", "それは我らのものだ", "返せ"),
-        SocietySpeechTrigger.ReturnVisitHostile to listOf("また来たか、子殺し", "よくも戻れたものだ", "今度は帰さぬ"),
-        SocietySpeechTrigger.ReturnVisitMerciful to listOf("戻ってきてくれたのか", "あの恩は忘れていない", "おかえり、星の友よ"),
+        SocietySpeechTrigger.RelicTaken to listOf("聖宝を持ち去る気か", "それは我らのものだ", "返せ", "それは聖宝ではない。鍵だ。持ち出せば扉は閉じる"),
+        SocietySpeechTrigger.ReturnVisitHostile to listOf("また来たか、子殺し", "よくも戻れたものだ", "今度は帰さぬ", "あなたの署名は拒否リストにある"),
+        SocietySpeechTrigger.ReturnVisitMerciful to listOf("戻ってきてくれたのか", "あの恩は忘れていない", "おかえり、星の友よ", "あなたの署名は白名簿に載っている"),
     )
 
     /** Deterministic pick within the trigger's line set (salt varies the choice). Null if no lines. */

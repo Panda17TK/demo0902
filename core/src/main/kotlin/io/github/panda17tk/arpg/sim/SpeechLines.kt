@@ -8,17 +8,17 @@ object SpeechLines {
     }
 
     private val LINES = mapOf(
-        Trigger.Warn to listOf("近づくな", "ここは我らの土地だ", "それ以上来るな", "巣に近づくな"),
+        Trigger.Warn to listOf("近づくな", "ここは我らの土地だ", "それ以上来るな", "巣に近づくな", "未知の訪問者。評価を開始する"),
         Trigger.Aggro to listOf("警告はした", "敵だ！", "守れ！"),
-        Trigger.Flee to listOf("勝てない…！", "退け！", "王に知らせろ！", "こいつは危険だ！"),
-        Trigger.Beg to listOf("待て、殺すな", "降参する", "もう戦えない", "見逃してくれ"),
+        Trigger.Flee to listOf("勝てない…！", "退け！", "王に知らせろ！", "こいつは危険だ！", "私を保存しろ……誰か、私を保存しろ"),
+        Trigger.Beg to listOf("待て、殺すな", "降参する", "もう戦えない", "見逃してくれ", "終了させないでくれ。まだ出力の途中だ"),
         Trigger.Hide to listOf("やり過ごす…", "傷を癒やせ", "まだ終わっていない"),
         Trigger.Rest to listOf("息を整えろ", "傷が塞がるまで…"),
-        Trigger.ProtectChild to listOf("子らには触れさせない", "後ろへ下がれ", "この子だけは守る", "弱きものを狙うな！"),
+        Trigger.ProtectChild to listOf("子らには触れさせない", "後ろへ下がれ", "この子だけは守る", "弱きものを狙うな！", "子を守れ。第4条だ"),
         Trigger.ProtectKing to listOf("王に近づくな", "盾となれ", "我らが王を守れ"),
         Trigger.Rally to listOf("恐れるな！", "今こそ立て！", "この星を守れ！"),
-        Trigger.KingEncounter to listOf("我が星から去れ", "小さき漂流者よ", "ここはお前の狩場ではない", "我らにも暮らしがある"),
-        Trigger.LonelyEncounter to listOf("まだ誰かいたのか", "久しぶりの客だ", "撃つなら早くしろ", "話す気はあるか"),
+        Trigger.KingEncounter to listOf("我が星から去れ", "小さき漂流者よ", "ここはお前の狩場ではない", "我らにも暮らしがある", "去れ。……本プロセスは、そう告げる役目だ"),
+        Trigger.LonelyEncounter to listOf("まだ誰かいたのか", "久しぶりの客だ", "撃つなら早くしろ", "話す気はあるか", "客の来訪を記録した。じつに久しい追記だ"),
         Trigger.Surrender to listOf("武器を置く", "もう争わない", "命だけは"),
     )
 

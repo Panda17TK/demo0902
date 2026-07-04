@@ -12,7 +12,7 @@ class SocietySpeechLinesTest {
     @Test fun `pick is deterministic and wraps the salt`() {
         val t = SocietySpeechTrigger.ChildKilled
         assertEquals(SocietySpeechLines.pick(t, 1), SocietySpeechLines.pick(t, 1))
-        assertEquals(SocietySpeechLines.pick(t, 0), SocietySpeechLines.pick(t, 3)) // 3 lines → salt 3 wraps to 0
+        assertEquals(SocietySpeechLines.pick(t, 0), SocietySpeechLines.pick(t, 4)) // 4 lines → salt 4 wraps to 0 (v2.51)
     }
 
     @Test fun `a negative salt still picks a line`() {
