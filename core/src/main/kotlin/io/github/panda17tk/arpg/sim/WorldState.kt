@@ -39,4 +39,6 @@ class WorldState(
     /** v2.48 惑星サーバー: the surface's memory core (Layer 1) — stand before it and it speaks once. */
     var memoryCore: Pair<Float, Float>? = null,
     var coreLogShown: Boolean = false,
+    /** v2.51: wreck indices whose distress log has already been broadcast to this visitor. */
+    val wreckLogShown: MutableSet<Int> = mutableSetOf(),
 )
