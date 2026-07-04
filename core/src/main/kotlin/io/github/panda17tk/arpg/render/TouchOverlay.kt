@@ -47,6 +47,7 @@ object TouchOverlay {
     fun draw(
         shapes: ShapeRenderer, batch: SpriteBatch, font: BitmapFont, vp: Viewport,
         touch: TouchControls, landLabel: String, swapMeleeFire: Boolean = false,
+        showAll: Boolean = false, editTarget: TouchButton? = null, // v2.56 layout editor
     ) {
         val l = touch.layout
         Gdx.gl.glEnable(GL20.GL_BLEND)
@@ -68,10 +69,12 @@ object TouchOverlay {
         }
         // Action buttons: ring (function colour) → glass disc → label. Pressed = brighter + grown.
         for (b in l.all()) {
-            if (b !in touch.visibleButtons) continue
+            if (!showAll && b !in touch.visibleButtons) continue
             val pressed = b in touch.pressedButtons
             val r = l.radiusOf(b) * (if (pressed) 1.12f else 1f)
             val cx = l.centerX(b); val cy = l.centerY(b)
+            // v2.56: the layout editor's selected button gets a bright halo.
+            if (b == editTarget) { shapes.color = cLabel; shapes.circle(cx, cy, r + 5f, 32) }
             val ring = ringOf[b] ?: cLabel
             shapes.color = ring
             shapes.circle(cx, cy, r, 32)
@@ -82,7 +85,7 @@ object TouchOverlay {
         batch.projectionMatrix = vp.camera.combined
         batch.begin()
         for (b in l.all()) {
-            if (b !in touch.visibleButtons) continue
+            if (!showAll && b !in touch.visibleButtons) continue
             val label = labelOf(b, landLabel, swapMeleeFire)
             val r = l.radiusOf(b)
             // v2.54 auto-fit: a label never spills past its disc — it shrinks to fit instead.

@@ -220,6 +220,20 @@ object Hud {
         batch.end()
     }
 
+    /** v2.56: a plain row of tappable buttons (the layout editor's toolbar). */
+    fun buttonRow(shapes: ShapeRenderer, batch: SpriteBatch, font: BitmapFont, vp: Viewport, buttons: List<UiButton>) {
+        Gdx.gl.glEnable(GL20.GL_BLEND)
+        shapes.projectionMatrix = vp.camera.combined
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
+        buttons.forEach { b -> shapes.color = cCard; shapes.rect(b.x, b.y, b.w, b.h) }
+        shapes.end()
+        frames(shapes, buttons)
+        batch.projectionMatrix = vp.camera.combined
+        batch.begin()
+        buttons.forEach { b -> centerLabel(batch, font, b.label, b.centerX, b.centerY) }
+        batch.end()
+    }
+
     /** v2.55: draw [text] with its left edge at (x, baselineY), auto-shrunk to fit [maxW]. */
     private fun fitText(batch: SpriteBatch, font: BitmapFont, text: String, x: Float, baselineY: Float, maxW: Float) {
         val bx = font.data.scaleX; val by = font.data.scaleY
@@ -458,6 +472,7 @@ object Hud {
         marketLines: List<String> = emptyList(), // v2.43: MARKET rows (already priced/formatted)
         marketFooter: String? = null,            // v2.43: dust balance or the closed-stall notice
         logLines: List<String> = emptyList(),    // v2.46: 記録 tab (already formatted, top-down)
+        layoutEditLabel: String? = null,         // v2.56: EQUIP tab's layout-editor entry strip
     ) {
         val w = vp.worldWidth; val h = vp.worldHeight
         val panel = InventoryLayout.panel(w, h)
@@ -467,6 +482,7 @@ object Hud {
         val slotRows = if (tab == InvTab.EQUIP) InventoryLayout.slotRows(w, h) else emptyList()
         val save = if (tab == InvTab.SAVE) InventoryLayout.saveButton(w, h) else null
         val toggle = if (tab == InvTab.EQUIP && controlLabel != null) InventoryLayout.controlToggle(w, h) else null
+        val editStrip = if (tab == InvTab.EQUIP && layoutEditLabel != null) InventoryLayout.layoutEditToggle(w, h) else null
         val marketRows = if (tab == InvTab.MARKET) InventoryLayout.marketRows(w, h, marketLines.size) else emptyList()
 
         Gdx.gl.glEnable(GL20.GL_BLEND)
@@ -481,11 +497,12 @@ object Hud {
         slotRows.forEach { r -> shapes.color = cBtn; shapes.rect(r.x, r.y, r.w, r.h) }
         save?.let { shapes.color = cBtnGo; shapes.rect(it.x, it.y, it.w, it.h) }
         toggle?.let { shapes.color = cBtn; shapes.rect(it.x, it.y, it.w, it.h) }
+        editStrip?.let { shapes.color = cBtn; shapes.rect(it.x, it.y, it.w, it.h) }
         marketRows.forEach { r -> shapes.color = cBtn; shapes.rect(r.x, r.y, r.w, r.h) }
         shapes.color = cBtn; shapes.rect(close.x, close.y, close.w, close.h)
         if (tab == InvTab.MAP && visited != null) drawVisitedMap(shapes, body, visited, playerTx, playerTy)
         shapes.end()
-        frames(shapes, tabs + slotRows + marketRows + listOfNotNull(save, toggle) + listOf(close))
+        frames(shapes, tabs + slotRows + marketRows + listOfNotNull(save, toggle, editStrip) + listOf(close))
 
         batch.projectionMatrix = vp.camera.combined
         batch.begin()
@@ -496,6 +513,9 @@ object Hud {
                     font.draw(batch, slotTexts.getOrElse(i) { "" }, r.x + 12f, r.centerY + 7f)
                 }
                 // v2.39: the bottom strip is the control-swap toggle (falls back to the old hint).
+                if (editStrip != null && layoutEditLabel != null) {
+                    centerLabel(batch, font, layoutEditLabel, editStrip.centerX, editStrip.centerY)
+                }
                 if (toggle != null && controlLabel != null) {
                     centerLabel(batch, font, controlLabel, toggle.centerX, toggle.centerY)
                 } else {
