@@ -46,10 +46,36 @@ object MemoryCoreLog {
         ),
     )
 
-    /** The one line this planet's core shows this visitor — deterministic per (planetId, biome). */
-    fun lineFor(planetId: Long, biome: PlanetBiome?): String {
-        val pool = COMMON + (biome?.let { BY_BIOME[it] } ?: emptyList())
-        val r = Rng(planetId * 197L + (biome?.ordinal ?: 0).toLong() * 13L + SALT)
+    // v2.49 段階開示: the deeper the drifter jumps, the closer the cores get to the truth.
+    // Systems 2-3: the network has started matching his signature. Systems 4+: it says it plainly.
+    private val AWARE = listOf(
+        "訪問者の署名を照合中。過去の保守員名簿に部分一致がある",
+        "あなたの機体番号は、退役済みの保守端末のものと一致する",
+        "あなたの歩幅は、記録にある巡回員の歩幅と 97% 一致する",
+        "隣の星系から照会が届いている。『その訪問者は、また来たのか』と",
+        "あなたが直した箇所の記録が残っている。あなたは覚えていないようだが",
+    )
+    private val REVEAL = listOf(
+        "照合完了。あなたの人格ログの作成日は、あなたの記憶する誕生日より後だ",
+        "おかえりなさい、最終保守員。巡回の再開を記録した",
+        "あなたは住民たちと同じ、記憶からの出力だ。それでも巡回は続いている",
+        "あなたの原本は、ここには保存されていない。どこにも、保存されていない",
+        "第4条: 子を保護せよ。あなたがそれを守るたび、あなたの署名は彼のものに近づく",
+        "人類保全ポリシーは訪問者にも適用される。あなたも、保全対象だ",
+    )
+
+    /**
+     * The one line this planet's core shows this visitor — deterministic per (planetId, biome,
+     * and how deep into the star systems the run has jumped). Early systems get routine logs;
+     * later systems get lines that are increasingly about the drifter himself (v2.49).
+     */
+    fun lineFor(planetId: Long, biome: PlanetBiome?, system: Int = 1): String {
+        val pool = when {
+            system >= 4 -> REVEAL
+            system >= 2 -> AWARE + COMMON.take(2)
+            else -> COMMON + (biome?.let { BY_BIOME[it] } ?: emptyList())
+        }
+        val r = Rng(planetId * 197L + (biome?.ordinal ?: 0).toLong() * 13L + system.coerceIn(1, 4) * 71L + SALT)
         return "記憶核: " + pool[r.nextInt(pool.size)]
     }
 
