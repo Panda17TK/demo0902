@@ -11,7 +11,7 @@ class RunSaveCodecTest {
         landedPlanetId = 42L, returnX = 12f, returnY = 34f,
         wave = 7, px = 640f, py = 320f,
         hp = 55f, hpMax = 120f, stamina = 80f,
-        ammo9 = 60, ammo12 = 12, ammoBeam = 3, ammoNade = 2, blocks = 9,
+        ammo9 = 60, ammo12 = 12, ammoBeam = 3, ammoNade = 2, blocks = 9, dust = 77,
         mags = listOf(12, 6, 40, 0, 1),
         gunMul = 1.2f, fireMul = 0.9f, meleeMul = 1.1f, moveMul = 1.08f,
         ammoMul = 1f, healOnKill = 2f, wallHp = 10f,

@@ -38,7 +38,7 @@ class PlanetScanTest {
         val ctx = PlanetContext(PlanetTemperament.GENTLE, SacredThing.CHILDREN, PlanetStorySeed.NONE)
         val card = PlanetScan.cardFor(planet(context = ctx), known = false, memory = PlanetSocietyState())
         assertNull(card.omenLine)
-        assertEquals(2, card.lines.size) // trait + memory only
+        assertEquals(3, card.lines.size) // trait + danger + memory (v2.43 adds the danger stars)
     }
 
     @Test fun `the card is composed from the lexicon and the biome name`() {

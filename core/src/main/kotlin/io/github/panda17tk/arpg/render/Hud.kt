@@ -186,7 +186,7 @@ object Hud {
         waveNum: Int, foes: Int,
         hp: Float, hpMax: Float, sta: Float, staMax: Float, overheat: Boolean,
         weaponName: String, mag: Int, magSize: Int?, reloadFrac: Float, reserveStr: String,
-        timeSec: Float, kills: Int, blocks: Int,
+        timeSec: Float, kills: Int, blocks: Int, dust: Int = 0,
     ) {
         val w = vp.worldWidth; val h = vp.worldHeight
         val l = HudLayout.of(w, h)
@@ -235,7 +235,7 @@ object Hud {
         font.draw(batch, glyph, l.ammo.x + l.ammo.w - glyph.width - 6f, l.ammo.y + 14f)
         // secondary stats (lowest priority)
         val mins = (timeSec / 60f).toInt(); val secs = (timeSec % 60f).toInt()
-        font.draw(batch, "時間 %d:%02d  撃破 %d  資材 %d".format(mins, secs, kills, blocks), l.stats.x, l.stats.y + l.stats.h)
+        font.draw(batch, "時間 %d:%02d  撃破 %d  資材 %d  星屑 %d".format(mins, secs, kills, blocks, dust), l.stats.x, l.stats.y + l.stats.h)
         batch.end()
     }
 
@@ -403,6 +403,8 @@ object Hud {
         note: String?,             // brief flash on ITEMS/SAVE (「セーブした」, a consumable's effect…)
         loreTitle: String? = null, loreLines: List<String> = emptyList(), // v2.34: the open readable
         controlLabel: String? = null, // v2.39: EQUIP tab's control-swap toggle caption
+        marketLines: List<String> = emptyList(), // v2.43: MARKET rows (already priced/formatted)
+        marketFooter: String? = null,            // v2.43: dust balance or the closed-stall notice
     ) {
         val w = vp.worldWidth; val h = vp.worldHeight
         val panel = InventoryLayout.panel(w, h)
@@ -412,6 +414,7 @@ object Hud {
         val slotRows = if (tab == InvTab.EQUIP) InventoryLayout.slotRows(w, h) else emptyList()
         val save = if (tab == InvTab.SAVE) InventoryLayout.saveButton(w, h) else null
         val toggle = if (tab == InvTab.EQUIP && controlLabel != null) InventoryLayout.controlToggle(w, h) else null
+        val marketRows = if (tab == InvTab.MARKET) InventoryLayout.marketRows(w, h, marketLines.size) else emptyList()
 
         Gdx.gl.glEnable(GL20.GL_BLEND)
         shapes.projectionMatrix = vp.camera.combined
@@ -425,10 +428,11 @@ object Hud {
         slotRows.forEach { r -> shapes.color = cBtn; shapes.rect(r.x, r.y, r.w, r.h) }
         save?.let { shapes.color = cBtnGo; shapes.rect(it.x, it.y, it.w, it.h) }
         toggle?.let { shapes.color = cBtn; shapes.rect(it.x, it.y, it.w, it.h) }
+        marketRows.forEach { r -> shapes.color = cBtn; shapes.rect(r.x, r.y, r.w, r.h) }
         shapes.color = cBtn; shapes.rect(close.x, close.y, close.w, close.h)
         if (tab == InvTab.MAP && visited != null) drawVisitedMap(shapes, body, visited, playerTx, playerTy)
         shapes.end()
-        frames(shapes, tabs + slotRows + listOfNotNull(save, toggle) + listOf(close))
+        frames(shapes, tabs + slotRows + marketRows + listOfNotNull(save, toggle) + listOf(close))
 
         batch.projectionMatrix = vp.camera.combined
         batch.begin()
@@ -474,6 +478,12 @@ object Hud {
             InvTab.MAP -> {
                 font.color = cHint
                 centerText(batch, font, "通った場所だけが描かれる", w, body.y + 16f)
+                font.color = Color.WHITE
+            }
+            InvTab.MARKET -> { // v2.43: the planet's stalls (or the reason they're shut)
+                marketRows.forEachIndexed { i, r -> font.draw(batch, marketLines[i], r.x + 12f, r.centerY + 7f) }
+                font.color = cHint
+                marketFooter?.let { centerText(batch, font, it, w, body.y + 14f) }
                 font.color = Color.WHITE
             }
             InvTab.SAVE -> {

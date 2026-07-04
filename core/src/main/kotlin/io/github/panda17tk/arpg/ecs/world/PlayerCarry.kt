@@ -15,7 +15,7 @@ import io.github.panda17tk.arpg.item.Loadout
 
 /** Snapshot of the player's run state, carried across SPACE⇄SURFACE world rebuilds (Living Planets LP-E). */
 data class PlayerCarry(
-    val hp: Float, val stamina: Float, val blocks: Int, val wave: Int,
+    val hp: Float, val stamina: Float, val blocks: Int, val dust: Int, val wave: Int,
     val ammo9: Int, val ammo12: Int, val ammoBeam: Int, val ammoNade: Int,
     val mags: List<Int>, val curW: Int,
     val gunMul: Float, val fireMul: Float, val meleeMul: Float, val moveMul: Float,
@@ -26,6 +26,7 @@ data class PlayerCarry(
         player[Health].hp = hp
         player[Stamina].value = stamina
         player[Materials].blocks = blocks
+        player[Materials].dust = dust
         val ammo = player[Ammo]
         ammo.ammo9 = ammo9; ammo.ammo12 = ammo12; ammo.ammoBeam = ammoBeam; ammo.ammoNade = ammoNade
         val ars = player[Arsenal]
@@ -45,7 +46,7 @@ data class PlayerCarry(
             val ammo = player[Ammo]
             val ars = player[Arsenal]
             PlayerCarry(
-                hp = player[Health].hp, stamina = player[Stamina].value, blocks = player[Materials].blocks, wave = wave,
+                hp = player[Health].hp, stamina = player[Stamina].value, blocks = player[Materials].blocks, dust = player[Materials].dust, wave = wave,
                 ammo9 = ammo.ammo9, ammo12 = ammo.ammo12, ammoBeam = ammo.ammoBeam, ammoNade = ammo.ammoNade,
                 mags = ars.weapons.map { it.mag }, curW = ars.curW,
                 gunMul = mods.gunMul, fireMul = mods.fireMul, meleeMul = mods.meleeMul, moveMul = mods.moveMul,

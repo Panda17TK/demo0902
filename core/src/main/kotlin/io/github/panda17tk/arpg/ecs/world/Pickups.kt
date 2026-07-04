@@ -31,6 +31,8 @@ object Pickups {
             val a = rng.nextFloat() * TAU; val r = 6f + rng.nextFloat() * 16f
             spawn(world, kind, amt, x + cos(a) * r, y + sin(a) * r)
         }
+        // v2.43: every kill sheds 星屑 — the trade currency the planet markets deal in.
+        spawn(world, "dust", if (boss) 30 + rng.nextInt(21) else 2 + rng.nextInt(4), x, y)
         if (boss || rng.nextFloat() < 0.20f) spawn(world, "med", 25, x, y)
         if (boss || rng.nextFloat() < 0.15f + bonusBlocksChance) spawn(world, "blocks", if (boss) 4 else 1, x, y)
         // v2.33: equipment enters the world as kill spoils — rare from normals, guaranteed off a boss.

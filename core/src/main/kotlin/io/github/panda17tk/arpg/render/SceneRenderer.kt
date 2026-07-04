@@ -73,6 +73,7 @@ class SceneRenderer {
     private val cPickupCase = Color.valueOf("e8ecf2")  // v2.38: med case / blade / page white
     private val cPickupBrass = Color.valueOf("c8a35a") // v2.38: cartridge brass
     private val cThrustDot = Color.valueOf("ffb060")   // v2.38: thruster drop's exhaust dot
+    private val cDust = Color.valueOf("ffd980")        // v2.43: 星屑 (currency) gold
     private val tribeColors = arrayOf(
         Color.valueOf("ff6b6b"), Color.valueOf("66e0ff"), Color.valueOf("7fe08a"), Color.valueOf("ffd166"), Color.valueOf("c08bff"),
     )
@@ -320,6 +321,11 @@ class SceneRenderer {
                 shapes.triangle(x - 4.5f, y - 1f, x + 4.5f, y - 1f, x, y + 5f)
                 shapes.triangle(x - 3f, y - 4f, x + 3f, y - 4f, x + 4.5f, y - 1f)
                 shapes.triangle(x - 3f, y - 4f, x - 4.5f, y - 1f, x + 4.5f, y - 1f)
+            }
+            kind == "dust" -> { // 星屑: a small gold four-point star
+                shapes.color = cDust
+                shapes.triangle(x - 3.5f, y, x + 3.5f, y, x, y - 5f)
+                shapes.triangle(x - 3.5f, y, x + 3.5f, y, x, y + 5f)
             }
             kind.startsWith("item:") -> drawItemGlyph(shapes, kind.removePrefix("item:"), x, y)
             else -> { // ammo: a cartridge — brass case + pool-colored tip
