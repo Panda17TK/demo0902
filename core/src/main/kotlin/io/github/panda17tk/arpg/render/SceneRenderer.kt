@@ -126,6 +126,7 @@ class SceneRenderer {
         drawPlanets(shapes, gw)
         drawGate(shapes, gw, animTime)
         drawWrecks(shapes, gw, animTime)
+        drawMemoryCore(shapes, gw, animTime)
         drawBases(shapes, gw, animTime)
         shapes.end()
     }
@@ -399,6 +400,22 @@ class SceneRenderer {
             val a = animTime * 0.7f + i * (6.2831855f / 8f)
             shapes.circle(g.first + cos(a) * 40f, g.second + sin(a) * 40f, 3.2f, 8)
         }
+    }
+
+    /** v2.48 惑星サーバー: the surface's memory core — a dark monolith with a slow-breathing light. */
+    private fun drawMemoryCore(shapes: ShapeRenderer, gw: GameWorld, animTime: Float) {
+        val m = gw.worldState.memoryCore ?: return
+        val (mx, my) = m
+        shapes.color = cWreckDark
+        shapes.rect(mx - 10f, my - 30f, 20f, 34f) // the slab (y-down: extends upward on screen)
+        shapes.color = cWreckHull
+        shapes.rect(mx - 14f, my + 2f, 28f, 5f) // its plinth
+        // The archive light breathes — slower than any living thing.
+        val breath = 0.4f + 0.6f * ((kotlin.math.sin(animTime * 0.9f) + 1f) / 2f)
+        shapes.color = cGateCore
+        shapes.circle(mx, my - 20f, 2.2f + 1.8f * breath, 10)
+        shapes.color = cGateRing
+        shapes.circle(mx, my - 20f, 7f + 3f * breath, 16)
     }
 
     /** v2.46 難破船: a broken hull in two pieces, torn plating, and a slowly blinking distress lamp. */
