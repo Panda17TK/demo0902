@@ -6,13 +6,17 @@ enum class TouchButton { FIRE, MELEE, DASH, RELOAD, WALL, WEAPON, LAND, INV, FUL
  * Pure geometry + hit-testing for the on-screen touch controls (no libGDX deps → unit-testable).
  * Coordinates are HUD space: y-up, origin bottom-left. Left half drives the move stick; the
  * right half holds the action buttons.
+ *
+ * v2.54 modern layout: the action cluster is a bottom-right GRID computed from the screen edge
+ * inward — fixed safe padding, uniform gaps, larger targets — so no button ever clips off-screen
+ * or crowds its neighbour, on any aspect ratio (the old fraction-based spots did both on phones).
  */
 class TouchLayout(var screenW: Float = 0f, var screenH: Float = 0f) {
     private val minDim get() = minOf(screenW, screenH)
     val stickRadius get() = minDim * 0.14f
     val stickCx get() = screenW * 0.20f
     val stickCy get() = screenH * 0.16f
-    val buttonRadius get() = minDim * 0.062f
+    val buttonRadius get() = minDim * 0.075f // v2.54: +21% — thumb-sized targets
 
     // P3: fixed aim-guide ring on the right — a "rest here to aim" hint, kept clear of the
     // action buttons. The live aim stick still floats to the actual thumb position when active.
@@ -20,38 +24,57 @@ class TouchLayout(var screenW: Float = 0f, var screenH: Float = 0f) {
     val aimGuideCy get() = screenH * 0.18f
     val aimGuideRadius get() = minDim * 0.10f
 
-    /** Twin-stick: fire is the right aim stick; secondary actions in a bottom-right grid (thumb-reach). */
-    private val buttons = listOf(
-        Triple(TouchButton.DASH, 0.93f, 0.10f),
-        Triple(TouchButton.RELOAD, 0.78f, 0.10f),
-        Triple(TouchButton.WEAPON, 0.93f, 0.23f),
-        Triple(TouchButton.MELEE, 0.78f, 0.23f),
-        Triple(TouchButton.WALL, 0.855f, 0.36f),
-        Triple(TouchButton.LAND, 0.62f, 0.82f), // contextual: only shown near a planet / on the escape pad
-        Triple(TouchButton.INV, 0.955f, 0.49f),  // inventory (v2.33) — edge of the right cluster
-        Triple(TouchButton.FULL, 0.685f, 0.10f), // OC full throttle (v2.33) — only with an OC thruster
+    // Grid metrics: columns march inward from the right edge, rows upward from the bottom.
+    private val pad get() = minDim * 0.030f
+    private val gap get() = minDim * 0.035f
+    private fun colX(i: Int) = screenW - pad - buttonRadius - i * (2f * buttonRadius + gap)
+    private fun rowY(i: Int) = pad + buttonRadius + i * (2f * buttonRadius + gap)
+
+    /** Twin-stick: fire is the right aim stick; secondary actions in the bottom-right grid. */
+    private val order = listOf(
+        TouchButton.DASH, TouchButton.RELOAD, TouchButton.FULL,
+        TouchButton.WEAPON, TouchButton.MELEE,
+        TouchButton.WALL, TouchButton.INV,
+        TouchButton.LAND,
     )
 
-    fun all(): List<TouchButton> = buttons.map { it.first }
-    fun centerX(b: TouchButton): Float = buttons.first { it.first == b }.second * screenW
-    fun centerY(b: TouchButton): Float = buttons.first { it.first == b }.third * screenH
+    fun all(): List<TouchButton> = order
+
+    fun centerX(b: TouchButton): Float = when (b) {
+        TouchButton.DASH -> colX(0)
+        TouchButton.RELOAD -> colX(1)
+        TouchButton.FULL -> colX(2)
+        TouchButton.WEAPON -> colX(0)
+        TouchButton.MELEE -> colX(1)
+        TouchButton.WALL -> colX(0)
+        TouchButton.INV -> colX(1)
+        TouchButton.LAND -> screenW * 0.62f // contextual: big target where the eye already is
+        TouchButton.FIRE -> screenW * 0.62f // legacy id (fire lives on the aim stick)
+    }
+
+    fun centerY(b: TouchButton): Float = when (b) {
+        TouchButton.DASH, TouchButton.RELOAD, TouchButton.FULL -> rowY(0)
+        TouchButton.WEAPON, TouchButton.MELEE -> rowY(1)
+        TouchButton.WALL, TouchButton.INV -> rowY(2)
+        TouchButton.LAND -> screenH * 0.82f
+        TouchButton.FIRE -> screenH * 0.18f
+    }
 
     /** Left half of the screen is the movement-stick zone. */
     fun isInStickZone(x: Float, y: Float): Boolean = x < screenW * 0.45f
 
-    /** Which action button (if any) contains the point. Returns null inside the stick zone. */
-    /** Dash / weapon / reload are a touch larger for easier tapping. */
+    /** Dash / weapon / reload are a touch larger for easier tapping; LAND is the landing UX itself. */
     fun radiusOf(b: TouchButton): Float = buttonRadius * when (b) {
-        TouchButton.LAND -> 1.8f // a big, obvious "land here" target (v2.34: grown again — it IS the landing UX)
-        TouchButton.DASH, TouchButton.WEAPON, TouchButton.RELOAD -> 1.18f
+        TouchButton.LAND -> 1.8f // a big, obvious "land here" target (v2.34)
+        TouchButton.DASH -> 1.12f // v2.54: modest growth — the base radius already grew
         else -> 1f
     }
 
     fun button(x: Float, y: Float): TouchButton? {
         if (x < screenW * 0.45f) return null
-        for ((b, fx, fy) in buttons) {
+        for (b in order) {
             val rr = radiusOf(b)
-            val dx = x - fx * screenW; val dy = y - fy * screenH
+            val dx = x - centerX(b); val dy = y - centerY(b)
             if (dx * dx + dy * dy <= rr * rr) return b
         }
         return null

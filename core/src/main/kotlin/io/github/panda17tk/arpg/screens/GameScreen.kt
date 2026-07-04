@@ -108,6 +108,7 @@ private const val PLANET_TAP_PAD = 48f   // v2.38: extra world-px around a plane
 // v2.44/v2.52: base gate-shard cost; a well-restored network (SyncRestoration) asks one less.
 private const val GATE_TAP_R = 96f       // v2.44: world-px radius that counts as tapping the jump gate
 private const val TRAINING_SEED = 4242L   // v2.53: the simulation always rebuilds the same arena
+private const val HINT_TOP = 138f          // v2.54: hint panels start below the top HUD band
 private const val SETTINGS_PREFS = "drift-settings" // v2.39: device-level settings (not run state)
 private const val SETTINGS_SWAP = "controlSwap"
 private const val SETTINGS_ONBOARD = "onboardDone" // v2.47: the first-run walkthrough ran once
@@ -643,11 +644,7 @@ class GameScreen : ScreenAdapter() {
             }
             return
         }
-        batch.projectionMatrix = hudViewport.camera.combined
-        batch.begin()
-        glyphLayout.setText(font, line)
-        font.draw(batch, glyphLayout, (hudW - glyphLayout.width) / 2f, 190f)
-        batch.end()
+        Hud.hintPanel(shapes, batch, font, hudViewport, listOf(line), 236f)
     }
 
     /** Living Planets: surface exploration objective, or the pre-landing scan card in space (HUD space). */
@@ -655,21 +652,16 @@ class GameScreen : ScreenAdapter() {
         val ws = gw.worldState
         // SPACE: a latched landing candidate shows the scan card instead of the old one-line hint (LP v2.23).
         if (ws.mode == WorldMode.SPACE) {
-            // The takeoff send-off toast (LP v2.29) rides the top of the space HUD for a few seconds.
-            if (rewardToastT > 0f && rewardToast != null && !paused && !choosing && !gw.gameOver.isOver) {
-                batch.projectionMatrix = hudViewport.camera.combined
-                batch.begin()
-                glyphLayout.setText(font, rewardToast)
-                font.draw(batch, glyphLayout, (hudW - glyphLayout.width) / 2f, hudH - 12f)
-                batch.end()
-            }
+            // v2.54: every space hint (toast / sim banner / idle guidance) lives on ONE glass
+            // panel BELOW the top HUD band — no more text colliding with the bars and badges.
+            val busy = paused || choosing || gw.gameOver.isOver
+            val toast = if (rewardToastT > 0f && !busy) rewardToast else null
             if (simMode) { // v2.53: the simulation is combat only — say so, plainly
-                if (!paused && !choosing && !gw.gameOver.isOver) {
-                    batch.projectionMatrix = hudViewport.camera.combined
-                    batch.begin()
-                    glyphLayout.setText(font, "訓練環境 — 模擬戦闘のみ（ポーズから終了）")
-                    font.draw(batch, glyphLayout, (hudW - glyphLayout.width) / 2f, hudH - 12f)
-                    batch.end()
+                if (!busy) {
+                    Hud.hintPanel(
+                        shapes, batch, font, hudViewport,
+                        listOfNotNull(toast, "訓練環境 — 模擬戦闘のみ（ポーズから終了）"), hudH - HINT_TOP,
+                    )
                 }
                 return
             }
@@ -677,7 +669,7 @@ class GameScreen : ScreenAdapter() {
                 lastCardId = null; cachedCard = null
                 // v2.38/39: even with no planet latched, space tells you HOW landing works AND
                 // points at the nearest planet with a live distance — no more searching blind.
-                if (!paused && !choosing && !gw.gameOver.isOver) {
+                if (!busy) {
                     val idle = if (touchEnabled) "惑星に近づくとカードが出る　惑星をタップで着陸" else "惑星に近づいて [L] で着陸"
                     val (ppx, ppy) = with(gw.world) { val t = gw.player[Transform]; t.x to t.y }
                     val nearest = gw.planets.minByOrNull { hypot(it.cx - ppx, it.cy - ppy) }
@@ -708,23 +700,14 @@ class GameScreen : ScreenAdapter() {
                             "ジャンプゲート $arrow $dist　接近して跳躍"
                         }
                     }
-                    batch.projectionMatrix = hudViewport.camera.combined
-                    batch.begin()
-                    glyphLayout.setText(font, idle)
-                    font.draw(batch, glyphLayout, (hudW - glyphLayout.width) / 2f, hudH - 12f)
-                    if (nav != null) {
-                        glyphLayout.setText(font, nav)
-                        font.draw(batch, glyphLayout, (hudW - glyphLayout.width) / 2f, hudH - 34f)
-                    }
-                    if (gateLine != null) {
-                        glyphLayout.setText(font, gateLine)
-                        font.draw(batch, glyphLayout, (hudW - glyphLayout.width) / 2f, hudH - 56f)
-                    }
-                    batch.end()
+                    Hud.hintPanel(
+                        shapes, batch, font, hudViewport,
+                        listOfNotNull(toast, idle, nav, gateLine), hudH - HINT_TOP,
+                    )
                 }
                 return
             }
-            if (paused || choosing || gw.gameOver.isOver) return
+            if (busy) return
             if (cand.id != lastCardId) { // rebuild only when the candidate changes (FR-1.6)
                 cachedCard = PlanetScan.cardFor(cand, session.memory.knows(cand.id), session.memory.recall(cand.id))
                 lastCardId = cand.id
@@ -733,6 +716,10 @@ class GameScreen : ScreenAdapter() {
             cachedCard?.let {
                 val hint = if (touchEnabled) "惑星かこのカードをタップで着陸" else "[L] 着陸" // v2.34/38: planet or card = the landing button
                 Hud.planetScanCard(shapes, batch, font, Fonts.title, hudViewport, it, hint)
+                // v2.54: a live toast slots under the card instead of over the HUD.
+                if (toast != null) {
+                    Hud.hintPanel(shapes, batch, font, hudViewport, listOf(toast), HudLayout.planetCard(hudW, hudH, it.lines.size).y - 8f)
+                }
             }
             return
         }
@@ -752,16 +739,8 @@ class GameScreen : ScreenAdapter() {
         val chips = (if (biome != null) surfaceChips(biome, ws, elites) else emptyList()) +
             listOfNotNull(questChip(ws))
         if (!paused && !choosing) {
-            batch.projectionMatrix = hudViewport.camera.combined
-            batch.begin()
-            glyphLayout.setText(font, hint)
-            font.draw(batch, glyphLayout, (hudW - glyphLayout.width) / 2f, hudH - 12f)
-            if (chips.isNotEmpty()) {
-                val joined = chips.joinToString("　　")
-                glyphLayout.setText(font, joined)
-                font.draw(batch, glyphLayout, (hudW - glyphLayout.width) / 2f, hudH - 34f)
-            }
-            batch.end()
+            val lines = listOf(hint) + (if (chips.isEmpty()) emptyList() else listOf(chips.joinToString("　　")))
+            Hud.hintPanel(shapes, batch, font, hudViewport, lines, hudH - HINT_TOP)
         }
     }
 

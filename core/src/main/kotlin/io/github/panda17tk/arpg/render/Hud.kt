@@ -32,6 +32,9 @@ import kotlin.math.min
 object Hud {
     private val glyph = GlyphLayout()
     private val cScrim = Color(0f, 0f, 0f, 0.6f)
+    private val cGlass = Color(0.04f, 0.06f, 0.10f, 0.74f)     // v2.54: hint-panel glass
+    private val cGlassEdge = Color(0.55f, 0.75f, 1f, 0.22f)    // v2.54: its faint edge
+    private val cTopScrim = Color(0.02f, 0.03f, 0.05f, 0.42f)  // v2.54: top-band readability scrim
     private val cScrimDark = Color(0f, 0f, 0f, 0.74f)
     private val cCard = Color(0.16f, 0.17f, 0.22f, 1f)
     private val cBtn = Color(0.18f, 0.20f, 0.27f, 1f)
@@ -182,6 +185,41 @@ object Hud {
      * stack (left), weapon/ammo panel (right). Icons are ShapeRenderer figures (glyph-independent),
      * and the segmented bars carry the reading by shape+count+number, not colour alone.
      */
+    /**
+     * v2.54 hint panel: a centered glass card of hint lines whose text AUTO-SHRINKS to fit the
+     * screen width — nothing ever spills off the edges again. [topY] is the panel's top edge
+     * (callers place it just below the top HUD band, or under the scan card).
+     */
+    fun hintPanel(shapes: ShapeRenderer, batch: SpriteBatch, font: BitmapFont, vp: Viewport, lines: List<String>, topY: Float) {
+        if (lines.isEmpty()) return
+        val w = vp.worldWidth
+        val maxW = w - 32f
+        val baseX = font.data.scaleX; val baseY = font.data.scaleY
+        var widest = 1f
+        for (line in lines) { glyph.setText(font, line); if (glyph.width > widest) widest = glyph.width }
+        val fit = min(1f, maxW / widest)
+        val lineH = 25f * fit
+        val panelW = widest * fit + 30f
+        val panelH = lines.size * lineH + 16f
+        val x = (w - panelW) / 2f
+        val y = topY - panelH
+        Gdx.gl.glEnable(GL20.GL_BLEND)
+        shapes.projectionMatrix = vp.camera.combined
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
+        shapes.color = cGlassEdge; shapes.rect(x - 1.5f, y - 1.5f, panelW + 3f, panelH + 3f)
+        shapes.color = cGlass; shapes.rect(x, y, panelW, panelH)
+        shapes.end()
+        batch.projectionMatrix = vp.camera.combined
+        batch.begin()
+        if (fit < 1f) font.data.setScale(baseX * fit, baseY * fit)
+        lines.forEachIndexed { i, line ->
+            glyph.setText(font, line)
+            font.draw(batch, glyph, (w - glyph.width) / 2f, y + panelH - 10f - i * lineH)
+        }
+        if (fit < 1f) font.data.setScale(baseX, baseY)
+        batch.end()
+    }
+
     fun liveHud(
         shapes: ShapeRenderer, batch: SpriteBatch, font: BitmapFont, titleFont: BitmapFont, vp: Viewport,
         waveNum: Int, foes: Int,
@@ -200,6 +238,8 @@ object Hud {
         Gdx.gl.glEnable(GL20.GL_BLEND)
         shapes.projectionMatrix = vp.camera.combined
         shapes.begin(ShapeRenderer.ShapeType.Filled)
+        // v2.54: one soft scrim behind the whole top band — text stays readable over bright worlds.
+        shapes.color = cTopScrim; shapes.rect(0f, h - 130f, w, 130f)
         shapes.color = cHudPanel; shapes.rect(l.wave.x, l.wave.y, l.wave.w, l.wave.h)
         shapes.color = cHudPanel; shapes.rect(l.ammo.x, l.ammo.y, l.ammo.w, l.ammo.h)
         heart(shapes, l.hp.x - 11f, l.hp.centerY, 8f, hpCol)

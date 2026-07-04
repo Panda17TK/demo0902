@@ -11,11 +11,15 @@ import com.badlogic.gdx.utils.viewport.Viewport
 import io.github.panda17tk.arpg.input.TouchButton
 import io.github.panda17tk.arpg.input.TouchControls
 import kotlin.math.hypot
+import kotlin.math.min
 
 /**
  * On-screen touch controls (Android): the move stick, the floating aim+fire stick, and the
  * contextually-visible action buttons (P3). Pure painting over input.TouchControls state —
  * GameScreen decides when to draw and what the LAND button says (着陸 vs 発進).
+ *
+ * v2.54 modern look: each button is a dark glass disc with a function-coloured ring and an
+ * auto-fitted label (long labels shrink instead of spilling out of the circle).
  */
 object TouchOverlay {
     private val glyph = GlyphLayout()
@@ -24,9 +28,21 @@ object TouchOverlay {
     private val cAimBase = Color(1f, 0.5f, 0.4f, 0.16f)
     private val cAimKnob = Color(1f, 0.5f, 0.4f, 0.5f)
     private val cAimGuide = Color(1f, 0.5f, 0.4f, 0.06f)
-    private val cBtn = Color(1f, 1f, 1f, 0.14f)
-    private val cBtnPressed = Color(1f, 1f, 1f, 0.34f)
-    private val cLand = Color(0.30f, 0.85f, 0.45f, 0.30f) // v2.34: LAND glows green — it's the button that matters
+    private val cDisc = Color(0.05f, 0.07f, 0.11f, 0.62f)      // the glass body
+    private val cDiscPressed = Color(0.16f, 0.20f, 0.28f, 0.85f)
+    private val cLabel = Color(0.92f, 0.95f, 1f, 1f)
+
+    // Function-coloured rings — one hue per verb, so the cluster reads at a glance.
+    private val ringOf = mapOf(
+        TouchButton.DASH to Color(0.45f, 0.85f, 1f, 0.75f),    // dash: cyan
+        TouchButton.RELOAD to Color(0.55f, 0.65f, 1f, 0.70f),  // reload: blue
+        TouchButton.FULL to Color(1f, 0.65f, 0.35f, 0.75f),    // full throttle: burn orange
+        TouchButton.WEAPON to Color(1f, 0.82f, 0.40f, 0.70f),  // weapon: amber
+        TouchButton.MELEE to Color(1f, 0.50f, 0.45f, 0.75f),   // melee/fire: red
+        TouchButton.WALL to Color(0.60f, 0.85f, 0.65f, 0.70f), // wall: green-grey
+        TouchButton.INV to Color(0.75f, 0.60f, 1f, 0.70f),     // inventory: violet
+        TouchButton.LAND to Color(0.35f, 0.95f, 0.50f, 0.90f), // land: THE green button
+    )
 
     fun draw(
         shapes: ShapeRenderer, batch: SpriteBatch, font: BitmapFont, vp: Viewport,
@@ -50,19 +66,34 @@ object TouchOverlay {
         } else {
             shapes.color = cAimGuide; shapes.circle(l.aimGuideCx, l.aimGuideCy, l.aimGuideRadius, 24)
         }
-        // action buttons — only the contextually-visible ones; pressed ones brighten + grow (P3).
+        // Action buttons: ring (function colour) → glass disc → label. Pressed = brighter + grown.
         for (b in l.all()) {
             if (b !in touch.visibleButtons) continue
             val pressed = b in touch.pressedButtons
-            shapes.color = if (pressed) cBtnPressed else if (b == TouchButton.LAND) cLand else cBtn
-            shapes.circle(l.centerX(b), l.centerY(b), l.radiusOf(b) * (if (pressed) 1.16f else 1f), 22)
+            val r = l.radiusOf(b) * (if (pressed) 1.12f else 1f)
+            val cx = l.centerX(b); val cy = l.centerY(b)
+            val ring = ringOf[b] ?: cLabel
+            shapes.color = ring
+            shapes.circle(cx, cy, r, 32)
+            shapes.color = if (pressed) cDiscPressed else cDisc
+            shapes.circle(cx, cy, r - 2.5f, 32)
         }
         shapes.end()
         batch.projectionMatrix = vp.camera.combined
         batch.begin()
         for (b in l.all()) {
             if (b !in touch.visibleButtons) continue
-            glyph.setText(font, labelOf(b, landLabel, swapMeleeFire)); font.draw(batch, glyph, l.centerX(b) - glyph.width / 2f, l.centerY(b) + 7f)
+            val label = labelOf(b, landLabel, swapMeleeFire)
+            val r = l.radiusOf(b)
+            // v2.54 auto-fit: a label never spills past its disc — it shrinks to fit instead.
+            val baseX = font.data.scaleX; val baseY = font.data.scaleY
+            glyph.setText(font, label)
+            val fit = min(1f, (r * 1.7f) / glyph.width.coerceAtLeast(1f))
+            if (fit < 1f) { font.data.setScale(baseX * fit, baseY * fit); glyph.setText(font, label) }
+            font.color = cLabel
+            font.draw(batch, glyph, l.centerX(b) - glyph.width / 2f, l.centerY(b) + glyph.height / 2f)
+            font.color = Color.WHITE
+            if (fit < 1f) font.data.setScale(baseX, baseY)
         }
         batch.end()
     }

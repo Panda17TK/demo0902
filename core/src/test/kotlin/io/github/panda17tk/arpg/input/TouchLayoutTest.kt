@@ -28,6 +28,28 @@ class TouchLayoutTest {
         assertTrue(l.aimGuideCy - l.aimGuideRadius >= 0f && l.aimGuideCy + l.aimGuideRadius <= l.screenH)
     }
 
+    @Test fun `every button stays fully on screen — even on a narrow phone`() {
+        // v2.54: the old fraction layout clipped ダッシュ/持物 off the right edge on tall phones.
+        for (layout in listOf(TouchLayout(1000f, 600f), TouchLayout(360f, 800f), TouchLayout(411f, 914f))) {
+            for (b in layout.all()) {
+                val r = layout.radiusOf(b)
+                assertTrue(layout.centerX(b) - r >= 0f && layout.centerX(b) + r <= layout.screenW, "$b clips horizontally")
+                assertTrue(layout.centerY(b) - r >= 0f && layout.centerY(b) + r <= layout.screenH, "$b clips vertically")
+            }
+        }
+    }
+
+    @Test fun `grid buttons never overlap each other`() {
+        for (layout in listOf(TouchLayout(1000f, 600f), TouchLayout(360f, 800f))) {
+            val bs = layout.all()
+            for (i in bs.indices) for (j in i + 1 until bs.size) {
+                val a = bs[i]; val b = bs[j]
+                val dist = kotlin.math.hypot(layout.centerX(a) - layout.centerX(b), layout.centerY(a) - layout.centerY(b))
+                assertTrue(dist >= layout.radiusOf(a) + layout.radiusOf(b), "$a overlaps $b (dist $dist)")
+            }
+        }
+    }
+
     @Test fun `the aim guide clears every action button`() {
         for (b in l.all()) {
             val dx = l.centerX(b) - l.aimGuideCx
