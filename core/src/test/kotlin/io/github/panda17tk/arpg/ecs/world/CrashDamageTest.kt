@@ -43,4 +43,23 @@ class CrashDamageTest {
     @Test fun `even the hardest slam is capped at 5 HP`() {
         assertEquals(5f, lost(slam(6000f)), 1e-3f)
     }
+
+    @Test fun `crash-proof gear eats the slam entirely`() {
+        val gw = WorldFactory.create(InputState(), seed = 1L)
+        val planet = gw.planets.firstOrNull()
+        assertTrue(planet != null)
+        with(gw.world) {
+            gw.player[io.github.panda17tk.arpg.ecs.components.Gear].loadout.set(
+                io.github.panda17tk.arpg.item.EquipSlot.ARMOR,
+                io.github.panda17tk.arpg.item.ItemCatalog.byId("armor_shock")!!,
+            )
+            val t = gw.player[Transform]; val v = gw.player[Velocity]; val h = gw.player[Health]
+            h.hp = h.hpMax; h.iTime = 0f
+            t.x = planet!!.cx + planet.radius - 2f; t.y = planet.cy
+            t.prevX = t.x; t.prevY = t.y
+            v.driftX = -6000f
+        }
+        gw.world.update(1f / 60f)
+        assertEquals(0f, lost(gw), 1e-3f)
+    }
 }

@@ -88,6 +88,7 @@ private const val DRIFT_RANGE = 1400f
 private const val REMEMBERED_TIME = 5f // seconds the HUD greets a returning player on a remembered planet
 private const val TOAST_TIME = 3f      // seconds the takeoff send-off toast rides the space HUD (LP v2.29)
 private const val INV_TIME_SCALE = 0.01f // v2.33: the world crawls at this speed behind the inventory
+private const val PLANET_TAP_PAD = 48f   // v2.38: extra world-px around a planet that still counts as tapping it
 private const val VISIT_RADIUS = 2     // v2.33: tiles around the player marked as explored each frame
 private const val SAVED_NOTE_TIME = 2f // seconds the 「セーブした」 flash stays on the SAVE tab
 
@@ -138,6 +139,8 @@ class GameScreen : ScreenAdapter() {
     private var tapped = false
     private var tapX = 0f
     private var tapY = 0f
+    private var rawTapX = 0f // raw screen coords, re-unprojected into world space for planet taps (v2.38)
+    private var rawTapY = 0f
     private val tmpTap = Vector3()
 
     // Static help text shown on the pause → 操作説明 overlay (keyboard + touch bindings).
@@ -481,7 +484,20 @@ class GameScreen : ScreenAdapter() {
                 font.draw(batch, glyphLayout, (hudW - glyphLayout.width) / 2f, hudH - 12f)
                 batch.end()
             }
-            val cand = ws.landingCandidate ?: run { lastCardId = null; cachedCard = null; return }
+            val cand = ws.landingCandidate ?: run {
+                lastCardId = null; cachedCard = null
+                // v2.38: even with no planet latched, space tells you HOW landing works — the user
+                // shouldn't have to discover it by accident.
+                if (!paused && !choosing && !gw.gameOver.isOver) {
+                    val idle = if (touchEnabled) "惑星に近づくとカードが出る　惑星をタップで着陸" else "惑星に近づいて [L] で着陸"
+                    batch.projectionMatrix = hudViewport.camera.combined
+                    batch.begin()
+                    glyphLayout.setText(font, idle)
+                    font.draw(batch, glyphLayout, (hudW - glyphLayout.width) / 2f, hudH - 12f)
+                    batch.end()
+                }
+                return
+            }
             if (paused || choosing || gw.gameOver.isOver) return
             if (cand.id != lastCardId) { // rebuild only when the candidate changes (FR-1.6)
                 cachedCard = PlanetScan.cardFor(cand, session.memory.knows(cand.id), session.memory.recall(cand.id))
@@ -489,7 +505,7 @@ class GameScreen : ScreenAdapter() {
                 Sfx.play("scan") // 10a: a fresh scan pings once per newly latched planet
             }
             cachedCard?.let {
-                val hint = if (touchEnabled) "カードをタップで着陸" else "[L] 着陸" // v2.34: the card itself is the landing button on touch
+                val hint = if (touchEnabled) "惑星かこのカードをタップで着陸" else "[L] 着陸" // v2.34/38: planet or card = the landing button
                 Hud.planetScanCard(shapes, batch, font, Fonts.title, hudViewport, it, hint)
             }
             return
@@ -582,10 +598,19 @@ class GameScreen : ScreenAdapter() {
     private fun pollTap() {
         tapped = Gdx.input.justTouched()
         if (tapped) {
-            tmpTap.set(Gdx.input.x.toFloat(), Gdx.input.y.toFloat(), 0f)
+            rawTapX = Gdx.input.x.toFloat(); rawTapY = Gdx.input.y.toFloat() // kept for world-space hits (v2.38)
+            tmpTap.set(rawTapX, rawTapY, 0f)
             hudViewport.unproject(tmpTap)
             tapX = tmpTap.x; tapY = tmpTap.y
         }
+    }
+
+    /** v2.38: did this frame's tap land on the landing candidate planet itself (world space)? */
+    private fun tapHitsCandidatePlanet(): Boolean {
+        val cand = gw.worldState.landingCandidate ?: return false
+        tmpTap.set(rawTapX, rawTapY, 0f)
+        worldViewport.unproject(tmpTap)
+        return hypot(tmpTap.x - cand.cx, tmpTap.y - cand.cy) < cand.radius + PLANET_TAP_PAD
     }
 
     /** Whether the pause carries the 4th 「この星の記憶」 entry (surface only — LP v2.25). */
@@ -624,7 +649,10 @@ class GameScreen : ScreenAdapter() {
                 if (Modals.hitModal(listOf(Modals.pauseButton(w, h)), tapX, tapY) != null) {
                     overlay = Overlay.PAUSE
                 } else if (touchEnabled && !fade.blocksInput && gw.worldState.mode == WorldMode.SPACE &&
-                    canTransitionNow() && cachedCard?.let { HudLayout.planetCard(w, h, it.lines.size).contains(tapX, tapY) } == true
+                    canTransitionNow() && (
+                        cachedCard?.let { HudLayout.planetCard(w, h, it.lines.size).contains(tapX, tapY) } == true ||
+                            tapHitsCandidatePlanet() // v2.38: the planet ITSELF is the biggest landing button of all
+                        )
                 ) {
                     // v2.34: on touch, tapping the scan card lands — the card is a big, obvious target where
                     // the player is already looking, so landing no longer depends on reaching the LAND button.

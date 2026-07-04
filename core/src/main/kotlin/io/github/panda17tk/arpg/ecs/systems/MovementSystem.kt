@@ -145,7 +145,10 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         if ((r1.hitX || r2.hitY || pc.hit) && impactSpeed > IMPACT_MIN_SPEED) {
             fx.addShake(IMPACT_SHAKE_T, (impactSpeed * IMPACT_SHAKE_K).coerceAtMost(IMPACT_SHAKE_MAX))
             val crash = CrashModel.damage(impactSpeed, CRASH_DMG_MIN_SPEED, CRASH_DMG_K)
-            if (crash > 0f) h.hp = (h.hp - crash.coerceIn(CRASH_DMG_MIN, CRASH_DMG_MAX)).coerceAtLeast(0f)
+            // v2.38: crash-proof gear (対衝撃フレーム等) eats the slam — shake only, no HP.
+            if (crash > 0f && !loadout.has(ItemTrait.CRASH_PROOF)) {
+                h.hp = (h.hp - crash.coerceIn(CRASH_DMG_MIN, CRASH_DMG_MAX)).coerceAtLeast(0f)
+            }
         }
         // Stamina: a button dash drains hard, a stick dash barely sips, otherwise it regenerates.
         if (staInf) {

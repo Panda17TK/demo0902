@@ -21,6 +21,8 @@ import io.github.panda17tk.arpg.ecs.components.Speech
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.ecs.components.Velocity
 import io.github.panda17tk.arpg.ecs.world.GameWorld
+import io.github.panda17tk.arpg.item.ItemCatalog
+import io.github.panda17tk.arpg.item.ItemKind
 import io.github.panda17tk.arpg.planet.PlanetBiome
 import io.github.panda17tk.arpg.sim.FacilityKind
 import io.github.panda17tk.arpg.sim.Tuning
@@ -68,6 +70,9 @@ class SceneRenderer {
     private val cBlocks = Color.valueOf("b48a5a")
     private val cMed = Color.valueOf("7fe08a")
     private val cItem = Color.valueOf("c08bff") // v2.33: equipment spoils glow purple
+    private val cPickupCase = Color.valueOf("e8ecf2")  // v2.38: med case / blade / page white
+    private val cPickupBrass = Color.valueOf("c8a35a") // v2.38: cartridge brass
+    private val cThrustDot = Color.valueOf("ffb060")   // v2.38: thruster drop's exhaust dot
     private val tribeColors = arrayOf(
         Color.valueOf("ff6b6b"), Color.valueOf("66e0ff"), Color.valueOf("7fe08a"), Color.valueOf("ffd166"), Color.valueOf("c08bff"),
     )
@@ -275,9 +280,88 @@ class SceneRenderer {
             gw.world.family { all(Pickup, Transform) }.forEach { e ->
                 val pt = e[Transform]; val pk = e[Pickup]
                 val bob = sin(animTime * 4f + pt.x * 0.05f) * 2f
-                shapes.color = pickupColor(pk.kind)
-                shapes.circle(pt.x, pt.y + bob, 4f, 10)
+                drawPickupGlyph(shapes, pk.kind, pt.x, pt.y + bob)
             }
+        }
+    }
+
+    /** v2.38: pickups get a real silhouette per kind instead of a bare circle. World px, y-down. */
+    private fun drawPickupGlyph(shapes: ShapeRenderer, kind: String, x: Float, y: Float) {
+        val c = pickupColor(kind)
+        when {
+            kind == "med" -> { // medkit: a white case with a green cross
+                shapes.color = cPickupCase; shapes.rect(x - 5f, y - 4f, 10f, 8f)
+                shapes.color = c
+                shapes.rect(x - 1.2f, y - 3f, 2.4f, 6f); shapes.rect(x - 3f, y - 1.2f, 6f, 2.4f)
+            }
+            kind == "blocks" -> { // building material: a small crate with a lid line
+                shapes.color = c; shapes.rect(x - 4.5f, y - 4.5f, 9f, 9f)
+                shapes.color = cPickupCase; shapes.rect(x - 4.5f, y - 1f, 9f, 1.6f)
+            }
+            kind == "staminaInf" -> { // stim: a lightning bolt
+                shapes.color = c
+                shapes.triangle(x - 2.5f, y - 5f, x + 2f, y - 5f, x - 0.5f, y - 0.5f)
+                shapes.triangle(x + 2.5f, y + 5f, x - 2f, y + 5f, x + 0.5f, y + 0.5f)
+            }
+            kind == "dashUp" -> { // dash boost: double chevrons
+                shapes.color = c
+                shapes.triangle(x - 4f, y - 4f, x - 4f, y + 4f, x + 0f, y)
+                shapes.triangle(x + 0f, y - 4f, x + 0f, y + 4f, x + 4f, y)
+            }
+            kind == "smoke" -> { // smoke charge: two grey puffs
+                shapes.color = c; shapes.circle(x - 2f, y, 3.2f, 8); shapes.circle(x + 2.4f, y - 1.4f, 2.6f, 8)
+            }
+            kind.startsWith("mat_") -> { // planet core: a cut gem (two triangles)
+                shapes.color = c
+                shapes.triangle(x - 4.5f, y - 1f, x + 4.5f, y - 1f, x, y + 5f)
+                shapes.triangle(x - 3f, y - 4f, x + 3f, y - 4f, x + 4.5f, y - 1f)
+                shapes.triangle(x - 3f, y - 4f, x - 4.5f, y - 1f, x + 4.5f, y - 1f)
+            }
+            kind.startsWith("item:") -> drawItemGlyph(shapes, kind.removePrefix("item:"), x, y)
+            else -> { // ammo: a cartridge — brass case + pool-colored tip
+                shapes.color = cPickupBrass; shapes.rect(x - 1.8f, y - 1.5f, 3.6f, 5f)
+                shapes.color = c
+                shapes.triangle(x - 1.8f, y - 1.5f, x + 1.8f, y - 1.5f, x, y - 4.5f)
+            }
+        }
+    }
+
+    /** Equipment/consumable/lore drops: a silhouette by catalog kind, purple-accented so spoils pop. */
+    private fun drawItemGlyph(shapes: ShapeRenderer, id: String, x: Float, y: Float) {
+        when (ItemCatalog.byId(id)?.kind) {
+            ItemKind.RANGED_WEAPON -> { // a small gun: body + barrel
+                shapes.color = cItem; shapes.rect(x - 4f, y - 1f, 8f, 3f)
+                shapes.rect(x + 1f, y - 3f, 4f, 2.2f)
+                shapes.rect(x - 3f, y + 2f, 2f, 2.5f)
+            }
+            ItemKind.MELEE_WEAPON -> { // a blade + hilt
+                shapes.color = cPickupCase; shapes.triangle(x - 1.2f, y + 1f, x + 1.2f, y + 1f, x, y - 6f)
+                shapes.color = cItem; shapes.rect(x - 2.6f, y + 1f, 5.2f, 1.6f); shapes.rect(x - 0.8f, y + 2.6f, 1.6f, 3f)
+            }
+            ItemKind.THRUSTER -> { // a nozzle cone + exhaust dot
+                shapes.color = cItem; shapes.triangle(x - 3.5f, y - 4f, x + 3.5f, y - 4f, x, y + 2f)
+                shapes.color = cThrustDot; shapes.circle(x, y + 4f, 1.8f, 8)
+            }
+            ItemKind.ARMOR -> { // a shield: slab + tapered bottom
+                shapes.color = cItem; shapes.rect(x - 4f, y - 4.5f, 8f, 6f)
+                shapes.triangle(x - 4f, y + 1.5f, x + 4f, y + 1.5f, x, y + 5.5f)
+            }
+            ItemKind.ACCESSORY -> { // a charm: small diamond + stud
+                shapes.color = cItem
+                shapes.triangle(x - 3.5f, y, x, y - 3.5f, x + 3.5f, y)
+                shapes.triangle(x - 3.5f, y, x, y + 3.5f, x + 3.5f, y)
+                shapes.color = cPickupCase; shapes.circle(x, y - 4.5f, 1.2f, 6)
+            }
+            ItemKind.CONSUMABLE -> { // a capsule: two-tone pill
+                shapes.color = cPickupCase; shapes.circle(x - 2.2f, y, 2.6f, 8); shapes.rect(x - 2.2f, y - 2.6f, 2.2f, 5.2f)
+                shapes.color = cItem; shapes.circle(x + 2.2f, y, 2.6f, 8); shapes.rect(x, y - 2.6f, 2.2f, 5.2f)
+            }
+            ItemKind.LORE -> { // a readable: a small book with a pale page edge
+                shapes.color = cItem; shapes.rect(x - 4f, y - 5f, 8f, 10f)
+                shapes.color = cPickupCase; shapes.rect(x - 2.6f, y - 3.8f, 5.6f, 7.6f)
+                shapes.color = cItem; shapes.rect(x - 4f, y - 5f, 1.6f, 10f) // spine
+            }
+            null -> { shapes.color = cItem; shapes.circle(x, y, 4f, 10) } // unknown id: the old dot
         }
     }
 
