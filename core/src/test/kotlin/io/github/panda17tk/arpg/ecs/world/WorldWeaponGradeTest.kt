@@ -33,6 +33,28 @@ class WorldWeaponGradeTest {
         assertTrue(Weapons.ALL.first { it.id == "beam" }.infiniteAmmo)
     }
 
+    @Test fun `the machine gun carries an 80-round magazine`() {
+        assertEquals(80, Weapons.ALL.first { it.id == "mg" }.magSize)
+    }
+
+    @Test fun `the new weapon types exist and are reachable through equipment`() {
+        assertTrue(Weapons.ALL.any { it.id == "smg" && it.infiniteAmmo })
+        assertTrue(Weapons.ALL.any { it.id == "rifle" })
+        val input = InputState()
+        val gw = world(input)
+        // Drop everything else that fits RANGED so cycling lands on the rifle, then cycle it in.
+        with(gw.world) {
+            val gear = gw.player[Gear]
+            gear.backpack.removeAll { it.id.startsWith("gun_") }
+            gear.backpack.add(ItemCatalog.byId("gun_rifle")!!)
+        }
+        GearOps.cycleSlot(gw.world, gw.player, EquipSlot.RANGED)
+        with(gw.world) {
+            assertEquals("gun_rifle", gw.player[Gear].loadout.ranged?.id)
+            assertEquals("rifle", gw.player[Arsenal].current.def.id) // GearOps pointed Arsenal at the new type
+        }
+    }
+
     @Test fun `the beam fires with an empty reserve`() {
         val input = InputState()
         val gw = world(input)

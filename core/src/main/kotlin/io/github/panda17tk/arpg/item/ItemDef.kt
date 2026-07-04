@@ -20,8 +20,9 @@ enum class ConsumeKind { NONE, HEAL, STAMINA, STAMINA_INF, DASH_UP, SMOKE, BLOCK
  *  - HEAT_PROOF: magma damage is cut completely (溶岩床・マグマ惑星の熱を無効)
  *  - COLD_PROOF: snow no longer slows and ice no longer slides (雪の減速・氷の滑りを無効)
  *  - MAGNET: pickups are collected from much further away (ドロップ品を引き寄せる)
+ *  - CRASH_PROOF: high-speed wall/planet impacts cost no HP (激突ダメージ無効, v2.38)
  */
-enum class ItemTrait { HEAT_PROOF, COLD_PROOF, MAGNET }
+enum class ItemTrait { HEAT_PROOF, COLD_PROOF, MAGNET, CRASH_PROOF }
 
 /**
  * One item in the world (v2.33 装備/インベントリ). Pure data — behaviour stays in the systems that

@@ -113,6 +113,14 @@ object Actors {
                 s.color = GUN; Draw.orientedRect(s, x, y, fx, fy, 4f, 8f, 3.5f)
                 s.color = GUN_TIP; Draw.orientedRect(s, x, y, fx, fy, 10f, 2.5f, 3f)
             }
+            "smg" -> { // v2.38: compact machine pistol — short and thin
+                s.color = GUN; Draw.orientedRect(s, x, y, fx, fy, 5f, 9f, 2f)
+                s.color = GUN_TIP; Draw.orientedRect(s, x, y, fx, fy, 12f, 3f, 1.2f)
+            }
+            "rifle" -> { // v2.38: marksman rifle — the longest barrel on the field
+                s.color = GUN; Draw.orientedRect(s, x, y, fx, fy, 6f, 18f, 1.8f)
+                s.color = GUN_TIP; Draw.orientedRect(s, x, y, fx, fy, 22f, 4f, 1.2f)
+            }
             else -> { // pistol / unknown: the classic sidearm
                 s.color = GUN; Draw.orientedRect(s, x, y, fx, fy, 6f, 12f, 2.5f)
                 s.color = GUN_TIP; Draw.orientedRect(s, x, y, fx, fy, 15f, 3f, 1.5f)

@@ -15,6 +15,8 @@ object ItemCatalog {
         ItemDef("thruster_heavy", "大推力スラスター", ItemKind.THRUSTER, desc = "重いが速い", accelMul = 0.8f, cruiseMul = 1.2f),
         ItemDef("thruster_oc", "OCスラスター", ItemKind.THRUSTER, desc = "フルスロットル可能　全開時 推力3倍/巡航2倍/スタミナ消費2倍", thrusterClass = ThrusterClass.OC),
         ItemDef("thruster_beast", "生体腱スラスター", ItemKind.THRUSTER, desc = "大型獣の腱を使った駆動索　立ち上がりも巡航も一段上", accelMul = 1.15f, cruiseMul = 1.1f),
+        ItemDef("thruster_cruise", "巡航スラスター", ItemKind.THRUSTER, desc = "長距離向け　巡航+30% 立ち上がりは鈍い", accelMul = 0.85f, cruiseMul = 1.3f),
+        ItemDef("thruster_vernier", "バーニアスラスター", ItemKind.THRUSTER, desc = "取り回し特化　立ち上がり+50% 巡航-20%", accelMul = 1.5f, cruiseMul = 0.8f),
         // --- 防具 (armor) ---
         ItemDef("armor_cloth", "パイロットスーツ", ItemKind.ARMOR, desc = "身軽な標準装備", damageMul = 0.95f),
         ItemDef("armor_light", "軽装甲", ItemKind.ARMOR, desc = "被ダメージ -15%", damageMul = 0.85f),
@@ -23,6 +25,8 @@ object ItemCatalog {
         ItemDef("armor_relic", "遺物合金の胸当て", ItemKind.ARMOR, desc = "死せる星の合金　被ダメ -35% 銃 +5%", damageMul = 0.65f, gunMul = 1.05f),
         ItemDef("armor_thermal", "耐熱スーツ", ItemKind.ARMOR, desc = "マグマの熱を完全に遮断　被ダメ -10%", damageMul = 0.9f, traits = setOf(ItemTrait.HEAT_PROOF)),
         ItemDef("armor_insulated", "防寒スーツ", ItemKind.ARMOR, desc = "雪の減速と氷の滑りを無効　被ダメ -10%", damageMul = 0.9f, traits = setOf(ItemTrait.COLD_PROOF)),
+        ItemDef("armor_scout", "偵察スーツ", ItemKind.ARMOR, desc = "軽くて速い　移動 +8% 被ダメ -8%", damageMul = 0.92f, moveMul = 1.08f),
+        ItemDef("armor_shock", "対衝撃フレーム", ItemKind.ARMOR, desc = "激突ダメージ無効　被ダメ -20%", damageMul = 0.8f, traits = setOf(ItemTrait.CRASH_PROOF)),
         // --- 遠距離武器 (the classic guns as items; 種類 = weaponType, v2.37 でグレード制) ---
         ItemDef("gun_pistol", "ピストル", ItemKind.RANGED_WEAPON, desc = "種類:ピストル　弾薬無限", weaponType = "pistol"),
         ItemDef("gun_shotgun", "ショットガン", ItemKind.RANGED_WEAPON, desc = "種類:ショットガン", weaponType = "shotgun"),
@@ -38,6 +42,11 @@ object ItemCatalog {
         ItemDef("gun_mg_3", "重機関銃", ItemKind.RANGED_WEAPON, desc = "種類:マシンガン　威力+40% ブロック破壊1.5倍 連射は重め", weaponType = "mg", gunMul = 1.4f, fireRateMul = 1.15f, wallDmgMul = 1.5f),
         ItemDef("gun_beam_2", "高出力ビーム", ItemKind.RANGED_WEAPON, desc = "種類:ビーム　威力+30% 着弾爆風1.5倍", weaponType = "beam", gunMul = 1.3f, blastMul = 1.5f),
         ItemDef("gun_grenade_2", "拡散グレネード", ItemKind.RANGED_WEAPON, desc = "種類:グレネード　爆風1.6倍 装填-15%", weaponType = "grenade", blastMul = 1.6f, reloadMul = 0.85f),
+        // 新しい武器種 (v2.38): 装備することでのみ使える種類 — 数字キーの5種の外側
+        ItemDef("gun_smg", "サブマシンガン", ItemKind.RANGED_WEAPON, desc = "種類:SMG　超速連射・低威力　弾薬無限", weaponType = "smg"),
+        ItemDef("gun_smg_2", "サブマシンガン改", ItemKind.RANGED_WEAPON, desc = "種類:SMG　威力+20% 装填-25%", weaponType = "smg", gunMul = 1.2f, reloadMul = 0.75f),
+        ItemDef("gun_rifle", "ライフル", ItemKind.RANGED_WEAPON, desc = "種類:ライフル　単発高威力・高精度", weaponType = "rifle"),
+        ItemDef("gun_rifle_2", "マークスマンライフル", ItemKind.RANGED_WEAPON, desc = "種類:ライフル　威力+35% 装填-20%", weaponType = "rifle", gunMul = 1.35f, reloadMul = 0.8f),
         // --- 近距離武器 (melee) ---
         ItemDef("melee_knife", "コンバットナイフ", ItemKind.MELEE_WEAPON, desc = "素早い標準ナイフ"),
         ItemDef("melee_blade", "プラズマブレード", ItemKind.MELEE_WEAPON, desc = "近接ダメージ +30%", meleeDmgMul = 1.3f),
@@ -57,6 +66,8 @@ object ItemCatalog {
         ItemDef("acc_gripsole", "グリップソール", ItemKind.ACCESSORY, desc = "雪で減速せず氷で滑らない", traits = setOf(ItemTrait.COLD_PROOF)),
         ItemDef("acc_magnet", "回収磁石", ItemKind.ACCESSORY, desc = "ドロップ品を遠くから引き寄せる", traits = setOf(ItemTrait.MAGNET)),
         ItemDef("acc_repair", "自己修復パッチ", ItemKind.ACCESSORY, desc = "HPを毎秒 1.5 回復", hpRegen = 1.5f),
+        ItemDef("acc_gyro", "ジャイロスタビライザー", ItemKind.ACCESSORY, desc = "激突ダメージ無効", traits = setOf(ItemTrait.CRASH_PROOF)),
+        ItemDef("acc_grip", "反動制御グリップ", ItemKind.ACCESSORY, desc = "銃 +6% 近接 +3%", gunMul = 1.06f, meleeDmgMul = 1.03f),
         // --- 消費アイテム (consumables — used from the ITEMS tab, v2.34) ---
         ItemDef("med_spray", "応急スプレー", ItemKind.CONSUMABLE, desc = "HP 25 回復", consume = ConsumeKind.HEAL, power = 25f),
         ItemDef("med_kit", "野戦メディキット", ItemKind.CONSUMABLE, desc = "HP 60 回復", consume = ConsumeKind.HEAL, power = 60f),
