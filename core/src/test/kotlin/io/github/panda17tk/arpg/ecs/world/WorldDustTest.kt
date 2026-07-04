@@ -13,13 +13,18 @@ import org.junit.jupiter.api.Test
 class WorldDustTest {
     @Test fun `kill loot always includes a dust drop`() {
         val gw = WorldFactory.create(InputState(), seed = 3L)
-        Pickups.dropOnKill(gw.world, Rng(1L), 500f, 500f, boss = false)
-        var dust = 0
-        with(gw.world) {
-            gw.world.family { all(Pickup, Transform) }.forEach { e ->
-                if (e[Pickup].kind == "dust") dust += e[Pickup].amount
+        fun totalDust(): Int {
+            var dust = 0
+            with(gw.world) {
+                gw.world.family { all(Pickup, Transform) }.forEach { e ->
+                    if (e[Pickup].kind == "dust") dust += e[Pickup].amount
+                }
             }
+            return dust
         }
+        val before = totalDust() // v2.46: wrecks pre-seed dust bundles — measure the kill's delta
+        Pickups.dropOnKill(gw.world, Rng(1L), 500f, 500f, boss = false)
+        val dust = totalDust() - before
         assertTrue(dust in 2..5, "a normal kill sheds 2..5 dust, got $dust")
     }
 

@@ -405,6 +405,7 @@ object Hud {
         controlLabel: String? = null, // v2.39: EQUIP tab's control-swap toggle caption
         marketLines: List<String> = emptyList(), // v2.43: MARKET rows (already priced/formatted)
         marketFooter: String? = null,            // v2.43: dust balance or the closed-stall notice
+        logLines: List<String> = emptyList(),    // v2.46: 記録 tab (already formatted, top-down)
     ) {
         val w = vp.worldWidth; val h = vp.worldHeight
         val panel = InventoryLayout.panel(w, h)
@@ -492,6 +493,17 @@ object Hud {
                 centerText(batch, font, "この場でランを保存する（やられると消える）", w, body.y + body.h * 0.30f)
                 font.color = Color.WHITE
                 note?.let { centerText(batch, font, it, w, body.y + body.h * 0.22f) }
+            }
+            InvTab.LOG -> { // v2.46 航海日誌: the run so far + what the stars remember
+                var ly = body.y + body.h - 14f
+                for (line in logLines) {
+                    font.draw(batch, line, body.x + 12f, ly)
+                    ly -= 24f
+                    if (ly < body.y + 34f) break
+                }
+                font.color = cHint
+                centerText(batch, font, "旅の記録 — 星々はあなたを覚えている", w, body.y + 16f)
+                font.color = Color.WHITE
             }
         }
         centerLabel(batch, font, close.label, close.centerX, close.centerY)

@@ -13,7 +13,7 @@ import kotlin.math.hypot
 
 /** v2.36: space starts populated with coasting drifters that never gate the wave train. */
 class WorldDrifterTest {
-    @Test fun `space spawns 30 drifters, each with opening momentum`() {
+    @Test fun `space spawns 30 drifters plus wreck pickets, each with opening momentum`() {
         val gw = WorldFactory.create(InputState(), seed = 5L)
         var drifters = 0
         with(gw.world) {
@@ -25,7 +25,8 @@ class WorldDrifterTest {
                 }
             }
         }
-        assertEquals(30, drifters)
+        // v2.46: each wreck adds a 3-strong drifter picket on top of the 30 void drifters.
+        assertEquals(30 + gw.worldState.wrecks.size * 3, drifters)
     }
 
     @Test fun `surfaces have no drifters`() {

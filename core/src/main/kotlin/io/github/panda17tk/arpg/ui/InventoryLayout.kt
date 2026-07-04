@@ -3,8 +3,8 @@ package io.github.panda17tk.arpg.ui
 import io.github.panda17tk.arpg.item.EquipSlot
 import kotlin.math.min
 
-/** The inventory overlay's tabs (v2.33; v2.43 adds the planet market): 装備/アイテム/マップ/市/セーブ. */
-enum class InvTab { EQUIP, ITEMS, MAP, MARKET, SAVE }
+/** The inventory overlay's tabs (v2.33; v2.43 market; v2.46 logbook): 装備/アイテム/マップ/市/セーブ/記録. */
+enum class InvTab { EQUIP, ITEMS, MAP, MARKET, SAVE, LOG }
 
 /**
  * Pure geometry for the inventory overlay (v2.33) — same policy as Modals/HudLayout: drawing
@@ -17,7 +17,7 @@ object InventoryLayout {
     const val PAD = 12f
     const val ROW_GAP = 8f
 
-    val TAB_LABELS = listOf("装備", "アイテム", "マップ", "市", "セーブ")
+    val TAB_LABELS = listOf("装備", "アイテム", "マップ", "市", "セーブ", "記録")
     val SLOT_ORDER = listOf(
         EquipSlot.THRUSTER, EquipSlot.ARMOR, EquipSlot.RANGED, EquipSlot.MELEE,
         EquipSlot.ACC1, EquipSlot.ACC2, EquipSlot.ACC3,
@@ -31,7 +31,7 @@ object InventoryLayout {
         return UiButton((hudW - w) / 2f, (hudH - h) / 2f, w, h)
     }
 
-    /** Four equal tabs across the panel's top edge, in [TAB_LABELS] order. */
+    /** Equal-width tabs across the panel's top edge, in [TAB_LABELS] order. */
     fun tabs(hudW: Float, hudH: Float): List<UiButton> {
         val p = panel(hudW, hudH)
         val n = TAB_LABELS.size

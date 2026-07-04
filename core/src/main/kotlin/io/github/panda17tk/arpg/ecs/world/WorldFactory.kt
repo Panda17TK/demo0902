@@ -142,6 +142,18 @@ object WorldFactory {
             val gy = (loaded.playerSpawnY + kotlin.math.sin(ga) * gd).coerceIn(Tuning.TILE * 4f, map.height * Tuning.TILE - Tuning.TILE * 4f)
             worldState.gate = snapToFloor(map, gx, gy)
         }
+        // v2.46 難破船: 2..3 wrecked hulls drift in each system, nearer than the gate. Their loot
+        // and guards are placed after the ECS world exists (below); the sites live here for drawing.
+        if (mode != WorldMode.SURFACE) {
+            val wRng = Rng(seed xor 0x37EC57A1L)
+            worldState.wrecks = List(2 + wRng.nextInt(2)) {
+                val wa = wRng.nextFloat() * TAU
+                val wd = 900f + wRng.nextFloat() * 1500f
+                val wx = (loaded.playerSpawnX + kotlin.math.cos(wa) * wd).coerceIn(Tuning.TILE * 4f, map.width * Tuning.TILE - Tuning.TILE * 4f)
+                val wy = (loaded.playerSpawnY + kotlin.math.sin(wa) * wd).coerceIn(Tuning.TILE * 4f, map.height * Tuning.TILE - Tuning.TILE * 4f)
+                snapToFloor(map, wx, wy)
+            }
+        }
         val waveState = WaveState(
             num = 1,
             phase = "active",
@@ -250,6 +262,35 @@ object WorldFactory {
                     with(world) {
                         e[Velocity].driftX = kotlin.math.cos(va) * sp
                         e[Velocity].driftY = kotlin.math.sin(va) * sp
+                    }
+                }
+            }
+        }
+
+        // v2.46 難破船: each wreck carries a weapon cache + dust + a med pack, watched by a small
+        // drifter picket (drifters — they aggro on approach but never stall the wave train).
+        if (mode != WorldMode.SURFACE && worldState.wrecks.isNotEmpty()) {
+            val lootRng = Rng(seed xor 0x100CCAFEL)
+            val guardKeys = config.enemies.filterValues { it.tier == "normal" && it.biome == null }.keys.toList()
+            for ((wx, wy) in worldState.wrecks) {
+                Pickups.spawn(world, "item:" + ItemCatalog.gunFor(lootRng.nextInt(1000)).id, 1, wx, wy)
+                Pickups.spawn(world, "dust", 25 + lootRng.nextInt(36), wx + 16f, wy + 6f)
+                Pickups.spawn(world, "med", 25, wx - 16f, wy + 6f)
+                if (guardKeys.isNotEmpty()) repeat(3) {
+                    val def = config.enemies[guardKeys[lootRng.nextInt(guardKeys.size)]] ?: return@repeat
+                    val ga2 = lootRng.nextFloat() * TAU
+                    val gr = 60f + lootRng.nextFloat() * 60f
+                    val (gx2, gy2) = snapToFloor(map, wx + kotlin.math.cos(ga2) * gr, wy + kotlin.math.sin(ga2) * gr)
+                    val guard = MobFactory.spawn(
+                        world, def, gx2, gy2, tribe = tribes.tribeOf(gx2, gy2),
+                        dashes = lootRng.nextFloat() < 0.5f, drifter = true,
+                    )
+                    // A lazy patrol coast, same envelope as the void drifters (below the ram threshold).
+                    val pa = lootRng.nextFloat() * TAU
+                    val ps = 40f + lootRng.nextFloat() * 40f
+                    with(world) {
+                        guard[Velocity].driftX = kotlin.math.cos(pa) * ps
+                        guard[Velocity].driftY = kotlin.math.sin(pa) * ps
                     }
                 }
             }

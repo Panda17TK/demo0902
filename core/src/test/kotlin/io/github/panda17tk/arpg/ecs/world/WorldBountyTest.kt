@@ -44,16 +44,21 @@ class WorldBountyTest {
 
     @Test fun `a storm wave doubles the dust a kill sheds`() {
         val gw = WorldFactory.create(InputState(), seed = 3L)
+        fun totalDust(): Int {
+            var dust = 0
+            with(gw.world) {
+                gw.world.family { all(Pickup, Transform) }.forEach { p ->
+                    if (p[Pickup].kind == "dust") dust += p[Pickup].amount
+                }
+            }
+            return dust
+        }
         gw.waveState.event = WaveEvent.STORM
+        val before = totalDust() // v2.46: wrecks pre-seed dust bundles — measure the kill's delta
         val n = MobFactory.spawn(gw.world, normalDef(), 500f, 500f)
         with(gw.world) { n[Health].hp = -1f }
         gw.world.update(1f / 60f)
-        var dust = 0
-        with(gw.world) {
-            gw.world.family { all(Pickup, Transform) }.forEach { p ->
-                if (p[Pickup].kind == "dust") dust += p[Pickup].amount
-            }
-        }
+        val dust = totalDust() - before
         assertTrue(dust in 4..10 && dust % 2 == 0, "storm dust is (2..5)×2, got $dust")
     }
 }
