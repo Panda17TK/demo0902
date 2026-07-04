@@ -90,6 +90,8 @@ private const val REMEMBERED_TIME = 5f // seconds the HUD greets a returning pla
 private const val TOAST_TIME = 3f      // seconds the takeoff send-off toast rides the space HUD (LP v2.29)
 private const val INV_TIME_SCALE = 0.01f // v2.33: the world crawls at this speed behind the inventory
 private const val PLANET_TAP_PAD = 48f   // v2.38: extra world-px around a planet that still counts as tapping it
+private const val GATE_SHARDS = 3        // v2.44: gate shards a jump consumes (strong foes drop them)
+private const val GATE_TAP_R = 96f       // v2.44: world-px radius that counts as tapping the jump gate
 private const val SETTINGS_PREFS = "drift-settings" // v2.39: device-level settings (not run state)
 private const val SETTINGS_SWAP = "controlSwap"
 private const val SAVED_NOTE_TIME = 2f // seconds the 「セーブした」 flash stays on the SAVE tab
@@ -186,6 +188,9 @@ class GameScreen : ScreenAdapter() {
     private var rewardToast: String? = null
     private var rewardToastT = 0f
 
+    // v2.44: the fade that is currently running ends in a system jump, not a landing/takeoff.
+    private var pendingJump = false
+
     // Memory tint per planet id (LP v2.30/10c) — rebuilt only when memory can change (transitions/forget).
     private var memoryTones: Map<Long, Int> = emptyMap()
 
@@ -235,6 +240,7 @@ class GameScreen : ScreenAdapter() {
         lastKills = 0
         prevOver = false
         newBest = false
+        pendingJump = false
         lastCardId = null; cachedCard = null
         marketSold.clear()
         rebuildMemoryTones()
@@ -327,11 +333,17 @@ class GameScreen : ScreenAdapter() {
 
         // Living Planets: land on / leave a planet (L key or the touch LAND button). The fade wraps the
         // rebuild: OUT → (world swap behind black) → IN, and gameplay input is ignored meanwhile (10b).
-        if (overlay == Overlay.NONE && !choosing && !gw.gameOver.isOver && !fade.blocksInput && input.land && canTransitionNow()) {
-            fade.start()
-            Sfx.play(if (gw.worldState.mode == WorldMode.SPACE) "land" else "takeoff")
+        if (overlay == Overlay.NONE && !choosing && !gw.gameOver.isOver && !fade.blocksInput && input.land) {
+            if (canJumpNow()) { // v2.44: standing at the gate with enough shards → jump beats landing
+                fade.start(); pendingJump = true
+                Sfx.play("takeoff")
+            } else if (canTransitionNow()) {
+                fade.start()
+                Sfx.play(if (gw.worldState.mode == WorldMode.SPACE) "land" else "takeoff")
+            }
         }
-        if (!paused && fade.update(delta)) handleLanding() // the OUT leg just completed → swap behind black
+        // The OUT leg just completed → swap behind black (jump or landing/takeoff).
+        if (!paused && fade.update(delta)) { if (pendingJump) performJump() else handleLanding() }
 
         if (!advanceSim(simDelta, paused)) return // restarted this frame — draw from the fresh run next frame
         val alpha = (accumulator / Constants.FIXED_DT).coerceIn(0f, 1f)
@@ -520,6 +532,22 @@ class GameScreen : ScreenAdapter() {
                         }
                         "最寄りの惑星 $arrow $dist"
                     }
+                    // v2.44: the gate line — shard progress while collecting, a live compass once ready.
+                    val shards = with(gw.world) { gw.player[Materials].shards }
+                    val gateLine = ws.gate?.let { g ->
+                        if (shards < GATE_SHARDS) {
+                            "ゲート鍵 $shards/$GATE_SHARDS（強敵が落とす）"
+                        } else {
+                            val dx = g.first - ppx; val dy = g.second - ppy
+                            val dist = hypot(dx, dy).toInt()
+                            val arrow = if (kotlin.math.abs(dx) >= kotlin.math.abs(dy)) {
+                                if (dx >= 0f) "→" else "←"
+                            } else {
+                                if (dy >= 0f) "↓" else "↑"
+                            }
+                            "ジャンプゲート $arrow $dist　接近して跳躍"
+                        }
+                    }
                     batch.projectionMatrix = hudViewport.camera.combined
                     batch.begin()
                     glyphLayout.setText(font, idle)
@@ -527,6 +555,10 @@ class GameScreen : ScreenAdapter() {
                     if (nav != null) {
                         glyphLayout.setText(font, nav)
                         font.draw(batch, glyphLayout, (hudW - glyphLayout.width) / 2f, hudH - 34f)
+                    }
+                    if (gateLine != null) {
+                        glyphLayout.setText(font, gateLine)
+                        font.draw(batch, glyphLayout, (hudW - glyphLayout.width) / 2f, hudH - 56f)
                     }
                     batch.end()
                 }
@@ -647,6 +679,47 @@ class GameScreen : ScreenAdapter() {
         return hypot(tmpTap.x - cand.cx, tmpTap.y - cand.cy) < cand.radius + PLANET_TAP_PAD
     }
 
+    /** v2.44: did this frame's tap land on the jump gate itself (world space)? */
+    private fun tapHitsGate(): Boolean {
+        val g = gw.worldState.gate ?: return false
+        tmpTap.set(rawTapX, rawTapY, 0f)
+        worldViewport.unproject(tmpTap)
+        return hypot(tmpTap.x - g.first, tmpTap.y - g.second) < GATE_TAP_R
+    }
+
+    /** v2.44: the player is close enough to the gate ring to enter it. */
+    private fun nearGate(): Boolean {
+        val g = gw.worldState.gate ?: return false
+        val (ppx, ppy) = with(gw.world) { val t = gw.player[Transform]; t.x to t.y }
+        return hypot(ppx - g.first, ppy - g.second) < Tuning.TILE * 4f
+    }
+
+    /** v2.44: a jump is possible right now — in space, at the gate, holding enough gate shards. */
+    private fun canJumpNow(): Boolean = gw.worldState.mode == WorldMode.SPACE && nearGate() &&
+        with(gw.world) { gw.player[Materials].shards } >= GATE_SHARDS
+
+    /**
+     * v2.44 ジャンプゲート: spend the shards and move the whole run to the NEXT star system.
+     * A fresh spaceSeed regenerates planets/enemies/the gate; the player keeps everything they
+     * carry (PlayerCarry hauls gear, materials and wave across, so difficulty keeps climbing).
+     */
+    private fun performJump() {
+        pendingJump = false
+        with(gw.world) {
+            val m = gw.player[Materials]
+            m.shards = (m.shards - GATE_SHARDS).coerceAtLeast(0)
+        }
+        session.spaceSeed += 1
+        session.surfSeed = session.spaceSeed * 100
+        session.landedPlanetId = null
+        session.returnSpawn = null
+        transitionWorld(WorldMode.SPACE, null, session.spaceSeed, null)
+        with(gw.world) { val h = gw.player[Health]; h.hp = h.hpMax } // the jump mends the hull
+        rewardToast = "第${session.spaceSeed}星系に到達した"
+        rewardToastT = TOAST_TIME
+        Sfx.play("takeoff")
+    }
+
     /** Whether the pause carries the 4th 「この星の記憶」 entry (surface only — LP v2.25). */
     private fun pauseHasMemory(): Boolean = gw.worldState.mode == WorldMode.SURFACE
 
@@ -682,6 +755,10 @@ class GameScreen : ScreenAdapter() {
             Overlay.NONE -> if (!choosing && !gw.gameOver.isOver) {
                 if (Modals.hitModal(listOf(Modals.pauseButton(w, h)), tapX, tapY) != null) {
                     overlay = Overlay.PAUSE
+                } else if (touchEnabled && !fade.blocksInput && canJumpNow() && tapHitsGate()) {
+                    // v2.44: the gate itself is the jump button — same pattern as planet-tap landing.
+                    fade.start(); pendingJump = true
+                    Sfx.play("takeoff")
                 } else if (touchEnabled && !fade.blocksInput && gw.worldState.mode == WorldMode.SPACE &&
                     canTransitionNow() && (
                         cachedCard?.let { HudLayout.planetCard(w, h, it.lines.size).contains(tapX, tapY) } == true ||
@@ -837,6 +914,7 @@ class GameScreen : ScreenAdapter() {
                 ammo9 = ammo.ammo9, ammo12 = ammo.ammo12, ammoBeam = ammo.ammoBeam, ammoNade = ammo.ammoNade,
                 blocks = gw.player[Materials].blocks,
                 dust = gw.player[Materials].dust,
+                shards = gw.player[Materials].shards,
                 mags = ars.weapons.map { it.mag },
                 gunMul = mods.gunMul, fireMul = mods.fireMul, meleeMul = mods.meleeMul, moveMul = mods.moveMul,
                 ammoMul = mods.ammoMul, healOnKill = mods.healOnKill, wallHp = mods.wallHp,
@@ -885,6 +963,7 @@ class GameScreen : ScreenAdapter() {
             ammo.ammo9 = dto.ammo9; ammo.ammo12 = dto.ammo12; ammo.ammoBeam = dto.ammoBeam; ammo.ammoNade = dto.ammoNade
             gw.player[Materials].blocks = dto.blocks
             gw.player[Materials].dust = dto.dust
+            gw.player[Materials].shards = dto.shards
             val mods = gw.player[Mods]
             mods.gunMul = dto.gunMul; mods.fireMul = dto.fireMul; mods.meleeMul = dto.meleeMul; mods.moveMul = dto.moveMul
             mods.ammoMul = dto.ammoMul; mods.healOnKill = dto.healOnKill; mods.wallHp = dto.wallHp

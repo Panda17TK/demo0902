@@ -133,6 +133,15 @@ object WorldFactory {
         if (mode == WorldMode.SURFACE) worldState.escapePad = loaded.playerSpawnX to loaded.playerSpawnY
         // In space, scatter a flowing field of debris + asteroids around the player (cosmetic; fills the void).
         if (mode != WorldMode.SURFACE) worldState.drift = Drift.field(Rng(seed xor 0x0DEB712L), 120, loaded.playerSpawnX, loaded.playerSpawnY, 1400f)
+        // v2.44: the system's jump gate — one per system, deterministic, out past the near planets.
+        if (mode != WorldMode.SURFACE) {
+            val gRng = Rng(seed xor 0x6A7E9A7EL)
+            val ga = gRng.nextFloat() * TAU
+            val gd = 1800f + gRng.nextFloat() * 1200f
+            val gx = (loaded.playerSpawnX + kotlin.math.cos(ga) * gd).coerceIn(Tuning.TILE * 4f, map.width * Tuning.TILE - Tuning.TILE * 4f)
+            val gy = (loaded.playerSpawnY + kotlin.math.sin(ga) * gd).coerceIn(Tuning.TILE * 4f, map.height * Tuning.TILE - Tuning.TILE * 4f)
+            worldState.gate = snapToFloor(map, gx, gy)
+        }
         val waveState = WaveState(
             num = 1,
             phase = "active",

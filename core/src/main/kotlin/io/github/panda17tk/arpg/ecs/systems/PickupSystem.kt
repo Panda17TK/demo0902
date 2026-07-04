@@ -41,6 +41,7 @@ class PickupSystem : IteratingSystem(family { all(Pickup, Transform) }) {
                     when (pk.kind) {
                         "blocks" -> p[Materials].blocks += pk.amount
                         "dust" -> p[Materials].dust += pk.amount // 星屑 (v2.43)
+                        "shard" -> p[Materials].shards += pk.amount // ゲート鍵の断片 (v2.44)
                         "med" -> { val h = p[Health]; h.hp = minOf(h.hpMax, h.hp + pk.amount) }
                         "staminaInf" -> p[Buff].staminaInfT = 6f
                         "dashUp" -> p[Buff].dashUpT = 8f
