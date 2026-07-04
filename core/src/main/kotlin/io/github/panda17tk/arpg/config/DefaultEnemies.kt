@@ -145,6 +145,35 @@ private fun spaceEnemies(): Map<String, EnemyDef> = mapOf(
             AttackSpec("melee", cd = 1.2f, dmg = 10f, range = 14f, arc = 360f),
         ),
     ),
+    // --- v2.48 惑星サーバー: the preservation machinery itself (appended — key order is contract).
+    // Custodial processes given bodies. They do not hate the drifter; they evaluate him.
+    "custodian" to EnemyDef(
+        name = "保守ドローン", tier = "normal", color = "#7f8fa6", hp = 60f, speed = 50f,
+        w = 17f, h = 17f, seeRange = 340f, contactKB = 220f,
+        intelligence = 0.6f, bravery = 0.95f, // a procedure has no fear, only steps
+        attacks = listOf(
+            AttackSpec("shot", cd = 1.3f, dmg = 9f, speed = 230f),
+            AttackSpec("mine", cd = 5.0f, dmg = 16f, life = 8f), // 封鎖ユニットを敷設して退く
+        ),
+    ),
+    "indexer" to EnemyDef(
+        name = "索引虫", tier = "normal", color = "#9ab8d0", hp = 35f, speed = 85f,
+        w = 12f, h = 12f, seeRange = 300f, contactKB = 180f,
+        intelligence = 0.4f, bravery = 0.7f, // it only wants to read you — quickly, twice
+        attacks = listOf(
+            AttackSpec("twin_shot", cd = 1.8f, dmg = 7f, speed = 250f, life = 1.6f),
+            AttackSpec("melee", cd = 1.5f, dmg = 6f, range = 9f, arc = 120f),
+        ),
+    ),
+    "quarantine" to EnemyDef(
+        name = "検疫体", tier = "normal", color = "#6a7f97", hp = 130f, speed = 34f,
+        w = 26f, h = 24f, seeRange = 280f, contactKB = 320f,
+        intelligence = 0.5f, bravery = 0.9f, protectiveness = 0.7f, // isolate first, ask never
+        attacks = listOf(
+            AttackSpec("shockwave", cd = 3.4f, dmg = 7f, range = 75f, power = 500f), // 隔離波
+            AttackSpec("spray", cd = 2.8f, dmg = 6f, count = 5, spread = 60f, speed = 200f, life = 1.4f),
+        ),
+    ),
 )
 
 private fun spaceBosses(): Map<String, EnemyDef> = mapOf(
@@ -206,6 +235,20 @@ private fun spaceBosses(): Map<String, EnemyDef> = mapOf(
             AttackSpec("shockwave", cd = 5.0f, dmg = 10f, range = 90f, power = 480f),
             AttackSpec("summon", cd = 9.0f, minion = "mortar_bug", count = 2),
             AttackSpec("guard", cd = 8.0f, duration = 2f, mul = 0.4f),
+        ),
+    ),
+    // v2.48 惑星サーバー: the audit process itself, given a body (appended — key order is contract).
+    "auditor" to EnemyDef(
+        name = "監査体(中ボス)", tier = "midboss", color = "#8f9fc0", hp = 400f, speed = 44f,
+        w = 32f, h = 32f, seeRange = 420f, contactKB = 280f,
+        intelligence = 0.9f, bravery = 0.85f, // it has read every fight you ever had here
+        dodge = DodgeSpec(0.28f, 0.16f, 1.7f),
+        attacks = listOf(
+            AttackSpec("shot", cd = 1.1f, dmg = 11f, speed = 250f),
+            AttackSpec("spiral", cd = 5.0f, dmg = 8f, count = 12, speed = 170f, life = 2.2f),
+            AttackSpec("summon", cd = 8.0f, minion = "custodian", count = 2),
+            AttackSpec("guard", cd = 7.0f, duration = 2f, mul = 0.4f),
+            AttackSpec("shockwave", cd = 5.5f, dmg = 9f, range = 85f, power = 470f),
         ),
     ),
 )

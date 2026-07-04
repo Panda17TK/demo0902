@@ -84,6 +84,9 @@ class SpawnerSystem : IteratingSystem(family { all(PlayerTag, Transform) }) {
         if (wave.event == WaveEvent.HORDE) {
             wave.toSpawn = (wave.toSpawn * WaveEvents.HORDE_QUOTA_MUL).toInt()
         }
+        if (wave.event == WaveEvent.PURGE) {
+            wave.toSpawn = (wave.toSpawn * WaveEvents.PURGE_QUOTA_MUL).toInt()
+        }
         var bountyName: String? = null
         if (wave.event == WaveEvent.BOUNTY) bountyName = spawnBounty(pt, n)
         // Boss waves: a boss every bossEvery, else a midboss every midBossEvery (legacy spawner).
@@ -125,14 +128,18 @@ class SpawnerSystem : IteratingSystem(family { all(PlayerTag, Transform) }) {
         return if (wave.event == WaveEvent.HORDE) base * WaveEvents.HORDE_INTERVAL_MUL else base
     }
 
+    // v2.48 惑星サーバー: the purge sweep fields only the preservation machinery.
+    private val purgeKeys: List<String> = WaveEvents.PURGE_KEYS.filter { it in normalKeys }
+
     /** Spawn a same-tribe herd (3..6) clustered around one tile so tribes pop in groups. Returns the count. */
     private fun spawnNormal(pt: Transform, waveNum: Int): Int {
-        if (normalKeys.isEmpty()) return 0
+        val pool = if (wave.event == WaveEvent.PURGE && purgeKeys.isNotEmpty()) purgeKeys else normalKeys
+        if (pool.isEmpty()) return 0
         val tile = pickTile(pt) ?: return 0
         val tribe = tribes.tribeOf(tile.first, tile.second)
         var spawned = 0
         repeat(3 + rng.nextInt(4)) {
-            val def = config.enemies[normalKeys[rng.nextInt(normalKeys.size)]] ?: return@repeat
+            val def = config.enemies[pool[rng.nextInt(pool.size)]] ?: return@repeat
             val a = rng.nextFloat() * 6.2831855f; val r = rng.nextFloat() * Tuning.TILE * 2.5f
             // v2.45: a magnetic storm agitates everyone — nearly the whole herd dashes.
             val dashChance = if (wave.event == WaveEvent.STORM) WaveEvents.STORM_DASH_CHANCE else 0.5f

@@ -18,10 +18,18 @@ class WaveEventsTest {
         assertEquals(WaveEvent.STORM, WaveEvents.eventFor(5))
         assertEquals(WaveEvent.STORM, WaveEvents.eventFor(17))
         assertEquals(WaveEvent.STORM, WaveEvents.eventFor(29))
+        // v2.48: the purge sweep on 7/16/34… (waves ≡ 7 mod 9 not claimed above).
+        assertEquals(WaveEvent.PURGE, WaveEvents.eventFor(7))
+        assertEquals(WaveEvent.PURGE, WaveEvents.eventFor(16))
         assertEquals(WaveEvent.NONE, WaveEvents.eventFor(1))
         assertEquals(WaveEvent.NONE, WaveEvents.eventFor(2))
         assertEquals(WaveEvent.NONE, WaveEvents.eventFor(6))
-        assertEquals(WaveEvent.NONE, WaveEvents.eventFor(7))
+    }
+
+    @Test fun `bounty outranks the purge on shared waves`() {
+        // 25 ≡ 4 (mod 7) and ≡ 7 (mod 9): the bounty head wins.
+        assertEquals(WaveEvent.BOUNTY, WaveEvents.eventFor(25))
+        assertTrue(WaveEvents.announceFor(WaveEvent.PURGE, null)!!.contains("清掃"))
     }
 
     @Test fun `bounty beats horde beats storm on shared waves`() {

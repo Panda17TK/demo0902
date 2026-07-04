@@ -131,6 +131,16 @@ object WorldFactory {
         val worldState = WorldState(mode = mode, biome = biome, context = context, society = society ?: PlanetSocietyState())
         // The escape pad sits at the surface landing point; standing on it lets the player take off again.
         if (mode == WorldMode.SURFACE) worldState.escapePad = loaded.playerSpawnX to loaded.playerSpawnY
+        // v2.48 惑星サーバー: every surface carries its memory core — the star's Layer-1 archive,
+        // placed deterministically a walk away from the pad. Stand before it and it speaks once.
+        if (mode == WorldMode.SURFACE) {
+            val mRng = Rng(seed xor 0x3E3C0DEL)
+            val ma = mRng.nextFloat() * TAU
+            val md = 700f + mRng.nextFloat() * 900f
+            val mx = (loaded.playerSpawnX + kotlin.math.cos(ma) * md).coerceIn(Tuning.TILE * 4f, map.width * Tuning.TILE - Tuning.TILE * 4f)
+            val my = (loaded.playerSpawnY + kotlin.math.sin(ma) * md).coerceIn(Tuning.TILE * 4f, map.height * Tuning.TILE - Tuning.TILE * 4f)
+            worldState.memoryCore = snapToFloor(map, mx, my)
+        }
         // In space, scatter a flowing field of debris + asteroids around the player (cosmetic; fills the void).
         if (mode != WorldMode.SURFACE) worldState.drift = Drift.field(Rng(seed xor 0x0DEB712L), 120, loaded.playerSpawnX, loaded.playerSpawnY, 1400f)
         // v2.44: the system's jump gate — one per system, deterministic, out past the near planets.

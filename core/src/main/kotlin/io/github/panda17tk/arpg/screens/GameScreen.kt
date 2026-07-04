@@ -61,7 +61,10 @@ import io.github.panda17tk.arpg.save.PreferencesRunSaveStore
 import io.github.panda17tk.arpg.save.RunSaveDto
 import io.github.panda17tk.arpg.save.Scores
 import io.github.panda17tk.arpg.sim.Drift
+import io.github.panda17tk.arpg.sim.EventKind
+import io.github.panda17tk.arpg.sim.MemoryCoreLog
 import io.github.panda17tk.arpg.sim.PlanetCardInfo
+import io.github.panda17tk.arpg.sim.PlanetEvent
 import io.github.panda17tk.arpg.sim.PlanetContext
 import io.github.panda17tk.arpg.sim.PlanetLexicon
 import io.github.panda17tk.arpg.sim.PlanetScan
@@ -417,6 +420,20 @@ class GameScreen : ScreenAdapter() {
             rewardToast = it; rewardToastT = TOAST_TIME
             gw.waveState.announce = null
             Sfx.play("scan")
+        }
+        // v2.48 惑星サーバー: standing before the memory core makes it speak — once per landing,
+        // into the surface event feed (the same channel the society's memory already uses).
+        if (!paused && gw.worldState.mode == WorldMode.SURFACE && !gw.worldState.coreLogShown) {
+            gw.worldState.memoryCore?.let { core ->
+                val (cpx, cpy) = with(gw.world) { val t = gw.player[Transform]; t.x to t.y }
+                if (hypot(cpx - core.first, cpy - core.second) < Tuning.TILE * 2f) {
+                    gw.worldState.coreLogShown = true
+                    gw.worldState.recentEvents.add(
+                        PlanetEvent(MemoryCoreLog.lineFor(session.landedPlanetId ?: 0L, gw.worldState.biome), EventKind.NEUTRAL),
+                    )
+                    Sfx.play("scan")
+                }
+            }
         }
         val playerHit = pit > 0f && ((pit * 20f).toInt() % 2 == 0)
         // v2.37: the gear look — the active weapon shapes the drawn gun, armor tints the suit, OC burns blue.
