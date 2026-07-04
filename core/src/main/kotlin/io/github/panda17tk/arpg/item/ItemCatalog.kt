@@ -52,6 +52,10 @@ object ItemCatalog {
         ItemDef("melee_blade", "プラズマブレード", ItemKind.MELEE_WEAPON, desc = "近接ダメージ +30%", meleeDmgMul = 1.3f),
         ItemDef("melee_lance", "作業用ランス", ItemKind.MELEE_WEAPON, desc = "鉱区の長柄工具を転用　リーチ +40%", meleeReachMul = 1.4f, meleeDmgMul = 1.1f),
         ItemDef("melee_fang", "大型獣の牙", ItemKind.MELEE_WEAPON, desc = "頂点捕食者の牙を研いだ刃　近接 +50% リーチ +15%", meleeDmgMul = 1.5f, meleeReachMul = 1.15f),
+        // 特殊効果つき近接 (v2.39): 振りの広さ・飛ぶ斬撃
+        ItemDef("melee_cleaver", "大鉈", ItemKind.MELEE_WEAPON, desc = "振りが大きい　攻撃範囲1.5倍 近接 +20%", meleeDmgMul = 1.2f, meleeArcMul = 1.5f),
+        ItemDef("melee_halberd", "ハルバード", ItemKind.MELEE_WEAPON, desc = "広く長い　範囲1.3倍 リーチ +30% 近接 +15%", meleeDmgMul = 1.15f, meleeReachMul = 1.3f, meleeArcMul = 1.3f),
+        ItemDef("melee_resonant", "振動ブレード", ItemKind.MELEE_WEAPON, desc = "斬撃が波になって飛ぶ　近接 +10%", meleeDmgMul = 1.1f, meleeWave = true),
         // --- 装飾品 (accessories ×3 slots) ---
         ItemDef("acc_boots", "ランナーブーツ", ItemKind.ACCESSORY, desc = "移動速度 +10%", moveMul = 1.1f),
         ItemDef("acc_charm", "代謝促進バンド", ItemKind.ACCESSORY, desc = "スタミナ回復 +30%", staRegenMul = 1.3f),

@@ -54,6 +54,13 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
 
         val arsenal = entity[Arsenal]
         val w = arsenal.current; val def = w.def
+        // v2.39 beam charge: while the beam is drawn and being aimed (right stick / K held), the
+        // emitter charges 0..1; the release shot gets thicker + harder the longer it charged.
+        if (def.id == "beam") {
+            if ((input.aiming || input.fire) && cd.shoot <= 0f && w.reloadT <= 0f) {
+                cd.beamCharge = (cd.beamCharge + deltaTime / BEAM_CHARGE_TIME).coerceAtMost(1f)
+            }
+        } else if (cd.beamCharge > 0f) cd.beamCharge = 0f // switching away drops the charge
         // Manual-fire weapons (beam/grenade) shoot on the release edge; everything else fires while held.
         val triggered = if (def.manualFire) input.fireRelease else input.fire
         if (!triggered || cd.shoot > 0f) return
@@ -77,8 +84,14 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
                     ammo.ammoBeam--
                 }
                 cd.shoot = def.fireRate * mods.fireMul * gradeFireRate
+                // v2.39: cash in the charge — damage up to 2×, the ray visibly fattens, and the
+                // pierce corridor widens with it. (The beam always pierces every mob on the ray.)
+                val charge = cd.beamCharge
+                cd.beamCharge = 0f
+                val chargeDmg = 1f + charge * BEAM_CHARGE_DMG
+                val beamHalfW = BEAM_W_MIN + charge * (BEAM_W_MAX - BEAM_W_MIN)
                 val hit = BeamRay.cast(map, t.x, t.y, dirX, dirY, BEAM_RANGE)
-                fx.spawnBeam(t.x, t.y, t.x + dirX * hit.reach, t.y + dirY * hit.reach)
+                fx.spawnBeam(t.x, t.y, t.x + dirX * hit.reach, t.y + dirY * hit.reach, beamHalfW)
 
                 // --- Beam vs mob: query mobs near the ray, check projection + perpendicular distance ---
                 // The beam PIERCES enemies: every mob along the ray (up to the wall) is hurt — no break.
@@ -90,12 +103,12 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
                     val mobHalf = (mobB.halfW + mobB.halfH) * 0.5f
                     if (s < -mobHalf || s > hit.reach + mobHalf) return@forNearby
                     val perp = abs(rx * dirY - ry * dirX)
-                    if (perp > mobHalf) return@forNearby
+                    if (perp > mobHalf + beamHalfW) return@forNearby // a fat ray clips more of the crowd
                     val mobH = with(world) { mobEntity[Health] }
                     val mobV = with(world) { mobEntity[Velocity] }
                     val mobA = with(world) { mobEntity[MobAction] }
                     val mobDodge = with(world) { mobEntity[Mob].def.dodge }
-                    MobDamage.hurt(mobH, mobV, mobA, mobDodge, def.dmg * mods.gunMul * gearGun, 0f, 0f, 0f, rng.nextFloat())
+                    MobDamage.hurt(mobH, mobV, mobA, mobDodge, def.dmg * mods.gunMul * gearGun * chargeDmg, 0f, 0f, 0f, rng.nextFloat())
                 }
 
                 // Beam doesn't pierce walls: it stops at one and detonates. One-shot the hit wall and carve a
@@ -146,6 +159,10 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
 
     companion object {
         private const val BEAM_RANGE = 1400f    // doubled (was 700) — gun range ×2
+        private const val BEAM_CHARGE_TIME = 1.4f // seconds of aiming for a full charge (v2.39)
+        private const val BEAM_CHARGE_DMG = 1f    // full charge = +100% damage
+        private const val BEAM_W_MIN = 1.8f       // ray half-width at zero charge...
+        private const val BEAM_W_MAX = 7f         // ...and fully charged (visual + pierce corridor)
         private const val BEAM_BLAST_TILES = 2f // radius-2-tile impact crater
         private const val BEAM_BLAST_DMG = 64f  // splash damage at the blast centre (0 at the rim)
         private val BEAM_SPARK = Color.valueOf("9fe8ff") // pale-cyan beam-impact sparks

@@ -270,8 +270,9 @@ class SceneRenderer {
             val len = hypot(dx, dy).let { if (it == 0f) 1f else it }
             val ux = dx / len; val uy = dy / len
             val k = 1f - bm.t / bm.life
-            shapes.color = tmpC.set(0.5f, 0.85f, 1f, 0.32f * k); Draw.orientedRect(shapes, bm.sx, bm.sy, ux, uy, 0f, len, 6f)
-            shapes.color = tmpC.set(0.92f, 0.98f, 1f, 0.9f * k); Draw.orientedRect(shapes, bm.sx, bm.sy, ux, uy, 0f, len, 1.8f)
+            // v2.39: charged beams are FAT — the glow and core scale with the shot's charge width.
+            shapes.color = tmpC.set(0.5f, 0.85f, 1f, 0.32f * k); Draw.orientedRect(shapes, bm.sx, bm.sy, ux, uy, 0f, len, bm.width * 3.3f)
+            shapes.color = tmpC.set(0.92f, 0.98f, 1f, 0.9f * k); Draw.orientedRect(shapes, bm.sx, bm.sy, ux, uy, 0f, len, bm.width)
         }
     }
 

@@ -29,6 +29,8 @@ object WorldView {
     private val GRASS_ROCK = arrayOf(Color.valueOf("3e5a2e"), Color.valueOf("4a6b34"), Color.valueOf("355026"))
     private val SNOW_ROCK = arrayOf(Color.valueOf("c4d2e0"), Color.valueOf("aebfd2"), Color.valueOf("d6e2ee"))
     private val MAGMA_ROCK = arrayOf(Color.valueOf("8a2f1c"), Color.valueOf("b3441f"), Color.valueOf("d65a22"))
+    private val CRYSTAL_ROCK = arrayOf(Color.valueOf("7a6fae"), Color.valueOf("8d82c4"), Color.valueOf("655a96")) // v2.39
+    private val ASH_ROCK = arrayOf(Color.valueOf("3a3a3c"), Color.valueOf("46443f"), Color.valueOf("2f2e2c"))     // v2.39
     private val CRATER = Color.valueOf("38322b")
     private val CRACK = Color.valueOf("17130d")
     private val DOOR = Color.valueOf("3b2a1a")
@@ -57,6 +59,8 @@ object WorldView {
                         Biome.GRASS -> GRASS_ROCK[Math.floorMod(hsh, GRASS_ROCK.size)]
                         Biome.SNOW -> SNOW_ROCK[Math.floorMod(hsh, SNOW_ROCK.size)]
                         Biome.MAGMA -> MAGMA_ROCK[Math.floorMod(hsh, MAGMA_ROCK.size)]
+                        Biome.CRYSTAL -> CRYSTAL_ROCK[Math.floorMod(hsh, CRYSTAL_ROCK.size)]
+                        Biome.ASH -> ASH_ROCK[Math.floorMod(hsh, ASH_ROCK.size)]
                         else -> ROCKS[Math.floorMod(hsh, ROCKS.size)]
                     }
                     Draw.roundedRect(s, px + 1f, py + 1f, t - 2f, t - 2f, 7f)

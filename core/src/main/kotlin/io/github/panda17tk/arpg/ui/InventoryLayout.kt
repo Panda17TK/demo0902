@@ -78,6 +78,12 @@ object InventoryLayout {
         }
     }
 
+    /** EQUIP tab (v2.39): the control-swap toggle strip along the body's bottom edge. */
+    fun controlToggle(hudW: Float, hudH: Float): UiButton {
+        val b = body(hudW, hudH)
+        return UiButton(b.x, b.y, b.w, 30f, "")
+    }
+
     /** SAVE tab: one big save button centered in the body. */
     fun saveButton(hudW: Float, hudH: Float): UiButton {
         val b = body(hudW, hudH)

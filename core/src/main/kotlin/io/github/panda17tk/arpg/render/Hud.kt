@@ -402,6 +402,7 @@ object Hud {
         visited: VisitedMap?, playerTx: Int, playerTy: Int, // MAP tab
         note: String?,             // brief flash on ITEMS/SAVE (「セーブした」, a consumable's effect…)
         loreTitle: String? = null, loreLines: List<String> = emptyList(), // v2.34: the open readable
+        controlLabel: String? = null, // v2.39: EQUIP tab's control-swap toggle caption
     ) {
         val w = vp.worldWidth; val h = vp.worldHeight
         val panel = InventoryLayout.panel(w, h)
@@ -410,6 +411,7 @@ object Hud {
         val close = InventoryLayout.closeButton(w, h)
         val slotRows = if (tab == InvTab.EQUIP) InventoryLayout.slotRows(w, h) else emptyList()
         val save = if (tab == InvTab.SAVE) InventoryLayout.saveButton(w, h) else null
+        val toggle = if (tab == InvTab.EQUIP && controlLabel != null) InventoryLayout.controlToggle(w, h) else null
 
         Gdx.gl.glEnable(GL20.GL_BLEND)
         shapes.projectionMatrix = vp.camera.combined
@@ -422,10 +424,11 @@ object Hud {
         }
         slotRows.forEach { r -> shapes.color = cBtn; shapes.rect(r.x, r.y, r.w, r.h) }
         save?.let { shapes.color = cBtnGo; shapes.rect(it.x, it.y, it.w, it.h) }
+        toggle?.let { shapes.color = cBtn; shapes.rect(it.x, it.y, it.w, it.h) }
         shapes.color = cBtn; shapes.rect(close.x, close.y, close.w, close.h)
         if (tab == InvTab.MAP && visited != null) drawVisitedMap(shapes, body, visited, playerTx, playerTy)
         shapes.end()
-        frames(shapes, tabs + slotRows + listOfNotNull(save) + listOf(close))
+        frames(shapes, tabs + slotRows + listOfNotNull(save, toggle) + listOf(close))
 
         batch.projectionMatrix = vp.camera.combined
         batch.begin()
@@ -435,9 +438,14 @@ object Hud {
                 slotRows.forEachIndexed { i, r ->
                     font.draw(batch, slotTexts.getOrElse(i) { "" }, r.x + 12f, r.centerY + 7f)
                 }
-                font.color = cHint
-                centerText(batch, font, "スロットをタップで持物と交換", w, body.y + 16f)
-                font.color = Color.WHITE
+                // v2.39: the bottom strip is the control-swap toggle (falls back to the old hint).
+                if (toggle != null && controlLabel != null) {
+                    centerLabel(batch, font, controlLabel, toggle.centerX, toggle.centerY)
+                } else {
+                    font.color = cHint
+                    centerText(batch, font, "スロットをタップで持物と交換", w, body.y + 16f)
+                    font.color = Color.WHITE
+                }
             }
             InvTab.ITEMS -> {
                 if (loreTitle != null) {

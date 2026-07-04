@@ -29,7 +29,9 @@ class BiomeTest {
         assertTrue(frac(PlanetBiome.NATURE, Biome.GRASS) > 0.5, "nature should be grass-heavy")
         assertTrue(frac(PlanetBiome.MAGMA, Biome.MAGMA) > 0.5, "magma should be lava-heavy")
         assertTrue(frac(PlanetBiome.ICE, Biome.SNOW) > 0.5, "ice should be snow-heavy")
-        assertEquals(1.0, frac(PlanetBiome.DEAD, Biome.ROCK), 1e-9, "the dead world is all rock")
+        // v2.39: the dead world is rock and ash (with rare crystal) — and never a live hazard.
+        assertTrue(frac(PlanetBiome.DEAD, Biome.ROCK) + frac(PlanetBiome.DEAD, Biome.ASH) > 0.7, "the dead world is rock+ash")
+        assertEquals(0.0, frac(PlanetBiome.DEAD, Biome.MAGMA) + frac(PlanetBiome.DEAD, Biome.SNOW) + frac(PlanetBiome.DEAD, Biome.GRASS), 1e-9)
     }
 
     @Test fun `surface material is deterministic`() {

@@ -30,7 +30,7 @@ object TouchOverlay {
 
     fun draw(
         shapes: ShapeRenderer, batch: SpriteBatch, font: BitmapFont, vp: Viewport,
-        touch: TouchControls, landLabel: String,
+        touch: TouchControls, landLabel: String, swapMeleeFire: Boolean = false,
     ) {
         val l = touch.layout
         Gdx.gl.glEnable(GL20.GL_BLEND)
@@ -62,7 +62,7 @@ object TouchOverlay {
         batch.begin()
         for (b in l.all()) {
             if (b !in touch.visibleButtons) continue
-            glyph.setText(font, labelOf(b, landLabel)); font.draw(batch, glyph, l.centerX(b) - glyph.width / 2f, l.centerY(b) + 7f)
+            glyph.setText(font, labelOf(b, landLabel, swapMeleeFire)); font.draw(batch, glyph, l.centerX(b) - glyph.width / 2f, l.centerY(b) + 7f)
         }
         batch.end()
     }
@@ -75,9 +75,9 @@ object TouchOverlay {
         shapes.circle(cx + kx, cy + ky, radius * 0.42f, 18)
     }
 
-    private fun labelOf(b: TouchButton, landLabel: String): String = when (b) {
+    private fun labelOf(b: TouchButton, landLabel: String, swapMeleeFire: Boolean): String = when (b) {
         TouchButton.FIRE -> "射撃"
-        TouchButton.MELEE -> "近接"
+        TouchButton.MELEE -> if (swapMeleeFire) "射撃" else "近接" // v2.39: the swap puts the gun on the button
         TouchButton.DASH -> "ダッシュ"
         TouchButton.RELOAD -> "装填"
         TouchButton.WALL -> "壁"

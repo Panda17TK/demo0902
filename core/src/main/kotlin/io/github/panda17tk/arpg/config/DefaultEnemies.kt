@@ -57,6 +57,58 @@ private fun spaceEnemies(): Map<String, EnemyDef> = mapOf(
             AttackSpec("charge_melee", cd = 2.4f, range = 40f, reach = 30f, windup = 0.6f, dmg = 18f, kb = 320f),
         ),
     ),
+    // --- v2.39 roster expansion: varied attacks / silhouettes / sizes / temperaments / smarts. ---
+    "lancer" to EnemyDef(
+        name = "ランサー", tier = "normal", color = "#c8b25a", hp = 50f, speed = 88f,
+        w = 24f, h = 12f, seeRange = 380f, contactKB = 260f, // long, flat silhouette — a living spear
+        bravery = 0.95f, intelligence = 0.15f, // fearless and single-minded: it only knows the charge
+        attacks = listOf(
+            AttackSpec("charge_melee", cd = 2.0f, range = 120f, reach = 34f, windup = 0.5f, dmg = 16f, kb = 380f),
+        ),
+    ),
+    "mortar_bug" to EnemyDef(
+        name = "モーター蟲", tier = "normal", color = "#6a8f3a", hp = 45f, speed = 26f,
+        w = 18f, h = 22f, seeRange = 420f, contactKB = 180f, // squat lobber, hangs far back
+        bravery = 0.15f, canBeg = true, mercyThreshold = 0.4f, canSpeak = true, lifeKind = LifeKind.SAPIENT, // a coward with a cannon
+        attacks = listOf(
+            AttackSpec("shot", cd = 2.6f, dmg = 22f, speed = 150f, life = 3.2f), // slow, heavy shells
+        ),
+    ),
+    "shield_bearer" to EnemyDef(
+        name = "盾持ち", tier = "normal", color = "#5a7a9a", hp = 130f, speed = 34f,
+        w = 28f, h = 28f, seeRange = 260f, contactKB = 340f, // a walking wall
+        bravery = 0.85f, protectiveness = 0.9f, intelligence = 0.5f, canSpeak = true, lifeKind = LifeKind.SAPIENT, // stands its ground, shields the line
+        attacks = listOf(
+            AttackSpec("guard", cd = 6.0f, duration = 2.5f, mul = 0.3f),
+            AttackSpec("slam", cd = 3.5f, dmg = 14f, range = 60f, power = 320f),
+        ),
+    ),
+    "mite" to EnemyDef(
+        name = "マイト", tier = "normal", color = "#d0d05a", hp = 14f, speed = 105f,
+        w = 9f, h = 9f, seeRange = 300f, contactKB = 90f, // a fingernail-sized biter
+        bravery = 1f, intelligence = 0.05f, // no mind at all — just teeth and momentum
+        attacks = listOf(
+            AttackSpec("melee", cd = 0.7f, dmg = 4f, range = 8f, arc = 360f),
+        ),
+    ),
+    "marksman" to EnemyDef(
+        name = "マークスマン", tier = "normal", color = "#8fa0b8", hp = 40f, speed = 46f,
+        w = 14f, h = 24f, seeRange = 560f, contactKB = 200f, // tall, thin, sees further than anything
+        intelligence = 0.9f, bravery = 0.25f, canHideAndRest = true, canSpeak = true, lifeKind = LifeKind.SAPIENT, // patient — hides, waits, lines up the shot
+        dodge = DodgeSpec(0.12f, 0.2f, 2.5f),
+        attacks = listOf(
+            AttackSpec("shot", cd = 3.0f, dmg = 30f, speed = 420f, life = 2.0f), // one sharp crack
+        ),
+    ),
+    "sapper" to EnemyDef(
+        name = "サッパー", tier = "normal", color = "#b06a9a", hp = 55f, speed = 58f,
+        w = 16f, h = 16f, seeRange = 320f, contactKB = 220f,
+        intelligence = 0.7f, bravery = 0.45f, canSpeak = true, lifeKind = LifeKind.SAPIENT, // an engineer: seeds the field and withdraws
+        attacks = listOf(
+            AttackSpec("mine", cd = 3.5f, dmg = 20f, life = 9f),
+            AttackSpec("melee", cd = 1.4f, dmg = 8f, range = 10f, arc = 180f),
+        ),
+    ),
 )
 
 private fun spaceBosses(): Map<String, EnemyDef> = mapOf(

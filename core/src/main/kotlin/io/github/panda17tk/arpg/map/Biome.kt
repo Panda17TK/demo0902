@@ -2,8 +2,9 @@ package io.github.panda17tk.arpg.map
 
 import io.github.panda17tk.arpg.planet.PlanetBiome
 
-/** Material/biome of a block. Drives its colour and the effect of touching it. */
-enum class Biome { ROCK, GRASS, SNOW, MAGMA }
+/** Material/biome of a block. Drives its colour and the effect of touching it.
+ *  CRYSTAL / ASH (v2.39) are purely visual variety — no touch effect. */
+enum class Biome { ROCK, GRASS, SNOW, MAGMA, CRYSTAL, ASH }
 
 /**
  * Pure, deterministic block material. In space it is per **region** (9×9-tile patches): mostly rock with
@@ -15,6 +16,7 @@ object Biomes {
     private val TABLE = arrayOf(
         Biome.ROCK, Biome.ROCK, Biome.ROCK, Biome.ROCK, Biome.ROCK, Biome.ROCK,
         Biome.GRASS, Biome.GRASS, Biome.SNOW, Biome.SNOW, Biome.MAGMA, Biome.MAGMA,
+        Biome.CRYSTAL, Biome.CRYSTAL, Biome.ASH, Biome.ASH, // v2.39: crystal veins + ash fields
     )
 
     fun of(tx: Int, ty: Int): Biome {
@@ -28,8 +30,8 @@ object Biomes {
         PlanetBiome.MAGMA to arrayOf(Biome.MAGMA, Biome.MAGMA, Biome.MAGMA, Biome.ROCK, Biome.MAGMA, Biome.ROCK, Biome.MAGMA, Biome.ROCK),
         PlanetBiome.ICE to arrayOf(Biome.SNOW, Biome.SNOW, Biome.SNOW, Biome.SNOW, Biome.ROCK, Biome.SNOW, Biome.ROCK, Biome.SNOW),
         PlanetBiome.GAS to arrayOf(Biome.ROCK, Biome.ROCK, Biome.ROCK, Biome.GRASS, Biome.ROCK, Biome.ROCK, Biome.ROCK, Biome.GRASS),
-        PlanetBiome.DEAD to arrayOf(Biome.ROCK),
-        PlanetBiome.LONELY to arrayOf(Biome.ROCK, Biome.ROCK, Biome.ROCK, Biome.ROCK, Biome.SNOW, Biome.ROCK, Biome.ROCK, Biome.GRASS),
+        PlanetBiome.DEAD to arrayOf(Biome.ROCK, Biome.ASH, Biome.ROCK, Biome.ASH, Biome.CRYSTAL, Biome.ROCK), // v2.39: ash plains + rare crystal
+        PlanetBiome.LONELY to arrayOf(Biome.ROCK, Biome.ROCK, Biome.CRYSTAL, Biome.ROCK, Biome.SNOW, Biome.ROCK, Biome.ROCK, Biome.GRASS), // v2.39: quiet crystal veins
     )
 
     /** Block material on a planet surface — biased to the planet's [PlanetBiome] (finer patches than space). */
