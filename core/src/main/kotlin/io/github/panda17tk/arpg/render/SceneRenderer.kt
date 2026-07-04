@@ -74,6 +74,9 @@ class SceneRenderer {
     private val cPickupBrass = Color.valueOf("c8a35a") // v2.38: cartridge brass
     private val cThrustDot = Color.valueOf("ffb060")   // v2.38: thruster drop's exhaust dot
     private val cDust = Color.valueOf("ffd980")        // v2.43: 星屑 (currency) gold
+    private val cShard = Color.valueOf("7de8ff")       // v2.44: gate-key shard cyan
+    private val cGateRing = Color(0.35f, 0.8f, 1f, 0.35f)
+    private val cGateCore = Color(0.8f, 0.97f, 1f, 0.9f)
     private val tribeColors = arrayOf(
         Color.valueOf("ff6b6b"), Color.valueOf("66e0ff"), Color.valueOf("7fe08a"), Color.valueOf("ffd166"), Color.valueOf("c08bff"),
     )
@@ -118,6 +121,7 @@ class SceneRenderer {
         drawPickups(shapes, gw, animTime)
         drawSmoke(shapes, gw)
         drawPlanets(shapes, gw)
+        drawGate(shapes, gw, animTime)
         drawBases(shapes, gw, animTime)
         shapes.end()
     }
@@ -322,6 +326,11 @@ class SceneRenderer {
                 shapes.triangle(x - 3f, y - 4f, x + 3f, y - 4f, x + 4.5f, y - 1f)
                 shapes.triangle(x - 3f, y - 4f, x - 4.5f, y - 1f, x + 4.5f, y - 1f)
             }
+            kind == "shard" -> { // ゲート鍵の断片: a tall cyan crystal shard
+                shapes.color = cShard
+                shapes.triangle(x - 3f, y + 3f, x + 3f, y + 3f, x, y - 6f)
+                shapes.triangle(x - 3f, y + 3f, x + 3f, y + 3f, x, y + 6f)
+            }
             kind == "dust" -> { // 星屑: a small gold four-point star
                 shapes.color = cDust
                 shapes.triangle(x - 3.5f, y, x + 3.5f, y, x, y - 5f)
@@ -372,6 +381,19 @@ class SceneRenderer {
                 shapes.color = cItem; shapes.rect(x - 4f, y - 5f, 1.6f, 10f) // spine
             }
             null -> { shapes.color = cItem; shapes.circle(x, y, 4f, 10) } // unknown id: the old dot
+        }
+    }
+
+    /** v2.44: the system's jump gate — a slow ring of orbiting lights around a bright throat. */
+    private fun drawGate(shapes: ShapeRenderer, gw: GameWorld, animTime: Float) {
+        val g = gw.worldState.gate ?: return
+        shapes.color = cGateRing
+        shapes.circle(g.first, g.second, 46f, 32)
+        shapes.color = cGateCore
+        shapes.circle(g.first, g.second, 7f, 12)
+        for (i in 0 until 8) {
+            val a = animTime * 0.7f + i * (6.2831855f / 8f)
+            shapes.circle(g.first + cos(a) * 40f, g.second + sin(a) * 40f, 3.2f, 8)
         }
     }
 

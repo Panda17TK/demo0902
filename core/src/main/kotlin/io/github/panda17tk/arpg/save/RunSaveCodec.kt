@@ -28,6 +28,7 @@ data class RunSaveDto(
     val ammo9: Int = 0, val ammo12: Int = 0, val ammoBeam: Int = 0, val ammoNade: Int = 0,
     val blocks: Int = 0,
     val dust: Int = 0, // 星屑 (v2.43)
+    val shards: Int = 0, // ゲート鍵の断片 (v2.44)
     val mags: List<Int> = emptyList(),
     val gunMul: Float = 1f, val fireMul: Float = 1f, val meleeMul: Float = 1f, val moveMul: Float = 1f,
     val ammoMul: Float = 1f, val healOnKill: Float = 0f, val wallHp: Float = 0f,
