@@ -232,7 +232,16 @@ object ItemCatalog {
     )
 
     private val byId = ALL.associateBy { it.id }
-    fun byId(id: String): ItemDef? = byId[id]
+
+    /** Resolve an id — including v2.47 honed ids ("gun_mg+2"), derived from their base def. */
+    fun byId(id: String): ItemDef? {
+        byId[id]?.let { return it }
+        if ("+" in id) {
+            val base = byId[GearCraft.baseId(id)] ?: return null
+            return GearCraft.leveled(base, GearCraft.level(id))
+        }
+        return null
+    }
 
     /** The RANGED_WEAPON item that behaves as the given WeaponDef id (pistol/shotgun/…). */
     fun byWeaponType(weaponType: String): ItemDef? = ALL.firstOrNull { it.weaponType == weaponType }
