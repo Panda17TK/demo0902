@@ -8,6 +8,7 @@ import io.github.panda17tk.arpg.combat.MeleeResolve
 import io.github.panda17tk.arpg.combat.MobDamage
 import io.github.panda17tk.arpg.config.GameConfig
 import io.github.panda17tk.arpg.ecs.components.Body
+import io.github.panda17tk.arpg.ecs.components.Bullet
 import io.github.panda17tk.arpg.ecs.components.Cooldowns
 import io.github.panda17tk.arpg.ecs.components.EBullet
 import io.github.panda17tk.arpg.ecs.components.Facing
@@ -71,10 +72,10 @@ class MeleeSystem(private val mobGrid: SpatialGrid<Entity>) :
             }
         }
 
-        // --- Melee vs mob: 180° arc at meleeReach (legacy melee.js meleeHit) ---
+        // --- Melee vs mob: a 180° base arc at meleeReach, both shaped by the equipped arm (v2.39) ---
         val gearMelee = entity[Gear].loadout // v2.33: the equipped melee arm shapes reach + damage
         val reach = config.player.meleeReach * gearMelee.meleeReachMul
-        val arc = PI.toFloat()          // 180°
+        val arc = (PI.toFloat() * gearMelee.meleeArcMul).coerceAtMost(2f * PI.toFloat()) // 大鉈 swings wider
         val faceAng = atan2(f.y, f.x)
         mobGrid.forNearby(t.x, t.y, reach + 24f) { mobEntity ->
             val mobT = with(world) { mobEntity[Transform] }
@@ -96,6 +97,19 @@ class MeleeSystem(private val mobGrid: SpatialGrid<Entity>) :
                 }
             }
         }
+        // v2.39: a resonant blade throws the swing as a wave — a short-lived 3-shard fan that
+        // carries 60% of the melee damage (and chips blocks at half strength).
+        if (gearMelee.meleeWave) {
+            val waveDmg = outcome.dmg * mods.meleeMul * gearMelee.meleeDmgMul * WAVE_DMG_FRAC
+            for (off in floatArrayOf(-WAVE_FAN, 0f, WAVE_FAN)) {
+                val a = faceAng + off
+                world.entity {
+                    it += Transform(x = t.x + kotlin.math.cos(a) * Tuning.MUZZLE_OFFSET, y = t.y + kotlin.math.sin(a) * Tuning.MUZZLE_OFFSET)
+                    it += Bullet(kotlin.math.cos(a) * WAVE_SPEED, kotlin.math.sin(a) * WAVE_SPEED, WAVE_LIFE, waveDmg, wallMul = 0.5f)
+                }
+            }
+        }
+
         // deflect enemy bullets caught in the swing arc
         ebullets.forEach { be ->
             val bt = with(world) { be[Transform] }
@@ -107,5 +121,12 @@ class MeleeSystem(private val mobGrid: SpatialGrid<Entity>) :
                 if (ba <= arc / 2f) { world -= be; fx.spawnSparks(bt.x, bt.y, 6, deflectColor) }
             }
         }
+    }
+
+    companion object {
+        private const val WAVE_DMG_FRAC = 0.6f // a flying slash carries this fraction of the swing's damage
+        private const val WAVE_SPEED = 320f    // slower than bullets — a visible wave, not a shot
+        private const val WAVE_LIFE = 0.35f    // short reach (~110px), melee-flavoured
+        private const val WAVE_FAN = 0.32f     // radians between the three shards
     }
 }

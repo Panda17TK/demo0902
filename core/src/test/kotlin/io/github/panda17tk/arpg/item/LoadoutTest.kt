@@ -66,6 +66,15 @@ class LoadoutTest {
         assertTrue(l.meleeDmgMul > 1f)
     }
 
+    @Test fun `melee special effects come from the melee arm`() {
+        val cleaver = Loadout(melee = ItemCatalog.byId("melee_cleaver"))
+        assertEquals(1.5f, cleaver.meleeArcMul, 1e-4f)
+        assertFalse(cleaver.meleeWave)
+        val resonant = Loadout(melee = ItemCatalog.byId("melee_resonant"))
+        assertTrue(resonant.meleeWave)
+        assertEquals(1f, Loadout().meleeArcMul, 1e-6f)
+    }
+
     @Test fun `traits come from any equipped piece - armor or accessory`() {
         val armor = Loadout(armor = ItemCatalog.byId("armor_thermal"))
         assertTrue(armor.has(ItemTrait.HEAT_PROOF))

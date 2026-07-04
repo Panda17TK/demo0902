@@ -22,7 +22,7 @@ class Fx(private val rng: Rng = Rng(0x5DEECE66DL)) {
     val slashes = ArrayList<Slash>(8)
     val afters = ArrayList<After>(64)
 
-    class Beam(val sx: Float, val sy: Float, val ex: Float, val ey: Float, var t: Float, val life: Float)
+    class Beam(val sx: Float, val sy: Float, val ex: Float, val ey: Float, var t: Float, val life: Float, val width: Float = 1.8f)
     class Slash(val x: Float, val y: Float, val ang: Float, var t: Float, val life: Float)
     class After(val x: Float, val y: Float, val w: Float, val h: Float, val color: Color, var t: Float, val life: Float)
 
@@ -59,7 +59,7 @@ class Fx(private val rng: Rng = Rng(0x5DEECE66DL)) {
         }
     }
 
-    fun spawnBeam(sx: Float, sy: Float, ex: Float, ey: Float) { beams.add(Beam(sx, sy, ex, ey, 0f, 0.12f)) }
+    fun spawnBeam(sx: Float, sy: Float, ex: Float, ey: Float, width: Float = 1.8f) { beams.add(Beam(sx, sy, ex, ey, 0f, 0.12f, width)) }
     fun spawnSlash(x: Float, y: Float, ang: Float) { slashes.add(Slash(x, y, ang, 0f, 0.22f)) }
     fun spawnAfterimage(x: Float, y: Float, w: Float, h: Float, color: Color) { afters.add(After(x, y, w, h, color, 0f, 0.25f)) }
     /** Rock chips flung from a struck wall (gravity gibs). */

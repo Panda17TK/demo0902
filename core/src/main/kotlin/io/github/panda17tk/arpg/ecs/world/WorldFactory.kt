@@ -115,14 +115,16 @@ object WorldFactory {
             BaseField(Bases.pickLargest(clusters, 6, 18).map { Base(it.cx * Tuning.TILE, it.cy * Tuning.TILE, tribes.tribeOf(it.cx * Tuning.TILE, it.cy * Tuning.TILE), it.radius * Tuning.TILE) })
         }
         val gravityField = GravityField()
-        // Discrete planets: 2..4 per stage, deterministic from the seed, clear of the player spawn.
-        val planetCount = 2 + Rng(seed xor 0x50A4E70BL).nextInt(3)
+        // Discrete planets: 6..8 per stage (v2.39 — more worlds to land on), deterministic from the
+        // seed, clear of the player spawn, with a wider size range so systems read as varied.
+        val planetCount = 6 + Rng(seed xor 0x50A4E70BL).nextInt(3)
         val planetField = PlanetField(
             if (mode == WorldMode.SURFACE) emptyList()
             else Planets.place(
                 map.width * Tuning.TILE, map.height * Tuning.TILE,
                 loaded.playerSpawnX, loaded.playerSpawnY, planetCount, Rng(seed xor 0x91A2B3C4L),
-                margin = 768f, // 8× the old gap → planets sit far apart in the wider space
+                minRadius = 56f, maxRadius = 200f, // dwarf moons up to near-giants (v2.39)
+                margin = 520f, // slightly denser than the old 768 so a planet is never far to find
                 seed = seed, // stable planet ids per star system → society memory persists across landings
             ),
         )

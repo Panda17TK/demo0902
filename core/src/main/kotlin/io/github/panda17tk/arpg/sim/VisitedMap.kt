@@ -18,6 +18,14 @@ class VisitedMap(val w: Int, val h: Int) {
         }
     }
 
+    /** v2.39: mark a whole tile rectangle — the on-screen viewport maps everything it shows. */
+    fun markRect(tx0: Int, ty0: Int, tx1: Int, ty1: Int) {
+        for (y in ty0.coerceAtLeast(0)..ty1.coerceAtMost(h - 1)) {
+            val x0 = tx0.coerceAtLeast(0); val x1 = tx1.coerceAtMost(w - 1)
+            if (x0 <= x1) bits.set(y * w + x0, y * w + x1 + 1)
+        }
+    }
+
     fun visited(tx: Int, ty: Int): Boolean = tx in 0 until w && ty in 0 until h && bits.get(ty * w + tx)
 
     val count: Int get() = bits.cardinality()

@@ -89,7 +89,8 @@ private const val REMEMBERED_TIME = 5f // seconds the HUD greets a returning pla
 private const val TOAST_TIME = 3f      // seconds the takeoff send-off toast rides the space HUD (LP v2.29)
 private const val INV_TIME_SCALE = 0.01f // v2.33: the world crawls at this speed behind the inventory
 private const val PLANET_TAP_PAD = 48f   // v2.38: extra world-px around a planet that still counts as tapping it
-private const val VISIT_RADIUS = 2     // v2.33: tiles around the player marked as explored each frame
+private const val SETTINGS_PREFS = "drift-settings" // v2.39: device-level settings (not run state)
+private const val SETTINGS_SWAP = "controlSwap"
 private const val SAVED_NOTE_TIME = 2f // seconds the 「セーブした」 flash stays on the SAVE tab
 
 /**
@@ -175,6 +176,8 @@ class GameScreen : ScreenAdapter() {
     private var invNoteT = 0f
     private var readingLore: ItemDef? = null
     private var worldSeed = 1L // the seed the CURRENT world was built with (goes into the run save)
+    // v2.39: swap the touch roles — melee on the right stick, gun on the ML button (persisted).
+    private var controlSwap = false
 
     // Takeoff send-off toast (LP v2.29): one line in the SPACE HUD for a few seconds after leaving.
     private var rewardToast: String? = null
@@ -209,6 +212,7 @@ class GameScreen : ScreenAdapter() {
         Scores.load()
         session.restore() // LP v2.28: the universe remembers you across runs and restarts
         touchEnabled = Gdx.app.type == Application.ApplicationType.Android
+        controlSwap = try { Gdx.app.getPreferences(SETTINGS_PREFS).getBoolean(SETTINGS_SWAP, false) } catch (_: Throwable) { false }
         if (!tryRestoreRun()) newRun() // v2.33: a saved run resumes where it left off
     }
 
@@ -337,8 +341,15 @@ class GameScreen : ScreenAdapter() {
         }
         // flow the cosmetic debris/asteroid field around the player (space only; wraps toroidally)
         if (!paused) gw.worldState.drift?.let { Drift.advance(it, px, py, DRIFT_RANGE, simDelta) }
-        // v2.33: mark the tiles around the player as explored (the inventory MAP tab draws only these).
-        if (!paused) gw.visited.mark(floor(px / Tuning.TILE).toInt(), floor(py / Tuning.TILE).toInt(), VISIT_RADIUS)
+        // v2.33/39: everything the screen shows is mapped — the visible viewport rect, not just the
+        // player's immediate surroundings (the inventory MAP tab draws only these tiles).
+        if (!paused) {
+            val vhw = worldViewport.worldWidth / 2f; val vhh = worldViewport.worldHeight / 2f
+            gw.visited.markRect(
+                floor((camX - vhw) / Tuning.TILE).toInt(), floor((camY - vhh) / Tuning.TILE).toInt(),
+                floor((camX + vhw) / Tuning.TILE).toInt(), floor((camY + vhh) / Tuning.TILE).toInt(),
+            )
+        }
         // The return-visit greeting fades after a few seconds, then the surface objective reverts to normal.
         if (rememberedT > 0f && !paused) { rememberedT -= simDelta; if (rememberedT <= 0f) gw.worldState.rememberedPlanet = false }
         if (rewardToastT > 0f && !paused) { rewardToastT -= simDelta; if (rewardToastT <= 0f) rewardToast = null }
@@ -374,7 +385,7 @@ class GameScreen : ScreenAdapter() {
             val canLand = (ws.mode == WorldMode.SPACE && ws.landingCandidate != null) ||
                 (ws.mode == WorldMode.SURFACE && playerOnEscapePad())
             val hasOverclock = with(gw.world) { gw.player[Gear].loadout.hasOverclockThruster }
-            touch.poll(input, hudViewport, tBlocks, tw.mag, tw.def.magSize, canLand, hasOverclock)
+            touch.poll(input, hudViewport, tBlocks, tw.mag, tw.def.magSize, canLand, hasOverclock, controlSwap)
         }
     }
 
@@ -432,7 +443,7 @@ class GameScreen : ScreenAdapter() {
 
         if (touchEnabled && overlay == Overlay.NONE && !choosing && !gw.gameOver.isOver) {
             val landLabel = if (gw.worldState.mode == WorldMode.SURFACE) "発進" else "着陸"
-            TouchOverlay.draw(shapes, batch, font, hudViewport, touch, landLabel)
+            TouchOverlay.draw(shapes, batch, font, hudViewport, touch, landLabel, controlSwap)
         }
         if (overlay == Overlay.NONE && !choosing && !gw.gameOver.isOver) Hud.pauseButton(shapes, hudViewport, Modals.pauseButton(hudW, hudH))
         if (choosing) {
@@ -486,14 +497,31 @@ class GameScreen : ScreenAdapter() {
             }
             val cand = ws.landingCandidate ?: run {
                 lastCardId = null; cachedCard = null
-                // v2.38: even with no planet latched, space tells you HOW landing works — the user
-                // shouldn't have to discover it by accident.
+                // v2.38/39: even with no planet latched, space tells you HOW landing works AND
+                // points at the nearest planet with a live distance — no more searching blind.
                 if (!paused && !choosing && !gw.gameOver.isOver) {
                     val idle = if (touchEnabled) "惑星に近づくとカードが出る　惑星をタップで着陸" else "惑星に近づいて [L] で着陸"
+                    val (ppx, ppy) = with(gw.world) { val t = gw.player[Transform]; t.x to t.y }
+                    val nearest = gw.planets.minByOrNull { hypot(it.cx - ppx, it.cy - ppy) }
+                    val nav = nearest?.let {
+                        val dx = it.cx - ppx; val dy = it.cy - ppy
+                        val dist = (hypot(dx, dy) - it.radius).coerceAtLeast(0f).toInt()
+                        // World is y-down: dy<0 = up on screen. Pick the dominant cardinal arrow.
+                        val arrow = if (kotlin.math.abs(dx) >= kotlin.math.abs(dy)) {
+                            if (dx >= 0f) "→" else "←"
+                        } else {
+                            if (dy >= 0f) "↓" else "↑"
+                        }
+                        "最寄りの惑星 $arrow $dist"
+                    }
                     batch.projectionMatrix = hudViewport.camera.combined
                     batch.begin()
                     glyphLayout.setText(font, idle)
                     font.draw(batch, glyphLayout, (hudW - glyphLayout.width) / 2f, hudH - 12f)
+                    if (nav != null) {
+                        glyphLayout.setText(font, nav)
+                        font.draw(batch, glyphLayout, (hudW - glyphLayout.width) / 2f, hudH - 34f)
+                    }
                     batch.end()
                 }
                 return
@@ -671,6 +699,7 @@ class GameScreen : ScreenAdapter() {
         if (InventoryLayout.closeButton(w, h).contains(tapX, tapY)) { overlay = Overlay.NONE; readingLore = null; return }
         when (invTab) {
             InvTab.EQUIP -> {
+                if (InventoryLayout.controlToggle(w, h).contains(tapX, tapY)) { toggleControlSwap(); return }
                 val row = Modals.hitModal(InventoryLayout.slotRows(w, h), tapX, tapY) ?: return
                 GearOps.cycleSlot(gw.world, gw.player, InventoryLayout.SLOT_ORDER[row])
             }
@@ -724,7 +753,20 @@ class GameScreen : ScreenAdapter() {
             slotTexts, itemLines, gw.visited, ptx, pty,
             if (invNoteT > 0f) invNote else null,
             loreTitle = readingLore?.name, loreLines = readingLore?.lore?.split("\n") ?: emptyList(),
+            controlLabel = "操作: " + (if (controlSwap) "銃=ボタン / 近接=右スティック" else "近接=ボタン / 銃=右スティック") + "　(タップで入替)",
         )
+    }
+
+    /** v2.39: flip the touch roles of the ML button and the right stick, and persist the choice. */
+    private fun toggleControlSwap() {
+        controlSwap = !controlSwap
+        try {
+            val p = Gdx.app.getPreferences(SETTINGS_PREFS)
+            p.putBoolean(SETTINGS_SWAP, controlSwap)
+            p.flush()
+        } catch (_: Throwable) { /* persist best-effort */ }
+        invNote = if (controlSwap) "入替: 銃=ボタン / 近接=右スティック" else "入替: 近接=ボタン / 銃=右スティック"
+        invNoteT = SAVED_NOTE_TIME
     }
 
     /** v2.33 SAVE tab: snapshot the run (world identity + player state + gear) and persist it. */
