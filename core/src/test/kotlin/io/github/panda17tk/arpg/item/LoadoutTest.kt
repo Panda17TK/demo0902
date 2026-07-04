@@ -66,6 +66,15 @@ class LoadoutTest {
         assertTrue(l.meleeDmgMul > 1f)
     }
 
+    @Test fun `knockback and lifesteal ride the melee arm`() {
+        val maul = Loadout(melee = ItemCatalog.byId("melee_maul"))
+        assertEquals(2f, maul.meleeKbMul, 1e-4f)
+        val leech = Loadout(melee = ItemCatalog.byId("melee_leech"))
+        assertEquals(0.15f, leech.meleeLifesteal, 1e-4f)
+        assertEquals(1f, Loadout().meleeKbMul, 1e-6f)
+        assertEquals(0f, Loadout().meleeLifesteal, 1e-6f)
+    }
+
     @Test fun `melee special effects come from the melee arm`() {
         val cleaver = Loadout(melee = ItemCatalog.byId("melee_cleaver"))
         assertEquals(1.5f, cleaver.meleeArcMul, 1e-4f)

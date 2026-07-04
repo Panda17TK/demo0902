@@ -2,6 +2,7 @@ package io.github.panda17tk.arpg.render
 
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
+import io.github.panda17tk.arpg.config.FamilyRole
 import io.github.panda17tk.arpg.sim.Tuning
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -43,6 +44,9 @@ object Actors {
     private val BOSS_EYE = Color.valueOf("ffd166")
     private val SPITTER_EYE = Color.valueOf("0a0f14")
     private val STALKER_EYE = Color.valueOf("d6c2ff")
+    private val RANK_GOLD = Color.valueOf("ffd166")   // v2.42: crowns + level pips
+    private val RANK_IRON = Color.valueOf("4a5568")   // v2.42: pauldrons + shield slabs
+    private val RANK_CLOTH = Color(1f, 1f, 1f, 0.75f) // v2.42: elder headband / shield boss
     private val BAR_BG = Color(0f, 0f, 0f, 0.6f)
     private val BAR_HI = Color.valueOf("7fe08a")
     private val BAR_MID = Color.valueOf("e0d27f")
@@ -144,6 +148,7 @@ object Actors {
         s: ShapeRenderer, kind: String, tier: String, x: Float, y: Float, w: Float, h: Float, color: Color,
         faceX: Float, faceY: Float, moving: Boolean, hitFlash: Boolean, dodge: Boolean,
         chargeProg: Float, enrage: Boolean, hpFrac: Float, animSeed: Float, time: Float,
+        role: FamilyRole = FamilyRole.NONE, level: Int = 1,
     ) {
         val elite = tier == "midboss" || tier == "boss"
         s.color = SHADOW; ellipseC(s, x, y + h / 2f - 1f, w * 0.46f, h * 0.18f)
@@ -158,6 +163,34 @@ object Actors {
             kind == "spitter" -> spitter(s, x, y, w, h, base, color, faceX, faceY, time, animSeed)
             kind == "stalker" -> stalker(s, x, y, w, h, base, color, faceX, faceY)
             else -> { s.color = base; Draw.roundedRect(s, x - w / 2f, y - h / 2f, w, h, 4f); eyes(s, x, y, 4f, -3f, faceX, faceY, EYE_DARK, 2.2f, true) }
+        }
+        // v2.42: rank worn on the body — a king's crown, an elder's headband, a guardian's shield
+        // slab, an elite's pauldrons, and level pips for anyone who has climbed past their birth rank.
+        when (role) {
+            FamilyRole.KING -> { // a gold three-point crown above the head
+                s.color = RANK_GOLD
+                val cy = y - h / 2f - 4f
+                s.rect(x - 6f, cy - 2.5f, 12f, 2.5f)
+                s.triangle(x - 6f, cy - 2.5f, x - 3f, cy - 2.5f, x - 4.5f, cy - 7f)
+                s.triangle(x - 1.5f, cy - 2.5f, x + 1.5f, cy - 2.5f, x, cy - 8f)
+                s.triangle(x + 3f, cy - 2.5f, x + 6f, cy - 2.5f, x + 4.5f, cy - 7f)
+            }
+            FamilyRole.ELDER -> { s.color = RANK_CLOTH; s.rect(x - w / 2f, y - h / 2f + 1.5f, w, 2.2f) } // a pale headband
+            FamilyRole.GUARDIAN -> { // a shield slab carried on the off-side
+                s.color = RANK_IRON; s.rect(x - w / 2f - 4.5f, y - h * 0.30f, 4f, h * 0.60f)
+                s.color = RANK_CLOTH; s.rect(x - w / 2f - 3.6f, y - 1f, 2.2f, 2f)
+            }
+            FamilyRole.CHILD, FamilyRole.NONE -> {}
+        }
+        if (elite) { // pauldrons: rank plates on both shoulders
+            s.color = RANK_IRON
+            s.rect(x - w / 2f - 2f, y - h / 2f - 2f, w * 0.30f, 5f)
+            s.rect(x + w / 2f + 2f - w * 0.30f, y - h / 2f - 2f, w * 0.30f, 5f)
+        }
+        if (level > 1) { // level pips: one dot per rank climbed (capped at 4)
+            s.color = RANK_GOLD
+            val pips = minOf(4, level - 1)
+            for (p in 0 until pips) s.circle(x - (pips - 1) * 2.5f + p * 5f, y - h / 2f - (if (elite) 16f else 11f), 1.4f, 6)
         }
         if (elite || hpFrac < 1f) {
             val bw = if (elite) maxOf(w, 40f) else w

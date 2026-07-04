@@ -29,6 +29,11 @@ object MobFactory {
                 kind = def.name, def = def, speed = def.speed * ss,
                 attackCd = FloatArray(def.attacks.size), waveNum = waveNum, tribe = tribe, dashes = dashes,
                 drifter = drifter,
+                // v2.42: rank IS capability — elites start at a level worthy of their station, which
+                // unlocks their full move list (Leveling.attacksForLevel) and sharpens their combat
+                // smarts (Leveling.smarts). Before this, even bosses spawned at level 1 and only ever
+                // used their FIRST attack.
+                level = when (def.tier) { "boss" -> 10; "midboss" -> 5; else -> 1 },
                 homeX = x, homeY = y, // a wild animal's nest/home is where it first appears
             )
             it += MobAction()

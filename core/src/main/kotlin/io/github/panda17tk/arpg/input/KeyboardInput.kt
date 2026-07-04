@@ -25,7 +25,10 @@ object KeyboardInput {
         prevF = f
         val kFire = k.isKeyPressed(Keys.K)
         state.fire = kFire
-        state.fireRelease = !kFire && prevK; prevK = kFire // release edge → manual-fire weapons shoot
+        // Release edge → queue a buffered manual-fire request (v2.42: never overwrite the buffer with
+        // false — a frame that runs zero sim steps must not swallow the shot).
+        if (!kFire && prevK) state.fireRelease = true
+        prevK = kFire
         val j = k.isKeyPressed(Keys.J); state.melee = j && !prevJ; prevJ = j
         val r = k.isKeyPressed(Keys.R); state.reload = r && !prevR; prevR = r
         val lKey = k.isKeyPressed(Keys.L); state.land = lKey && !prevL; prevL = lKey // land / take off

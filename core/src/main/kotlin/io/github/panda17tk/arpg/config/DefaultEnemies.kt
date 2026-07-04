@@ -152,17 +152,20 @@ private fun spaceBosses(): Map<String, EnemyDef> = mapOf(
     "brute" to EnemyDef(
         name = "ブルート(中ボス)", tier = "midboss", color = "#d08a3a", hp = 420f, speed = 58f,
         w = 34f, h = 34f, seeRange = 320f, contactKB = 320f, gravityResponse = 1.5f, // heavy — easy to fling into planets
+        intelligence = 0.5f, bravery = 0.9f, // v2.42: rank carries smarts — cover, kiting, the works
         attacks = listOf(
             AttackSpec("melee", cd = 0.8f, dmg = 16f, range = 22f, arc = 360f),
             AttackSpec("charge_melee", cd = 3.2f, range = 60f, reach = 40f, windup = 0.8f, dmg = 30f, kb = 480f),
             AttackSpec("slam", cd = 4.0f, dmg = 18f, range = 80f, power = 360f),
             AttackSpec("burst", cd = 2.5f, dmg = 8f, count = 5, spread = 40f, speed = 240f),
             AttackSpec("summon", cd = 8.0f, minion = "zombie", count = 2),
+            AttackSpec("shockwave", cd = 5.5f, dmg = 8f, range = 80f, power = 460f), // v2.42: peels off clingers
         ),
     ),
     "warlock" to EnemyDef(
         name = "ウォーロック(中ボス)", tier = "midboss", color = "#7a5ad0", hp = 360f, speed = 48f,
         w = 30f, h = 30f, seeRange = 360f, contactKB = 240f,
+        intelligence = 0.85f, bravery = 0.6f, canHideAndRest = true, // v2.42: a scholar of the fight
         dodge = DodgeSpec(0.25f, 0.15f, 1.6f),
         attacks = listOf(
             AttackSpec("shot", cd = 1.0f, dmg = 12f, speed = 240f),
@@ -170,11 +173,13 @@ private fun spaceBosses(): Map<String, EnemyDef> = mapOf(
             AttackSpec("blink", cd = 4.0f, maxTiles = 5, dur = 0.1f, minDist = 80f, standoff = 120f),
             AttackSpec("summon", cd = 7.0f, minion = "spitter", count = 2),
             AttackSpec("heal", cd = 9.0f, amount = 40f),
+            AttackSpec("spray", cd = 3.5f, dmg = 6f, count = 5, spread = 60f, speed = 220f, life = 1.5f), // v2.42
         ),
     ),
     "overlord" to EnemyDef(
         name = "オーバーロード(ボス)", tier = "boss", color = "#d04a6a", hp = 1200f, speed = 52f,
         w = 46f, h = 46f, seeRange = 480f, contactKB = 360f, gravityResponse = 0.25f, // boss resists being flung
+        intelligence = 0.9f, bravery = 1f, // v2.42: the throne earns its smarts
         dodge = DodgeSpec(0.12f, 0.12f, 2.5f),
         attacks = listOf(
             AttackSpec("melee", cd = 0.7f, dmg = 20f, range = 30f, arc = 360f),
@@ -187,12 +192,14 @@ private fun spaceBosses(): Map<String, EnemyDef> = mapOf(
             AttackSpec("summon", cd = 6.0f, minion = "zombie", count = 3),
             AttackSpec("enrage", cd = 12.0f, mul = 1.6f, duration = 4f),
             AttackSpec("heal", cd = 14.0f, amount = 80f),
+            AttackSpec("spiral", cd = 6.0f, dmg = 9f, count = 12, speed = 170f, life = 2.4f), // v2.42: the 11th move
         ),
     ),
     // v2.41: a siege-platform midboss built on the new attack kit (appended — key order is contract).
     "artillery" to EnemyDef(
         name = "アーティラリー(中ボス)", tier = "midboss", color = "#a08a50", hp = 380f, speed = 30f,
         w = 36f, h = 30f, seeRange = 460f, contactKB = 320f, gravityResponse = 1.2f,
+        intelligence = 0.7f, bravery = 0.8f, // v2.42
         attacks = listOf(
             AttackSpec("barrage", cd = 3.0f, dmg = 8f, count = 7, spread = 70f, speed = 220f),
             AttackSpec("mine", cd = 4.0f, dmg = 20f, life = 8f),
