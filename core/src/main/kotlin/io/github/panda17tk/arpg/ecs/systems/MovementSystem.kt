@@ -132,8 +132,12 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         val heatProof = loadout.has(ItemTrait.HEAT_PROOF) || bf.heatProofT > 0f
         val coldProof = loadout.has(ItemTrait.COLD_PROOF) || bf.coldProofT > 0f
         // Normal-move speed cap scales with buffs/snow; dashes are bounded only by the hard ceiling.
+        // v2.79 水域: wading through open water drags the walk (frozen ponds do not).
+        val wading = worldState.mode == WorldMode.SURFACE &&
+            io.github.panda17tk.arpg.map.SurfaceWater.wadingAt(worldState.water, t.x, t.y)
         val cruise = Locomotion.speed(false, config.player) * mods.moveMul * loadout.moveMul * gearCruise *
-            (if (bf.dashUpT > 0f) DASH_UP_MUL else 1f) * (if (snow && !coldProof) SNOW_SLOW else 1f)
+            (if (bf.dashUpT > 0f) DASH_UP_MUL else 1f) * (if (snow && !coldProof) SNOW_SLOW else 1f) *
+            (if (wading) io.github.panda17tk.arpg.map.SurfaceWater.WADE_SLOW else 1f)
         val hardCap = V_HARD * mods.moveMul * (if (bf.dashUpT > 0f) DASH_UP_MUL else 1f)
         // Zero friction in open space; a planet surface (ice especially) restores ground drag so you stop.
         // Cold-proof soles grip the ice: it behaves like ordinary ground.
