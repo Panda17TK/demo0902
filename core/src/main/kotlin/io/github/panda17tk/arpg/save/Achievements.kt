@@ -20,6 +20,13 @@ enum class Achievement(val title: String, val desc: String) {
     RELIC_KEEPER("遺物継承", "眠っていた遺物を持ち帰った"),
     SYNC_90("通信回復目前", "星間同期復旧が90%に達した"),
     HONED_MAX("鍛え上げ", "武器を+3まで研ぎ上げた"),
+    // v2.70: six more — the record fills in as the keeper's habits show (append-only ids).
+    GUARDIAN("守り手", "護衛の依頼を果たした"),
+    OBSERVER("観測員", "定点観測の依頼を果たした"),
+    SYSTEM_3("第三星系", "みっつ目の星系に到達した"),
+    DUST_RICH("記憶片収集家", "星屑500を懐に抱えた"),
+    QUIET_VISIT("静かな来訪", "誰も傷つけずに星を発った"),
+    BEAST_HUNTER("獣狩り", "ふたつの星で獣の王を討った"),
 }
 
 object Achievements {
