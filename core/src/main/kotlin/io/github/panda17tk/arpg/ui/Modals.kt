@@ -56,6 +56,22 @@ object Modals {
             },
         )
 
+    /** v2.60 起動診断: [診断する][スキップ] side by side, mid-screen. */
+    fun tutorialBootButtons(hudW: Float, hudH: Float): List<UiButton> {
+        val bw = min(240f, hudW * 0.42f)
+        val gap = 12f
+        val x = (hudW - bw * 2f - gap) / 2f
+        val y = hudH * 0.5f - BTN_H / 2f
+        return listOf(
+            UiButton(x, y, bw, BTN_H, "診断する"),
+            UiButton(x + bw + gap, y, bw, BTN_H, "スキップ"),
+        )
+    }
+
+    /** v2.60 起動診断: the always-available small skip button under the prompt panel. */
+    fun tutorialSkipButton(hudW: Float, hudH: Float): UiButton =
+        UiButton(hudW - 132f, hudH - 244f, 120f, 40f, "スキップ")
+
     /** v2.56 ボタン配置エディタ: [大きく][小さく][リセット][完了] in one row below the HUD band. */
     fun layoutEditButtons(hudW: Float, hudH: Float): List<UiButton> {
         val labels = listOf("大きく", "小さく", "リセット", "完了")
