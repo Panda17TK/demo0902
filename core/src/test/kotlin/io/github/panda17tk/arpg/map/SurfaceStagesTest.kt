@@ -6,11 +6,12 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class SurfaceStagesTest {
-    @Test fun `surface arena is fully bordered with walls`() {
+    @Test fun `surface arena keeps its outer ring open — the world wraps there`() {
         val s = SurfaceStages.forBiome(PlanetBiome.NATURE, 1L)
-        assertTrue(s.rows.first().all { it == '#' }, "top border")
-        assertTrue(s.rows.last().all { it == '#' }, "bottom border")
-        assertTrue(s.rows.all { it.first() == '#' && it.last() == '#' }, "side borders")
+        // v2.83: the rim is guaranteed floor (wrap lanes) — obstacles never reach it
+        assertTrue(s.rows.first().all { it != '#' }, "top rim must stay open")
+        assertTrue(s.rows.last().all { it != '#' }, "bottom rim must stay open")
+        assertTrue(s.rows.all { it.first() != '#' && it.last() != '#' }, "side rims must stay open")
     }
 
     @Test fun `surface arena has a player spawn`() {
@@ -21,11 +22,11 @@ class SurfaceStagesTest {
         assertEquals(SurfaceStages.forBiome(PlanetBiome.ICE, 5L).rows, SurfaceStages.forBiome(PlanetBiome.ICE, 5L).rows)
     }
 
-    @Test fun `every planet biome yields a valid bordered arena with a spawn`() {
+    @Test fun `every planet biome yields a valid wrappable arena with a spawn`() {
         for (b in PlanetBiome.values()) {
             val s = SurfaceStages.forBiome(b, 9L)
-            assertTrue(s.rows.first().all { it == '#' } && s.rows.last().all { it == '#' }, "top/bottom borders for $b")
-            assertTrue(s.rows.all { it.first() == '#' && it.last() == '#' }, "side borders for $b")
+            assertTrue(s.rows.first().all { it != '#' } && s.rows.last().all { it != '#' }, "top/bottom rims open for $b")
+            assertTrue(s.rows.all { it.first() != '#' && it.last() != '#' }, "side rims open for $b")
             assertTrue(s.rows.any { 'P' in it }, "spawn for $b")
             assertEquals("surface_${b.name.lowercase()}", s.id, "id for $b")
         }

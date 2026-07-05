@@ -172,6 +172,16 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         t.x = r2.x; t.y = r2.y
         if (r1.hitX) { v.vx = 0f; v.driftX = 0f } // stop at the wall
         if (r2.hitY) { v.vy = 0f; v.driftY = 0f }
+        // v2.83 ループ地表: crossing the open rim wraps to the far side (the surface is a torus;
+        // the rim rows/columns are guaranteed floor, so the arrival is always walkable).
+        if (surface) {
+            val worldW = map.width * Tuning.TILE; val worldH = map.height * Tuning.TILE
+            val m = Tuning.TILE * 0.55f
+            if (t.x < m) { t.x = worldW - m - 1f; t.prevX = t.x }
+            else if (t.x > worldW - m) { t.x = m + 1f; t.prevX = t.x }
+            if (t.y < m) { t.y = worldH - m - 1f; t.prevY = t.y }
+            else if (t.y > worldH - m) { t.y = m + 1f; t.prevY = t.y }
+        }
         // Solid planets: push out + a slight rebound.
         val pc = CircleCollision.resolve(t.x, t.y, b.halfW, v.vx + v.driftX, v.vy + v.driftY, planetField.planets)
         if (pc.hit) {
