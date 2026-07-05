@@ -19,6 +19,13 @@ object MeleeCombo {
     fun reachMul(step: Int): Float = 1f + 0.11f * (clamp(step) - 1) // ×1.00 → ×1.44
     fun arcMul(step: Int): Float = 1f + 0.08f * (clamp(step) - 1)   // the swing opens up
 
+    /** v2.81: extra reach straight ahead — the swing lunges forward as the combo climbs.
+     *  Weighted by cos² of the angle off the facing, so the sides stay honest. */
+    fun forwardMul(step: Int): Float = 0.225f * (clamp(step) - 1) // dead-ahead bonus: +0% → +90%
+
+    /** v2.81: the slash effect's size, matched to the swing that made it. */
+    fun slashScale(step: Int): Float = 1f + 0.18f * (clamp(step) - 1) // ×1.00 → ×1.72
+
     /** FX budget per step — the show grows with the rhythm. */
     fun sparks(step: Int): Int = 4 + clamp(step) * 5
 
