@@ -13,6 +13,8 @@ import com.badlogic.gdx.utils.viewport.ScreenViewport
 import io.github.panda17tk.arpg.App
 import io.github.panda17tk.arpg.math.Rng
 import io.github.panda17tk.arpg.render.Fonts
+import io.github.panda17tk.arpg.audio.Ambience
+import io.github.panda17tk.arpg.audio.AmbientTrack
 import io.github.panda17tk.arpg.audio.Sfx
 import io.github.panda17tk.arpg.input.Haptics
 import io.github.panda17tk.arpg.save.PreferencesRunSaveStore
@@ -62,6 +64,8 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             Sfx.enabled = sp.getBoolean("soundOn", true)
             Haptics.enabled = sp.getBoolean("hapticsOn", true)
         } catch (_: Throwable) { /* defaults stay on */ }
+        Ambience.setEnabled(Sfx.enabled) // v2.63: the サウンド toggle gates the ambient loop too
+        Ambience.play(AmbientTrack.TITLE)
     }
 
     override fun resize(width: Int, height: Int) {
@@ -153,7 +157,10 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             // v2.59 設定: the toggle pair flips + persists in place
             toggles.forEachIndexed { i, b ->
                 if (b.contains(tmp.x, tmp.y)) {
-                    if (i == 0) Sfx.enabled = !Sfx.enabled else Haptics.enabled = !Haptics.enabled
+                    if (i == 0) {
+                        Sfx.enabled = !Sfx.enabled
+                        Ambience.setEnabled(Sfx.enabled) // v2.63: same switch quiets the ambience
+                    } else Haptics.enabled = !Haptics.enabled
                     try {
                         val sp = Gdx.app.getPreferences("drift-settings")
                         sp.putBoolean("soundOn", Sfx.enabled)

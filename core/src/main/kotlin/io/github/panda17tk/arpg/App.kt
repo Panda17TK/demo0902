@@ -2,6 +2,7 @@ package io.github.panda17tk.arpg
 
 import com.badlogic.gdx.Game
 import com.badlogic.gdx.Screen
+import io.github.panda17tk.arpg.audio.Ambience
 import io.github.panda17tk.arpg.screens.GameScreen
 import io.github.panda17tk.arpg.screens.TitleScreen
 
@@ -31,5 +32,11 @@ class App : Game() {
         val old = screen
         setScreen(next)
         old?.dispose()
+    }
+
+    /** v2.63: the ambient loop lives across screens — only the app teardown stops it. */
+    override fun dispose() {
+        super.dispose()
+        Ambience.dispose()
     }
 }
