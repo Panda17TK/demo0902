@@ -59,6 +59,19 @@ class DesyncSurgeSystem : IteratingSystem(family { all(PlayerTag, Transform) }) 
         mobs.forEach { m -> if (!m[Mob].drifter) waveMobs++ }
 
         if (w.phase == "active") {
+            // v2.87 流星群: through a METEOR wave the sky keeps falling — one rock every beat.
+            if (w.event == WaveEvent.METEOR) {
+                w.meteorCd -= dt
+                if (w.meteorCd <= 0f) {
+                    pickTile(pt)?.let { (mx, my) ->
+                        world.entity {
+                            it += Transform(x = mx, y = my)
+                            it += io.github.panda17tk.arpg.ecs.components.Meteor(WaveEvents.METEOR_FALL)
+                        }
+                    }
+                    w.meteorCd = WaveEvents.METEOR_INTERVAL
+                }
+            }
             if (w.toSpawn > 0) {
                 w.spawnCd -= dt
                 if (w.spawnCd <= 0f && waveMobs < liveCap(w.num, c)) {

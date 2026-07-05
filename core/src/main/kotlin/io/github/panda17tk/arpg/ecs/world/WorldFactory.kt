@@ -36,6 +36,7 @@ import io.github.panda17tk.arpg.ecs.systems.LandingSystem
 import io.github.panda17tk.arpg.ecs.systems.MeleeSystem
 import io.github.panda17tk.arpg.ecs.systems.MobActionSystem
 import io.github.panda17tk.arpg.ecs.systems.MobDamageSystem
+import io.github.panda17tk.arpg.ecs.systems.MeteorSystem
 import io.github.panda17tk.arpg.ecs.systems.MovementSystem
 import io.github.panda17tk.arpg.ecs.systems.PickupSystem
 import io.github.panda17tk.arpg.ecs.systems.ProjectileSystem
@@ -211,6 +212,7 @@ object WorldFactory {
                 add(FireSystem(mobGrid))
                 add(ReloadSystem())
                 add(ProjectileSystem(mobGrid))
+                add(MeteorSystem()) // v2.87 流星群: telegraphed falls during METEOR waves
                 add(EBulletSystem())
                 add(SmokeSystem())
                 add(FlowRebuildSystem())

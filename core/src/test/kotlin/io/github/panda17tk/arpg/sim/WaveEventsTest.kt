@@ -21,9 +21,13 @@ class WaveEventsTest {
         // v2.48: the purge sweep on 7/16/34… (waves ≡ 7 mod 9 not claimed above).
         assertEquals(WaveEvent.PURGE, WaveEvents.eventFor(7))
         assertEquals(WaveEvent.PURGE, WaveEvents.eventFor(16))
+        // v2.87: the meteor rain on 6/14/22… (waves ≡ 6 mod 8 not claimed above).
+        assertEquals(WaveEvent.METEOR, WaveEvents.eventFor(6))
+        assertEquals(WaveEvent.METEOR, WaveEvents.eventFor(14))
+        assertEquals(WaveEvent.METEOR, WaveEvents.eventFor(22))
         assertEquals(WaveEvent.NONE, WaveEvents.eventFor(1))
         assertEquals(WaveEvent.NONE, WaveEvents.eventFor(2))
-        assertEquals(WaveEvent.NONE, WaveEvents.eventFor(6))
+        assertEquals(WaveEvent.NONE, WaveEvents.eventFor(9))
     }
 
     @Test fun `bounty outranks the purge on shared waves`() {
@@ -56,5 +60,6 @@ class WaveEventsTest {
         assertTrue(WaveEvents.announceFor(WaveEvent.HORDE, null)!!.isNotEmpty())
         assertTrue(WaveEvents.announceFor(WaveEvent.STORM, null)!!.isNotEmpty())
         assertTrue(WaveEvents.announceFor(WaveEvent.BOUNTY, "宵のスズ")!!.contains("宵のスズ"))
+        assertTrue(WaveEvents.announceFor(WaveEvent.METEOR, null)!!.contains("流星"))
     }
 }

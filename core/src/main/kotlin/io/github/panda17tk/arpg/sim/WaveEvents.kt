@@ -4,7 +4,7 @@ import io.github.panda17tk.arpg.math.Rng
 
 /** What flavor a space wave carries (v2.45; v2.48 adds the purge): nothing, a horde, a magnetic
  *  storm, a bounty head, or a custodial purge sweep (惑星サーバーの清掃プロトコル). */
-enum class WaveEvent { NONE, HORDE, STORM, BOUNTY, PURGE }
+enum class WaveEvent { NONE, HORDE, STORM, BOUNTY, PURGE, METEOR }
 
 /**
  * v2.45 イベントウェーブ + 賞金首 — pure wave-flavor rules the spawner consults.
@@ -17,6 +17,7 @@ object WaveEvents {
         wave % 5 == 3 -> WaveEvent.HORDE
         wave % 6 == 5 -> WaveEvent.STORM
         wave % 9 == 7 -> WaveEvent.PURGE // v2.48: 7/16/34… the server sweeps its own halls
+        wave % 8 == 6 -> WaveEvent.METEOR // v2.87: 6/14/22… debris rain from the dead relays
         else -> WaveEvent.NONE
     }
 
@@ -27,6 +28,7 @@ object WaveEvents {
         WaveEvent.STORM -> "磁気嵐 — 敵は荒ぶり、星屑は多くこぼれる"
         WaveEvent.BOUNTY -> "賞金首『${bountyName ?: "名も無き者"}』が現れた"
         WaveEvent.PURGE -> "清掃プロトコル起動 — 保守機構が展開する"
+        WaveEvent.METEOR -> "流星群 — 岩塊が降りしきる。落下点から離れよ"
     }
 
     // Calm two-part names (落ち着いたトーン): a quiet epithet + a short call sign.
@@ -49,4 +51,13 @@ object WaveEvents {
     // indexers, quarantine bodies — as the local server runs a maintenance sweep of its halls.
     val PURGE_KEYS = listOf("custodian", "indexer", "quarantine")
     const val PURGE_QUOTA_MUL = 1.2f
+
+    // METEOR (v2.87 流星群): dead-relay debris rains through the wave — a shadow telegraphs
+    // each fall; the impact hurts whoever stands under it and sheds a little dust.
+    const val METEOR_INTERVAL = 1.1f // seconds between falling rocks
+    const val METEOR_FALL = 1.2f     // seconds of telegraph before the impact
+    const val METEOR_RADIUS = 44f    // impact blast radius (world px)
+    const val METEOR_DMG = 12f       // to the player caught under it
+    const val METEOR_MOB_DMG = 30f   // to any process caught under it
+    const val METEOR_DUST = 2        // dust shed per impact
 }

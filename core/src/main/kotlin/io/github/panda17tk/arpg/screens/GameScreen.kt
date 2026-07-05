@@ -262,6 +262,8 @@ class GameScreen(
     private val eventBanner = io.github.panda17tk.arpg.ui.EventBanner() // v2.86 開幕バナー
     private val bannerGlyph = com.badlogic.gdx.graphics.g2d.GlyphLayout()
     private val cEventTmp = Color()
+    private val cQuestGold = Color.valueOf("ffd980") // v2.87: the star's answer, dust gold
+    private val cQuestPale = Color.valueOf("fff2c8")
     private var eventFxT = 0f // v2.86: clock for the event-flavored screen fx
 
     // Memory tint per planet id (LP v2.30/10c) — rebuilt only when memory can change (transitions/forget).
@@ -728,6 +730,17 @@ class GameScreen(
                             EventKind.MERCY,
                         ),
                     )
+                    // v2.87 星の答え: a column of light + gold rain over the keeper, and the band tells it.
+                    with(gw.world) {
+                        val pt2 = gw.player[Transform]
+                        gw.fx.spawnPillar(pt2.x, pt2.y)
+                        gw.fx.spawnSparks(pt2.x, pt2.y - 10f, 16, cQuestGold)
+                        gw.fx.spawnSparks(pt2.x, pt2.y - 10f, 10, cQuestPale)
+                    }
+                    eventBanner.start(
+                        if (ws.questStage < PlanetQuest.CHAIN) "星が応えた — 次の頼みが届いた"
+                        else "星が応えた — この星の頼みはすべて済んだ",
+                    )
                     Sfx.play("levelup")
                     tryUnlock(Achievement.QUEST_PATRON)
                     if (ws.questStage >= PlanetQuest.CHAIN) tryUnlock(Achievement.CHAIN_PATRON) // v2.75
@@ -758,6 +771,10 @@ class GameScreen(
         if (gw.fx.kickX != 0f || gw.fx.kickY != 0f) { camera.position.add(gw.fx.kickX, gw.fx.kickY, 0f); camera.update() }
 
         ScreenUtils.clear(0.06f, 0.07f, 0.10f, 1f)
+
+        // v2.87 儀式: display-only — the gate lights up while the keeper holds enough shards.
+        gw.worldState.gateReady = gw.worldState.mode == WorldMode.SPACE &&
+            with(gw.world) { gw.player[Materials].shards } >= gateNeed()
 
         // world (procedural sprites — ported from legacy renderer.js + enemy-sprites.js)
         worldViewport.apply()
