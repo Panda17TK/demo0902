@@ -57,6 +57,8 @@ import io.github.panda17tk.arpg.render.Hud
 import io.github.panda17tk.arpg.render.PlayerPose
 import io.github.panda17tk.arpg.render.SceneRenderer
 import io.github.panda17tk.arpg.render.TouchOverlay
+import io.github.panda17tk.arpg.save.Achievement
+import io.github.panda17tk.arpg.save.Achievements
 import io.github.panda17tk.arpg.save.DeathRelic
 import io.github.panda17tk.arpg.save.PlanetMemoryCodec
 import io.github.panda17tk.arpg.save.PreferencesMemoryStore
@@ -272,6 +274,7 @@ class GameScreen(
         hudViewport.setUnitsPerPixel(1f / uiScale)
         Sfx.init()
         Scores.load()
+        Achievements.load() // v2.62
         session.restore() // LP v2.28: the universe remembers you across runs and restarts
         touchEnabled = Gdx.app.type == Application.ApplicationType.Android
         controlSwap = try { Gdx.app.getPreferences(SETTINGS_PREFS).getBoolean(SETTINGS_SWAP, false) } catch (_: Throwable) { false }
@@ -374,6 +377,7 @@ class GameScreen(
         if (ws.mode == WorldMode.SPACE) {
             val cand = ws.landingCandidate ?: return
             tutorial?.onLanded() // v2.60: the first touchdown completes the boot diagnostic
+            tryUnlock(Achievement.FIRST_LANDING) // v2.62
             val plan = session.planLanding(cand) // seeds, memory recall and the greeting all decided in one place
             // R2: the remembered society goes INTO the factory, so spawn-time consumers see it from tick 0.
             transitionWorld(WorldMode.SURFACE, plan.biome, plan.seed, null, plan.context, plan.society)
@@ -404,6 +408,12 @@ class GameScreen(
             rewardToastT = if (rewardToast != null) TOAST_TIME else 0f
             tutorial?.onTakeoff() // v2.61: lifting off the first star completes the diagnostic
             val (seed, spawn) = session.completeTakeoff(soc) // fold the visit back into memory
+            // v2.62 実績: the epithet + restoration milestones settle at takeoff, when memory folds.
+            when (Epithet.of(session.memory.memories.values)) {
+                "星還し" -> tryUnlock(Achievement.STAR_RETURNER)
+                "王殺し" -> tryUnlock(Achievement.KING_SLAYER)
+            }
+            if (syncPercent() >= 50) tryUnlock(Achievement.SYNC_50)
             transitionWorld(WorldMode.SPACE, null, seed, spawn) // same system, beside the planet we left
         }
     }
@@ -524,7 +534,10 @@ class GameScreen(
             rewardToast = it; rewardToastT = TOAST_TIME
             gw.waveState.announce = null
             Sfx.play("scan")
+            if (it.contains("賞金首を討ち取った") && !simMode) tryUnlock(Achievement.BOUNTY_HUNTER) // v2.62
         }
+        // v2.62 実績: surviving deep into the desync (the real run only).
+        if (!paused && !simMode && gw.waveState.num >= 15) tryUnlock(Achievement.DEEP_SURGE)
         // v2.51: a wreck the drifter closes in on broadcasts its distress log — once per wreck.
         if (!paused && !simMode && gw.worldState.mode == WorldMode.SPACE) {
             val (wpx, wpy) = with(gw.world) { val t = gw.player[Transform]; t.x to t.y }
@@ -598,8 +611,13 @@ class GameScreen(
         if (gw.gameOver.isOver) {
             accumulator = 0f
             if (!prevOver) {
-                // v2.53: a death inside the simulation is a simulated death — no records, no losses.
-                newBest = if (!simMode) Scores.record(gw.waveState.num, gw.gameOver.kills) else false
+                // v2.53: a death inside the simulation is a simulated death — no REAL records.
+                // v2.62: but the training hall keeps its own scoreboard.
+                newBest = if (!simMode) {
+                    Scores.record(gw.waveState.num, gw.gameOver.kills)
+                } else {
+                    Scores.recordSim(gw.waveState.num, gw.gameOver.kills)
+                }
                 session.persist() // LP v2.28: a death checkpoints the universe's memory too
                 if (!simMode) runStore.clear() // v2.33: death consumes the saved run (roguelite)
                 // v2.46 遺品: death leaves half the dust and every gate shard where you fell —
@@ -681,8 +699,12 @@ class GameScreen(
             )
         }
         if (gw.gameOver.isOver) {
-            val bestText = if (newBest) "自己ベスト更新！  汚染深度 ${Scores.bestWave}"
-                else "ベスト  汚染深度 ${Scores.bestWave}  撃破 ${Scores.bestKills}"
+            val bestText = when {
+                simMode && newBest -> "訓練記録更新！  ウェーブ ${Scores.simBestWave}" // v2.62
+                simMode -> "訓練記録  ウェーブ ${Scores.simBestWave}  撃破 ${Scores.simBestKills}"
+                newBest -> "自己ベスト更新！  汚染深度 ${Scores.bestWave}"
+                else -> "ベスト  汚染深度 ${Scores.bestWave}  撃破 ${Scores.bestKills}"
+            }
             val mins = (runTime / 60f).toInt(); val secs = (runTime % 60f).toInt()
             Hud.gameOver(
                 shapes, batch, font, Fonts.title, hudViewport,
@@ -960,6 +982,8 @@ class GameScreen(
         session.returnSpawn = null
         transitionWorld(WorldMode.SPACE, null, session.spaceSeed, null)
         with(gw.world) { val h = gw.player[Health]; h.hp = h.hpMax } // the jump mends the hull
+        tryUnlock(Achievement.FIRST_JUMP) // v2.62
+        if (syncPercent() >= 50) tryUnlock(Achievement.SYNC_50)
         rewardToast = "第${session.spaceSeed}星系に到達した"
         rewardToastT = TOAST_TIME
         Sfx.play("takeoff")
@@ -1077,6 +1101,7 @@ class GameScreen(
                     }
                     val up = GearCraft.honed(item)
                     gear.backpack.add(up)
+                    tryUnlock(Achievement.FIRST_HONE) // v2.62
                     invNote = "合成: ${item.name} ×2 → ${up.name}"; invNoteT = SAVED_NOTE_TIME
                     Sfx.play("levelup")
                 }
@@ -1115,6 +1140,15 @@ class GameScreen(
             return true
         }
         return false
+    }
+
+    /** v2.62 実績: unlock + one-line toast the first time only. */
+    private fun tryUnlock(a: Achievement) {
+        if (Achievements.unlock(a)) {
+            rewardToast = "実績解除『${a.title}』 — ${a.desc}"
+            rewardToastT = TOAST_TIME
+            Sfx.play("levelup")
+        }
     }
 
     /** v2.60: same ending either way — the reward never depends on finishing vs skipping. */
@@ -1232,7 +1266,7 @@ class GameScreen(
             epithet = Epithet.of(session.memory.memories.values),
             stability = DesyncGauge.stability(gw.waveState.num),
             syncPercent = syncPercent(),
-        )
+        ) + Achievements.logLines() // v2.62: the service record closes the book
     }
 
     /** v2.43 市: rows + footer for the MARKET tab. A hostile world's stalls are simply shut. */

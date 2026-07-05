@@ -11,10 +11,18 @@ object Scores {
     private const val PREFS = "arpg-scores"
     private const val KEY_WAVE = "bestWave"
     private const val KEY_KILLS = "bestKills"
+    private const val KEY_SIM_WAVE = "simBestWave"   // v2.62
+    private const val KEY_SIM_KILLS = "simBestKills" // v2.62
 
     var bestWave = 0
         private set
     var bestKills = 0
+        private set
+
+    // v2.62 訓練スコアボード: the simulation keeps its own ledger, walled off from the real run.
+    var simBestWave = 0
+        private set
+    var simBestKills = 0
         private set
 
     fun load() {
@@ -22,7 +30,23 @@ object Scores {
             val p = Gdx.app.getPreferences(PREFS)
             bestWave = p.getInteger(KEY_WAVE, 0)
             bestKills = p.getInteger(KEY_KILLS, 0)
+            simBestWave = p.getInteger(KEY_SIM_WAVE, 0)
+            simBestKills = p.getInteger(KEY_SIM_KILLS, 0)
         } catch (_: Throwable) { /* no prefs backend → keep defaults */ }
+    }
+
+    /** v2.62: record a finished TRAINING run; returns true on a new sim-best wave. */
+    fun recordSim(wave: Int, kills: Int): Boolean {
+        val newBest = wave > simBestWave
+        if (newBest) simBestWave = wave
+        if (kills > simBestKills) simBestKills = kills
+        try {
+            val p = Gdx.app.getPreferences(PREFS)
+            p.putInteger(KEY_SIM_WAVE, simBestWave)
+            p.putInteger(KEY_SIM_KILLS, simBestKills)
+            p.flush()
+        } catch (_: Throwable) { /* persist best-effort */ }
+        return newBest
     }
 
     /** Record a finished run; returns true if it set a new best wave. */

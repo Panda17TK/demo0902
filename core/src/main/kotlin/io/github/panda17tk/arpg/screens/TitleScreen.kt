@@ -16,6 +16,7 @@ import io.github.panda17tk.arpg.render.Fonts
 import io.github.panda17tk.arpg.audio.Sfx
 import io.github.panda17tk.arpg.input.Haptics
 import io.github.panda17tk.arpg.save.PreferencesRunSaveStore
+import io.github.panda17tk.arpg.save.Scores
 import io.github.panda17tk.arpg.ui.TitleLayout
 import io.github.panda17tk.arpg.ui.UiButton
 
@@ -55,6 +56,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         viewport.setUnitsPerPixel(1f / uiScale)
         viewport.update(Gdx.graphics.width, Gdx.graphics.height, true)
         hasSave = try { PreferencesRunSaveStore().load() != null } catch (_: Throwable) { false }
+        Scores.load() // v2.62: the training scoreboard shows on the front door
         try { // v2.59 設定: restore the sound / haptics switches
             val sp = Gdx.app.getPreferences("drift-settings")
             Sfx.enabled = sp.getBoolean("soundOn", true)
@@ -132,6 +134,10 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         }
         font.color = Color.WHITE
         font.color = cSub
+        if (Scores.simBestWave > 0) { // v2.62 訓練スコアボード
+            glyph.setText(font, "訓練記録　ウェーブ ${Scores.simBestWave}　撃破 ${Scores.simBestKills}")
+            font.draw(batch, glyph, (w - glyph.width) / 2f, h * 0.12f)
+        }
         glyph.setText(font, "外部同期: 停止　ローカル保全モード: 稼働")
         font.draw(batch, glyph, (w - glyph.width) / 2f, h * 0.08f)
         font.color = Color.WHITE
