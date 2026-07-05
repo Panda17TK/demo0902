@@ -52,6 +52,7 @@ import io.github.panda17tk.arpg.map.MapLoader
 import io.github.panda17tk.arpg.map.Stages
 import io.github.panda17tk.arpg.map.SurfaceDecor
 import io.github.panda17tk.arpg.map.SurfaceStages
+import io.github.panda17tk.arpg.map.SurfaceWater
 import io.github.panda17tk.arpg.map.TileMap
 import io.github.panda17tk.arpg.math.Rng
 import io.github.panda17tk.arpg.pathfinding.FlowField
@@ -336,10 +337,13 @@ object WorldFactory {
                 }
             }
             worldState.facilities = ecology.facilities
-            // v2.78 装飾: scatter the biome's furniture, then drop anything buried in a wall.
+            // v2.79 水域: the landing's lakes and rivers (world-space bodies, no collision).
+            worldState.water = SurfaceWater.generate(biome, seed, worldW, worldH)
+            // v2.78 装飾: scatter the biome's furniture, then drop anything buried in a wall
+            // or standing in open water (a tree in a lake reads wrong).
             worldState.decor = SurfaceDecor.scatter(biome, seed, worldW, worldH).filter { d ->
                 val tx = (d.x / Tuning.TILE).toInt(); val ty = (d.y / Tuning.TILE).toInt()
-                !map.solidAt(tx, ty)
+                !map.solidAt(tx, ty) && !SurfaceWater.inWater(worldState.water, d.x, d.y)
             }
             worldState.spawnTweaks = tweaks
         }

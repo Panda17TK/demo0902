@@ -113,6 +113,7 @@ class SceneRenderer {
         shapes.begin(ShapeRenderer.ShapeType.Filled)
         drawTerrain(shapes, camera, gw)
         drawDrift(shapes, gw)
+        drawWater(shapes, gw, animTime) // v2.79: lakes and rivers, beneath everything that stands
         drawDecor(shapes, gw, animTime) // v2.78: the ground's furniture, under everything built
         drawFacilities(shapes, gw, animTime)
         drawEscapePad(shapes, gw)
@@ -164,6 +165,46 @@ class SceneRenderer {
             } else {
                 tmpC.set(0.52f, 0.52f, 0.58f, 0.5f); shapes.color = tmpC
                 shapes.circle(d.x, d.y, d.size, 6)
+            }
+        }
+    }
+
+    /** v2.79 水域: layered still water — a dark rim, the body, and a slow travelling glint.
+     *  Frozen ponds render pale and bright; the dead world's pools stay black and still. */
+    private fun drawWater(shapes: ShapeRenderer, gw: GameWorld, animTime: Float) {
+        val w = gw.worldState.water
+        if (w.isEmpty) return
+        val frozen = w.frozen
+        for (l in w.lakes) {
+            if (frozen) tmpC.set(0.62f, 0.76f, 0.88f, 0.95f) else tmpC.set(0.10f, 0.20f, 0.32f, 0.92f)
+            shapes.color = tmpC
+            shapes.ellipse(l.cx - l.rx, l.cy - l.ry, l.rx * 2f, l.ry * 2f, 40)
+            if (frozen) tmpC.set(0.78f, 0.88f, 0.96f, 0.95f) else tmpC.set(0.14f, 0.30f, 0.46f, 0.95f)
+            shapes.color = tmpC
+            shapes.ellipse(l.cx - l.rx * 0.82f, l.cy - l.ry * 0.82f, l.rx * 1.64f, l.ry * 1.64f, 36)
+            // a slow glint sliding along the surface (or a static sheen on ice)
+            val gx = if (frozen) l.cx - l.rx * 0.3f else l.cx + cos(animTime * 0.4f) * l.rx * 0.4f
+            val gy = l.cy + (if (frozen) l.ry * 0.25f else sin(animTime * 0.3f) * l.ry * 0.3f)
+            tmpC.set(0.85f, 0.93f, 1f, if (frozen) 0.35f else 0.18f); shapes.color = tmpC
+            shapes.ellipse(gx - l.rx * 0.22f, gy - l.ry * 0.10f, l.rx * 0.44f, l.ry * 0.20f, 16)
+        }
+        for (rv in w.rivers) {
+            for (i in 0 until rv.points.size - 1) {
+                val (ax, ay) = rv.points[i]; val (bx, by) = rv.points[i + 1]
+                tmpC.set(0.10f, 0.20f, 0.32f, 0.92f); shapes.color = tmpC
+                shapes.rectLine(ax, ay, bx, by, rv.width)
+                tmpC.set(0.16f, 0.33f, 0.50f, 0.95f); shapes.color = tmpC
+                shapes.rectLine(ax, ay, bx, by, rv.width * 0.6f)
+            }
+            // drifting flecks of current, spaced along the run
+            tmpC.set(0.80f, 0.90f, 1f, 0.30f); shapes.color = tmpC
+            val n = rv.points.size
+            for (k in 0 until 6) {
+                val f = ((animTime * 0.05f + k / 6f) % 1f) * (n - 1)
+                val i0 = f.toInt().coerceIn(0, n - 2)
+                val frac = f - i0
+                val (ax, ay) = rv.points[i0]; val (bx, by) = rv.points[i0 + 1]
+                shapes.circle(ax + (bx - ax) * frac, ay + (by - ay) * frac, rv.width * 0.12f, 6)
             }
         }
     }
