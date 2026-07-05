@@ -24,6 +24,10 @@ enum class AmbientTrack {
     NATURE, MAGMA, ICE, GAS, DEAD, LONELY, // one voice per planet server
 }
 
+/** v2.67 状況反応: reactive layers riding on top of the base pad, faded by gameplay.
+ *  PULSE = the keeper's own alarms under combat; SHIMMER = the memory core, close. */
+enum class AmbientLayer { PULSE, SHIMMER }
+
 /** The parameters of one ambient loop — the pad chord, its breathing, and the air around it. */
 data class AmbientScore(
     val baseHz: Float,      // root of the pad
@@ -65,6 +69,50 @@ object AmbienceScore {
         AmbientTrack.GAS -> AmbientScore(82f, listOf(0, 7, 17), 0.24f, 0.12f, 0.015f, 0.10f)
         AmbientTrack.DEAD -> AmbientScore(62f, listOf(0, 6, 12), 0.26f, 0.07f, 0.008f, 0.05f)
         AmbientTrack.LONELY -> AmbientScore(147f, listOf(0, 12), 0.24f, 0.03f, 0.020f, 0.07f)
+    }
+
+    /** v2.67: how strongly the core shimmer should sing at [dist] world units from the core. */
+    fun shimmerFor(dist: Float, tile: Float): Float = (1f - dist / (tile * 6f)).coerceIn(0f, 1f)
+
+    /**
+     * v2.67: render one reactive layer for [track] — same loop length and the same seamless
+     * contract as the base pad (whole cycles per loop), so the three loops ride together.
+     */
+    fun renderLayer(layer: AmbientLayer, track: AmbientTrack): ShortArray {
+        val s = scoreFor(track)
+        val n = SAMPLES
+        val out = ShortArray(n)
+        val two_pi = (2.0 * PI)
+        fun quant(hz: Float) = (hz * LOOP_SECONDS).roundToInt().coerceAtLeast(1) / LOOP_SECONDS.toFloat()
+        when (layer) {
+            AmbientLayer.PULSE -> {
+                // A low heartbeat under combat: a sub-octave sine gated ~1.5x per second,
+                // cubed so the thump has an edge but no click (the gate never jumps).
+                val sub = quant(maxOf(40f, s.baseHz * 0.5f))
+                val gateHz = quant(1.5f)
+                for (i in 0 until n) {
+                    val t = i.toDouble() / RATE
+                    val gate = 0.5f + 0.5f * sin(two_pi * gateHz * t).toFloat()
+                    val v = 0.30f * gate * gate * gate * sin(two_pi * sub * t).toFloat() * 32767f
+                    out[i] = v.toInt().coerceIn(-32768, 32767).toShort()
+                }
+            }
+            AmbientLayer.SHIMMER -> {
+                // The memory core, close: the pad's root two octaves up + the fifth above it,
+                // trembling slowly — the chord changes colour without changing key.
+                val hi = quant(s.baseHz * 4f)
+                val fifth = quant(s.baseHz * 6f)
+                val tremHz = quant(0.75f)
+                for (i in 0 until n) {
+                    val t = i.toDouble() / RATE
+                    val trem = 0.65f + 0.35f * sin(two_pi * tremHz * t).toFloat()
+                    val v = 0.15f * trem *
+                        (sin(two_pi * hi * t).toFloat() + 0.6f * sin(two_pi * fifth * t).toFloat()) * 32767f
+                    out[i] = v.toInt().coerceIn(-32768, 32767).toShort()
+                }
+            }
+        }
+        return out
     }
 
     /** Render one seamless loop of [track] as 16-bit mono PCM. Deterministic per track. */

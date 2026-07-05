@@ -47,6 +47,53 @@ class AmbienceScoreTest {
         assertArrayEquals(a, b)
     }
 
+    // ── v2.67 状況反応レイヤ ─────────────────────────────────────────
+
+    @Test fun `reactive layers share the loop contract — length, determinism, seam`() {
+        for (layer in AmbientLayer.entries) {
+            val a = AmbienceScore.renderLayer(layer, AmbientTrack.SPACE)
+            val b = AmbienceScore.renderLayer(layer, AmbientTrack.SPACE)
+            assertEquals(AmbienceScore.SAMPLES, a.size)
+            assertArrayEquals(a, b)
+            var peak = 0
+            for (v in a) { val x = abs(v.toInt()); if (x > peak) peak = x }
+            assertTrue(peak > 800, "$layer must be audible (peak=$peak)")
+            assertTrue(peak < 29000, "$layer must keep headroom (peak=$peak)")
+            val seam = abs(a[a.size - 1] - a[0])
+            assertTrue(seam < 3000, "$layer loop seam pops (delta=$seam)")
+        }
+    }
+
+    @Test fun `the two layers are different voices`() {
+        val p = AmbienceScore.renderLayer(AmbientLayer.PULSE, AmbientTrack.NATURE)
+        val s = AmbienceScore.renderLayer(AmbientLayer.SHIMMER, AmbientTrack.NATURE)
+        var diff = 0L
+        for (i in p.indices) if (p[i] != s[i]) diff++
+        assertTrue(diff > p.size / 2, "pulse and shimmer must not collapse into one sound")
+    }
+
+    @Test fun `the shimmer swells only beside the memory core`() {
+        val tile = 32f
+        assertEquals(1f, AmbienceScore.shimmerFor(0f, tile))
+        assertEquals(0f, AmbienceScore.shimmerFor(tile * 6f, tile))
+        assertEquals(0f, AmbienceScore.shimmerFor(tile * 60f, tile))
+        val mid = AmbienceScore.shimmerFor(tile * 3f, tile)
+        assertTrue(mid > 0.4f && mid < 0.6f, "half distance ≈ half voice (was $mid)")
+    }
+
+    @Test fun `combat heat rises with violence and cools with quiet`() {
+        val heat = CombatHeat()
+        assertEquals(0f, heat.value)
+        heat.onKill()
+        assertTrue(heat.value in 0.39f..0.41f)
+        heat.onPlayerHit(); heat.onPlayerHit()
+        assertEquals(1f, heat.value, 0.001f) // clamped at full alarm
+        heat.tick(2f)
+        assertEquals(1f - 2f * CombatHeat.DECAY, heat.value, 0.001f)
+        heat.tick(100f)
+        assertEquals(0f, heat.value) // never below silence
+    }
+
     @Test fun `every track is audible, unclipped and seamless at the loop point`() {
         for (track in AmbientTrack.entries) {
             val s = AmbienceScore.render(track)
