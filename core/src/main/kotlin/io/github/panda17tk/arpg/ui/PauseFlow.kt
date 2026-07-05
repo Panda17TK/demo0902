@@ -5,7 +5,7 @@ package io.github.panda17tk.arpg.ui
 enum class Overlay { NONE, PAUSE, HELP, MEMORY, FORGET, INVENTORY }
 
 /** What a pause-overlay tap resolves to; the screen performs the side effects. */
-enum class PauseAction { RESUME, RESTART, HELP, MEMORY, SIM, FORGET }
+enum class PauseAction { RESUME, RESTART, HELP, MEMORY, SIM, TITLE, FORGET }
 
 /**
  * Pure pause state machine. Esc / P / the ⏸ button toggle between play and pause; from any
@@ -24,8 +24,9 @@ object PauseFlow {
         1 -> PauseAction.RESTART
         2 -> PauseAction.HELP
         3 -> if (hasMemory) PauseAction.MEMORY else PauseAction.SIM // v2.53: 旧式戦闘訓練
-        4 -> if (hasMemory) PauseAction.SIM else PauseAction.FORGET
-        5 -> if (hasMemory) PauseAction.FORGET else null
+        4 -> if (hasMemory) PauseAction.SIM else PauseAction.TITLE // v2.58: タイトルへ
+        5 -> if (hasMemory) PauseAction.TITLE else PauseAction.FORGET
+        6 -> if (hasMemory) PauseAction.FORGET else null
         else -> null
     }
 }

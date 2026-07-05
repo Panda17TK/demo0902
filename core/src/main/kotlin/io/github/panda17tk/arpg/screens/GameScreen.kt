@@ -40,6 +40,7 @@ import io.github.panda17tk.arpg.item.ItemDef
 import io.github.panda17tk.arpg.item.ItemKind
 import io.github.panda17tk.arpg.item.Loadout
 import io.github.panda17tk.arpg.item.Market
+import io.github.panda17tk.arpg.App
 import io.github.panda17tk.arpg.input.Haptics
 import io.github.panda17tk.arpg.input.InputState
 import io.github.panda17tk.arpg.input.ButtonTweak
@@ -124,7 +125,10 @@ private const val SAVED_NOTE_TIME = 2f // seconds the 「セーブした」 flas
  * Scene painting is delegated to render/SceneRenderer (world) + render/Hud + render/TouchOverlay
  * (screen space); this class owns run state, input routing, the sim loop and the camera.
  */
-class GameScreen : ScreenAdapter() {
+class GameScreen(
+    private val startFresh: Boolean = false, // v2.58 タイトル「はじめから」: abandon the saved run
+    private val startInTraining: Boolean = false, // v2.58 タイトル「旧式戦闘訓練」
+) : ScreenAdapter() {
     private val input = InputState()
     private val configStore = ConfigStore()
     // Built in show() (not the constructor) so any future libGDX resource access
@@ -263,7 +267,9 @@ class GameScreen : ScreenAdapter() {
         touch.layout.tweaks = try {
             LayoutTweaks.fromJson(Gdx.app.getPreferences(SETTINGS_PREFS).getString(SETTINGS_LAYOUT, ""))
         } catch (_: Throwable) { emptyMap() }
-        if (!tryRestoreRun()) newRun() // v2.33: a saved run resumes where it left off
+        if (startFresh) runStore.clear() // v2.58: タイトルの「はじめから」は前のランを置いていく
+        if (startFresh || !tryRestoreRun()) newRun() // v2.33: a saved run resumes where it left off
+        if (startInTraining && !simMode) toggleTraining() // v2.58: straight into the simulation
     }
 
     /** v2.53: enter/exit the old-style combat simulation. The universe's memory, the saved run
@@ -919,6 +925,11 @@ class GameScreen : ScreenAdapter() {
                     PauseAction.HELP -> overlay = Overlay.HELP
                     PauseAction.MEMORY -> overlay = Overlay.MEMORY
                     PauseAction.SIM -> { toggleTraining(); overlay = Overlay.NONE } // v2.53
+                    PauseAction.TITLE -> { // v2.58: auto-save the real run, then the front door
+                        if (!simMode && !gw.gameOver.isOver) saveRun()
+                        (Gdx.app.applicationListener as? App)?.showTitle()
+                        return
+                    }
                     PauseAction.FORGET -> overlay = Overlay.FORGET
                     null -> {}
                 }

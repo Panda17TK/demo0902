@@ -48,6 +48,7 @@ object Modals {
                 add("再開"); add("最初からやり直す"); add("操作説明")
                 if (includeMemory) add("この星の記憶")
                 add(if (simActive) "訓練を終了" else "旧式戦闘訓練") // v2.53: the old wave sim, walled off
+                add("タイトルへ") // v2.58: auto-saves the run on the way out
                 add("宇宙の記憶を消す")
             },
         )
