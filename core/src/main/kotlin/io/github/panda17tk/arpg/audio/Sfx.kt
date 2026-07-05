@@ -45,8 +45,7 @@ object Sfx {
     private fun gen(name: String, freq: Float, ms: Int, noise: Float) {
         try {
             val n = RATE * ms / 1000
-            val bytes = ByteArray(44 + n * 2)
-            writeHeader(bytes, n)
+            val samples = ShortArray(n)
             val rng = Rng(name.hashCode().toLong())
             for (i in 0 until n) {
                 val t = i.toFloat() / RATE
@@ -54,27 +53,11 @@ object Sfx {
                 val tone = sin(2.0 * PI * freq * t).toFloat()
                 val ns = rng.nextFloat() * 2f - 1f
                 val s = (tone * (1f - noise) + ns * noise) * env * 0.7f
-                val v = (s * 32767f).toInt().coerceIn(-32768, 32767)
-                bytes[44 + i * 2] = (v and 0xFF).toByte()
-                bytes[45 + i * 2] = ((v shr 8) and 0xFF).toByte()
+                samples[i] = (s * 32767f).toInt().coerceIn(-32768, 32767).toShort()
             }
             val fh = Gdx.files.local("sfx/$name.wav")
-            fh.writeBytes(bytes, false)
+            fh.writeBytes(Wav.mono16(samples, RATE), false)
             sounds[name] = Gdx.audio.newSound(fh)
         } catch (_: Throwable) { /* no audio on this platform → silent */ }
-    }
-
-    /** Minimal 16-bit mono PCM WAV header. */
-    private fun writeHeader(b: ByteArray, samples: Int) {
-        val dataLen = samples * 2
-        fun str(off: Int, s: String) { for (j in s.indices) b[off + j] = s[j].code.toByte() }
-        fun i32(off: Int, v: Int) {
-            b[off] = (v and 0xFF).toByte(); b[off + 1] = ((v shr 8) and 0xFF).toByte()
-            b[off + 2] = ((v shr 16) and 0xFF).toByte(); b[off + 3] = ((v shr 24) and 0xFF).toByte()
-        }
-        fun i16(off: Int, v: Int) { b[off] = (v and 0xFF).toByte(); b[off + 1] = ((v shr 8) and 0xFF).toByte() }
-        str(0, "RIFF"); i32(4, 36 + dataLen); str(8, "WAVE"); str(12, "fmt ")
-        i32(16, 16); i16(20, 1); i16(22, 1); i32(24, RATE); i32(28, RATE * 2); i16(32, 2); i16(34, 16)
-        str(36, "data"); i32(40, dataLen)
     }
 }

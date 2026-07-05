@@ -13,6 +13,8 @@ import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.utils.ScreenUtils
 import com.badlogic.gdx.utils.viewport.ExtendViewport
 import com.badlogic.gdx.utils.viewport.ScreenViewport
+import io.github.panda17tk.arpg.audio.Ambience
+import io.github.panda17tk.arpg.audio.AmbienceScore
 import io.github.panda17tk.arpg.audio.Sfx
 import io.github.panda17tk.arpg.config.ConfigStore
 import io.github.panda17tk.arpg.core.Constants
@@ -293,6 +295,13 @@ class GameScreen(
         // v2.60: the boot diagnostic runs once per install (never inside the training sim).
         val tutDone = try { Gdx.app.getPreferences(SETTINGS_PREFS).getBoolean(SETTINGS_TUTORIAL, false) } catch (_: Throwable) { true }
         if (!tutDone && !simMode) tutorial = TutorialController()
+        Ambience.setEnabled(Sfx.enabled) // v2.63: same サウンド switch gates the ambient loop
+        syncAmbience()
+    }
+
+    /** v2.63 生成オーディオ: hum the track this scene wants (space / biome / training sim). */
+    private fun syncAmbience() {
+        Ambience.play(AmbienceScore.trackFor(gw.worldState.mode, gw.worldState.biome, simMode))
     }
 
     /** v2.53: enter/exit the old-style combat simulation. The universe's memory, the saved run
@@ -317,6 +326,7 @@ class GameScreen(
         rewardToast = if (simMode) "旧式戦闘シミュレーション起動 — 成果は持ち出せない" else "訓練環境を終了した"
         rewardToastT = TOAST_TIME
         rebuildMemoryTones()
+        syncAmbience() // v2.63: the sim has its own hum
     }
 
     /** Build (or rebuild) the run and reset per-run screen state (Phase 7 restart). */
@@ -353,6 +363,7 @@ class GameScreen(
             rewardToastT = TOAST_TIME
         }
         rebuildMemoryTones()
+        syncAmbience() // v2.63: a fresh run starts back in space
     }
 
     /** LP v2.30/10c: per-planet memory tints, recomputed only when the memory can have changed. */
@@ -433,6 +444,7 @@ class GameScreen(
         questChipKey = -1; questChip = null
         marketSold.clear()
         rebuildMemoryTones()
+        syncAmbience() // v2.63: space ↔ surface swap the ambient loop
     }
 
     /** True when the player is standing on the surface escape pad (the return point). */
