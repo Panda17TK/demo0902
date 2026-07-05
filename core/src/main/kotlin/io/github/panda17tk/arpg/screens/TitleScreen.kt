@@ -21,6 +21,7 @@ import io.github.panda17tk.arpg.save.Achievements
 import io.github.panda17tk.arpg.save.PreferencesRunSaveStore
 import io.github.panda17tk.arpg.save.Scores
 import io.github.panda17tk.arpg.ui.RecordsPanel
+import io.github.panda17tk.arpg.ui.SettingsPanel
 import io.github.panda17tk.arpg.ui.TitleLayout
 import io.github.panda17tk.arpg.ui.UiButton
 
@@ -39,7 +40,10 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
     private var hasSave = false
     private var showRecords = false // v2.64 記録: the service-record overlay
     private var diagQueued = false  // v2.64: 起動診断をもう一度 was pressed this visit
+    private var showSettings = false // v2.66 設定: the settings-panel overlay
     private var leftyOn = false     // v2.65 左利き配置 (applied by the game screen on entry)
+    private var hintsOn = true      // v2.66 操作ヒント (applied by the game screen on entry)
+    private var loreOn = true       // v2.66 世界観ヒント (applied by the game screen on entry)
 
     // A deterministic drifting star field: fraction positions + parallax speed per star.
     private data class Star(val fx: Float, val fy: Float, val size: Float, val speed: Float)
@@ -70,6 +74,8 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             Sfx.enabled = sp.getBoolean("soundOn", true)
             Haptics.enabled = sp.getBoolean("hapticsOn", true)
             leftyOn = sp.getBoolean("leftHanded", false) // v2.65
+            hintsOn = sp.getBoolean("controlHintsOn", true) // v2.66
+            loreOn = sp.getBoolean("loreHintsOn", true)     // v2.66
         } catch (_: Throwable) { /* defaults stay on */ }
         Ambience.setEnabled(Sfx.enabled) // v2.63: the サウンド toggle gates the ambient loop too
         Ambience.play(AmbientTrack.TITLE)
@@ -107,10 +113,10 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         shapes.circle(w * 0.82f, h * 0.80f, 16f + 3f * breath, 24)
         shapes.color = Color(0.8f, 0.97f, 1f, 0.8f)
         shapes.circle(w * 0.82f, h * 0.80f, 3f, 10)
-        // menu buttons (glass cards) + the settings toggle pair + the records corner chip
-        val toggles = TitleLayout.toggles(w, h)
+        // menu buttons (glass cards) + the two corner chips (設定 left, 記録 right)
         val rec = TitleLayout.recordsButton(w, h)
-        (buttons + toggles + rec).forEach { b ->
+        val set = TitleLayout.settingsButton(w, h)
+        (buttons + rec + set).forEach { b ->
             shapes.color = Color(0.55f, 0.75f, 1f, 0.22f)
             shapes.rect(b.x - 1.5f, b.y - 1.5f, b.w + 3f, b.h + 3f)
             shapes.color = Color(0.05f, 0.07f, 0.11f, 0.85f)
@@ -134,17 +140,10 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         glyph.setText(font, "— 稼働中の人類保全装置群、その最後の保守員 —")
         font.draw(batch, glyph, (w - glyph.width) / 2f, h * 0.59f)
         font.color = Color.WHITE
-        (buttons + rec).forEach { b ->
+        (buttons + rec + set).forEach { b ->
             glyph.setText(font, b.label)
             font.draw(batch, glyph, b.centerX - glyph.width / 2f, b.centerY + glyph.height / 2f)
         }
-        font.color = cSub
-        toggles.forEachIndexed { i, b ->
-            val on = when (i) { 0 -> Sfx.enabled; 1 -> Haptics.enabled; else -> leftyOn }
-            glyph.setText(font, "${b.label}: ${if (on) "ON" else "OFF"}")
-            font.draw(batch, glyph, b.centerX - glyph.width / 2f, b.centerY + glyph.height / 2f)
-        }
-        font.color = Color.WHITE
         font.color = cSub
         if (Scores.simBestWave > 0) { // v2.62 訓練スコアボード
             glyph.setText(font, "訓練記録　ウェーブ ${Scores.simBestWave}　撃破 ${Scores.simBestKills}")
@@ -156,7 +155,64 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         batch.end()
 
         if (showRecords) drawRecords(w, h) // v2.64: the service record sits over everything
-        handleInput(buttons, toggles, rec)
+        if (showSettings) drawSettings(w, h) // v2.66: so does the settings panel
+        handleInput(buttons, rec, set)
+    }
+
+    /** v2.66 設定: dim + glass panel + the five toggles (状態つき) + 閉じる. */
+    private fun drawSettings(w: Float, h: Float) {
+        val btns = SettingsPanel.buttons(w, h)
+        val px = 14f; val pw = w - 28f; val pTop = h * 0.88f; val pBot = h * 0.10f
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
+        shapes.color = Color(0f, 0f, 0f, 0.72f); shapes.rect(0f, 0f, w, h)
+        shapes.color = Color(0.55f, 0.75f, 1f, 0.22f)
+        shapes.rect(px - 1.5f, pBot - 1.5f, pw + 3f, (pTop - pBot) + 3f)
+        shapes.color = Color(0.05f, 0.07f, 0.11f, 0.94f)
+        shapes.rect(px, pBot, pw, pTop - pBot)
+        btns.forEach { b ->
+            shapes.color = Color(0.55f, 0.75f, 1f, 0.22f)
+            shapes.rect(b.x - 1.5f, b.y - 1.5f, b.w + 3f, b.h + 3f)
+            shapes.color = Color(0.09f, 0.12f, 0.18f, 0.95f)
+            shapes.rect(b.x, b.y, b.w, b.h)
+        }
+        shapes.end()
+        batch.begin()
+        val font = Fonts.ui
+        font.color = cSub
+        drawFitted(font, "── 設定 ──", w / 2f, h * 0.83f, pw - 24f)
+        font.color = Color.WHITE
+        btns.forEach { b ->
+            val text = if (b.label == SettingsPanel.CLOSE_LABEL) b.label
+            else "${b.label}: ${if (toggleState(b.label)) "ON" else "OFF"}"
+            drawFitted(font, text, b.centerX, b.centerY + 12f, b.w - 16f)
+            if (b.label != SettingsPanel.CLOSE_LABEL) {
+                font.color = cSub
+                drawFitted(font, SettingsPanel.hintFor(b.label), b.centerX, b.centerY - 6f, b.w - 16f)
+                font.color = Color.WHITE
+            }
+        }
+        batch.end()
+    }
+
+    /** v2.66: every switch persists together — one place, one habit. */
+    private fun persistSettings() {
+        try {
+            val sp = Gdx.app.getPreferences("drift-settings")
+            sp.putBoolean("soundOn", Sfx.enabled)
+            sp.putBoolean("hapticsOn", Haptics.enabled)
+            sp.putBoolean("leftHanded", leftyOn)
+            sp.putBoolean("controlHintsOn", hintsOn)
+            sp.putBoolean("loreHintsOn", loreOn)
+            sp.flush()
+        } catch (_: Throwable) { /* persist best-effort */ }
+    }
+
+    private fun toggleState(label: String): Boolean = when (label) {
+        SettingsPanel.SOUND -> Sfx.enabled
+        SettingsPanel.HAPTICS -> Haptics.enabled
+        SettingsPanel.LEFTY -> leftyOn
+        SettingsPanel.CONTROL_HINTS -> hintsOn
+        else -> loreOn
     }
 
     /** v2.64 記録: dim + glass panel + the record lines + [起動診断をもう一度][閉じる]. */
@@ -207,7 +263,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         font.data.setScale(sx, sy)
     }
 
-    private fun handleInput(buttons: List<UiButton>, toggles: List<UiButton>, rec: UiButton) {
+    private fun handleInput(buttons: List<UiButton>, rec: UiButton, set: UiButton) {
         if (Gdx.input.justTouched()) {
             tmp.set(Gdx.input.x.toFloat(), Gdx.input.y.toFloat(), 0f)
             viewport.unproject(tmp)
@@ -229,31 +285,32 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
                 }
                 return
             }
+            if (showSettings) { // v2.66: same rule — the panel owns every tap
+                val hit = SettingsPanel.buttons(viewport.worldWidth, viewport.worldHeight)
+                    .firstOrNull { it.contains(tmp.x, tmp.y) } ?: return
+                when (hit.label) {
+                    SettingsPanel.CLOSE_LABEL -> showSettings = false
+                    SettingsPanel.SOUND -> {
+                        Sfx.enabled = !Sfx.enabled
+                        Ambience.setEnabled(Sfx.enabled) // v2.63: same switch quiets the ambience
+                        persistSettings()
+                    }
+                    SettingsPanel.HAPTICS -> { Haptics.enabled = !Haptics.enabled; persistSettings() }
+                    SettingsPanel.LEFTY -> { leftyOn = !leftyOn; persistSettings() }
+                    SettingsPanel.CONTROL_HINTS -> { hintsOn = !hintsOn; persistSettings() }
+                    SettingsPanel.LORE_HINTS -> { loreOn = !loreOn; persistSettings() }
+                }
+                return
+            }
             if (rec.contains(tmp.x, tmp.y)) { // v2.64 記録
                 showRecords = true
                 Sfx.play("scan")
                 return
             }
-            // v2.59 設定: the toggle pair flips + persists in place
-            toggles.forEachIndexed { i, b ->
-                if (b.contains(tmp.x, tmp.y)) {
-                    when (i) {
-                        0 -> {
-                            Sfx.enabled = !Sfx.enabled
-                            Ambience.setEnabled(Sfx.enabled) // v2.63: same switch quiets the ambience
-                        }
-                        1 -> Haptics.enabled = !Haptics.enabled
-                        else -> leftyOn = !leftyOn // v2.65: applied by the game screen on entry
-                    }
-                    try {
-                        val sp = Gdx.app.getPreferences("drift-settings")
-                        sp.putBoolean("soundOn", Sfx.enabled)
-                        sp.putBoolean("hapticsOn", Haptics.enabled)
-                        sp.putBoolean("leftHanded", leftyOn)
-                        sp.flush()
-                    } catch (_: Throwable) { /* persist best-effort */ }
-                    return
-                }
+            if (set.contains(tmp.x, tmp.y)) { // v2.66 設定
+                showSettings = true
+                Sfx.play("scan")
+                return
             }
             val hit = buttons.firstOrNull { it.contains(tmp.x, tmp.y) } ?: return
             when (hit.label) {
@@ -263,7 +320,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             }
             return
         }
-        if (showRecords) return // v2.64: keys don't start a run under the record overlay
+        if (showRecords || showSettings) return // v2.64/66: keys don't start a run under an overlay
         if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ENTER) ||
             Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.SPACE)
         ) {

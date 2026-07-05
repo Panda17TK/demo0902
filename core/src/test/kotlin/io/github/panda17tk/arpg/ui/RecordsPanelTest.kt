@@ -41,11 +41,11 @@ class RecordsPanelTest {
         }
     }
 
-    @Test fun `the records chip sits clear of the menu and the toggles`() {
+    @Test fun `the records chip sits clear of the menu and the settings chip`() {
         for ((w, h) in listOf(320f to 640f, 360f to 780f, 420f to 900f)) {
             val chip = TitleLayout.recordsButton(w, h)
             assertTrue(chip.x >= 0f && chip.y >= 0f && chip.x + chip.w <= w && chip.y + chip.h <= h)
-            for (other in TitleLayout.buttons(w, h, hasSave = true) + TitleLayout.toggles(w, h)) {
+            for (other in TitleLayout.buttons(w, h, hasSave = true) + TitleLayout.settingsButton(w, h)) {
                 val disjoint = chip.x + chip.w <= other.x || other.x + other.w <= chip.x ||
                     chip.y + chip.h <= other.y || other.y + other.h <= chip.y
                 assertTrue(disjoint, "chip overlaps $other at $w x $h")

@@ -127,6 +127,8 @@ private const val SETTINGS_SOUND = "soundOn"       // v2.59: title-screen toggle
 private const val SETTINGS_TUTORIAL = "tutorialDone" // v2.60: the boot diagnostic ran (or was skipped)
 private const val SETTINGS_HAPTICS = "hapticsOn"
 private const val SETTINGS_LEFTY = "leftHanded"    // v2.65: mirror the touch layout
+private const val SETTINGS_HINTS = "controlHintsOn" // v2.66: how-to guidance (landing, onboarding)
+private const val SETTINGS_LORE = "loreHintsOn"     // v2.66: the world speaking (core logs, wrecks)
 private const val SAVED_NOTE_TIME = 2f // seconds the 「セーブした」 flash stays on the SAVE tab
 
 /**
@@ -221,6 +223,8 @@ class GameScreen(
     private var controlSwap = false
     // v2.47: the very first run walks the basics once; completion persists across launches.
     private var onboardDone = true
+    private var controlHints = true // v2.66 操作ヒント: how-to guidance on/off
+    private var loreHints = true    // v2.66 世界観ヒント: the world's asides on/off
     // v2.60 チュートリアル: the keeper-boot diagnostic (layer 1). Null once done or skipped.
     private var tutorial: TutorialController? = null
     private var tutPrevPx = Float.NaN
@@ -293,6 +297,11 @@ class GameScreen(
         touch.layout.mirrored = try { // v2.65 左利き配置
             Gdx.app.getPreferences(SETTINGS_PREFS).getBoolean(SETTINGS_LEFTY, false)
         } catch (_: Throwable) { false }
+        try { // v2.66: the two hint channels from the settings panel
+            val sp = Gdx.app.getPreferences(SETTINGS_PREFS)
+            controlHints = sp.getBoolean(SETTINGS_HINTS, true)
+            loreHints = sp.getBoolean(SETTINGS_LORE, true)
+        } catch (_: Throwable) { /* defaults stay on */ }
         if (startFresh) runStore.clear() // v2.58: タイトルの「はじめから」は前のランを置いていく
         if (startFresh || !tryRestoreRun()) newRun() // v2.33: a saved run resumes where it left off
         if (startInTraining && !simMode) toggleTraining() // v2.58: straight into the simulation
@@ -555,7 +564,8 @@ class GameScreen(
         // v2.62 実績: surviving deep into the desync (the real run only).
         if (!paused && !simMode && gw.waveState.num >= 15) tryUnlock(Achievement.DEEP_SURGE)
         // v2.51: a wreck the drifter closes in on broadcasts its distress log — once per wreck.
-        if (!paused && !simMode && gw.worldState.mode == WorldMode.SPACE) {
+        // v2.66 世界観ヒント OFF leaves the log unread (and unmarked, so it can speak later).
+        if (!paused && !simMode && loreHints && gw.worldState.mode == WorldMode.SPACE) {
             val (wpx, wpy) = with(gw.world) { val t = gw.player[Transform]; t.x to t.y }
             gw.worldState.wrecks.forEachIndexed { i, w ->
                 if (i !in gw.worldState.wreckLogShown && hypot(wpx - w.first, wpy - w.second) < Tuning.TILE * 3f) {
@@ -568,7 +578,7 @@ class GameScreen(
         }
         // v2.48 惑星サーバー: standing before the memory core makes it speak — once per landing,
         // into the surface event feed (the same channel the society's memory already uses).
-        if (!paused && gw.worldState.mode == WorldMode.SURFACE && !gw.worldState.coreLogShown) {
+        if (!paused && loreHints && gw.worldState.mode == WorldMode.SURFACE && !gw.worldState.coreLogShown) {
             gw.worldState.memoryCore?.let { core ->
                 val (cpx, cpy) = with(gw.world) { val t = gw.player[Transform]; t.x to t.y }
                 if (hypot(cpx - core.first, cpy - core.second) < Tuning.TILE * 2f) {
@@ -753,6 +763,7 @@ class GameScreen(
 
     /** v2.47 オンボーディング: the first run's four timed hints, low on the screen, then never again. */
     private fun drawOnboarding(paused: Boolean, hudW: Float) {
+        if (!controlHints) return // v2.66 操作ヒント OFF — the walkthrough stays quiet
         if (onboardDone || paused || choosing || gw.gameOver.isOver || overlay != Overlay.NONE) return
         val line = Onboarding.lineFor(runTime, touchEnabled)
         if (line == null) {
@@ -792,7 +803,9 @@ class GameScreen(
                 // v2.38/39: even with no planet latched, space tells you HOW landing works AND
                 // points at the nearest planet with a live distance — no more searching blind.
                 if (!busy) {
-                    val idle = if (touchEnabled) "惑星に近づくとカードが出る　惑星をタップで着陸" else "惑星に近づいて [L] で着陸"
+                    // v2.66 操作ヒント OFF drops the how-to line; the nav/gate compasses stay.
+                    val idle = if (!controlHints) null
+                    else if (touchEnabled) "惑星に近づくとカードが出る　惑星をタップで着陸" else "惑星に近づいて [L] で着陸"
                     val (ppx, ppy) = with(gw.world) { val t = gw.player[Transform]; t.x to t.y }
                     val nearest = gw.planets.minByOrNull { hypot(it.cx - ppx, it.cy - ppy) }
                     val nav = nearest?.let {
@@ -836,7 +849,11 @@ class GameScreen(
                 Sfx.play("scan") // 10a: a fresh scan pings once per newly latched planet
             }
             cachedCard?.let {
-                val hint = if (touchEnabled) "惑星かこのカードをタップで着陸" else "[L] 着陸" // v2.34/38: planet or card = the landing button
+                val hint = when { // v2.34/38: planet or card = the landing button (v2.66: mutable)
+                    !controlHints -> ""
+                    touchEnabled -> "惑星かこのカードをタップで着陸"
+                    else -> "[L] 着陸"
+                }
                 Hud.planetScanCard(shapes, batch, font, Fonts.title, hudViewport, it, hint)
                 // v2.54: a live toast slots under the card instead of over the HUD.
                 if (toast != null) {
