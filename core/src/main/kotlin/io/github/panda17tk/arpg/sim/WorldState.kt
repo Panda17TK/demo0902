@@ -56,4 +56,6 @@ class WorldState(
     var coreLogShown: Boolean = false,
     /** v2.51: wreck indices whose distress log has already been broadcast to this visitor. */
     val wreckLogShown: MutableSet<Int> = mutableSetOf(),
+    /** v2.75 天候: this landing's sky — set once by WorldFactory; ecology/render/sound all read it. */
+    var weather: WeatherKind = WeatherKind.CLEAR,
 )

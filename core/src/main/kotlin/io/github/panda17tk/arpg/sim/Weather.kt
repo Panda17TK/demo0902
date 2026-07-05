@@ -21,7 +21,19 @@ data class WeatherParams(
     val sway: Float,        // sideways wobble amplitude in dp (snow drifts, ash floats)
 )
 
+/** v2.75 天候×生態系: how a sky reshapes the food web (multipliers on wildlife counts). */
+data class EcologyTweaks(val predatorMul: Float, val grazerMul: Float)
+
 object Weather {
+    /** v2.75: hunters wait out the rain; herds huddle from snow and ash; dust sends everyone in. */
+    fun ecologyTweaks(kind: WeatherKind): EcologyTweaks = when (kind) {
+        WeatherKind.CLEAR -> EcologyTweaks(1f, 1f)
+        WeatherKind.RAIN -> EcologyTweaks(0.5f, 1f)
+        WeatherKind.SNOW -> EcologyTweaks(1f, 0.7f)
+        WeatherKind.ASH -> EcologyTweaks(1f, 0.6f)
+        WeatherKind.DUSTWIND -> EcologyTweaks(0.7f, 0.8f)
+    }
+
     /** The climate a planet runs — deterministic from its id, and quiet more often than not. */
     fun kindFor(planetId: Long, biome: PlanetBiome): WeatherKind {
         val r = Rng(planetId * 53L + biome.ordinal.toLong() * 29L + SALT)

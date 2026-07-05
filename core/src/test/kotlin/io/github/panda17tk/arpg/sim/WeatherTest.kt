@@ -41,6 +41,20 @@ class WeatherTest {
         }
     }
 
+    @Test fun `the sky reshapes the food web the way the fiction says`() {
+        // v2.75: rain shelters the hunters; snow and ash send the herds in; clear changes nothing.
+        val clear = Weather.ecologyTweaks(WeatherKind.CLEAR)
+        assertEquals(1f, clear.predatorMul); assertEquals(1f, clear.grazerMul)
+        assertTrue(Weather.ecologyTweaks(WeatherKind.RAIN).predatorMul < 1f)
+        assertEquals(1f, Weather.ecologyTweaks(WeatherKind.RAIN).grazerMul)
+        assertTrue(Weather.ecologyTweaks(WeatherKind.SNOW).grazerMul < 1f)
+        assertTrue(Weather.ecologyTweaks(WeatherKind.ASH).grazerMul < 1f)
+        for (k in WeatherKind.entries) {
+            val e = Weather.ecologyTweaks(k)
+            assertTrue(e.predatorMul in 0.3f..1f && e.grazerMul in 0.3f..1f, "$k tweaks out of band")
+        }
+    }
+
     @Test fun `rain falls hard, snow floats, the dust wind blows sideways`() {
         val rain = Weather.paramsFor(WeatherKind.RAIN)
         val snow = Weather.paramsFor(WeatherKind.SNOW)

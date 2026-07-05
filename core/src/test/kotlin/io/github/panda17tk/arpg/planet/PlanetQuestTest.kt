@@ -18,7 +18,7 @@ class PlanetQuestTest {
                 QuestKind.KILLS -> assertTrue(q.target in 8..16, "kills 8..16, got ${q.target}")
                 QuestKind.DUST -> assertTrue(q.target in 20..40, "dust 20..40, got ${q.target}")
                 QuestKind.CORE -> assertEquals(1, q.target, "the core asks exactly one visit")
-                QuestKind.PROTECT -> assertTrue(q.target in 2..3, "predators 2..3, got ${q.target}")
+                QuestKind.PROTECT -> assertTrue(q.target in 1..2, "predators 1..2, got ${q.target}")
                 QuestKind.OBSERVE -> assertTrue(q.target in 45..90, "observe 45..90s, got ${q.target}")
             }
             assertTrue(q.rewardDust > 0)
@@ -48,6 +48,23 @@ class PlanetQuestTest {
             if (PlanetQuest.questFor(id, PlanetBiome.NATURE, 0) != PlanetQuest.questFor(id, PlanetBiome.NATURE, 1)) varied++
         }
         assertTrue(varied > 20, "stages barely vary ($varied/41)")
+    }
+
+    @Test fun `a rainy planet never asks for an escort`() {
+        // v2.75: rain thins the predators, so the star does not ask you to hunt what sheltered.
+        var rainy = 0
+        for (id in 0L..300L) for (b in listOf(PlanetBiome.NATURE, PlanetBiome.GAS)) {
+            if (io.github.panda17tk.arpg.sim.Weather.kindFor(id, b) == io.github.panda17tk.arpg.sim.WeatherKind.RAIN) {
+                rainy++
+                for (stage in 0 until PlanetQuest.CHAIN) {
+                    assertTrue(
+                        PlanetQuest.questFor(id, b, stage).kind != QuestKind.PROTECT,
+                        "rainy planet $id ($b) stage $stage asked for an escort",
+                    )
+                }
+            }
+        }
+        assertTrue(rainy > 50, "the sample should contain plenty of rain (got $rainy)")
     }
 
     @Test fun `the lonely asteroid never asks for an escort`() {

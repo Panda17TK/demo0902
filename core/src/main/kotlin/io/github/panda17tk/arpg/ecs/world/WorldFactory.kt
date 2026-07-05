@@ -75,6 +75,7 @@ import io.github.panda17tk.arpg.sim.Tuning
 import io.github.panda17tk.arpg.sim.VisitedMap
 import io.github.panda17tk.arpg.sim.toPressure
 import io.github.panda17tk.arpg.sim.WallGravity
+import io.github.panda17tk.arpg.sim.WeatherKind
 import io.github.panda17tk.arpg.sim.WorldMode
 import io.github.panda17tk.arpg.sim.WorldState
 import kotlin.math.floor
@@ -90,6 +91,7 @@ object WorldFactory {
         mode: WorldMode = WorldMode.SPACE, biome: PlanetBiome? = null, carry: PlayerCarry? = null,
         playerSpawn: Pair<Float, Float>? = null, context: PlanetContext? = null,
         society: PlanetSocietyState? = null,
+        weather: WeatherKind = WeatherKind.CLEAR, // v2.75: the landing's sky (SURFACE only)
     ): GameWorld {
         val loaded = MapLoader.load(
             if (mode == WorldMode.SURFACE) SurfaceStages.forBiome(biome, seed) else Stages.random(Rng(seed)),
@@ -314,7 +316,8 @@ object WorldFactory {
             // thinned grazers, hungrier predators. A first visit (blank society) is exactly NEUTRAL.
             val ctx = context ?: PlanetContext.NEUTRAL
             val tweaks = ReturnVisitEffects.spawnTweaks(worldState.society.toPressure(ctx))
-            val ecology = SurfaceEcology.populate(biome, loaded.playerSpawnX, loaded.playerSpawnY, worldW, worldH, ecoRng, ctx, tweaks)
+            worldState.weather = weather // v2.75: one truth for ecology, rendering and (later) sound
+            val ecology = SurfaceEcology.populate(biome, loaded.playerSpawnX, loaded.playerSpawnY, worldW, worldH, ecoRng, ctx, tweaks, weather)
             for (p in ecology.placements) {
                 val def = config.enemies[p.key] ?: continue
                 val (fx, fy) = snapToFloor(map, p.x, p.y)
