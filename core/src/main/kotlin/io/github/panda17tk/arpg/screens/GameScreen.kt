@@ -857,7 +857,7 @@ class GameScreen(
             Hud.buttonRow(shapes, batch, font, hudViewport, Modals.layoutEditButtons(hudW, hudH))
             Hud.hintPanel(
                 shapes, batch, font, hudViewport,
-                listOf("ボタン配置エディタ", "ドラッグで移動　選択して[大きく/小さく]　[完了]で保存"),
+                listOf("ボタン配置", "ドラッグで移動 — 完了で保存"),
                 hudH - HINT_TOP,
             )
         } else if (touchEnabled && overlay == Overlay.NONE && !choosing && !gw.gameOver.isOver) {
@@ -1447,7 +1447,7 @@ class GameScreen(
             controlLabel = "操作: " + (if (controlSwap) "銃=ボタン / 近接=右スティック" else "近接=ボタン / 銃=右スティック") + "　(タップで入替)",
             marketLines = marketLines, marketFooter = marketFooter,
             logLines = if (invTab == InvTab.LOG) logbookLines() else emptyList(),
-            layoutEditLabel = "ボタン配置を編集　(タップで開く)", // v2.56
+            layoutEditLabel = "ボタン配置を編集", // v2.56
         )
     }
 

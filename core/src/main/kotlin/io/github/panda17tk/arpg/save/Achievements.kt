@@ -84,7 +84,7 @@ object Achievements {
     /** Logbook lines: the tally + each unlocked title (locked ones stay unspoken). */
     fun logLines(): List<String> {
         // NOTE: computed OUTSIDE buildList — inside it, count() resolves to MutableList.count().
-        val tally = "── 実績 ${count()}/${total()} ──"
+        val tally = "実績 ${count()}/${total()}"
         return listOf(tally) + unlocked.sortedBy { it.ordinal }.map { "『${it.title}』 ${it.desc}" }
     }
 }

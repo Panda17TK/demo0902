@@ -11,12 +11,12 @@ class RecordsPanelTest {
         val fresh = RecordsPanel.lines(0, 0, 0, 0) { false }
         assertTrue(fresh.any { it.contains("まだ記録がない") })
         assertTrue(fresh.any { it == "未実施" })
-        assertTrue(fresh.any { it == "── 実績 0/${Achievement.entries.size} ──" })
+        assertTrue(fresh.any { it == "実績 0/${Achievement.entries.size}" })
 
         val seasoned = RecordsPanel.lines(12, 340, 7, 90) { true }
         assertTrue(seasoned.any { it.contains("最深 同期汚染 12") && it.contains("総撃破 340") })
         assertTrue(seasoned.any { it.contains("ウェーブ 7") && it.contains("撃破 90") })
-        assertTrue(seasoned.any { it == "── 実績 ${Achievement.entries.size}/${Achievement.entries.size} ──" })
+        assertTrue(seasoned.any { it == "実績 ${Achievement.entries.size}/${Achievement.entries.size}" })
     }
 
     @Test fun `locked achievements are unspoken question marks in order`() {
