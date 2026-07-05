@@ -20,4 +20,15 @@ object TitleLayout {
             UiButton((w - bw) / 2f, top - i * (BTN_H + GAP), bw, BTN_H, lab)
         }
     }
+
+    /** v2.59 設定: the sound / haptics toggle pair under the menu (labels drawn by the screen). */
+    fun toggles(w: Float, h: Float): List<UiButton> {
+        val bw = (min(320f, w * 0.72f) - GAP) / 2f
+        val x = (w - bw * 2f - GAP) / 2f
+        val y = h * 0.46f - 3f * (BTN_H + GAP) - 34f
+        return listOf(
+            UiButton(x, y, bw, 40f, "サウンド"),
+            UiButton(x + bw + GAP, y, bw, 40f, "振動"),
+        )
+    }
 }

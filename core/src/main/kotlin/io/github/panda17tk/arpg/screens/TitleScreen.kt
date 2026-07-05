@@ -13,6 +13,8 @@ import com.badlogic.gdx.utils.viewport.ScreenViewport
 import io.github.panda17tk.arpg.App
 import io.github.panda17tk.arpg.math.Rng
 import io.github.panda17tk.arpg.render.Fonts
+import io.github.panda17tk.arpg.audio.Sfx
+import io.github.panda17tk.arpg.input.Haptics
 import io.github.panda17tk.arpg.save.PreferencesRunSaveStore
 import io.github.panda17tk.arpg.ui.TitleLayout
 import io.github.panda17tk.arpg.ui.UiButton
@@ -53,6 +55,11 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         viewport.setUnitsPerPixel(1f / uiScale)
         viewport.update(Gdx.graphics.width, Gdx.graphics.height, true)
         hasSave = try { PreferencesRunSaveStore().load() != null } catch (_: Throwable) { false }
+        try { // v2.59 設定: restore the sound / haptics switches
+            val sp = Gdx.app.getPreferences("drift-settings")
+            Sfx.enabled = sp.getBoolean("soundOn", true)
+            Haptics.enabled = sp.getBoolean("hapticsOn", true)
+        } catch (_: Throwable) { /* defaults stay on */ }
     }
 
     override fun resize(width: Int, height: Int) {
@@ -87,8 +94,9 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         shapes.circle(w * 0.82f, h * 0.80f, 16f + 3f * breath, 24)
         shapes.color = Color(0.8f, 0.97f, 1f, 0.8f)
         shapes.circle(w * 0.82f, h * 0.80f, 3f, 10)
-        // menu buttons (glass cards)
-        buttons.forEach { b ->
+        // menu buttons (glass cards) + the settings toggle pair
+        val toggles = TitleLayout.toggles(w, h)
+        (buttons + toggles).forEach { b ->
             shapes.color = Color(0.55f, 0.75f, 1f, 0.22f)
             shapes.rect(b.x - 1.5f, b.y - 1.5f, b.w + 3f, b.h + 3f)
             shapes.color = Color(0.05f, 0.07f, 0.11f, 0.85f)
@@ -117,18 +125,38 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             font.draw(batch, glyph, b.centerX - glyph.width / 2f, b.centerY + glyph.height / 2f)
         }
         font.color = cSub
+        toggles.forEachIndexed { i, b ->
+            val on = if (i == 0) Sfx.enabled else Haptics.enabled
+            glyph.setText(font, "${b.label}: ${if (on) "ON" else "OFF"}")
+            font.draw(batch, glyph, b.centerX - glyph.width / 2f, b.centerY + glyph.height / 2f)
+        }
+        font.color = Color.WHITE
+        font.color = cSub
         glyph.setText(font, "外部同期: 停止　ローカル保全モード: 稼働")
         font.draw(batch, glyph, (w - glyph.width) / 2f, h * 0.08f)
         font.color = Color.WHITE
         batch.end()
 
-        handleInput(buttons)
+        handleInput(buttons, toggles)
     }
 
-    private fun handleInput(buttons: List<UiButton>) {
+    private fun handleInput(buttons: List<UiButton>, toggles: List<UiButton>) {
         if (Gdx.input.justTouched()) {
             tmp.set(Gdx.input.x.toFloat(), Gdx.input.y.toFloat(), 0f)
             viewport.unproject(tmp)
+            // v2.59 設定: the toggle pair flips + persists in place
+            toggles.forEachIndexed { i, b ->
+                if (b.contains(tmp.x, tmp.y)) {
+                    if (i == 0) Sfx.enabled = !Sfx.enabled else Haptics.enabled = !Haptics.enabled
+                    try {
+                        val sp = Gdx.app.getPreferences("drift-settings")
+                        sp.putBoolean("soundOn", Sfx.enabled)
+                        sp.putBoolean("hapticsOn", Haptics.enabled)
+                        sp.flush()
+                    } catch (_: Throwable) { /* persist best-effort */ }
+                    return
+                }
+            }
             val hit = buttons.firstOrNull { it.contains(tmp.x, tmp.y) } ?: return
             when (hit.label) {
                 "つづきから" -> app.startRun(fresh = false)

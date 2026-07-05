@@ -38,10 +38,13 @@ class ModalsTest {
         assertTrue(Modals.upgradeCards(w, h, 0).isEmpty())
     }
 
-    @Test fun `game over shows one restart button on screen`() {
+    @Test fun `game over shows retry and title buttons on screen`() {
         val b = Modals.gameOverButtons(w, h)
-        assertEquals(1, b.size)
-        assertTrue(onScreen(b[0]))
+        assertEquals(2, b.size) // v2.59: もう一度 + タイトルへ
+        assertEquals("もう一度", b[0].label)
+        assertEquals("タイトルへ", b[1].label)
+        b.forEach { assertTrue(onScreen(it)) }
+        assertTrue(nonOverlapping(b), "game-over buttons overlap: $b")
     }
 
     @Test fun `pause button sits in the top-right corner on screen`() {

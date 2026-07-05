@@ -109,25 +109,34 @@ object Hud {
     /** Game over: scrim, result text, and a green 再挑戦 button with a "タップ / R" hint. */
     fun gameOver(
         shapes: ShapeRenderer, batch: SpriteBatch, font: BitmapFont, titleFont: BitmapFont, vp: Viewport,
-        waveNum: Int, kills: Int, bestText: String, restart: UiButton,
+        waveNum: Int, kills: Int, bestText: String, buttons: List<UiButton>,
+        summary: List<String> = emptyList(), // v2.59: the run's obituary — what the stars will keep
     ) {
         val w = vp.worldWidth; val h = vp.worldHeight
         Gdx.gl.glEnable(GL20.GL_BLEND)
         shapes.projectionMatrix = vp.camera.combined
         shapes.begin(ShapeRenderer.ShapeType.Filled)
         shapes.color = cScrimDark; shapes.rect(0f, 0f, w, h)
-        shapes.color = cBtnGo; shapes.rect(restart.x, restart.y, restart.w, restart.h)
+        buttons.forEachIndexed { i, b2 ->
+            shapes.color = if (i == 0) cBtnGo else cBtn
+            shapes.rect(b2.x, b2.y, b2.w, b2.h)
+        }
         shapes.end()
-        frames(shapes, listOf(restart))
+        frames(shapes, buttons)
 
         batch.projectionMatrix = vp.camera.combined
         batch.begin()
-        centerText(batch, titleFont, "ゲームオーバー", w, h / 2f + 96f)
-        centerText(batch, font, "同期汚染 $waveNum    撃破 $kills", w, h / 2f + 48f)
-        centerText(batch, font, bestText, w, h / 2f + 16f)
-        fitCenterLabel(batch, font, restart.label, restart.centerX, restart.centerY, restart.w - 12f)
+        centerText(batch, titleFont, "ゲームオーバー", w, h * 0.80f)
         font.color = cHint
-        centerText(batch, font, "タップ / R", w, restart.y - 12f)
+        fitCenterLabel(batch, font, "保守員は倒れた — 記録は星に残る", w / 2f, h * 0.755f, w - 32f)
+        font.color = Color.WHITE
+        centerText(batch, font, "同期汚染 $waveNum    撃破 $kills", w, h * 0.71f)
+        centerText(batch, font, bestText, w, h * 0.68f)
+        var sy = h * 0.63f
+        for (line in summary) { fitCenterLabel(batch, font, line, w / 2f, sy, w - 48f); sy -= 26f }
+        buttons.forEach { fitCenterLabel(batch, font, it.label, it.centerX, it.centerY, it.w - 12f) }
+        font.color = cHint
+        buttons.firstOrNull()?.let { centerText(batch, font, "タップ / R", w, it.y - 12f) }
         font.color = Color.WHITE
         batch.end()
     }
