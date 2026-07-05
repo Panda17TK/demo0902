@@ -82,6 +82,8 @@ import io.github.panda17tk.arpg.sim.RewardBundle
 import io.github.panda17tk.arpg.sim.SurfaceGoals
 import io.github.panda17tk.arpg.sim.SurfaceObjective
 import io.github.panda17tk.arpg.sim.SyncRestoration
+import io.github.panda17tk.arpg.sim.TutorialController
+import io.github.panda17tk.arpg.sim.TutorialStep
 import io.github.panda17tk.arpg.sim.TakeoffReward
 import io.github.panda17tk.arpg.sim.Tuning
 import io.github.panda17tk.arpg.sim.WorldMode
@@ -118,6 +120,7 @@ private const val SETTINGS_SWAP = "controlSwap"
 private const val SETTINGS_ONBOARD = "onboardDone" // v2.47: the first-run walkthrough ran once
 private const val SETTINGS_LAYOUT = "buttonLayout" // v2.56: the layout editor's saved tweaks
 private const val SETTINGS_SOUND = "soundOn"       // v2.59: title-screen toggles
+private const val SETTINGS_TUTORIAL = "tutorialDone" // v2.60: the boot diagnostic ran (or was skipped)
 private const val SETTINGS_HAPTICS = "hapticsOn"
 private const val SAVED_NOTE_TIME = 2f // seconds the 「セーブした」 flash stays on the SAVE tab
 
@@ -213,6 +216,13 @@ class GameScreen(
     private var controlSwap = false
     // v2.47: the very first run walks the basics once; completion persists across launches.
     private var onboardDone = true
+    // v2.60 チュートリアル: the keeper-boot diagnostic (layer 1). Null once done or skipped.
+    private var tutorial: TutorialController? = null
+    private var tutPrevPx = Float.NaN
+    private var tutPrevPy = Float.NaN
+    private var tutPrevKills = 0
+    private var tutPrevDust = -1
+
     // v2.56 ボタン配置エディタ: drag to move, toolbar to resize; saved as screen fractions.
     private var layoutEditing = false
     private var editTarget: TouchButton? = null
@@ -277,6 +287,9 @@ class GameScreen(
         if (startFresh) runStore.clear() // v2.58: タイトルの「はじめから」は前のランを置いていく
         if (startFresh || !tryRestoreRun()) newRun() // v2.33: a saved run resumes where it left off
         if (startInTraining && !simMode) toggleTraining() // v2.58: straight into the simulation
+        // v2.60: the boot diagnostic runs once per install (never inside the training sim).
+        val tutDone = try { Gdx.app.getPreferences(SETTINGS_PREFS).getBoolean(SETTINGS_TUTORIAL, false) } catch (_: Throwable) { true }
+        if (!tutDone && !simMode) tutorial = TutorialController()
     }
 
     /** v2.53: enter/exit the old-style combat simulation. The universe's memory, the saved run
@@ -360,6 +373,7 @@ class GameScreen(
         val ws = gw.worldState
         if (ws.mode == WorldMode.SPACE) {
             val cand = ws.landingCandidate ?: return
+            tutorial?.onLanded() // v2.60: the first touchdown completes the boot diagnostic
             val plan = session.planLanding(cand) // seeds, memory recall and the greeting all decided in one place
             // R2: the remembered society goes INTO the factory, so spawn-time consumers see it from tick 0.
             transitionWorld(WorldMode.SURFACE, plan.biome, plan.seed, null, plan.context, plan.society)
@@ -423,9 +437,12 @@ class GameScreen(
         if ((Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE) || Gdx.input.isKeyJustPressed(Input.Keys.P)) &&
             !choosing && !gw.gameOver.isOver && !layoutEditing) overlay = PauseFlow.toggle(overlay)
         if (layoutEditing) handleLayoutEdit() // v2.56: the editor swallows all input while open
-        if (!layoutEditing) handlePauseTaps()
+        if (!layoutEditing && !handleTutorialTaps()) handlePauseTaps() // v2.60: diagnostic taps first
 
-        pollGameplayTouch(overlay != Overlay.NONE || fade.blocksInput || layoutEditing)
+        pollGameplayTouch(
+            overlay != Overlay.NONE || fade.blocksInput || layoutEditing ||
+                tutorial?.step == TutorialStep.BOOT_PROMPT,
+        )
         // v2.33: the I key / INV button toggles the inventory. Unlike pause it does not freeze the
         // sim — the world crawls at INV_TIME_SCALE behind the panel (装備・持物・マップ・セーブ).
         if (input.inventory && !choosing && !gw.gameOver.isOver && !layoutEditing &&
@@ -434,7 +451,8 @@ class GameScreen(
             overlay = if (overlay == Overlay.INVENTORY) Overlay.NONE else Overlay.INVENTORY
             readingLore = null
         }
-        val paused = (overlay != Overlay.NONE && overlay != Overlay.INVENTORY) || layoutEditing // sim-freezing overlays
+        val paused = (overlay != Overlay.NONE && overlay != Overlay.INVENTORY) || layoutEditing ||
+            tutorial?.step == TutorialStep.BOOT_PROMPT // sim-freezing overlays (+ the boot prompt)
         val simDelta = delta * if (overlay == Overlay.INVENTORY) INV_TIME_SCALE else 1f
         if (invNoteT > 0f) invNoteT -= delta
 
@@ -462,6 +480,21 @@ class GameScreen(
             px = t.prevX + (t.x - t.prevX) * alpha
             py = t.prevY + (t.y - t.prevY) * alpha
             fx = f.x; fy = f.y; sta = s.value; staMax = s.max; pit = gw.player[Health].iTime; overheat = s.overheat
+        }
+        // v2.60: feed the diagnostic's sensors — movement, kills, dust, dash, scan.
+        tutorial?.let { t ->
+            if (!t.done && !paused) {
+                if (!tutPrevPx.isNaN()) t.onMoved(hypot(px - tutPrevPx, py - tutPrevPy))
+                tutPrevPx = px; tutPrevPy = py
+                if (gw.gameOver.kills > tutPrevKills) t.onKill()
+                tutPrevKills = gw.gameOver.kills
+                val dustNow = with(gw.world) { gw.player[Materials].dust }
+                if (tutPrevDust in 0 until dustNow) t.onDustPicked()
+                tutPrevDust = dustNow
+                if (input.dash) t.onDash()
+                if (cachedCard != null) t.onScan()
+                if (t.done) finishTutorial()
+            }
         }
         // flow the cosmetic debris/asteroid field around the player (space only; wraps toroidally)
         if (!paused) gw.worldState.drift?.let { Drift.advance(it, px, py, DRIFT_RANGE, simDelta) }
@@ -611,8 +644,9 @@ class GameScreen(
             runTime, gw.gameOver.kills, blocks, dust,
             simMode = simMode,
         )
-        drawObjectiveHint(paused, hudW, hudH)
-        drawOnboarding(paused, hudW)
+        val tut = tutorial
+        if (tut != null && !tut.done) drawTutorial(hudW, hudH) else drawObjectiveHint(paused, hudW, hudH)
+        if (tut == null) drawOnboarding(paused, hudW) // v2.60: the diagnostic supersedes onboarding
         // Surface event feed (LP v2.24): drawn whenever on a surface; aging freezes with the sim while paused.
         if (gw.worldState.mode == WorldMode.SURFACE) Hud.eventFeed(batch, font, hudViewport, gw.worldState.recentEvents)
 
@@ -1044,6 +1078,54 @@ class GameScreen(
     }
 
     /** The inventory overlay's view model → Hud.inventory (v2.33). */
+    /** v2.60 起動診断: the current prompt panel (+ boot choice / the always-there skip). */
+    private fun drawTutorial(hudW: Float, hudH: Float) {
+        val t = tutorial ?: return
+        if (choosing || gw.gameOver.isOver || overlay != Overlay.NONE || layoutEditing) return
+        Hud.hintPanel(shapes, batch, font, hudViewport, t.prompt(touchEnabled), hudH - HINT_TOP)
+        if (t.step == TutorialStep.BOOT_PROMPT) {
+            Hud.buttonRow(shapes, batch, font, hudViewport, Modals.tutorialBootButtons(hudW, hudH))
+        } else {
+            Hud.buttonRow(shapes, batch, font, hudViewport, listOf(Modals.tutorialSkipButton(hudW, hudH)))
+        }
+    }
+
+    /** v2.60: diagnostic taps — boot choice or the skip button. True = the tap was consumed. */
+    private fun handleTutorialTaps(): Boolean {
+        val t = tutorial ?: return false
+        if (!tapped || overlay != Overlay.NONE || choosing || gw.gameOver.isOver) return false
+        val w = hudViewport.worldWidth; val h = hudViewport.worldHeight
+        if (t.step == TutorialStep.BOOT_PROMPT) {
+            when (Modals.hitModal(Modals.tutorialBootButtons(w, h), tapX, tapY)) {
+                0 -> t.begin()
+                1 -> { t.skip(); finishTutorial() }
+            }
+            return true // the boot prompt owns every tap while it is up
+        }
+        if (Modals.tutorialSkipButton(w, h).contains(tapX, tapY)) {
+            t.skip(); finishTutorial()
+            return true
+        }
+        return false
+    }
+
+    /** v2.60: same ending either way — the reward never depends on finishing vs skipping. */
+    private fun finishTutorial() {
+        val t = tutorial ?: return
+        with(gw.world) { gw.player[Materials].dust += TutorialController.REWARD_DUST }
+        rewardToast = t.completionToast()
+        rewardToastT = TOAST_TIME
+        onboardDone = true
+        try {
+            val p = Gdx.app.getPreferences(SETTINGS_PREFS)
+            p.putBoolean(SETTINGS_TUTORIAL, true)
+            p.putBoolean(SETTINGS_ONBOARD, true)
+            p.flush()
+        } catch (_: Throwable) { /* persist best-effort */ }
+        tutorial = null
+        Sfx.play("levelup")
+    }
+
     /** v2.56 ボタン配置エディタ: drag any button to move it; the toolbar resizes/resets/saves. */
     private fun handleLayoutEdit() {
         val w = hudViewport.worldWidth; val h = hudViewport.worldHeight
