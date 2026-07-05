@@ -38,11 +38,23 @@ class PlanetQuestTest {
         assertEquals(QuestKind.entries.toSet(), seen)
     }
 
+    @Test fun `the chain keeps stage 0 historic and varies the later links`() {
+        // v2.72: what a star asks FIRST is byte-identical to the pre-chain quest...
+        assertEquals(PlanetQuest.questFor(7L, PlanetBiome.NATURE), PlanetQuest.questFor(7L, PlanetBiome.NATURE, 0))
+        assertEquals(3, PlanetQuest.CHAIN)
+        // ...and the later links are their own rolls, not echoes of the first.
+        var varied = 0
+        for (id in 0L..40L) {
+            if (PlanetQuest.questFor(id, PlanetBiome.NATURE, 0) != PlanetQuest.questFor(id, PlanetBiome.NATURE, 1)) varied++
+        }
+        assertTrue(varied > 20, "stages barely vary ($varied/41)")
+    }
+
     @Test fun `the lonely asteroid never asks for an escort`() {
         // v2.69: LONELY has no wildlife — a PROTECT request there could never be fulfilled.
-        for (id in 0L..300L) {
-            val q = PlanetQuest.questFor(id, PlanetBiome.LONELY)
-            assertTrue(q.kind != QuestKind.PROTECT, "planet $id asked LONELY for protection")
+        for (id in 0L..300L) for (stage in 0 until PlanetQuest.CHAIN) {
+            val q = PlanetQuest.questFor(id, PlanetBiome.LONELY, stage)
+            assertTrue(q.kind != QuestKind.PROTECT, "planet $id stage $stage asked LONELY for protection")
         }
     }
 }

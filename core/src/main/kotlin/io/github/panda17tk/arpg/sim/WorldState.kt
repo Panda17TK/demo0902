@@ -41,6 +41,14 @@ class WorldState(
     /** v2.69 星の依頼: predators put down this visit + seconds spent on the surface. */
     var questPredators: Int = 0,
     var questTime: Float = 0f,
+    /** v2.72 連鎖: which request the star is on (0-based; CHAIN = all done) + the tallies'
+     *  snapshot taken when the previous request settled — stage progress counts from here. */
+    var questStage: Int = 0,
+    var questBaseKills: Int = 0,
+    var questBaseElites: Int = 0,
+    var questBaseDust: Int = 0,
+    var questBasePredators: Int = 0,
+    var questBaseTime: Float = 0f,
     /** v2.46 難破船: wrecked hulls adrift in the system — guarded loot caches worth boarding. */
     var wrecks: List<Pair<Float, Float>> = emptyList(),
     /** v2.48 惑星サーバー: the surface's memory core (Layer 1) — stand before it and it speaks once. */
