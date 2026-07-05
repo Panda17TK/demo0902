@@ -420,22 +420,8 @@ class GameScreen(
                 TakeoffReward.compute(soc, it, gw.worldState.context ?: PlanetContext.NEUTRAL)
             } ?: RewardBundle()
             RewardApply.apply(gw.world, gw.player, reward)
-            var toast = TakeoffReward.toastFor(reward, soc.childKilled)
-            // v2.45 星の依頼: a fulfilled request pays dust at takeoff — same no-pay rule for child-killers.
-            val quest = gw.worldState.biome?.let { b -> session.landedPlanetId?.let { PlanetQuest.questFor(it, b) } }
-            if (quest != null && !soc.childKilled) {
-                val prog = questProgress(quest.kind, gw.worldState)
-                if (prog >= quest.target) {
-                    with(gw.world) { gw.player[Materials].dust += quest.rewardDust }
-                    toast = listOfNotNull(toast, "依頼達成 +${quest.rewardDust}屑").joinToString("　")
-                    tryUnlock(Achievement.QUEST_PATRON) // v2.68
-                    when (quest.kind) { // v2.70: the quiet professions get their own lines
-                        QuestKind.PROTECT -> tryUnlock(Achievement.GUARDIAN)
-                        QuestKind.OBSERVE -> tryUnlock(Achievement.OBSERVER)
-                        else -> {}
-                    }
-                }
-            }
+            // v2.72: requests now settle on the spot (依頼の連鎖) — takeoff only hands over the gift.
+            val toast = TakeoffReward.toastFor(reward, soc.childKilled)
             rewardToast = toast
             rewardToastT = if (rewardToast != null) TOAST_TIME else 0f
             tutorial?.onTakeoff() // v2.61: lifting off the first star completes the diagnostic
@@ -608,6 +594,39 @@ class GameScreen(
                         ),
                     )
                     Sfx.play("scan")
+                }
+            }
+        }
+        // v2.72 依頼の連鎖: a fulfilled request settles ON THE SPOT — the star pays, thanks you
+        // through the event feed, and (up to 3 times a visit) hands over the next thing it needs.
+        // A star whose child you killed stops asking, the same rule as the send-off gift.
+        if (!paused && !simMode && gw.worldState.mode == WorldMode.SURFACE) {
+            val ws = gw.worldState
+            val pid = session.landedPlanetId
+            val qb = ws.biome
+            if (pid != null && qb != null && ws.questStage < PlanetQuest.CHAIN && !ws.society.childKilled) {
+                val q = PlanetQuest.questFor(pid, qb, ws.questStage)
+                if (questProgress(q.kind, ws) >= q.target) {
+                    with(gw.world) { gw.player[Materials].dust += q.rewardDust }
+                    ws.questStage++
+                    ws.questBaseKills = ws.questKills; ws.questBaseElites = ws.questElites
+                    ws.questBaseDust = ws.questDust; ws.questBasePredators = ws.questPredators
+                    ws.questBaseTime = ws.questTime
+                    questChipKey = -1 // the chip rebuilds for the next request
+                    ws.recentEvents.add(
+                        PlanetEvent(
+                            if (ws.questStage < PlanetQuest.CHAIN) "依頼を果たした +${q.rewardDust}屑 — 次の頼みが届いた"
+                            else "依頼を果たした +${q.rewardDust}屑 — この星の頼みはすべて済んだ",
+                            EventKind.MERCY,
+                        ),
+                    )
+                    Sfx.play("levelup")
+                    tryUnlock(Achievement.QUEST_PATRON)
+                    when (q.kind) { // v2.70: the quiet professions get their own lines
+                        QuestKind.PROTECT -> tryUnlock(Achievement.GUARDIAN)
+                        QuestKind.OBSERVE -> tryUnlock(Achievement.OBSERVER)
+                        else -> {}
+                    }
                 }
             }
         }
@@ -916,23 +935,25 @@ class GameScreen(
 
     /** v2.45/68 星の依頼: this visit's progress toward a request of [kind]. */
     private fun questProgress(kind: QuestKind, ws: WorldState): Int = when (kind) {
-        QuestKind.ELITES -> ws.questElites
-        QuestKind.KILLS -> ws.questKills
-        QuestKind.DUST -> ws.questDust
+        // v2.72 連鎖: each stage counts from the snapshot taken when the previous one settled.
+        QuestKind.ELITES -> ws.questElites - ws.questBaseElites
+        QuestKind.KILLS -> ws.questKills - ws.questBaseKills
+        QuestKind.DUST -> ws.questDust - ws.questBaseDust
         QuestKind.CORE -> if (ws.coreVisited) 1 else 0
-        QuestKind.PROTECT -> ws.questPredators // v2.69
-        QuestKind.OBSERVE -> ws.questTime.toInt() // v2.69: whole seconds
+        QuestKind.PROTECT -> ws.questPredators - ws.questBasePredators // v2.69
+        QuestKind.OBSERVE -> (ws.questTime - ws.questBaseTime).toInt() // v2.69: whole seconds
     }
 
-    /** v2.45 星の依頼: the quest chip, rebuilt only when progress toward the target changes (§14.2). */
+    /** v2.45/72 星の依頼: the chip shows the CURRENT link of the chain, or the satisfied star. */
     private fun questChip(ws: WorldState): String? {
         val pid = session.landedPlanetId ?: return null
         val b = ws.biome ?: return null
-        val q = PlanetQuest.questFor(pid, b)
+        if (ws.questStage >= PlanetQuest.CHAIN) return "依頼 完了 — この星は満ちている"
+        val q = PlanetQuest.questFor(pid, b, ws.questStage)
         val prog = questProgress(q.kind, ws)
-        val key = prog.coerceAtMost(q.target)
+        val key = prog.coerceAtMost(q.target) + ws.questStage * 1000
         if (key != questChipKey) {
-            questChip = if (prog >= q.target) "依頼達成 — 離陸で${q.rewardDust}屑" else "${q.line}　$prog/${q.target}"
+            questChip = "依頼${ws.questStage + 1}/${PlanetQuest.CHAIN}　${q.line}　$prog/${q.target}"
             questChipKey = key
         }
         return questChip

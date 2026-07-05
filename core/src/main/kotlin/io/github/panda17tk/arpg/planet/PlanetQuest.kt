@@ -26,8 +26,13 @@ data class QuestDef(val kind: QuestKind, val target: Int, val rewardDust: Int) {
  * simply walk to the memory core and be checked against it (CORE).
  */
 object PlanetQuest {
-    fun questFor(planetId: Long, biome: PlanetBiome): QuestDef {
-        val r = Rng(planetId * 131L + biome.ordinal.toLong() * 17L + SALT)
+    /** v2.72 連鎖: how many requests one visit can chain through. */
+    const val CHAIN = 3
+
+    /** The [stage]-th request of a visit (0-based). Stage 0 is byte-identical to the pre-chain
+     *  quest, so what a planet asks first never changed across versions. */
+    fun questFor(planetId: Long, biome: PlanetBiome, stage: Int = 0): QuestDef {
+        val r = Rng(planetId * 131L + biome.ordinal.toLong() * 17L + stage * 7919L + SALT)
         val roll = r.nextFloat()
         return when {
             roll < 0.25f -> {

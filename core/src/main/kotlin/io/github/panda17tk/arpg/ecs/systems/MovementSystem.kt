@@ -146,14 +146,17 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         val tx = if (mode == SpaceDrive.Mode.BUTTON_DASH) f.x else mv.dirX
         val ty = if (mode == SpaceDrive.Mode.BUTTON_DASH) f.y else mv.dirY
 
-        // Normal-move (WALK) speed is halved in open space so cruising feels calmer; dashes keep their full cap.
-        val walkCapMul = if (worldState.mode == WorldMode.SURFACE) 1f else SPACE_WALK_MUL
+        // Normal-move (WALK) caps: half cruise in open space (calm drifting), 3× that on the
+        // ground (v2.72 — boots grip; the surface reads as brisk against the vacuum's coast).
+        val surface = worldState.mode == WorldMode.SURFACE
+        val walkCapMul = if (surface) SURFACE_WALK_MUL else SPACE_WALK_MUL
         // Knockback decays fast and stays separate from movement (keeps hits punchy).
         v.vx *= 0.0001f.pow(dt)
         v.vy *= 0.0001f.pow(dt)
         val (nvx, nvy) = SpaceDrive.step(
             v.driftX, v.driftY, tx, ty, mode,
-            MOVE_ACCEL * gearAccel, STICK_DASH_ACCEL * gearAccel, BUTTON_DASH_ACCEL * gearAccel,
+            MOVE_ACCEL * gearAccel * (if (surface) SURFACE_ACCEL_MUL else 1f),
+            STICK_DASH_ACCEL * gearAccel, BUTTON_DASH_ACCEL * gearAccel,
             cruise, decay, hardCap, dt, walkCapMul,
         )
         v.driftX = nvx; v.driftY = nvy
@@ -222,6 +225,8 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         private const val BUTTON_DASH_DRAIN = 35f // v2.32: half of 70 — dashing costs less
         private const val STICK_DASH_DRAIN = 3.5f // v2.32: half of 7
         private const val SPACE_WALK_MUL = 0.5f // open space: normal-move cap is half (calmer cruising; dashes unaffected)
+        private const val SURFACE_WALK_MUL = SPACE_WALK_MUL * 3f // v2.72: ground walking runs 3× the space cruise cap
+        private const val SURFACE_ACCEL_MUL = 3f // v2.72: traction — enough ramp to actually reach the higher cap against ground drag
         private const val SPACE_DECAY = 1f // open space: zero friction — momentum is conserved
         private const val SURFACE_COAST = 0.02f // planet ground: friction stops you fast (no space inertia)
         private const val ICE_COAST = 0.7f // ice/snow surface: slippery, long glide
