@@ -14,4 +14,5 @@ class WaveState(
     // sim leaves for the screen to pick up as a toast (consumed by GameScreen, set to null).
     var event: WaveEvent = WaveEvent.NONE,
     var announce: String? = null,
+    var meteorCd: Float = 0f, // v2.87 流星群: seconds until the next falling rock
 )

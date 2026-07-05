@@ -14,6 +14,7 @@ import io.github.panda17tk.arpg.ecs.components.EBullet
 import io.github.panda17tk.arpg.ecs.components.Facing
 import io.github.panda17tk.arpg.ecs.components.Grenade
 import io.github.panda17tk.arpg.ecs.components.Health
+import io.github.panda17tk.arpg.ecs.components.Meteor
 import io.github.panda17tk.arpg.ecs.components.Mob
 import io.github.panda17tk.arpg.ecs.components.MobAction
 import io.github.panda17tk.arpg.ecs.components.Pickup
@@ -124,6 +125,8 @@ class SceneRenderer {
             pose.weaponType, pose.armorId, pose.oc, pose.moving,
         )
         drawProjectiles(shapes, gw, animTime)
+        drawMeteors(shapes, gw)  // v2.87 流星群
+        drawPillars(shapes, gw)  // v2.87 依頼の答え
         drawFx(shapes, gw)
         drawPickups(shapes, gw, animTime)
         drawSmoke(shapes, gw)
@@ -407,6 +410,33 @@ class SceneRenderer {
         }
     }
 
+    /** v2.87 流星群: the telegraph shadow grows as the rock drops in from "above" (-y). */
+    private fun drawMeteors(shapes: ShapeRenderer, gw: GameWorld) {
+        with(gw.world) {
+            gw.world.family { all(Meteor, Transform) }.forEach { e ->
+                val mt = e[Transform]; val m = e[Meteor]
+                val k = (1f - m.fall / io.github.panda17tk.arpg.sim.WaveEvents.METEOR_FALL).coerceIn(0f, 1f)
+                tmpC.set(0f, 0f, 0f, 0.15f + 0.30f * k); shapes.color = tmpC
+                shapes.ellipse(mt.x - 16f * k - 4f, mt.y - 8f * k - 2f, (16f * k + 4f) * 2f, (8f * k + 2f) * 2f)
+                tmpC.set(0.69f, 0.60f, 0.48f, 1f); shapes.color = tmpC
+                shapes.circle(mt.x, mt.y - (1f - k) * 150f, 5.5f, 10) // the rock, dropping in
+                tmpC.set(1f, 0.69f, 0.38f, 0.5f); shapes.color = tmpC
+                shapes.circle(mt.x, mt.y - (1f - k) * 150f - 5f, 2.5f, 8) // its burning tail
+            }
+        }
+    }
+
+    /** v2.87 quest celebration: the star's answer — a column of light fading over the keeper. */
+    private fun drawPillars(shapes: ShapeRenderer, gw: GameWorld) {
+        gw.fx.pillars.forEach { pl ->
+            val k = (1f - pl.t / pl.life).coerceIn(0f, 1f)
+            tmpC.set(1f, 0.90f, 0.60f, 0.28f * k); shapes.color = tmpC
+            shapes.rect(pl.x - 9f, pl.y - 190f, 18f, 190f)
+            tmpC.set(1f, 0.97f, 0.85f, 0.55f * k); shapes.color = tmpC
+            shapes.rect(pl.x - 3.5f, pl.y - 190f, 7f, 190f)
+        }
+    }
+
     /** Death-burst particles (gibs shrink as they expire), dash afterimages and beam flashes. */
     private fun drawFx(shapes: ShapeRenderer, gw: GameWorld) {
         gw.fx.corpses.forEach { c -> // v2.85: the body squashes flat and pales before it bursts
@@ -437,10 +467,18 @@ class SceneRenderer {
     }
 
     private fun drawPickups(shapes: ShapeRenderer, gw: GameWorld, animTime: Float) {
+        val core = gw.worldState.memoryCore // v2.87 共鳴: the passing ring lights what it touches
         with(gw.world) {
             gw.world.family { all(Pickup, Transform) }.forEach { e ->
                 val pt = e[Transform]; val pk = e[Pickup]
                 val bob = sin(animTime * 4f + pt.x * 0.05f) * 2f
+                if (core != null) {
+                    val d = hypot(pt.x - core.first, pt.y - core.second)
+                    if (io.github.panda17tk.arpg.sim.Resonance.lit(animTime, d)) {
+                        tmpC.set(0.65f, 0.9f, 1f, 0.35f); shapes.color = tmpC
+                        shapes.circle(pt.x, pt.y + bob, 10f, 14)
+                    }
+                }
                 drawPickupGlyph(shapes, pk.kind, pt.x, pt.y + bob)
             }
         }
@@ -539,6 +577,16 @@ class SceneRenderer {
     /** v2.44: the system's jump gate — a slow ring of orbiting lights around a bright throat. */
     private fun drawGate(shapes: ShapeRenderer, gw: GameWorld, animTime: Float) {
         val g = gw.worldState.gate ?: return
+        if (gw.worldState.gateReady) { // v2.87 儀式: enough shards — the gate lights and beckons
+            val pulse = 0.5f + 0.5f * sin(animTime * 2.2f)
+            tmpC.set(1f, 0.82f, 0.35f, 0.20f + 0.18f * pulse); shapes.color = tmpC
+            shapes.circle(g.first, g.second, 58f + 6f * pulse, 40)
+            tmpC.set(1f, 0.90f, 0.55f, 0.9f); shapes.color = tmpC
+            for (i in 0 until 3) {
+                val a = animTime * 1.6f + i * (6.2831855f / 3f)
+                shapes.circle(g.first + cos(a) * 52f, g.second + sin(a) * 52f, 2.6f, 8)
+            }
+        }
         shapes.color = cGateRing
         shapes.circle(g.first, g.second, 46f, 32)
         shapes.color = cGateCore
@@ -685,6 +733,14 @@ class SceneRenderer {
     /** Pass 2 (Line): gravity-well rings, attack telegraphs and melee slash arcs. */
     private fun drawLinePass(shapes: ShapeRenderer, gw: GameWorld, animTime: Float) {
         shapes.begin(ShapeRenderer.ShapeType.Line)
+        // v2.87 記憶核の共鳴: a slow pulse ring sweeps out from the core every few breaths
+        gw.worldState.memoryCore?.let { core ->
+            io.github.panda17tk.arpg.sim.Resonance.radius(animTime)?.let { rr ->
+                tmpC.set(0.55f, 0.85f, 1f, 0.35f * (1f - rr / io.github.panda17tk.arpg.sim.Resonance.RANGE))
+                shapes.color = tmpC
+                shapes.circle(core.first, core.second, rr, 48)
+            }
+        }
         // v2.86: heavy-arrival warning rings — two expanding circles chasing each other
         gw.fx.warnRings.forEach { r ->
             val k = (r.t / r.life).coerceIn(0f, 1f)
