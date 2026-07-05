@@ -1,6 +1,8 @@
 package io.github.panda17tk.arpg.planet
 
 import io.github.panda17tk.arpg.math.Rng
+import io.github.panda17tk.arpg.sim.Weather
+import io.github.panda17tk.arpg.sim.WeatherKind
 
 /** What a planet asks of its visitor (v2.45 星の依頼; v2.68 DUST/CORE; v2.69 PROTECT/OBSERVE). */
 enum class QuestKind { ELITES, KILLS, DUST, CORE, PROTECT, OBSERVE }
@@ -49,11 +51,13 @@ object PlanetQuest {
             }
             roll < 0.70f -> QuestDef(QuestKind.CORE, 1, 90) // stand before the core once
             // v2.69 護衛: cull the predators pressing on the children. The lonely asteroid has
-            // no wildlife to guard against, so it asks for observation time instead.
-            roll < 0.85f -> if (biome == PlanetBiome.LONELY) {
+            // no wildlife to guard against — and on a RAINY world the hunters are already
+            // sheltering (v2.75 thins them), so both ask for observation time instead.
+            roll < 0.85f -> if (biome == PlanetBiome.LONELY || Weather.kindFor(planetId, biome) == WeatherKind.RAIN) {
                 observed(r)
             } else {
-                val t = 2 + r.nextInt(2) // 2..3 predators
+                // 1..2 predators — never more than the fewest a biome actually fields (v2.75 fix)
+                val t = 1 + r.nextInt(2)
                 QuestDef(QuestKind.PROTECT, t, 50 + t * 30)
             }
             else -> observed(r) // v2.69 観測: simply stay, and watch

@@ -173,11 +173,7 @@ class GameScreen(
     private var lastHp = Float.NaN
     private var lastKills = 0
     private val ambHeat = CombatHeat() // v2.67 状況反応: combat drives the pulse layer
-    // v2.74 天候: cached per landing (pid+biome key); weatherT is cosmetic time, never sim time.
-    private var weatherKind = WeatherKind.CLEAR
-    private var weatherPid = Long.MIN_VALUE
-    private var weatherBiome: PlanetBiome? = null
-    private var weatherT = 0f
+    private var weatherT = 0f // v2.74 天候: cosmetic time, never sim time
     private var prevOver = false
     private var newBest = false
 
@@ -413,7 +409,10 @@ class GameScreen(
             tryUnlock(Achievement.FIRST_LANDING) // v2.62
             val plan = session.planLanding(cand) // seeds, memory recall and the greeting all decided in one place
             // R2: the remembered society goes INTO the factory, so spawn-time consumers see it from tick 0.
-            transitionWorld(WorldMode.SURFACE, plan.biome, plan.seed, null, plan.context, plan.society)
+            transitionWorld(
+                WorldMode.SURFACE, plan.biome, plan.seed, null, plan.context, plan.society,
+                Weather.kindFor(cand.id, plan.biome), // v2.75: the planet's own sky rides in
+            )
             // Return-visit payoff: a remembered planet greets the player by reputation (shown briefly in the HUD).
             gw.worldState.rememberedPlanet = plan.known
             gw.worldState.returnVisitGreeting = plan.greeting
@@ -450,10 +449,11 @@ class GameScreen(
     private fun transitionWorld(
         mode: WorldMode, biome: PlanetBiome?, seed: Long, spawn: Pair<Float, Float>?,
         context: PlanetContext? = null, society: PlanetSocietyState? = null,
+        weather: WeatherKind = WeatherKind.CLEAR,
     ) {
         val carry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
         worldSeed = seed
-        gw = WorldFactory.create(input, configStore.config, seed, mode, biome, carry, spawn, context, society)
+        gw = WorldFactory.create(input, configStore.config, seed, mode, biome, carry, spawn, context, society, weather)
         gw.waveState.num = carry.wave
         accumulator = 0f; camInit = false; overlay = Overlay.NONE
         choosing = false; offered = false; choices = emptyList(); lastHp = Float.NaN
@@ -468,12 +468,7 @@ class GameScreen(
     /** v2.74 天候: purely cosmetic surface weather — deterministic per planet, pure in time. */
     private fun drawWeather(delta: Float) {
         if (simMode || gw.worldState.mode != WorldMode.SURFACE) return
-        val pid = session.landedPlanetId ?: return
-        val b = gw.worldState.biome ?: return
-        if (pid != weatherPid || b != weatherBiome) {
-            weatherKind = Weather.kindFor(pid, b)
-            weatherPid = pid; weatherBiome = b
-        }
+        val weatherKind = gw.worldState.weather // v2.75: the factory's single source of truth
         if (weatherKind == WeatherKind.CLEAR) return
         weatherT += delta
         val p = Weather.paramsFor(weatherKind)
@@ -674,6 +669,7 @@ class GameScreen(
                     )
                     Sfx.play("levelup")
                     tryUnlock(Achievement.QUEST_PATRON)
+                    if (ws.questStage >= PlanetQuest.CHAIN) tryUnlock(Achievement.CHAIN_PATRON) // v2.75
                     when (q.kind) { // v2.70: the quiet professions get their own lines
                         QuestKind.PROTECT -> tryUnlock(Achievement.GUARDIAN)
                         QuestKind.OBSERVE -> tryUnlock(Achievement.OBSERVER)
@@ -1533,6 +1529,9 @@ class GameScreen(
         gw = WorldFactory.create(
             input, configStore.config, dto.worldSeed, mode, biome,
             carry = null, playerSpawn = dto.px to dto.py, context = context, society = society,
+            weather = if (mode == WorldMode.SURFACE && dto.landedPlanetId != null && biome != null) {
+                Weather.kindFor(dto.landedPlanetId, biome) // v2.75: same sky after a restore
+            } else WeatherKind.CLEAR,
         )
         gw.waveState.num = dto.wave
         with(gw.world) {

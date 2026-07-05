@@ -28,6 +28,7 @@ object SurfaceEcology {
         biome: PlanetBiome, spawnX: Float, spawnY: Float, worldW: Float, worldH: Float, rng: Rng,
         context: PlanetContext = PlanetContext.NEUTRAL,
         tweaks: SpawnTweaks = SpawnTweaks.NEUTRAL,
+        weather: WeatherKind = WeatherKind.CLEAR, // v2.75: the sky reshapes the food web
     ): Society {
         val out = ArrayList<EcologyPlacement>()
         val fac = ArrayList<Facility>()
@@ -93,9 +94,15 @@ object SurfaceEcology {
 
         // Wildlife layer: mute animals roaming the wider surface, scattered around the landing point (not the
         // camp), so the player crosses an ecosystem on the way to the society. Added last → the leader stays first.
+        val eco = Weather.ecologyTweaks(weather) // v2.75: rain empties the hunting trails, etc.
         fun wild(key: String, count: Int, near: Float, far: Float) {
             // A disrupted world's grazers are thinned (LP v2.27) — floored at 1 so no group vanishes.
-            val c = if (key in GRAZERS) maxOf(1, (count * tweaks.herbivoreMul).toInt()) else count
+            val base = if (key in GRAZERS) maxOf(1, (count * tweaks.herbivoreMul).toInt()) else count
+            val c = when {
+                key in PREDATOR_KEYS -> maxOf(1, kotlin.math.round(base * eco.predatorMul).toInt())
+                key in GRAZERS -> maxOf(1, kotlin.math.round(base * eco.grazerMul).toInt())
+                else -> base
+            }
             repeat(c) {
                 val a = rng.nextFloat() * TAU
                 val d = near + (far - near) * rng.nextFloat()
@@ -230,6 +237,10 @@ object SurfaceEcology {
         PlanetBiome.GAS -> "wind_jelly"; PlanetBiome.DEAD -> "ash_crow"; PlanetBiome.LONELY -> "silent_watcher"; else -> "star_monk"
     }
     private val PREY = setOf("horn_deer", "moss_hopper", "root_boar", "frost_hare")
+    // v2.75: the roaming hunters each biome fields — the ones weather sends home.
+    private val PREDATOR_KEYS = setOf(
+        "fang_wolf", "lava_serpent", "white_stalker", "thunder_eel", "grave_mimic", "ruin_parasite",
+    )
     // Grazers/herds thinned by a disrupted world's herbivoreMul (WildRole PREY/HERD, plant/energy diets).
     private val GRAZERS = setOf(
         "horn_deer", "moss_hopper", "frost_hare", "sleeping_calf", "ice_muskox",
