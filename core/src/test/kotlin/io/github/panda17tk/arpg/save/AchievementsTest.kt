@@ -30,6 +30,20 @@ class AchievementsTest {
         assertEquals(Achievements.count() + 1, lines.size) // tally line + one line per unlock
     }
 
+    @Test fun `the badge counts only what the record screen has not shown`() {
+        // v2.73: markSeen() zeroes the badge; a fresh unlock raises it by exactly one.
+        Achievements.unlock(Achievement.FIRST_LANDING)
+        Achievements.markSeen()
+        assertEquals(0, Achievements.unseenCount())
+        val fresh = Achievement.entries.firstOrNull { !Achievements.has(it) }
+        if (fresh != null) {
+            Achievements.unlock(fresh)
+            assertEquals(1, Achievements.unseenCount())
+            Achievements.markSeen()
+            assertEquals(0, Achievements.unseenCount())
+        }
+    }
+
     @Test fun `every achievement has a calm title and description`() {
         for (a in Achievement.entries) {
             assertTrue(a.title.isNotBlank() && a.desc.isNotBlank())

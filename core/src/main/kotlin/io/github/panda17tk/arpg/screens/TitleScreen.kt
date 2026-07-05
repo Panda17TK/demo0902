@@ -162,6 +162,12 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             shapes.color = Color(0.05f, 0.07f, 0.11f, 0.85f)
             shapes.rect(b.x, b.y, b.w, b.h)
         }
+        // v2.73 通知バッジ: unseen unlocks glow on the 記録 chip's shoulder
+        val unseen = Achievements.unseenCount()
+        if (unseen > 0) {
+            shapes.color = Color(1f, 0.72f, 0.30f, 0.95f)
+            shapes.circle(rec.x + rec.w - 4f, rec.y + rec.h - 2f, 9f, 16)
+        }
         shapes.end()
 
         batch.projectionMatrix = viewport.camera.combined
@@ -183,6 +189,12 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         (buttons + rec + set).forEach { b ->
             glyph.setText(font, b.label)
             font.draw(batch, glyph, b.centerX - glyph.width / 2f, b.centerY + glyph.height / 2f)
+        }
+        if (unseen > 0) { // v2.73: the count sits inside the badge
+            font.color = Color(0.08f, 0.06f, 0.03f, 1f)
+            glyph.setText(font, if (unseen > 9) "9+" else "$unseen")
+            font.draw(batch, glyph, rec.x + rec.w - 4f - glyph.width / 2f, rec.y + rec.h - 2f + glyph.height / 2f)
+            font.color = Color.WHITE
         }
         font.color = cSub
         if (Scores.simBestWave > 0) { // v2.62 訓練スコアボード
@@ -344,6 +356,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             }
             if (rec.contains(tmp.x, tmp.y)) { // v2.64 記録
                 showRecords = true
+                Achievements.markSeen() // v2.73: opening the record clears the badge
                 Sfx.play("scan")
                 return
             }

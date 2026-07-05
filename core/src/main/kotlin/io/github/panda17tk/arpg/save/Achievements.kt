@@ -32,8 +32,10 @@ enum class Achievement(val title: String, val desc: String) {
 object Achievements {
     private const val PREFS = "arpg-achievements"
     private const val KEY = "unlocked.v1"
+    private const val KEY_SEEN = "seen.v1" // v2.73: how many unlocks the player has looked at
 
     private val unlocked = mutableSetOf<Achievement>()
+    private var seen = 0 // v2.73: cached so the title badge never reads Preferences per frame
 
     fun load() {
         unlocked.clear()
@@ -42,6 +44,7 @@ object Achievements {
             text.split(',').forEach { name ->
                 Achievement.entries.firstOrNull { it.name == name }?.let { unlocked.add(it) }
             }
+            seen = Gdx.app.getPreferences(PREFS).getInteger(KEY_SEEN, 0)
         } catch (_: Throwable) { /* keep in-memory */ }
     }
 
@@ -59,6 +62,19 @@ object Achievements {
             p.flush()
         } catch (_: Throwable) { /* persist best-effort */ }
         return true
+    }
+
+    /** v2.73 通知バッジ: unlocks the player has not yet opened the 記録 screen to see. */
+    fun unseenCount(): Int = (unlocked.size - seen).coerceAtLeast(0)
+
+    /** v2.73: the 記録 screen was opened — everything unlocked so far counts as seen. */
+    fun markSeen() {
+        seen = unlocked.size
+        try {
+            val p = Gdx.app.getPreferences(PREFS)
+            p.putInteger(KEY_SEEN, seen)
+            p.flush()
+        } catch (_: Throwable) { /* persist best-effort */ }
     }
 
     /** Logbook lines: the tally + each unlocked title (locked ones stay unspoken). */
