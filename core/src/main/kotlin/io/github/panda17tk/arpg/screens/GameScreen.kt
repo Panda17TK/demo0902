@@ -93,6 +93,8 @@ import io.github.panda17tk.arpg.sim.TakeoffReward
 import io.github.panda17tk.arpg.sim.Tuning
 import io.github.panda17tk.arpg.sim.WorldMode
 import io.github.panda17tk.arpg.sim.WorldState
+import io.github.panda17tk.arpg.sim.Weather
+import io.github.panda17tk.arpg.sim.WeatherKind
 import io.github.panda17tk.arpg.sim.WreckLog
 import io.github.panda17tk.arpg.ui.HudLayout
 import io.github.panda17tk.arpg.ui.InvTab
@@ -171,6 +173,11 @@ class GameScreen(
     private var lastHp = Float.NaN
     private var lastKills = 0
     private val ambHeat = CombatHeat() // v2.67 状況反応: combat drives the pulse layer
+    // v2.74 天候: cached per landing (pid+biome key); weatherT is cosmetic time, never sim time.
+    private var weatherKind = WeatherKind.CLEAR
+    private var weatherPid = Long.MIN_VALUE
+    private var weatherBiome: PlanetBiome? = null
+    private var weatherT = 0f
     private var prevOver = false
     private var newBest = false
 
@@ -458,6 +465,51 @@ class GameScreen(
         syncAmbience() // v2.63: space ↔ surface swap the ambient loop
     }
 
+    /** v2.74 天候: purely cosmetic surface weather — deterministic per planet, pure in time. */
+    private fun drawWeather(delta: Float) {
+        if (simMode || gw.worldState.mode != WorldMode.SURFACE) return
+        val pid = session.landedPlanetId ?: return
+        val b = gw.worldState.biome ?: return
+        if (pid != weatherPid || b != weatherBiome) {
+            weatherKind = Weather.kindFor(pid, b)
+            weatherPid = pid; weatherBiome = b
+        }
+        if (weatherKind == WeatherKind.CLEAR) return
+        weatherT += delta
+        val p = Weather.paramsFor(weatherKind)
+        hudViewport.apply()
+        shapes.projectionMatrix = hudViewport.camera.combined
+        val w = hudViewport.worldWidth; val h = hudViewport.worldHeight
+        Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND)
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
+        when (weatherKind) { // a faint wash so the whole scene reads the climate
+            WeatherKind.RAIN -> shapes.setColor(0.10f, 0.15f, 0.30f, 0.06f)
+            WeatherKind.SNOW -> shapes.setColor(0.85f, 0.90f, 1f, 0.045f)
+            WeatherKind.ASH -> shapes.setColor(0.25f, 0.18f, 0.12f, 0.06f)
+            WeatherKind.DUSTWIND -> shapes.setColor(0.50f, 0.42f, 0.25f, 0.05f)
+            WeatherKind.CLEAR -> {}
+        }
+        shapes.rect(0f, 0f, w, h)
+        when (weatherKind) {
+            WeatherKind.RAIN -> shapes.setColor(0.60f, 0.75f, 0.95f, 0.35f)
+            WeatherKind.SNOW -> shapes.setColor(0.95f, 0.97f, 1f, 0.50f)
+            WeatherKind.ASH -> shapes.setColor(0.55f, 0.50f, 0.48f, 0.40f)
+            WeatherKind.DUSTWIND -> shapes.setColor(0.75f, 0.68f, 0.50f, 0.30f)
+            WeatherKind.CLEAR -> {}
+        }
+        for (i in 0 until p.count) {
+            val (fx, fy) = Weather.pos(i, weatherT, p)
+            val x = fx * w + Weather.sway(i, weatherT, p)
+            val y = fy * h
+            if (p.streak) { // a short trail along the motion of the last ~60ms
+                shapes.rectLine(x, y, x - p.driftPerSec * w * 0.06f, y + p.fallPerSec * h * 0.06f, p.size)
+            } else {
+                shapes.circle(x, y, p.size, 6)
+            }
+        }
+        shapes.end()
+    }
+
     /** True when the player is standing on the surface escape pad (the return point). */
     private fun playerOnEscapePad(): Boolean {
         val pad = gw.worldState.escapePad ?: return false
@@ -648,6 +700,7 @@ class GameScreen(
         worldViewport.apply()
         scene.draw(shapes, batch, font, camera, gw, animTime, pose, memoryTones)
 
+        drawWeather(delta) // v2.74: the planet's climate, between the world and the HUD
         drawHud(paused, sta, staMax, overheat)
     }
 
