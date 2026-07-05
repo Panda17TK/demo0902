@@ -99,7 +99,9 @@ class ProjectileSystem(private val mobGrid: SpatialGrid<Entity>) :
                     val dist = hypot(ddx, ddy)
                     val nx = if (dist > 0f) ddx / dist else 1f
                     val ny = if (dist > 0f) ddy / dist else 0f
-                    MobDamage.hurt(mobH, mobV, mobA, mobDodge, b.dmg, nx, ny, 160f, rng.nextFloat())
+                    if (MobDamage.hurt(mobH, mobV, mobA, mobDodge, b.dmg, nx, ny, 160f, rng.nextFloat())) {
+                        fx.spawnPop(mobT.x, mobT.y - mobB.halfH - 6f, b.dmg.toInt(), popShot) // v2.85
+                    }
                     mobHit = true
                 }
             }
@@ -156,10 +158,13 @@ class ProjectileSystem(private val mobGrid: SpatialGrid<Entity>) :
                     val mobDodge = with(world) { mobEntity[Mob].def.dodge }
                     val nx = if (dist > 0f) ddx / dist else 1f
                     val ny = if (dist > 0f) ddy / dist else 0f
-                    MobDamage.hurt(mobH, mobV, mobA, mobDodge, dmg, nx, ny, 280f * fall, rng.nextFloat())
+                    if (MobDamage.hurt(mobH, mobV, mobA, mobDodge, dmg, nx, ny, 280f * fall, rng.nextFloat())) {
+                        fx.spawnPop(mobT.x, mobT.y - 12f, dmg.toInt(), popBlast, 1.15f) // v2.85
+                    }
                 }
             }
         }
+        fx.hitstop(0.03f) // v2.85: a blast holds the frame for a beat
         // v2.80: a blast this size earns its show — three spark rings, a flash, a real kick.
         fx.addShake(0.34f, 13f)
         fx.spawnSparks(ex, ey, 26, Color.valueOf("ffb060"))
@@ -170,5 +175,7 @@ class ProjectileSystem(private val mobGrid: SpatialGrid<Entity>) :
 
     companion object {
         private const val HOMING_RANGE = 320f // v2.40: seeker rounds track enemies within this radius
+        private val popShot = Color.valueOf("eaf4ff")  // v2.85: gunfire numbers, bullet-core white
+        private val popBlast = Color.valueOf("ffc070") // v2.85: blast numbers, explosion amber
     }
 }

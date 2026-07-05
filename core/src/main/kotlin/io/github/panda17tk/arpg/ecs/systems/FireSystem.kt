@@ -78,6 +78,8 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
         val gradeWall = gradeItem?.wallDmgMul ?: 1f
         val aim = atan2(f.y, f.x)
         val dirX = cos(aim); val dirY = sin(aim)
+        // v2.85: every shot kicks the camera back along the barrel — weight by weapon class.
+        val kick = when (def.id) { "shotgun" -> 5f; "beam" -> 4f; "grenade" -> 3f; "mg" -> 1.2f; else -> 2f }
 
         when (def.id) {
             "beam" -> {
@@ -87,6 +89,7 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
                 }
                 input.fireReleaseT = 0f // the buffered release is consumed by this shot (v2.42)
                 cd.shoot = def.fireRate * mods.fireMul * gradeFireRate
+                fx.addKick(-dirX * kick, -dirY * kick)
                 // v2.39: cash in the charge — damage up to 2×, the ray visibly fattens, and the
                 // pierce corridor widens with it. (The beam always pierces every mob on the ray.)
                 val charge = cd.beamCharge
@@ -111,7 +114,10 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
                     val mobV = with(world) { mobEntity[Velocity] }
                     val mobA = with(world) { mobEntity[MobAction] }
                     val mobDodge = with(world) { mobEntity[Mob].def.dodge }
-                    MobDamage.hurt(mobH, mobV, mobA, mobDodge, def.dmg * mods.gunMul * gearGun * chargeDmg, 0f, 0f, 0f, rng.nextFloat())
+                    val beamDealt = def.dmg * mods.gunMul * gearGun * chargeDmg
+                    if (MobDamage.hurt(mobH, mobV, mobA, mobDodge, beamDealt, 0f, 0f, 0f, rng.nextFloat())) {
+                        fx.spawnPop(mobT.x, mobT.y - mobB.halfH - 6f, beamDealt.toInt(), popBeam) // v2.85
+                    }
                 }
 
                 // Beam doesn't pierce walls: it stops at one and detonates. One-shot the hit wall and carve a
@@ -143,6 +149,7 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
                 if (w.mag <= 0) return
                 input.fireReleaseT = 0f // the buffered release is consumed by this shot (v2.42)
                 w.mag--; cd.shoot = def.fireRate * mods.fireMul * gradeFireRate
+                fx.addKick(-dirX * kick, -dirY * kick)
                 world.entity {
                     it += Transform(x = t.x + dirX * Tuning.MUZZLE_OFFSET, y = t.y + dirY * Tuning.MUZZLE_OFFSET)
                     it += Grenade(dirX * config.player.grenadeSpeed, dirY * config.player.grenadeSpeed, config.player.grenadeFuse, blastMul = gradeBlast)
@@ -151,6 +158,7 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
             else -> {
                 if (w.mag <= 0) return
                 w.mag--; cd.shoot = def.fireRate * mods.fireMul * gradeFireRate
+                fx.addKick(-dirX * kick, -dirY * kick)
                 // v2.40 variants: the equipped gun shapes the ballistics — spread, muzzle velocity, homing.
                 val spread = def.spread * (gradeItem?.spreadMul ?: 1f)
                 val bulletSpeed = config.player.bulletSpeed * (gradeItem?.bulletSpeedMul ?: 1f)
@@ -168,6 +176,7 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
     }
 
     companion object {
+        private val popBeam = com.badlogic.gdx.graphics.Color.valueOf("9fe8ff") // v2.85: beam numbers, emitter cyan
         private const val BEAM_RANGE = 1400f    // doubled (was 700) — gun range ×2
         private const val BEAM_CHARGE_TIME = 1.4f // seconds of aiming for a full charge (v2.39)
         private const val BEAM_CHARGE_DMG = 1f    // full charge = +100% damage

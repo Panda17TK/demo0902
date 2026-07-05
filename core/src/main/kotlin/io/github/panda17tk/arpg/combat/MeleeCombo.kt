@@ -29,6 +29,9 @@ object MeleeCombo {
     /** FX budget per step — the show grows with the rhythm. */
     fun sparks(step: Int): Int = 4 + clamp(step) * 5
 
+    /** v2.85: the frame-hold on a LANDED swing — longer as the rhythm builds (0.03s → 0.07s). */
+    fun hitstop(step: Int): Float = 0.03f + 0.01f * (clamp(step) - 1)
+
     /** The step the next swing lands at, given the current [step] and whether it chained. */
     fun nextStep(step: Int, chained: Boolean): Int =
         if (chained) (step + 1).coerceAtMost(MAX_STEP) else 1
