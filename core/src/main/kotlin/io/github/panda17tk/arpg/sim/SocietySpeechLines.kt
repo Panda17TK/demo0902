@@ -12,17 +12,50 @@ enum class SocietySpeechTrigger {
  */
 object SocietySpeechLines {
     private val LINES = mapOf(
-        SocietySpeechTrigger.ChildHarmed to listOf("弱きものに手を出したな", "子らを奥へ", "その名を覚えた"),
-        SocietySpeechTrigger.ChildKilled to listOf("子を殺したな", "許さぬ", "星がその罪を見ていた", "第4条違反を記録した。星は消去APIを持たない"),
-        SocietySpeechTrigger.PredatorRepelled to listOf("……今のは、我らの子を守ったのか", "借りはできた", "森は見ていた"),
-        SocietySpeechTrigger.ApexKilled to listOf("森の主が沈んだ", "これで均衡は崩れる", "お前は勝った。だが星は痩せる"),
-        SocietySpeechTrigger.NestDestroyed to listOf("巣が、壊された", "卵を、よくも", "生まれる前に奪うのか"),
-        SocietySpeechTrigger.MercyHigh to listOf("撃つな。この者は子を救った", "ただの狩人ではない", "客人として迎えよ"),
-        SocietySpeechTrigger.HostilityHigh to listOf("警告はいらない", "来たぞ、子殺しだ", "星がその名を拒んでいる"),
-        SocietySpeechTrigger.RelicTaken to listOf("聖宝を持ち去る気か", "それは我らのものだ", "返せ", "それは聖宝ではない。鍵だ。持ち出せば扉は閉じる"),
-        SocietySpeechTrigger.ReturnVisitHostile to listOf("また来たか、子殺し", "よくも戻れたものだ", "今度は帰さぬ", "あなたの署名は拒否リストにある"),
-        SocietySpeechTrigger.ReturnVisitMerciful to listOf("戻ってきてくれたのか", "あの恩は忘れていない", "おかえり、星の友よ", "あなたの署名は白名簿に載っている"),
+        SocietySpeechTrigger.ChildHarmed to listOf(
+            "弱きものに手を出したな", "子らを奥へ", "その名を覚えた",
+            "泣き声が聞こえなかったのか", "傷は癒える。記憶は癒えない", // v2.82
+        ),
+        SocietySpeechTrigger.ChildKilled to listOf(
+            "子を殺したな", "許さぬ", "星がその罪を見ていた", "第4条違反を記録した。星は消去APIを持たない",
+            "その手で、よくも", "あの子の名を言えるのか", // v2.82
+        ),
+        SocietySpeechTrigger.PredatorRepelled to listOf(
+            "……今のは、我らの子を守ったのか", "借りはできた", "森は見ていた",
+            "礼を言う。慣れないが", "今夜は火にあたっていけ", // v2.82
+        ),
+        SocietySpeechTrigger.ApexKilled to listOf(
+            "森の主が沈んだ", "これで均衡は崩れる", "お前は勝った。だが星は痩せる",
+            "主なき森は騒がしくなる", "強さの証か。重い証だ", // v2.82
+        ),
+        SocietySpeechTrigger.NestDestroyed to listOf(
+            "巣が、壊された", "卵を、よくも", "生まれる前に奪うのか",
+            "母は一晩中鳴いていた", "来年の春は静かになる", // v2.82
+        ),
+        SocietySpeechTrigger.MercyHigh to listOf(
+            "撃つな。この者は子を救った", "ただの狩人ではない", "客人として迎えよ",
+            "この者の通り道を空けよ", "星がこの者を柔らかく照らしている", // v2.82
+        ),
+        SocietySpeechTrigger.HostilityHigh to listOf(
+            "警告はいらない", "来たぞ、子殺しだ", "星がその名を拒んでいる",
+            "灯りを消せ、あれが来た", "祈っても遅い", // v2.82
+        ),
+        SocietySpeechTrigger.RelicTaken to listOf(
+            "聖宝を持ち去る気か", "それは我らのものだ", "返せ", "それは聖宝ではない。鍵だ。持ち出せば扉は閉じる",
+            "台座が空だと、夜が長い", "持ち出した先で、それが泣くぞ", // v2.82
+        ),
+        SocietySpeechTrigger.ReturnVisitHostile to listOf(
+            "また来たか、子殺し", "よくも戻れたものだ", "今度は帰さぬ", "あなたの署名は拒否リストにある",
+            "去った時のまま帰れると思ったか", "この星の夜は、お前を覚えている", // v2.82
+        ),
+        SocietySpeechTrigger.ReturnVisitMerciful to listOf(
+            "戻ってきてくれたのか", "あの恩は忘れていない", "おかえり、星の友よ", "あなたの署名は白名簿に載っている",
+            "席は空けてある", "子らが、あなたの真似をして遊ぶのだ", // v2.82
+        ),
     )
+
+    /** v2.82: every line this object can speak (for content-size tests). */
+    fun lineCount(): Int = LINES.values.sumOf { it.size }
 
     /** Deterministic pick within the trigger's line set (salt varies the choice). Null if no lines. */
     fun pick(trigger: SocietySpeechTrigger, salt: Int): String? {

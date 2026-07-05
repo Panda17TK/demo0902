@@ -38,7 +38,7 @@ class SurfaceEcologyTest {
         // A lone leader (+maybe a monk) and a few rare wild drifters — still far emptier than a full biome.
         for (seed in 1L..8L) {
             val lonely = place(PlanetBiome.LONELY, seed).size
-            assertTrue(lonely <= 6, "lonely should stay sparse, was $lonely")
+            assertTrue(lonely <= 11, "lonely should stay sparse, was $lonely") // v2.82: a few more drifters, still far under a full biome
             assertTrue(lonely < place(PlanetBiome.NATURE, seed).size, "lonely should be sparser than nature")
         }
     }

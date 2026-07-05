@@ -11,8 +11,8 @@ class WorldBossTest {
         // the generic space roster stays overlord (boss) + brute, warlock (midbosses). beast_king is now NATURE.
         val space = GameConfig().enemies.values.filter { it.biome == null }
         assertEquals(1, space.count { it.tier == "boss" }, "expected exactly one generic space boss (overlord)")
-        // v2.41: artillery joins brute + warlock; v2.48: the auditor joins the rotation.
-        assertEquals(4, space.count { it.tier == "midboss" }, "expected four generic space midbosses (brute, warlock, artillery, auditor)")
+        // v2.41: artillery joins brute + warlock; v2.48: the auditor; v2.82: six more at the tail.
+        assertEquals(10, space.count { it.tier == "midboss" }, "expected ten generic space midbosses (4 historic + 6 v2.82)")
     }
 
     @Test fun `the boss has the full attack kit`() {

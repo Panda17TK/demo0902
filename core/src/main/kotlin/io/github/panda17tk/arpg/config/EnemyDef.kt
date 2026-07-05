@@ -52,6 +52,7 @@ data class EnemyDef(
     val canBeg: Boolean = false,
     val canHideAndRest: Boolean = false,
     val canSpeak: Boolean = false, // intelligent creatures emit short speech bubbles
+    val speechStyle: String = "", // v2.82: the voice's register ("mechanical"/"savage"/"archaic"/"polite"; "" = plain)
     val familyRole: FamilyRole = FamilyRole.NONE, // child/elder/guardian/king drive protection + morale
     val biome: PlanetBiome? = null, // null = generic (space waves); set = lives on that planet type (surface only)
     // Living Planets wildlife (mute animals, driven by WildlifeSystem). Legacy-safe defaults keep a creature HOSTILE.

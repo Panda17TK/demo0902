@@ -53,6 +53,7 @@ object SurfaceEcology {
                 repeat(2) { add("forest_guardian", GUARD) } // guardians ring the camp
                 repeat(2) { add("young_beast", OUTER) }     // young range out front
                 fac.add(Facility(FacilityKind.CAMP, cx, cy, CAMP_R))
+                add("thorn_sentinel", GUARD); add("seed_keeper", INNER); add("canopy_archer", OUTER) // v2.82
             }
             PlanetBiome.MAGMA -> {
                 add("volcano_king", 0f)
@@ -60,6 +61,7 @@ object SurfaceEcology {
                 repeat(2) { add("lava_thrower", OUTER) }
                 repeat(2) { add("ember_imp", OUTER) }
                 fac.add(Facility(FacilityKind.CRATER, cx, cy, CAMP_R)) // the king reigns from the crater
+                add("forge_priest", INNER); add("slag_brute", GUARD); add("ember_dancer", OUTER) // v2.82
             }
             PlanetBiome.ICE -> {
                 add("ice_queen", 0f)
@@ -67,6 +69,7 @@ object SurfaceEcology {
                 repeat(2) { add("ice_spearman", OUTER) }
                 repeat(3) { add("frostling", GUARD) }
                 fac.add(Facility(FacilityKind.DAIS, cx, cy, CAMP_R)) // the queen's icy dais
+                add("glacier_monk", INNER); add("shard_lancer", GUARD); add("aurora_seer", OUTER) // v2.82
             }
             PlanetBiome.GAS -> {
                 add("storm_core", 0f)
@@ -74,12 +77,14 @@ object SurfaceEcology {
                 repeat(2) { add("wind_jelly", FAR) }
                 add("gravity_wraith", OUTER)
                 fac.add(Facility(FacilityKind.EYE, cx, cy, CAMP_R * 1.2f)) // the eye of the storm
+                add("wind_cantor", INNER); add("storm_herald", OUTER); add("pressure_warden", GUARD) // v2.82
             }
             PlanetBiome.DEAD -> {
                 add("dead_oracle", 0f)
                 add("ruin_guard", GUARD)
                 repeat(2) { add("bone_drone", FAR) }
                 fac.add(Facility(FacilityKind.SHRINE, cx, cy, CAMP_R * 0.7f)) // the oracle's shrine
+                add("bone_scribe", INNER); add("grave_keeper", GUARD); add("ash_pilgrim", OUTER) // v2.82
                 repeat(3) {
                     val a = rng.nextFloat() * TAU; val d = GUARD + FAR * rng.nextFloat()
                     fac.add(Facility(FacilityKind.RUIN, clampX(campX + cos(a) * d), clampY(campY + sin(a) * d), Tuning.TILE * 0.9f))
@@ -89,6 +94,10 @@ object SurfaceEcology {
                 if (rng.nextFloat() < 0.5f) add("exiled_king", 0f) else add("lost_soldier", 0f)
                 if (rng.nextFloat() < 0.5f) add("star_monk", OUTER, passive = true)
                 fac.add(Facility(FacilityKind.SHRINE, cx, cy, CAMP_R * 0.6f)) // a lonely waymark
+                // v2.82: the asteroid's scattered rememberers — sometimes one of each drifts by
+                if (rng.nextFloat() < 0.6f) add("waymark_tender", OUTER, passive = true)
+                if (rng.nextFloat() < 0.5f) add("echo_hermit", FAR, passive = true)
+                if (rng.nextFloat() < 0.4f) add("stray_knight", FAR)
             }
         }
 
@@ -118,6 +127,9 @@ object SurfaceEcology {
                 wild("nest_mother", 1, WILD_MID, WILD_FAR)      // a nest guardian…
                 wild("forest_hatchling", 3, WILD_MID, WILD_FAR) // …with her young nearby
                 wild("forest_apex", 1, WILD_FAR, WILD_EDGE)     // the lone apex, far out
+                wild("river_otter", 2, WILD_NEAR, WILD_MID)     // v2.82: by the water, mostly
+                wild("thorn_tortoise", 2, WILD_NEAR, WILD_MID)
+                wild("bramble_lynx", 1, WILD_MID, WILD_FAR)
             }
             PlanetBiome.MAGMA -> {
                 wild("ash_lizard", 4, WILD_NEAR, WILD_FAR)      // skittish prey
@@ -125,6 +137,7 @@ object SurfaceEcology {
                 wild("basalt_ram", 3, WILD_NEAR, WILD_MID)      // a stone-eating herd
                 wild("lava_serpent", 2, WILD_MID, WILD_FAR)     // serpent hunters
                 wild("crater_hatchling", 3, WILD_MID, WILD_FAR) // fragile young
+                wild("ashwing", 3, WILD_NEAR, WILD_FAR)         // v2.82: a scattering flock
             }
             PlanetBiome.ICE -> {
                 wild("frost_hare", 4, WILD_NEAR, WILD_FAR)      // skittish prey
@@ -132,23 +145,30 @@ object SurfaceEcology {
                 wild("ice_muskox", 3, WILD_NEAR, WILD_MID)      // a shaggy herd
                 wild("white_stalker", 2, WILD_MID, WILD_FAR)    // stalking hunters
                 wild("frost_worm", 1, WILD_FAR, WILD_EDGE)      // the rare great worm at the top
+                wild("snow_owl", 2, WILD_NEAR, WILD_FAR)        // v2.82
+                wild("rime_elk", 2, WILD_NEAR, WILD_MID)
+                wild("rime_wolf", 1, WILD_MID, WILD_FAR)
             }
             PlanetBiome.GAS -> { // a floating, strange food web
                 wild("cloud_plankton", 6, WILD_NEAR, WILD_FAR)  // a drifting swarm
                 wild("storm_ray", 3, WILD_NEAR, WILD_MID)       // gliding herds
                 wild("thunder_eel", 2, WILD_MID, WILD_FAR)      // electric hunters
                 wild("gravity_whelp", 3, WILD_MID, WILD_FAR)    // frail young
+                wild("sky_grazer", 2, WILD_NEAR, WILD_MID)      // v2.82: slow floating herds
             }
             PlanetBiome.DEAD -> { // a quiet scavenger/mimic ecosystem — never crowded
                 wild("bone_rat", 3, WILD_NEAR, WILD_FAR)        // carrion rats
                 wild("ash_crow", 3, WILD_NEAR, WILD_FAR)        // a scavenger flock
                 wild("grave_mimic", 1, WILD_MID, WILD_FAR)      // a lone ambusher
                 wild("ruin_parasite", 2, WILD_MID, WILD_FAR)    // creeping parasites
+                wild("crypt_beetle", 2, WILD_NEAR, WILD_FAR)    // v2.82
+                wild("tomb_stalker", 1, WILD_MID, WILD_FAR)
             }
             PlanetBiome.LONELY -> { // rare, mostly-noncombat encounters
                 wild("star_moth", 2, WILD_NEAR, WILD_FAR)       // a drifting moth or two
                 wild("old_hound", 1, WILD_NEAR, WILD_MID)       // a lone old hound
                 if (rng.nextFloat() < 0.5f) wild("last_beast", 1, WILD_FAR, WILD_EDGE) // rarely, one last beast
+                wild("dust_skipper", 2, WILD_NEAR, WILD_FAR)    // v2.82: quick little scavengers
             }
         }
 
@@ -240,11 +260,14 @@ object SurfaceEcology {
     // v2.75: the roaming hunters each biome fields — the ones weather sends home.
     private val PREDATOR_KEYS = setOf(
         "fang_wolf", "lava_serpent", "white_stalker", "thunder_eel", "grave_mimic", "ruin_parasite",
+        "bramble_lynx", "rime_wolf", "tomb_stalker", // v2.82
     )
     // Grazers/herds thinned by a disrupted world's herbivoreMul (WildRole PREY/HERD, plant/energy diets).
     private val GRAZERS = setOf(
         "horn_deer", "moss_hopper", "frost_hare", "sleeping_calf", "ice_muskox",
         "basalt_ram", "ash_lizard", "ember_moth", "cloud_plankton", "storm_ray", "star_moth",
+        "river_otter", "thorn_tortoise", "ashwing", "snow_owl", "rime_elk", "sky_grazer",
+        "crypt_beetle", "dust_skipper", // v2.82
     )
     private fun removePrey(out: MutableList<EcologyPlacement>, n: Int) {
         var removed = 0; val it = out.iterator()
