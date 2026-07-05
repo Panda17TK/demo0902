@@ -40,7 +40,10 @@ class PickupSystem : IteratingSystem(family { all(Pickup, Transform) }) {
                 if (abs(pt.x - t.x) < pickR && abs(pt.y - t.y) < pickR) {
                     when (pk.kind) {
                         "blocks" -> p[Materials].blocks += pk.amount
-                        "dust" -> p[Materials].dust += pk.amount // 星屑 (v2.43)
+                        "dust" -> { // 星屑 (v2.43); v2.68: the visit's tally feeds the DUST quest
+                            p[Materials].dust += pk.amount
+                            worldState.questDust += pk.amount
+                        }
                         "shard" -> p[Materials].shards += pk.amount // ゲート鍵の断片 (v2.44)
                         "med" -> { val h = p[Health]; h.hp = minOf(h.hpMax, h.hp + pk.amount) }
                         "staminaInf" -> p[Buff].staminaInfT = 6f

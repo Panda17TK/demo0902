@@ -15,6 +15,11 @@ enum class Achievement(val title: String, val desc: String) {
     SYNC_50("復旧の兆し", "星間同期復旧が50%に達した"),
     BOUNTY_HUNTER("賞金稼ぎ", "賞金首を討ち取った"),
     DEEP_SURGE("深層乱流", "同期汚染 15 を生き延びた"),
+    // v2.68: four more entries in the service record (append-only — ids are the save format).
+    QUEST_PATRON("依頼人の信頼", "星の依頼を果たして離陸した"),
+    RELIC_KEEPER("遺物継承", "眠っていた遺物を持ち帰った"),
+    SYNC_90("通信回復目前", "星間同期復旧が90%に達した"),
+    HONED_MAX("鍛え上げ", "武器を+3まで研ぎ上げた"),
 }
 
 object Achievements {
