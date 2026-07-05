@@ -688,6 +688,10 @@ class GameScreen(
         gw.fx.update(delta)
         animTime += delta
         if (!gw.gameOver.isOver && !choosing && !paused) runTime += delta
+        // v2.69 観測依頼: surface time only ticks while actually playing the surface.
+        if (!gw.gameOver.isOver && !choosing && !paused && gw.worldState.mode == WorldMode.SURFACE) {
+            gw.worldState.questTime += delta
+        }
         return true
     }
 
@@ -905,6 +909,8 @@ class GameScreen(
         QuestKind.KILLS -> ws.questKills
         QuestKind.DUST -> ws.questDust
         QuestKind.CORE -> if (ws.coreVisited) 1 else 0
+        QuestKind.PROTECT -> ws.questPredators // v2.69
+        QuestKind.OBSERVE -> ws.questTime.toInt() // v2.69: whole seconds
     }
 
     /** v2.45 星の依頼: the quest chip, rebuilt only when progress toward the target changes (§14.2). */

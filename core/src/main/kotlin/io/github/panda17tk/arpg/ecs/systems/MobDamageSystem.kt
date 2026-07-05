@@ -7,6 +7,7 @@ import com.github.quillraven.fleks.World.Companion.family
 import io.github.panda17tk.arpg.ecs.components.Fx
 import io.github.panda17tk.arpg.ecs.components.GameOver
 import io.github.panda17tk.arpg.config.LifeKind
+import io.github.panda17tk.arpg.config.WildRole
 import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Mob
 import io.github.panda17tk.arpg.ecs.components.Mods
@@ -50,6 +51,10 @@ class MobDamageSystem(private val grid: SpatialGrid<Entity>) :
                 // v2.45 星の依頼: the visit's tallies quests are paid from at takeoff.
                 worldState.questKills++
                 if (big) worldState.questElites++
+            } else if (mob.def.wildRole == WildRole.PREDATOR) {
+                // v2.69 護衛: one less predator pressing on the children (whoever felled it —
+                // the ecosystem's own kills count too; the star only sees the pressure lift).
+                worldState.questPredators++
             }
             fx.spawnDeath(t.x, t.y, Color.valueOf(mob.def.color.removePrefix("#")), big)
             fx.addShake(if (big) 0.25f else 0.08f, if (big) 9f else 3.5f)

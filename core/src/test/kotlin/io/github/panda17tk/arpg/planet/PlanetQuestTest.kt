@@ -4,7 +4,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-/** v2.45/68 星の依頼: one deterministic request per planet, with sane targets and pay. */
+/** v2.45/68/69 星の依頼: one deterministic request per planet, with sane targets and pay. */
 class PlanetQuestTest {
     @Test fun `a planet's request is deterministic`() {
         assertEquals(PlanetQuest.questFor(42L, PlanetBiome.ICE), PlanetQuest.questFor(42L, PlanetBiome.ICE))
@@ -18,6 +18,8 @@ class PlanetQuestTest {
                 QuestKind.KILLS -> assertTrue(q.target in 8..16, "kills 8..16, got ${q.target}")
                 QuestKind.DUST -> assertTrue(q.target in 20..40, "dust 20..40, got ${q.target}")
                 QuestKind.CORE -> assertEquals(1, q.target, "the core asks exactly one visit")
+                QuestKind.PROTECT -> assertTrue(q.target in 2..3, "predators 2..3, got ${q.target}")
+                QuestKind.OBSERVE -> assertTrue(q.target in 45..90, "observe 45..90s, got ${q.target}")
             }
             assertTrue(q.rewardDust > 0)
             assertTrue(q.line.contains("依頼"))
@@ -30,9 +32,17 @@ class PlanetQuestTest {
     }
 
     @Test fun `every request kind actually appears in the pool`() {
-        // v2.68: the two quiet asks (DUST / CORE) must be reachable, not dead enum entries.
+        // v2.68/69: the quiet asks (DUST/CORE/PROTECT/OBSERVE) must be reachable, not dead entries.
         val seen = mutableSetOf<QuestKind>()
         for (id in 0L..300L) for (b in PlanetBiome.entries) seen.add(PlanetQuest.questFor(id, b).kind)
         assertEquals(QuestKind.entries.toSet(), seen)
+    }
+
+    @Test fun `the lonely asteroid never asks for an escort`() {
+        // v2.69: LONELY has no wildlife — a PROTECT request there could never be fulfilled.
+        for (id in 0L..300L) {
+            val q = PlanetQuest.questFor(id, PlanetBiome.LONELY)
+            assertTrue(q.kind != QuestKind.PROTECT, "planet $id asked LONELY for protection")
+        }
     }
 }
