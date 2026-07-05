@@ -34,6 +34,10 @@ class WorldState(
     /** v2.45 星の依頼: this visit's kill tallies (any hostile / elite tier) — reset with the WorldState. */
     var questKills: Int = 0,
     var questElites: Int = 0,
+    /** v2.68 星の依頼: dust picked up this visit + whether the memory core was stood before.
+     *  coreVisited is independent of coreLogShown so the quest works with 世界観ヒント off. */
+    var questDust: Int = 0,
+    var coreVisited: Boolean = false,
     /** v2.46 難破船: wrecked hulls adrift in the system — guarded loot caches worth boarding. */
     var wrecks: List<Pair<Float, Float>> = emptyList(),
     /** v2.48 惑星サーバー: the surface's memory core (Layer 1) — stand before it and it speaks once. */

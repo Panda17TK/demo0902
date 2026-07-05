@@ -424,10 +424,11 @@ class GameScreen(
             // v2.45 星の依頼: a fulfilled request pays dust at takeoff — same no-pay rule for child-killers.
             val quest = gw.worldState.biome?.let { b -> session.landedPlanetId?.let { PlanetQuest.questFor(it, b) } }
             if (quest != null && !soc.childKilled) {
-                val prog = when (quest.kind) { QuestKind.ELITES -> gw.worldState.questElites; QuestKind.KILLS -> gw.worldState.questKills }
+                val prog = questProgress(quest.kind, gw.worldState)
                 if (prog >= quest.target) {
                     with(gw.world) { gw.player[Materials].dust += quest.rewardDust }
                     toast = listOfNotNull(toast, "依頼達成 +${quest.rewardDust}屑").joinToString("　")
+                    tryUnlock(Achievement.QUEST_PATRON) // v2.68
                 }
             }
             rewardToast = toast
@@ -440,6 +441,8 @@ class GameScreen(
                 "王殺し" -> tryUnlock(Achievement.KING_SLAYER)
             }
             if (syncPercent() >= 50) tryUnlock(Achievement.SYNC_50)
+            if (syncPercent() >= 90) tryUnlock(Achievement.SYNC_90) // v2.68
+            if (session.memory.memories.values.any { it.relicClaimed }) tryUnlock(Achievement.RELIC_KEEPER) // v2.68
             transitionWorld(WorldMode.SPACE, null, seed, spawn) // same system, beside the planet we left
         }
     }
@@ -580,10 +583,12 @@ class GameScreen(
         }
         // v2.48 惑星サーバー: standing before the memory core makes it speak — once per landing,
         // into the surface event feed (the same channel the society's memory already uses).
-        if (!paused && loreHints && gw.worldState.mode == WorldMode.SURFACE && !gw.worldState.coreLogShown) {
+        if (!paused && gw.worldState.mode == WorldMode.SURFACE && (!gw.worldState.coreVisited || !gw.worldState.coreLogShown)) {
             gw.worldState.memoryCore?.let { core ->
                 val (cpx, cpy) = with(gw.world) { val t = gw.player[Transform]; t.x to t.y }
                 if (hypot(cpx - core.first, cpy - core.second) < Tuning.TILE * 2f) {
+                    gw.worldState.coreVisited = true // v2.68: the CORE quest counts the visit itself
+                    if (!loreHints || gw.worldState.coreLogShown) return@let
                     gw.worldState.coreLogShown = true
                     gw.worldState.recentEvents.add(
                         PlanetEvent(
@@ -894,12 +899,20 @@ class GameScreen(
         }
     }
 
+    /** v2.45/68 星の依頼: this visit's progress toward a request of [kind]. */
+    private fun questProgress(kind: QuestKind, ws: WorldState): Int = when (kind) {
+        QuestKind.ELITES -> ws.questElites
+        QuestKind.KILLS -> ws.questKills
+        QuestKind.DUST -> ws.questDust
+        QuestKind.CORE -> if (ws.coreVisited) 1 else 0
+    }
+
     /** v2.45 星の依頼: the quest chip, rebuilt only when progress toward the target changes (§14.2). */
     private fun questChip(ws: WorldState): String? {
         val pid = session.landedPlanetId ?: return null
         val b = ws.biome ?: return null
         val q = PlanetQuest.questFor(pid, b)
-        val prog = when (q.kind) { QuestKind.ELITES -> ws.questElites; QuestKind.KILLS -> ws.questKills }
+        val prog = questProgress(q.kind, ws)
         val key = prog.coerceAtMost(q.target)
         if (key != questChipKey) {
             questChip = if (prog >= q.target) "依頼達成 — 離陸で${q.rewardDust}屑" else "${q.line}　$prog/${q.target}"
@@ -1031,6 +1044,7 @@ class GameScreen(
         with(gw.world) { val h = gw.player[Health]; h.hp = h.hpMax } // the jump mends the hull
         tryUnlock(Achievement.FIRST_JUMP) // v2.62
         if (syncPercent() >= 50) tryUnlock(Achievement.SYNC_50)
+        if (syncPercent() >= 90) tryUnlock(Achievement.SYNC_90) // v2.68
         rewardToast = "第${session.spaceSeed}星系に到達した"
         rewardToastT = TOAST_TIME
         Sfx.play("takeoff")
@@ -1149,6 +1163,7 @@ class GameScreen(
                     val up = GearCraft.honed(item)
                     gear.backpack.add(up)
                     tryUnlock(Achievement.FIRST_HONE) // v2.62
+                    if (GearCraft.level(up.id) >= GearCraft.MAX_LEVEL) tryUnlock(Achievement.HONED_MAX) // v2.68
                     invNote = "合成: ${item.name} ×2 → ${up.name}"; invNoteT = SAVED_NOTE_TIME
                     Sfx.play("levelup")
                 }
