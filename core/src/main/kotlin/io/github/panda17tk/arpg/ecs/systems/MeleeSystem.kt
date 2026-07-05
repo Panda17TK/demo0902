@@ -120,7 +120,15 @@ class MeleeSystem(private val mobGrid: SpatialGrid<Entity>) :
                     val ny = if (dist > 0f) ddy / dist else 0f
                     val hpBefore = mobH.hp
                     val dealt = outcome.dmg * mods.meleeMul * gearMelee.meleeDmgMul * MeleeCombo.dmgMul(comboStep) // v2.80
-                    MobDamage.hurt(mobH, mobV, mobA, mobDodge, dealt, nx, ny, 450f * gearMelee.meleeKbMul, rng.nextFloat())
+                    val landed = MobDamage.hurt(mobH, mobV, mobA, mobDodge, dealt, nx, ny, 450f * gearMelee.meleeKbMul, rng.nextFloat())
+                    if (landed) { // v2.85: the hold + the number sell the swing
+                        fx.hitstop(MeleeCombo.hitstop(comboStep))
+                        fx.spawnPop(
+                            mobT.x, mobT.y - mobB.halfH - 6f, dealt.toInt(),
+                            if (comboStep >= MeleeCombo.MAX_STEP) comboGold else if (comboStep >= 3) comboHot else comboCool,
+                            1f + 0.07f * (comboStep - 1),
+                        )
+                    }
                     // v2.42: a leeching arm drinks back a fraction of the damage that actually landed.
                     if (gearMelee.meleeLifesteal > 0f && mobH.hp < hpBefore) {
                         val ph = entity[Health]

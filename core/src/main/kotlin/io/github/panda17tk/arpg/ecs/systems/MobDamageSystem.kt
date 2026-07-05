@@ -56,8 +56,11 @@ class MobDamageSystem(private val grid: SpatialGrid<Entity>) :
                 // the ecosystem's own kills count too; the star only sees the pressure lift).
                 worldState.questPredators++
             }
-            fx.spawnDeath(t.x, t.y, Color.valueOf(mob.def.color.removePrefix("#")), big)
+            // v2.85 段階的な死: the body squashes out, then bursts (big ones chain three blasts) —
+            // and a big kill earns the slow-motion exhale (the player's kills only, not the wild's).
+            fx.spawnDeathStaged(t.x, t.y, mob.def.w, mob.def.h, Color.valueOf(mob.def.color.removePrefix("#")), big)
             fx.addShake(if (big) 0.25f else 0.08f, if (big) 9f else 3.5f)
+            if (big && !wild) fx.slowmo(0.30f)
             // v2.45: a magnetic-storm wave shakes double dust from every kill.
             val dustMul = if (waveState.event == WaveEvent.STORM) WaveEvents.STORM_DUST_MUL else 1
             if (!wild) Pickups.dropOnKill(world, rng, t.x, t.y, big, worldState.spawnTweaks.bonusMaterialChance, dustMul)

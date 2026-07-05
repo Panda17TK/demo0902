@@ -16,10 +16,13 @@ class WorldGameOverTest {
         assertTrue(gw.gameOver.isOver)
     }
 
-    @Test fun `mob death spawns fx particles`() {
+    @Test fun `mob death stages a corpse, then bursts into gib particles`() {
         val gw = WorldFactory.create(InputState(), seed = 1L)
         gw.world.family { all(Mob, Health) }.forEach { e -> with(gw.world) { e[Health].hp = -1f } }
         gw.world.update(1f / 60f)
-        assertTrue(gw.fx.particles.isNotEmpty(), "death should spawn gib particles")
+        // v2.85 段階的な死: the body squashes out first; the gibs burst a tenth of a second later.
+        assertTrue(gw.fx.corpses.isNotEmpty(), "death should stage a corpse")
+        gw.fx.update(0.15f) // render-side time — the delayed burst fires
+        assertTrue(gw.fx.particles.isNotEmpty(), "the staged burst should spawn gib particles")
     }
 }

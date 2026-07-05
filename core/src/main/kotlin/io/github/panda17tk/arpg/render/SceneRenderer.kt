@@ -40,6 +40,7 @@ class PlayerPose(
     val x: Float, val y: Float, val faceX: Float, val faceY: Float,
     val dashing: Boolean, val hit: Boolean, val muzzle: Boolean,
     val weaponType: String? = null, val armorId: String? = null, val oc: Boolean = false,
+    val moving: Boolean = false, // v2.85: drives the walk bob / idle breath
 )
 
 /**
@@ -120,7 +121,7 @@ class SceneRenderer {
         drawMobs(shapes, gw, animTime)
         Actors.drawPlayer(
             shapes, pose.x, pose.y, pose.faceX, pose.faceY, pose.dashing, pose.hit, pose.muzzle, animTime,
-            pose.weaponType, pose.armorId, pose.oc,
+            pose.weaponType, pose.armorId, pose.oc, pose.moving,
         )
         drawProjectiles(shapes, gw, animTime)
         drawFx(shapes, gw)
@@ -399,6 +400,14 @@ class SceneRenderer {
 
     /** Death-burst particles (gibs shrink as they expire), dash afterimages and beam flashes. */
     private fun drawFx(shapes: ShapeRenderer, gw: GameWorld) {
+        gw.fx.corpses.forEach { c -> // v2.85: the body squashes flat and pales before it bursts
+            val k = (1f - c.t / c.life).coerceIn(0f, 1f)
+            val ch = c.h * (0.15f + 0.85f * k)
+            val cw = c.w * (1f + 0.35f * (1f - k))
+            tmpC.set(c.color).lerp(Color.WHITE, 0.5f * (1f - k)); tmpC.a = 0.35f + 0.55f * k
+            shapes.color = tmpC
+            Draw.roundedRect(shapes, c.x - cw / 2f, c.y + c.h / 2f - ch, cw, ch, 4f)
+        }
         gw.fx.particles.forEach { p ->
             val k = 1f - p.t / p.life
             if (k > 0f) { shapes.color = p.color; shapes.circle(p.x, p.y, p.size * k, 8) }
@@ -751,6 +760,17 @@ class SceneRenderer {
                 }
             }
         }
+        // v2.85 damage pops: small numbers floating off the wound, fading over their last third.
+        val popC = tmpC
+        gw.fx.pops.forEach { pop ->
+            val k = pop.t / pop.life
+            popC.set(pop.color); popC.a = if (k > 0.66f) (1f - k) * 3f else 1f
+            font.color = popC
+            font.data.setScale(0.16f * pop.scale, -0.16f * pop.scale)
+            glyphLayout.setText(font, pop.text)
+            font.draw(batch, glyphLayout, pop.x - glyphLayout.width / 2f, pop.y)
+        }
+        font.color = Color.WHITE
         font.data.setScale(bubScaleX, bubScaleY)
         batch.end()
     }

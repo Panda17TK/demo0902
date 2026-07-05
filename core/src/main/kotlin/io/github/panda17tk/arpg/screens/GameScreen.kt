@@ -255,6 +255,7 @@ class GameScreen(
 
     // v2.44: the fade that is currently running ends in a system jump, not a landing/takeoff.
     private var pendingJump = false
+    private var fadeZoomDir = 0f // v2.85: landing dives in (-), takeoff/jump pulls back (+)
 
     // Memory tint per planet id (LP v2.30/10c) — rebuilt only when memory can change (transitions/forget).
     private var memoryTones: Map<Long, Int> = emptyMap()
@@ -592,9 +593,12 @@ class GameScreen(
         if (overlay == Overlay.NONE && !choosing && !gw.gameOver.isOver && !fade.blocksInput && input.land) {
             if (canJumpNow()) { // v2.44: standing at the gate with enough shards → jump beats landing
                 fade.start(); pendingJump = true
+                fadeZoomDir = 0.14f // v2.85: a jump pulls the camera back
                 Sfx.play("takeoff")
             } else if (canTransitionNow()) {
                 fade.start()
+                // v2.85: landing dives toward the ground; takeoff pulls back into the void.
+                fadeZoomDir = if (gw.worldState.mode == WorldMode.SPACE) -0.10f else 0.14f
                 Sfx.play(if (gw.worldState.mode == WorldMode.SPACE) "land" else "takeoff")
             }
         }
@@ -732,13 +736,19 @@ class GameScreen(
         // v2.37: the gear look — the active weapon shapes the drawn gun, armor tints the suit, OC burns blue.
         val gearLook = with(gw.world) { gw.player[Gear].loadout }
         val activeWeapon = with(gw.world) { gw.player[Arsenal].current.def.id }
+        val pMoving = with(gw.world) { // v2.85: drives the walk bob (interp distance this frame)
+            val t = gw.player[Transform]; hypot(t.x - t.prevX, t.y - t.prevY) > 0.06f
+        }
         val pose = PlayerPose(
             px, py, fx, fy, dashing = input.dash && sta > 0f, hit = playerHit, muzzle = input.fire,
             weaponType = activeWeapon, armorId = gearLook.armor?.id, oc = gearLook.hasOverclockThruster,
+            moving = pMoving,
         )
 
         updateCamera(delta, px, py, fx, fy)
         if (gw.fx.shakeMag > 0f) { camera.position.add(gw.fx.shakeX(), gw.fx.shakeY(), 0f); camera.update() }
+        // v2.85: the recoil kick — a directional punch that snaps back in a tenth of a second.
+        if (gw.fx.kickX != 0f || gw.fx.kickY != 0f) { camera.position.add(gw.fx.kickX, gw.fx.kickY, 0f); camera.update() }
 
         ScreenUtils.clear(0.06f, 0.07f, 0.10f, 1f)
 
@@ -1616,7 +1626,10 @@ class GameScreen(
     }
 
     private fun step(delta: Float) {
-        val dt = minOf(Constants.MAX_DT, delta)
+        // v2.85: hitstop freezes the accumulator feed, slow-mo starves it — the sim itself
+        // still runs whole FIXED_DT steps, so determinism is untouched.
+        val dt = minOf(Constants.MAX_DT, delta) * gw.fx.simTimeScale()
+        if (dt <= 0f) return
         accumulator += dt
         var steps = 0
         while (accumulator >= Constants.FIXED_DT && steps < Constants.MAX_STEPS) {
@@ -1635,6 +1648,7 @@ class GameScreen(
         camX += (tgX - camX) * k
         camY += (tgY - camY) * k
         camera.position.set(camX, camY, 0f)
+        camera.zoom = 1f + fadeZoomDir * fade.alpha // v2.85: dive in on landing, pull back on takeoff
         camera.update()
     }
 

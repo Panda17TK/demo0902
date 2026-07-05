@@ -4,6 +4,7 @@ import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import io.github.panda17tk.arpg.config.FamilyRole
 import io.github.panda17tk.arpg.sim.Tuning
+import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.hypot
@@ -73,9 +74,21 @@ object Actors {
         s: ShapeRenderer, x: Float, y: Float, faceX: Float, faceY: Float,
         dashing: Boolean, hitFlash: Boolean, muzzle: Boolean, t: Float = 0f,
         weaponType: String? = null, armorId: String? = null, oc: Boolean = false,
+        moving: Boolean = false,
     ) {
         val r = Tuning.PLAYER_RADIUS; val w = r * 2f; val h = r * 2f
         val suit = suitColor(armorId)
+        // v2.85 squash & stretch: breath at rest, bob on the move, stretch through a dash,
+        // flinch squash on a hit — the feet stay planted (y-down: bottom edge fixed).
+        var wS = 1f; var hS = 1f; var yOff = 0f
+        when {
+            dashing -> if (abs(faceX) >= abs(faceY)) { wS = 1.16f; hS = 0.86f } else { wS = 0.86f; hS = 1.16f }
+            moving -> yOff = -abs(sin(t * 9f)) * 1.6f
+            else -> { hS = 1f + 0.035f * sin(t * 2.6f); wS = 2f - hS }
+        }
+        if (hitFlash) { wS *= 1.10f; hS *= 0.84f }
+        val bw = w * wS; val bh = h * hS
+        val by = y + (h - bh) / 2f + yOff
         s.color = SHADOW; ellipseC(s, x, y + h / 2f - 1f, w * 0.46f, h * 0.18f)
         if (dashing) {
             s.color = dashTmp.set(suit).also { it.a = 0.25f }; Draw.roundedRect(s, x - faceX * 8f - w / 2f, y - faceY * 8f - h / 2f, w, h, 5f)
@@ -93,9 +106,9 @@ object Actors {
         drawGun(s, x, y, faceX, faceY, weaponType)
         if (muzzle) { s.color = MUZZLE; Draw.orientedRect(s, x, y, faceX, faceY, 18f, 6f, 3.5f) }
         s.color = if (hitFlash) PLAYER_HIT else suit
-        Draw.roundedRect(s, x - w / 2f, y - h / 2f, w, h, 6f)
-        s.color = BELLY; Draw.roundedRect(s, x - w / 2f + 3f, y - h / 2f + 3f, w - 6f, h * 0.45f, 4f)
-        eyes(s, x, y, 4f, -2f, faceX, faceY, EYE_DARK, 1.5f, true)
+        Draw.roundedRect(s, x - bw / 2f, by - bh / 2f, bw, bh, 6f)
+        s.color = BELLY; Draw.roundedRect(s, x - bw / 2f + 3f, by - bh / 2f + 3f, bw - 6f, bh * 0.45f, 4f)
+        eyes(s, x, by, 4f, -2f, faceX, faceY, EYE_DARK, 1.5f, true)
     }
 
     /** Each weapon type gets its own silhouette: stub pistol, wide shotgun, long mg, glowing beam, grenade tube. */
@@ -145,13 +158,23 @@ object Actors {
 
     @Suppress("LongParameterList")
     fun drawMob(
-        s: ShapeRenderer, kind: String, tier: String, x: Float, y: Float, w: Float, h: Float, color: Color,
+        s: ShapeRenderer, kind: String, tier: String, x: Float, yIn: Float, wIn: Float, hIn: Float, color: Color,
         faceX: Float, faceY: Float, moving: Boolean, hitFlash: Boolean, dodge: Boolean,
         chargeProg: Float, enrage: Boolean, hpFrac: Float, animSeed: Float, time: Float,
         role: FamilyRole = FamilyRole.NONE, level: Int = 1,
     ) {
+        // v2.85 squash & stretch: breath at rest, bob on the move, flinch squash on a hit —
+        // every painter below sees the scaled body; the shadow stays grounded on the raw box.
+        var wS = 1f; var hS = 1f; var yOff = 0f
+        when {
+            hitFlash -> { wS = 1.10f; hS = 0.84f }
+            moving -> yOff = -abs(sin(time * 8f + animSeed)) * hIn * 0.05f
+            else -> { hS = 1f + 0.04f * sin(time * 2.2f + animSeed); wS = 2f - hS }
+        }
+        val w = wIn * wS; val h = hIn * hS
+        val y = yIn + (hIn - h) / 2f + yOff
         val elite = tier == "midboss" || tier == "boss"
-        s.color = SHADOW; ellipseC(s, x, y + h / 2f - 1f, w * 0.46f, h * 0.18f)
+        s.color = SHADOW; ellipseC(s, x, yIn + hIn / 2f - 1f, wIn * 0.46f, hIn * 0.18f)
         val base = when {
             dodge -> baseTmp.set(Color.WHITE).also { it.a = 0.55f }
             hitFlash -> baseTmp.set(Color.WHITE)
