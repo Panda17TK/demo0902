@@ -28,6 +28,9 @@ enum class Achievement(val title: String, val desc: String) {
     QUIET_VISIT("静かな来訪", "誰も傷つけずに星を発った"),
     BEAST_HUNTER("獣狩り", "ふたつの星で獣の王を討った"),
     CHAIN_PATRON("星の常連", "ひとつの星の頼みを最後まで果たした"), // v2.75
+    // v2.77: the rare skies.
+    STORM_WATCHER("雷鳴の記録", "雷雨の星に降り立った"),
+    AURORA_GAZER("極光の下で", "オーロラの星に降り立った"),
 }
 
 object Achievements {

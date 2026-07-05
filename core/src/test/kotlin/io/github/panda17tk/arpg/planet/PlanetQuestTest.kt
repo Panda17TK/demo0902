@@ -50,21 +50,25 @@ class PlanetQuestTest {
         assertTrue(varied > 20, "stages barely vary ($varied/41)")
     }
 
-    @Test fun `a rainy planet never asks for an escort`() {
-        // v2.75: rain thins the predators, so the star does not ask you to hunt what sheltered.
-        var rainy = 0
+    @Test fun `a stormy planet never asks for an escort`() {
+        // v2.75/77: rain and thunder shelter the hunters — the star doesn't ask you to hunt them.
+        val stormy = setOf(
+            io.github.panda17tk.arpg.sim.WeatherKind.RAIN,
+            io.github.panda17tk.arpg.sim.WeatherKind.THUNDER,
+        )
+        var storms = 0
         for (id in 0L..300L) for (b in listOf(PlanetBiome.NATURE, PlanetBiome.GAS)) {
-            if (io.github.panda17tk.arpg.sim.Weather.kindFor(id, b) == io.github.panda17tk.arpg.sim.WeatherKind.RAIN) {
-                rainy++
+            if (io.github.panda17tk.arpg.sim.Weather.kindFor(id, b) in stormy) {
+                storms++
                 for (stage in 0 until PlanetQuest.CHAIN) {
                     assertTrue(
                         PlanetQuest.questFor(id, b, stage).kind != QuestKind.PROTECT,
-                        "rainy planet $id ($b) stage $stage asked for an escort",
+                        "stormy planet $id ($b) stage $stage asked for an escort",
                     )
                 }
             }
         }
-        assertTrue(rainy > 50, "the sample should contain plenty of rain (got $rainy)")
+        assertTrue(storms > 50, "the sample should contain plenty of storms (got $storms)")
     }
 
     @Test fun `the lonely asteroid never asks for an escort`() {

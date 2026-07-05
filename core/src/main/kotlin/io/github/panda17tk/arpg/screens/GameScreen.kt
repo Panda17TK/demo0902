@@ -418,6 +418,11 @@ class GameScreen(
                 WorldMode.SURFACE, plan.biome, plan.seed, null, plan.context, plan.society,
                 Weather.kindFor(cand.id, plan.biome), // v2.75: the planet's own sky rides in
             )
+            when (gw.worldState.weather) { // v2.77: the rare skies leave a line in the record
+                WeatherKind.THUNDER -> tryUnlock(Achievement.STORM_WATCHER)
+                WeatherKind.AURORA -> tryUnlock(Achievement.AURORA_GAZER)
+                else -> {}
+            }
             // Return-visit payoff: a remembered planet greets the player by reputation (shown briefly in the HUD).
             gw.worldState.rememberedPlanet = plan.known
             gw.worldState.returnVisitGreeting = plan.greeting
@@ -487,6 +492,9 @@ class GameScreen(
             WeatherKind.SNOW -> shapes.setColor(0.85f, 0.90f, 1f, 0.045f)
             WeatherKind.ASH -> shapes.setColor(0.25f, 0.18f, 0.12f, 0.06f)
             WeatherKind.DUSTWIND -> shapes.setColor(0.50f, 0.42f, 0.25f, 0.05f)
+            WeatherKind.THUNDER -> shapes.setColor(0.06f, 0.09f, 0.22f, 0.09f) // v2.77: a darker storm
+            WeatherKind.FOG -> shapes.setColor(0.60f, 0.62f, 0.66f, 0.10f)
+            WeatherKind.AURORA -> shapes.setColor(0.05f, 0.12f, 0.16f, 0.05f)
             WeatherKind.CLEAR -> {}
         }
         shapes.rect(0f, 0f, w, h)
@@ -495,7 +503,8 @@ class GameScreen(
             WeatherKind.SNOW -> shapes.setColor(0.95f, 0.97f, 1f, 0.50f)
             WeatherKind.ASH -> shapes.setColor(0.55f, 0.50f, 0.48f, 0.40f)
             WeatherKind.DUSTWIND -> shapes.setColor(0.75f, 0.68f, 0.50f, 0.30f)
-            WeatherKind.CLEAR -> {}
+            WeatherKind.THUNDER -> shapes.setColor(0.65f, 0.78f, 0.98f, 0.40f)
+            else -> {}
         }
         for (i in 0 until p.count) {
             val (fx, fy) = Weather.pos(i, weatherT, p)
@@ -506,6 +515,42 @@ class GameScreen(
             } else {
                 shapes.circle(x, y, p.size, 6)
             }
+        }
+        when (weatherKind) { // v2.77: the skies that are shapes, not particles
+            WeatherKind.THUNDER -> { // the strike lights the whole field for a blink
+                val flash = Weather.lightningAt(weatherT)
+                if (flash > 0f) {
+                    shapes.setColor(0.85f, 0.90f, 1f, flash * 0.18f)
+                    shapes.rect(0f, 0f, w, h)
+                }
+            }
+            WeatherKind.FOG -> { // slow grey banks sliding across, layered for depth
+                shapes.setColor(0.70f, 0.72f, 0.76f, 0.06f)
+                for (i in 0 until 4) {
+                    val fx = (i * 0.618034f + weatherT * 0.008f * (1f + i * 0.3f)) % 1.3f - 0.15f
+                    val fy = 0.15f + (i * 0.7548777f) % 0.7f
+                    val r = w * (0.30f + 0.10f * (i % 3))
+                    shapes.circle(fx * w, fy * h, r, 40)
+                    shapes.circle(fx * w + r * 0.6f, fy * h - r * 0.2f, r * 0.75f, 36)
+                }
+            }
+            WeatherKind.AURORA -> { // three slow ribbons high above, breathing in colour
+                for (band in 0 until 3) {
+                    when (band) {
+                        0 -> shapes.setColor(0.25f, 0.85f, 0.55f, 0.055f)
+                        1 -> shapes.setColor(0.30f, 0.70f, 0.85f, 0.045f)
+                        else -> shapes.setColor(0.60f, 0.45f, 0.85f, 0.035f)
+                    }
+                    val baseY = h * (0.86f - band * 0.06f)
+                    var x = 0f
+                    while (x < w) {
+                        val yy = baseY + kotlin.math.sin(x / w * 6.28f + weatherT * (0.25f + band * 0.1f) + band * 2f) * h * 0.025f
+                        shapes.circle(x, yy, h * 0.035f, 10)
+                        x += h * 0.03f
+                    }
+                }
+            }
+            else -> {}
         }
         shapes.end()
     }
