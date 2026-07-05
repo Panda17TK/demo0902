@@ -100,7 +100,7 @@ object Hud {
         val top = cards.first()
         centerText(batch, font, "同期汚染 $waveNum を収束 — 保守パッチを選択", w, top.y + top.h + 40f)
         cards.forEachIndexed { i, c ->
-            font.draw(batch, "${i + 1})  ${titles.getOrElse(i) { "" }}", c.x + 16f, c.y + c.h - 16f)
+            fitText(batch, font, "${i + 1})  ${titles.getOrElse(i) { "" }}", c.x + 16f, c.y + c.h - 16f, c.w - 32f)
             font.draw(batch, descs.getOrElse(i) { "" }, c.x + 16f, c.y + 30f)
         }
         batch.end()
@@ -125,7 +125,7 @@ object Hud {
         centerText(batch, titleFont, "ゲームオーバー", w, h / 2f + 96f)
         centerText(batch, font, "同期汚染 $waveNum    撃破 $kills", w, h / 2f + 48f)
         centerText(batch, font, bestText, w, h / 2f + 16f)
-        centerLabel(batch, font, restart.label, restart.centerX, restart.centerY)
+        fitCenterLabel(batch, font, restart.label, restart.centerX, restart.centerY, restart.w - 12f)
         font.color = cHint
         centerText(batch, font, "タップ / R", w, restart.y - 12f)
         font.color = Color.WHITE
@@ -152,7 +152,7 @@ object Hud {
         batch.projectionMatrix = vp.camera.combined
         batch.begin()
         buttons.firstOrNull()?.let { centerText(batch, titleFont, "ポーズ", w, it.y + it.h + 56f) }
-        buttons.forEach { centerLabel(batch, font, it.label, it.centerX, it.centerY) }
+        buttons.forEach { fitCenterLabel(batch, font, it.label, it.centerX, it.centerY, it.w - 12f) } // v2.58
         batch.end()
     }
 
@@ -173,10 +173,10 @@ object Hud {
         batch.projectionMatrix = vp.camera.combined
         batch.begin()
         centerText(batch, titleFont, "操作説明", w, h * 0.86f)
-        val left = w * 0.16f
+        val left = w * 0.12f
         var y = h * 0.72f
-        for (line in lines) { font.draw(batch, line, left, y); y -= 40f }
-        centerLabel(batch, font, back.label, back.centerX, back.centerY)
+        for (line in lines) { fitText(batch, font, line, left, y, w - left * 2f); y -= 40f } // v2.58
+        fitCenterLabel(batch, font, back.label, back.centerX, back.centerY, back.w - 12f)
         batch.end()
     }
 
@@ -319,6 +319,7 @@ object Hud {
         Gdx.gl.glEnable(GL20.GL_BLEND)
         shapes.projectionMatrix = vp.camera.combined
         shapes.begin(ShapeRenderer.ShapeType.Filled)
+        shapes.color = cGlassEdge; shapes.rect(card.x - 1.5f, card.y - 1.5f, card.w + 3f, card.h + 3f) // v2.58
         shapes.color = cHudPanel; shapes.rect(card.x, card.y, card.w, card.h)
         shapes.end()
         frames(shapes, listOf(card))
@@ -330,7 +331,7 @@ object Hud {
         titleFont.draw(batch, glyph, card.centerX - glyph.width / 2f, y)
         y -= HudLayout.CARD_TITLE_H
         for (line in lines) {
-            font.draw(batch, line, card.x + 14f, y)
+            fitText(batch, font, line, card.x + 14f, y, card.w - 28f) // v2.58
             y -= HudLayout.CARD_LINE_H
         }
         font.color = cHint
@@ -380,7 +381,7 @@ object Hud {
                 Mark.NONE -> "−"
                 Mark.BAD -> "×"
             }
-            font.draw(batch, "$markGlyph  $text", left, y)
+            fitText(batch, font, "$markGlyph  $text", left, y, w - left * 2f)
             y -= rowH
         }
         if (goals.isNotEmpty()) { // the planet's goals, below the facts (chip strings carry their own marks)
@@ -392,7 +393,7 @@ object Hud {
         gauges.reversed().forEachIndexed { i, (label, _) ->
             font.draw(batch, label, barX - 70f, gaugeBase + i * rowH + 13f)
         }
-        centerLabel(batch, font, back.label, back.centerX, back.centerY)
+        fitCenterLabel(batch, font, back.label, back.centerX, back.centerY, back.w - 12f)
         batch.end()
     }
 
@@ -423,7 +424,7 @@ object Hud {
             centerText(batch, font, "本当に消しますか", w, it.y + it.h + 56f)
             centerText(batch, font, "この宇宙のすべての星があなたを忘れます", w, it.y + it.h + 30f)
         }
-        buttons.forEach { centerLabel(batch, font, it.label, it.centerX, it.centerY) }
+        buttons.forEach { fitCenterLabel(batch, font, it.label, it.centerX, it.centerY, it.w - 12f) }
         batch.end()
     }
 
@@ -529,7 +530,7 @@ object Hud {
             InvTab.ITEMS -> {
                 if (loreTitle != null) {
                     // Reading view (v2.34): the open readable's title + its text, tap anywhere to return.
-                    centerText(batch, titleFont, loreTitle, w, body.y + body.h - 12f)
+                    fitCenterLabel(batch, titleFont, loreTitle, w / 2f, body.y + body.h - 20f, body.w - 8f)
                     var y = body.y + body.h - 52f
                     for (line in loreLines) {
                         fitText(batch, font, line, body.x + 12f, y, body.w - 24f)
@@ -580,7 +581,7 @@ object Hud {
                 font.color = Color.WHITE
             }
         }
-        centerLabel(batch, font, close.label, close.centerX, close.centerY)
+        fitCenterLabel(batch, font, close.label, close.centerX, close.centerY, close.w - 12f)
         batch.end()
     }
 
