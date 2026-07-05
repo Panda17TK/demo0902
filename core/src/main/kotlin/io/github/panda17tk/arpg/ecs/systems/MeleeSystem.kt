@@ -4,6 +4,7 @@ import com.badlogic.gdx.graphics.Color
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.IteratingSystem
 import com.github.quillraven.fleks.World.Companion.family
+import io.github.panda17tk.arpg.combat.MeleeCombo
 import io.github.panda17tk.arpg.combat.MeleeResolve
 import io.github.panda17tk.arpg.combat.MobDamage
 import io.github.panda17tk.arpg.config.GameConfig
@@ -45,18 +46,37 @@ class MeleeSystem(private val mobGrid: SpatialGrid<Entity>) :
     private val rng: Rng = world.inject()
     private val fx: Fx = world.inject()
     private val chipColor = Color.valueOf("8a8076")
+    private val comboCool = Color.valueOf("cfe2ff") // v2.80: steps 1-2 — a pale glint
+    private val comboHot = Color.valueOf("ffd27a")  // steps 3-4 — warming up
+    private val comboGold = Color.valueOf("ffe94a") // step 5 — full rhythm
     private val deflectColor = Color.valueOf("9ec5ff")
     private val ebullets by lazy { world.family { all(EBullet, Transform) } }
+
+    // v2.80 コンボ: the current step and the clock since the last swing (one player, one blade).
+    private var comboStep = 0
+    private var sinceSwing = 0f
+    private var lastCd = 0f
 
     override fun onTickEntity(entity: Entity) {
         val cd = entity[Cooldowns]
         if (cd.melee > 0f) cd.melee -= deltaTime
+        sinceSwing += deltaTime
+        // the beat missed: past the (tightening) chain window, the combo lets go
+        if (comboStep > 0 && sinceSwing > lastCd + MeleeCombo.chainWindow(comboStep)) comboStep = 0
         if (!input.melee || cd.melee > 0f) return
 
         val t = entity[Transform]; val f = entity[Facing]; val s = entity[Stamina]; val mods = entity[Mods]
         if (s.overheat) return // no stamina actions while overheated
-        cd.melee = config.player.meleeCd
+        // v2.80: on the beat → the combo climbs; off it (or first swing) → step 1.
+        comboStep = MeleeCombo.nextStep(comboStep, chained = comboStep > 0)
+        lastCd = MeleeCombo.cooldown(comboStep, config.player.meleeCd)
+        sinceSwing = 0f
+        cd.melee = lastCd
         fx.spawnSlash(t.x, t.y, atan2(f.y, f.x))
+        // the show grows with the rhythm: more sparks each step, gold at the peak, a kick at 3+
+        fx.spawnSparks(t.x + f.x * 20f, t.y + f.y * 20f, MeleeCombo.sparks(comboStep),
+            if (comboStep >= MeleeCombo.MAX_STEP) comboGold else if (comboStep >= 3) comboHot else comboCool)
+        if (comboStep >= 3) fx.addShake(0.10f + 0.03f * comboStep, 2f + comboStep.toFloat())
         val outcome = MeleeResolve.resolve(if (s.max > 0f) s.value / s.max else 1f, config.player)
         s.value = maxOf(0f, s.value - config.player.meleeStaCost) // melee drains stamina
 
@@ -74,8 +94,9 @@ class MeleeSystem(private val mobGrid: SpatialGrid<Entity>) :
 
         // --- Melee vs mob: a 180° base arc at meleeReach, both shaped by the equipped arm (v2.39) ---
         val gearMelee = entity[Gear].loadout // v2.33: the equipped melee arm shapes reach + damage
-        val reach = config.player.meleeReach * gearMelee.meleeReachMul
-        val arc = (PI.toFloat() * gearMelee.meleeArcMul).coerceAtMost(2f * PI.toFloat()) // 大鉈 swings wider
+        val reach = config.player.meleeReach * gearMelee.meleeReachMul * MeleeCombo.reachMul(comboStep) // v2.80
+        val arc = (PI.toFloat() * gearMelee.meleeArcMul * MeleeCombo.arcMul(comboStep))
+            .coerceAtMost(2f * PI.toFloat()) // 大鉈 swings wider; the combo opens it further
         val faceAng = atan2(f.y, f.x)
         mobGrid.forNearby(t.x, t.y, reach + 24f) { mobEntity ->
             val mobT = with(world) { mobEntity[Transform] }
@@ -94,7 +115,7 @@ class MeleeSystem(private val mobGrid: SpatialGrid<Entity>) :
                     val nx = if (dist > 0f) ddx / dist else 1f
                     val ny = if (dist > 0f) ddy / dist else 0f
                     val hpBefore = mobH.hp
-                    val dealt = outcome.dmg * mods.meleeMul * gearMelee.meleeDmgMul
+                    val dealt = outcome.dmg * mods.meleeMul * gearMelee.meleeDmgMul * MeleeCombo.dmgMul(comboStep) // v2.80
                     MobDamage.hurt(mobH, mobV, mobA, mobDodge, dealt, nx, ny, 450f * gearMelee.meleeKbMul, rng.nextFloat())
                     // v2.42: a leeching arm drinks back a fraction of the damage that actually landed.
                     if (gearMelee.meleeLifesteal > 0f && mobH.hp < hpBefore) {
