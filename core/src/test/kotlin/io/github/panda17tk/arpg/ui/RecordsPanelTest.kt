@@ -22,12 +22,15 @@ class RecordsPanelTest {
     @Test fun `locked achievements are unspoken question marks in order`() {
         val only = setOf(Achievement.FIRST_LANDING, Achievement.BOUNTY_HUNTER)
         val lines = RecordsPanel.lines(1, 1, 0, 0) { it in only }
-        // the achievement block is the last entries.size lines, in enum order
-        val block = lines.takeLast(Achievement.entries.size)
-        for ((i, a) in Achievement.entries.withIndex()) {
-            if (a in only) assertTrue(block[i].contains(a.title), "expected ${a.title} at $i")
-            else assertEquals("？？？", block[i])
-        }
+        // v2.70: the block is the last ceil(n/2) lines — titles two to a row, enum order kept
+        val rows = (Achievement.entries.size + 1) / 2
+        val block = lines.takeLast(rows)
+        val expected = Achievement.entries
+            .map { if (it in only) "『${it.title}』" else "？？？" }
+            .chunked(2)
+            .map { it.joinToString("　") }
+        assertEquals(expected, block)
+        assertTrue(block.any { it.contains("初着陸") } && block.any { it.contains("賞金稼ぎ") })
     }
 
     @Test fun `the two actions fit on screen and never overlap`() {

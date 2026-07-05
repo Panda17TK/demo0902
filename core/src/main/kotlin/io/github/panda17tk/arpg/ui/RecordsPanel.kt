@@ -27,9 +27,12 @@ object RecordsPanel {
         add(if (simWave > 0) "ウェーブ $simWave　撃破 $simKills" else "未実施")
         val unlocked = Achievement.entries.count(has)
         add("── 実績 $unlocked/${Achievement.entries.size} ──")
-        for (a in Achievement.entries) {
-            add(if (has(a)) "『${a.title}』 ${a.desc}" else "？？？")
-        }
+        // v2.70: 18 entries — titles two to a row so the panel never outgrows a small screen
+        // (the full description still arrives with the unlock toast and in the 勤務記録).
+        Achievement.entries
+            .map { if (has(it)) "『${it.title}』" else "？？？" }
+            .chunked(2)
+            .forEach { add(it.joinToString("　")) }
     }
 
     /** The two actions at the panel's foot: replay the boot diagnostic, and close. */

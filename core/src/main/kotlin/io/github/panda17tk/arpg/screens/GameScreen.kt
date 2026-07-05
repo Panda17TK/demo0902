@@ -429,6 +429,11 @@ class GameScreen(
                     with(gw.world) { gw.player[Materials].dust += quest.rewardDust }
                     toast = listOfNotNull(toast, "依頼達成 +${quest.rewardDust}屑").joinToString("　")
                     tryUnlock(Achievement.QUEST_PATRON) // v2.68
+                    when (quest.kind) { // v2.70: the quiet professions get their own lines
+                        QuestKind.PROTECT -> tryUnlock(Achievement.GUARDIAN)
+                        QuestKind.OBSERVE -> tryUnlock(Achievement.OBSERVER)
+                        else -> {}
+                    }
                 }
             }
             rewardToast = toast
@@ -443,6 +448,8 @@ class GameScreen(
             if (syncPercent() >= 50) tryUnlock(Achievement.SYNC_50)
             if (syncPercent() >= 90) tryUnlock(Achievement.SYNC_90) // v2.68
             if (session.memory.memories.values.any { it.relicClaimed }) tryUnlock(Achievement.RELIC_KEEPER) // v2.68
+            if (gw.worldState.questKills == 0) tryUnlock(Achievement.QUIET_VISIT) // v2.70: no hostile fell this visit
+            if (session.memory.memories.values.count { it.apexKilled } >= 2) tryUnlock(Achievement.BEAST_HUNTER) // v2.70
             transitionWorld(WorldMode.SPACE, null, seed, spawn) // same system, beside the planet we left
         }
     }
@@ -568,6 +575,10 @@ class GameScreen(
         }
         // v2.62 実績: surviving deep into the desync (the real run only).
         if (!paused && !simMode && gw.waveState.num >= 15) tryUnlock(Achievement.DEEP_SURGE)
+        // v2.70 実績: a real hoard of memory fragments, held all at once.
+        if (!paused && !simMode && with(gw.world) { gw.player[Materials].dust } >= 500) {
+            tryUnlock(Achievement.DUST_RICH)
+        }
         // v2.51: a wreck the drifter closes in on broadcasts its distress log — once per wreck.
         // v2.66 世界観ヒント OFF leaves the log unread (and unmarked, so it can speak later).
         if (!paused && !simMode && loreHints && gw.worldState.mode == WorldMode.SPACE) {
@@ -1051,6 +1062,7 @@ class GameScreen(
         tryUnlock(Achievement.FIRST_JUMP) // v2.62
         if (syncPercent() >= 50) tryUnlock(Achievement.SYNC_50)
         if (syncPercent() >= 90) tryUnlock(Achievement.SYNC_90) // v2.68
+        if (session.spaceSeed >= 3) tryUnlock(Achievement.SYSTEM_3) // v2.70
         rewardToast = "第${session.spaceSeed}星系に到達した"
         rewardToastT = TOAST_TIME
         Sfx.play("takeoff")
