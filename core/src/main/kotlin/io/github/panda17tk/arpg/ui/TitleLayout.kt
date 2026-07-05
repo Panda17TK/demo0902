@@ -24,15 +24,6 @@ object TitleLayout {
     /** v2.64 記録: a quiet corner chip, top-right — the service record lives behind it. */
     fun recordsButton(w: Float, h: Float): UiButton = UiButton(w - 104f, h - 52f, 92f, 40f, "記録")
 
-    /** v2.59 設定: the sound / haptics toggle pair under the menu (labels drawn by the screen). */
-    fun toggles(w: Float, h: Float): List<UiButton> {
-        val bw = (min(320f, w * 0.72f) - GAP) / 2f
-        val x = (w - bw * 2f - GAP) / 2f
-        val y = h * 0.46f - 3f * (BTN_H + GAP) - 34f
-        return listOf(
-            UiButton(x, y, bw, 40f, "サウンド"),
-            UiButton(x + bw + GAP, y, bw, 40f, "振動"),
-            UiButton(x, y - 48f, bw * 2f + GAP, 40f, "左利き配置"), // v2.65: mirror the touch controls
-        )
-    }
+    /** v2.66 設定: its twin, top-left — every toggle moved into the settings panel behind it. */
+    fun settingsButton(w: Float, h: Float): UiButton = UiButton(12f, h - 52f, 92f, 40f, "設定")
 }
