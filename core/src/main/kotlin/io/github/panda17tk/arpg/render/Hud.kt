@@ -489,6 +489,8 @@ object Hud {
         shapes.projectionMatrix = vp.camera.combined
         shapes.begin(ShapeRenderer.ShapeType.Filled)
         shapes.color = cScrim; shapes.rect(0f, 0f, w, h)
+        // v2.57: the panel wears the same glass as the hint cards — faint edge, deep body.
+        shapes.color = cGlassEdge; shapes.rect(panel.x - 1.5f, panel.y - 1.5f, panel.w + 3f, panel.h + 3f)
         shapes.color = cCard; shapes.rect(panel.x, panel.y, panel.w, panel.h)
         tabs.forEachIndexed { i, t ->
             shapes.color = if (i == tab.ordinal) cBtnGo else cBtn
@@ -506,21 +508,21 @@ object Hud {
 
         batch.projectionMatrix = vp.camera.combined
         batch.begin()
-        tabs.forEach { centerLabel(batch, font, it.label, it.centerX, it.centerY) }
+        tabs.forEach { fitCenterLabel(batch, font, it.label, it.centerX, it.centerY, it.w - 8f) } // v2.57
         when (tab) {
             InvTab.EQUIP -> {
                 slotRows.forEachIndexed { i, r ->
-                    font.draw(batch, slotTexts.getOrElse(i) { "" }, r.x + 12f, r.centerY + 7f)
+                    fitText(batch, font, slotTexts.getOrElse(i) { "" }, r.x + 12f, r.centerY + 7f, r.w - 24f)
                 }
                 // v2.39: the bottom strip is the control-swap toggle (falls back to the old hint).
                 if (editStrip != null && layoutEditLabel != null) {
-                    centerLabel(batch, font, layoutEditLabel, editStrip.centerX, editStrip.centerY)
+                    fitCenterLabel(batch, font, layoutEditLabel, editStrip.centerX, editStrip.centerY, editStrip.w - 16f)
                 }
                 if (toggle != null && controlLabel != null) {
-                    centerLabel(batch, font, controlLabel, toggle.centerX, toggle.centerY)
+                    fitCenterLabel(batch, font, controlLabel, toggle.centerX, toggle.centerY, toggle.w - 16f)
                 } else {
                     font.color = cHint
-                    centerText(batch, font, "スロットをタップで持物と交換", w, body.y + 16f)
+                    fitCenterLabel(batch, font, "スロットをタップで持物と交換", w / 2f, body.y + 22f, body.w - 8f)
                     font.color = Color.WHITE
                 }
             }
@@ -530,7 +532,7 @@ object Hud {
                     centerText(batch, titleFont, loreTitle, w, body.y + body.h - 12f)
                     var y = body.y + body.h - 52f
                     for (line in loreLines) {
-                        font.draw(batch, line, body.x + 12f, y)
+                        fitText(batch, font, line, body.x + 12f, y, body.w - 24f)
                         y -= 24f
                         if (y < body.y + 34f) break
                     }
@@ -539,12 +541,12 @@ object Hud {
                     font.color = Color.WHITE
                 } else {
                     val rows = InventoryLayout.itemRows(w, h, itemLines.size)
-                    rows.forEachIndexed { i, r -> font.draw(batch, itemLines[i], r.x + 12f, r.y + 18f) }
+                    rows.forEachIndexed { i, r -> fitText(batch, font, itemLines[i], r.x + 12f, r.y + 18f, r.w - 24f) }
                     if (itemLines.isEmpty()) {
                         font.color = cHint; font.draw(batch, "持物は空", body.x + 12f, body.y + body.h - 10f); font.color = Color.WHITE
                     }
                     font.color = cHint
-                    centerText(batch, font, note ?: "タップ：消費アイテムを使う / 読み物を読む", w, body.y + 14f)
+                    fitCenterLabel(batch, font, note ?: "タップ：消費アイテムを使う / 読み物を読む", w / 2f, body.y + 20f, body.w - 8f)
                     font.color = Color.WHITE
                 }
             }
@@ -554,22 +556,22 @@ object Hud {
                 font.color = Color.WHITE
             }
             InvTab.MARKET -> { // v2.43: the planet's stalls (or the reason they're shut)
-                marketRows.forEachIndexed { i, r -> font.draw(batch, marketLines[i], r.x + 12f, r.centerY + 7f) }
+                marketRows.forEachIndexed { i, r -> fitText(batch, font, marketLines[i], r.x + 12f, r.centerY + 7f, r.w - 24f) }
                 font.color = cHint
-                marketFooter?.let { centerText(batch, font, it, w, body.y + 14f) }
+                marketFooter?.let { fitCenterLabel(batch, font, it, w / 2f, body.y + 20f, body.w - 8f) }
                 font.color = Color.WHITE
             }
             InvTab.SAVE -> {
                 save?.let { centerLabel(batch, titleFont, it.label, it.centerX, it.centerY) }
                 font.color = cHint
-                centerText(batch, font, "この場でランを保存する（やられると消える）", w, body.y + body.h * 0.30f)
+                fitCenterLabel(batch, font, "この場でランを保存する（やられると消える）", w / 2f, body.y + body.h * 0.30f, body.w - 8f)
                 font.color = Color.WHITE
-                note?.let { centerText(batch, font, it, w, body.y + body.h * 0.22f) }
+                note?.let { fitCenterLabel(batch, font, it, w / 2f, body.y + body.h * 0.22f, body.w - 8f) }
             }
             InvTab.LOG -> { // v2.46 航海日誌: the run so far + what the stars remember
                 var ly = body.y + body.h - 14f
                 for (line in logLines) {
-                    font.draw(batch, line, body.x + 12f, ly)
+                    fitText(batch, font, line, body.x + 12f, ly, body.w - 24f)
                     ly -= 24f
                     if (ly < body.y + 34f) break
                 }
@@ -642,5 +644,15 @@ object Hud {
     private fun centerLabel(batch: SpriteBatch, font: BitmapFont, s: String, cx: Float, cy: Float) {
         glyph.setText(font, s)
         font.draw(batch, glyph, cx - glyph.width / 2f, cy + glyph.height / 2f)
+    }
+
+    /** v2.57: centered label that auto-shrinks to [maxW] — tabs/strips can't smear together. */
+    private fun fitCenterLabel(batch: SpriteBatch, font: BitmapFont, s: String, cx: Float, cy: Float, maxW: Float) {
+        val bx = font.data.scaleX; val by = font.data.scaleY
+        glyph.setText(font, s)
+        val fit = min(1f, maxW / glyph.width.coerceAtLeast(1f))
+        if (fit < 1f) { font.data.setScale(bx * fit, by * fit); glyph.setText(font, s) }
+        font.draw(batch, glyph, cx - glyph.width / 2f, cy + glyph.height / 2f)
+        if (fit < 1f) font.data.setScale(bx, by)
     }
 }
