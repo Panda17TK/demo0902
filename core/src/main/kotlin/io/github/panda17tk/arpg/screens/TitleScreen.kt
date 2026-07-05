@@ -17,8 +17,10 @@ import io.github.panda17tk.arpg.audio.Ambience
 import io.github.panda17tk.arpg.audio.AmbientTrack
 import io.github.panda17tk.arpg.audio.Sfx
 import io.github.panda17tk.arpg.input.Haptics
+import io.github.panda17tk.arpg.save.Achievements
 import io.github.panda17tk.arpg.save.PreferencesRunSaveStore
 import io.github.panda17tk.arpg.save.Scores
+import io.github.panda17tk.arpg.ui.RecordsPanel
 import io.github.panda17tk.arpg.ui.TitleLayout
 import io.github.panda17tk.arpg.ui.UiButton
 
@@ -35,6 +37,8 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
     private val tmp = Vector3()
     private var t = 0f
     private var hasSave = false
+    private var showRecords = false // v2.64 記録: the service-record overlay
+    private var diagQueued = false  // v2.64: 起動診断をもう一度 was pressed this visit
 
     // A deterministic drifting star field: fraction positions + parallax speed per star.
     private data class Star(val fx: Float, val fy: Float, val size: Float, val speed: Float)
@@ -59,6 +63,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         viewport.update(Gdx.graphics.width, Gdx.graphics.height, true)
         hasSave = try { PreferencesRunSaveStore().load() != null } catch (_: Throwable) { false }
         Scores.load() // v2.62: the training scoreboard shows on the front door
+        Achievements.load() // v2.64 記録: the service record reads from here
         try { // v2.59 設定: restore the sound / haptics switches
             val sp = Gdx.app.getPreferences("drift-settings")
             Sfx.enabled = sp.getBoolean("soundOn", true)
@@ -100,9 +105,10 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         shapes.circle(w * 0.82f, h * 0.80f, 16f + 3f * breath, 24)
         shapes.color = Color(0.8f, 0.97f, 1f, 0.8f)
         shapes.circle(w * 0.82f, h * 0.80f, 3f, 10)
-        // menu buttons (glass cards) + the settings toggle pair
+        // menu buttons (glass cards) + the settings toggle pair + the records corner chip
         val toggles = TitleLayout.toggles(w, h)
-        (buttons + toggles).forEach { b ->
+        val rec = TitleLayout.recordsButton(w, h)
+        (buttons + toggles + rec).forEach { b ->
             shapes.color = Color(0.55f, 0.75f, 1f, 0.22f)
             shapes.rect(b.x - 1.5f, b.y - 1.5f, b.w + 3f, b.h + 3f)
             shapes.color = Color(0.05f, 0.07f, 0.11f, 0.85f)
@@ -126,7 +132,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         glyph.setText(font, "— 稼働中の人類保全装置群、その最後の保守員 —")
         font.draw(batch, glyph, (w - glyph.width) / 2f, h * 0.59f)
         font.color = Color.WHITE
-        buttons.forEach { b ->
+        (buttons + rec).forEach { b ->
             glyph.setText(font, b.label)
             font.draw(batch, glyph, b.centerX - glyph.width / 2f, b.centerY + glyph.height / 2f)
         }
@@ -147,13 +153,85 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         font.color = Color.WHITE
         batch.end()
 
-        handleInput(buttons, toggles)
+        if (showRecords) drawRecords(w, h) // v2.64: the service record sits over everything
+        handleInput(buttons, toggles, rec)
     }
 
-    private fun handleInput(buttons: List<UiButton>, toggles: List<UiButton>) {
+    /** v2.64 記録: dim + glass panel + the record lines + [起動診断をもう一度][閉じる]. */
+    private fun drawRecords(w: Float, h: Float) {
+        val lines = RecordsPanel.lines(
+            Scores.bestWave, Scores.bestKills, Scores.simBestWave, Scores.simBestKills,
+        ) { Achievements.has(it) }
+        val btns = RecordsPanel.buttons(w, h)
+        val px = 14f; val pw = w - 28f; val pTop = h * 0.90f; val pBot = h * 0.11f
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
+        shapes.color = Color(0f, 0f, 0f, 0.72f); shapes.rect(0f, 0f, w, h)
+        shapes.color = Color(0.55f, 0.75f, 1f, 0.22f)
+        shapes.rect(px - 1.5f, pBot - 1.5f, pw + 3f, (pTop - pBot) + 3f)
+        shapes.color = Color(0.05f, 0.07f, 0.11f, 0.94f)
+        shapes.rect(px, pBot, pw, pTop - pBot)
+        btns.forEach { b ->
+            shapes.color = Color(0.55f, 0.75f, 1f, 0.22f)
+            shapes.rect(b.x - 1.5f, b.y - 1.5f, b.w + 3f, b.h + 3f)
+            shapes.color = Color(0.09f, 0.12f, 0.18f, 0.95f)
+            shapes.rect(b.x, b.y, b.w, b.h)
+        }
+        shapes.end()
+        batch.begin()
+        val font = Fonts.ui
+        var y = pTop - 26f
+        for (line in lines) {
+            font.color = if (line.startsWith("──")) cSub else Color.WHITE
+            drawFitted(font, line, w / 2f, y, pw - 24f)
+            y -= 24f
+        }
+        font.color = cSub
+        if (diagQueued) drawFitted(font, "✓ 次のランで起動診断を実行します", w / 2f, btns[0].y + btns[0].h + 26f, pw - 24f)
+        font.color = Color.WHITE
+        btns.forEach { b -> drawFitted(font, b.label, b.centerX, b.centerY + 7f, b.w - 16f) }
+        batch.end()
+    }
+
+    /** Centered text that shrinks to fit [maxW] — the title screen's copy of Hud.fitText. */
+    private fun drawFitted(font: com.badlogic.gdx.graphics.g2d.BitmapFont, text: String, cx: Float, y: Float, maxW: Float) {
+        val sx = font.data.scaleX; val sy = font.data.scaleY
+        glyph.setText(font, text)
+        if (glyph.width > maxW) {
+            val k = (maxW / glyph.width).coerceAtLeast(0.55f)
+            font.data.setScale(sx * k, sy * k)
+            glyph.setText(font, text)
+        }
+        font.draw(batch, glyph, cx - glyph.width / 2f, y)
+        font.data.setScale(sx, sy)
+    }
+
+    private fun handleInput(buttons: List<UiButton>, toggles: List<UiButton>, rec: UiButton) {
         if (Gdx.input.justTouched()) {
             tmp.set(Gdx.input.x.toFloat(), Gdx.input.y.toFloat(), 0f)
             viewport.unproject(tmp)
+            if (showRecords) { // v2.64: the overlay swallows every tap while open
+                val hit = RecordsPanel.buttons(viewport.worldWidth, viewport.worldHeight)
+                    .firstOrNull { it.contains(tmp.x, tmp.y) } ?: return
+                when (hit.label) {
+                    RecordsPanel.REPLAY_LABEL -> {
+                        diagQueued = true
+                        try {
+                            val sp = Gdx.app.getPreferences("drift-settings")
+                            sp.putBoolean("tutorialDone", false)
+                            sp.putBoolean("onboardDone", false)
+                            sp.flush()
+                        } catch (_: Throwable) { /* best-effort */ }
+                        Sfx.play("scan")
+                    }
+                    RecordsPanel.CLOSE_LABEL -> showRecords = false
+                }
+                return
+            }
+            if (rec.contains(tmp.x, tmp.y)) { // v2.64 記録
+                showRecords = true
+                Sfx.play("scan")
+                return
+            }
             // v2.59 設定: the toggle pair flips + persists in place
             toggles.forEachIndexed { i, b ->
                 if (b.contains(tmp.x, tmp.y)) {
@@ -178,6 +256,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             }
             return
         }
+        if (showRecords) return // v2.64: keys don't start a run under the record overlay
         if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ENTER) ||
             Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.SPACE)
         ) {

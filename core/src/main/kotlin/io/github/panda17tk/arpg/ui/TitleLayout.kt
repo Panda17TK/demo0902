@@ -21,6 +21,9 @@ object TitleLayout {
         }
     }
 
+    /** v2.64 記録: a quiet corner chip, top-right — the service record lives behind it. */
+    fun recordsButton(w: Float, h: Float): UiButton = UiButton(w - 104f, h - 52f, 92f, 40f, "記録")
+
     /** v2.59 設定: the sound / haptics toggle pair under the menu (labels drawn by the screen). */
     fun toggles(w: Float, h: Float): List<UiButton> {
         val bw = (min(320f, w * 0.72f) - GAP) / 2f
