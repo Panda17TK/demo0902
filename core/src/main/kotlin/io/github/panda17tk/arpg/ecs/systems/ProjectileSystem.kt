@@ -132,7 +132,7 @@ class ProjectileSystem(private val mobGrid: SpatialGrid<Entity>) :
             }
             if (map.solidAt(tx, ty) || g.fuse <= 0f || prox) {
                 // v2.37: the grenade's grade widens the whole blast (mob damage + wall crater alike).
-                detonate(t.x, t.y, (if (prox) Tuning.TILE * 2f else config.player.explodeRadius) * g.blastMul, g.blastMul)
+                detonate(t.x, t.y, maxOf(Tuning.TILE * 2f, config.player.explodeRadius) * g.blastMul, g.blastMul)
                 world -= entity
             }
         }
@@ -160,8 +160,12 @@ class ProjectileSystem(private val mobGrid: SpatialGrid<Entity>) :
                 }
             }
         }
-        fx.addShake(0.22f, 8f)
-        fx.spawnSparks(ex, ey, 14, Color.valueOf("ffb060"))
+        // v2.80: a blast this size earns its show — three spark rings, a flash, a real kick.
+        fx.addShake(0.34f, 13f)
+        fx.spawnSparks(ex, ey, 26, Color.valueOf("ffb060"))
+        fx.spawnSparks(ex, ey, 16, Color.valueOf("fff2a0"))
+        fx.spawnSparks(ex, ey, 10, Color.valueOf("ff6a3a"))
+        fx.spawnDeath(ex, ey, Color.valueOf("ffc070"), big = true)
     }
 
     companion object {

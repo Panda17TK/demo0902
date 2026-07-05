@@ -24,10 +24,10 @@ data class PlayerConfig(
     val dashThrust: Float = 760f,    // space dash inertia: accel added to drift while dashing (stronger glide)
     val bulletSpeed: Float = 360f,
     val bulletLife: Float = 1.8f,    // doubled (was 0.9) → gun range ×2 for pistol/shotgun/MG
-    val grenadeSpeed: Float = 280f,
+    val grenadeSpeed: Float = 168f, // v2.80: 60% of the old 280 — a heavier, deliberate arc
     val grenadeFuse: Float = 1.0f,
     val autoReloadDelay: Float = 0.8f,
-    val explodeRadius: Float = 70f,
+    val explodeRadius: Float = 140f, // v2.80: twice the old 70 — the blast owns the room
     val explodeDmg: Float = 110f,
     val explodeSelfDmg: Float = 25f,
     val explodeWallDmg: Float = 120f,
