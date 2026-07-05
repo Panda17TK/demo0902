@@ -115,6 +115,48 @@ object AmbienceScore {
         return out
     }
 
+    /**
+     * v2.76 天候アンビエント: one seamless loop of a sky's sound — rain hiss, or wind in three
+     * tempers. Same contract as everything here: quantized LFOs, head-crossfaded noise, pure.
+     * CLEAR has no sound and returns null.
+     */
+    fun renderWeather(kind: io.github.panda17tk.arpg.sim.WeatherKind): ShortArray? {
+        // (smooth, amp, lfoHz, lfoDepth) — rain is a steady bright hiss; the winds swell in gusts.
+        val (smooth, amp, lfoHz, lfoDepth) = when (kind) {
+            io.github.panda17tk.arpg.sim.WeatherKind.CLEAR -> return null
+            io.github.panda17tk.arpg.sim.WeatherKind.RAIN -> listOf(0.45f, 0.16f, 0.25f, 0.15f)
+            io.github.panda17tk.arpg.sim.WeatherKind.SNOW -> listOf(0.12f, 0.06f, 0.20f, 0.40f)
+            io.github.panda17tk.arpg.sim.WeatherKind.ASH -> listOf(0.05f, 0.07f, 0.15f, 0.35f)
+            io.github.panda17tk.arpg.sim.WeatherKind.DUSTWIND -> listOf(0.08f, 0.13f, 0.50f, 0.60f)
+        }
+        val n = SAMPLES
+        val out = ShortArray(n)
+        val rng = Rng(0x5EA7_0000L + kind.ordinal)
+        val raw = FloatArray(n + FADE)
+        var y = 0f
+        for (i in raw.indices) {
+            val x = rng.nextFloat() * 2f - 1f
+            y += smooth * (x - y)
+            raw[i] = y
+        }
+        var peak = 1e-6f
+        for (v in raw) { val a = if (v < 0f) -v else v; if (a > peak) peak = a }
+        val gain = amp / peak
+        val lfoCyc = (lfoHz * LOOP_SECONDS).roundToInt().coerceAtLeast(1).toFloat()
+        val two_pi = (2.0 * PI)
+        for (i in 0 until n) {
+            val noise = if (i < FADE) { // head-crossfade: the loop wrap is an ordinary step
+                val w = i.toFloat() / FADE
+                raw[n + i] * (1f - w) + raw[i] * w
+            } else raw[i]
+            val tSec = i.toDouble() / RATE
+            val gust = 1f - lfoDepth * (0.5f + 0.5f * sin(two_pi * (lfoCyc / LOOP_SECONDS) * tSec).toFloat())
+            val v = noise * gain * gust * 32767f
+            out[i] = v.toInt().coerceIn(-32768, 32767).toShort()
+        }
+        return out
+    }
+
     /** Render one seamless loop of [track] as 16-bit mono PCM. Deterministic per track. */
     fun render(track: AmbientTrack): ShortArray {
         val s = scoreFor(track)

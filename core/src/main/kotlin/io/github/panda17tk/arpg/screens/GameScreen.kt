@@ -320,6 +320,11 @@ class GameScreen(
     /** v2.63 生成オーディオ: hum the track this scene wants (space / biome / training sim). */
     private fun syncAmbience() {
         Ambience.play(AmbienceScore.trackFor(gw.worldState.mode, gw.worldState.biome, simMode))
+        // v2.76 天候アンビエント: the surface brings its sky's sound; everywhere else is silent.
+        Ambience.playWeather(
+            if (!simMode && gw.worldState.mode == WorldMode.SURFACE) gw.worldState.weather
+            else WeatherKind.CLEAR,
+        )
     }
 
     /** v2.53: enter/exit the old-style combat simulation. The universe's memory, the saved run
