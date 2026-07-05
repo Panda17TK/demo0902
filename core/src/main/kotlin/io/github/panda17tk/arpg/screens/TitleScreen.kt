@@ -22,6 +22,7 @@ import io.github.panda17tk.arpg.save.PreferencesRunSaveStore
 import io.github.panda17tk.arpg.save.Scores
 import io.github.panda17tk.arpg.ui.RecordsPanel
 import io.github.panda17tk.arpg.ui.SettingsPanel
+import io.github.panda17tk.arpg.ui.TitleFx
 import io.github.panda17tk.arpg.ui.TitleLayout
 import io.github.panda17tk.arpg.ui.UiButton
 
@@ -53,6 +54,9 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
     }
 
     private val cStar = Color(0.85f, 0.9f, 1f, 0.7f)
+    private val cNebulaA = Color(0.30f, 0.40f, 0.75f, 0.05f) // v2.71: far clouds, two hues
+    private val cNebulaB = Color(0.55f, 0.35f, 0.70f, 0.04f)
+    private val cTwinkle = Color() // v2.71: scratch colour for per-frame alpha work
     private val cPlanet = Color(0.10f, 0.14f, 0.24f, 1f)
     private val cPlanetRim = Color(0.35f, 0.55f, 0.85f, 0.25f)
     private val cGate = Color(0.35f, 0.8f, 1f, 0.35f)
@@ -96,17 +100,53 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         Gdx.gl.glEnable(GL20.GL_BLEND)
         shapes.projectionMatrix = viewport.camera.combined
         shapes.begin(ShapeRenderer.ShapeType.Filled)
-        // drifting stars (wrap horizontally; slow parallax by size)
-        for (s in stars) {
+        // v2.71: nebula clouds far behind everything — huge, dim, barely drifting
+        val minDim = minOf(w, h)
+        for ((ci, c) in TitleFx.CLOUDS.withIndex()) {
+            val r = c.fr * minDim
+            val x = (c.fx * w + t * c.speed) % (w + r * 2f) - r
+            shapes.color = if (ci % 2 == 0) cNebulaA else cNebulaB
+            shapes.circle(x, c.fy * h, r, 40)
+            shapes.circle(x + r * 0.55f, c.fy * h - r * 0.25f, r * 0.7f, 32)
+        }
+        // drifting stars (wrap horizontally; slow parallax by size); v2.71: each twinkles
+        for ((i, s) in stars.withIndex()) {
             val x = (s.fx * w + t * s.speed) % w
-            shapes.color = cStar
+            cTwinkle.set(cStar)
+            cTwinkle.a = cStar.a * TitleFx.twinkle(i, t)
+            shapes.color = cTwinkle
             shapes.circle(x, s.fy * h, s.size, 6)
+        }
+        // v2.71: an occasional meteor, falling down-left with a fading tail
+        TitleFx.meteorAt(t)?.let { m ->
+            val fade = 1f - m.p
+            for (k in 0..3) {
+                val back = k * 0.045f
+                cTwinkle.set(0.85f, 0.93f, 1f, (0.65f - k * 0.16f) * fade)
+                shapes.color = cTwinkle
+                shapes.circle((m.fx - m.dirX * back) * w, (m.fy - m.dirY * back) * h, 2.4f - k * 0.5f, 8)
+            }
         }
         // a dark planet rising from the bottom-left — the server-world, waiting
         shapes.color = cPlanetRim
         shapes.circle(w * 0.12f, -h * 0.28f, h * 0.46f, 64)
         shapes.color = cPlanet
         shapes.circle(w * 0.12f, -h * 0.28f, h * 0.45f, 64)
+        // v2.71: city lights of the sleeping servers, slowly carried around the limb
+        for (k in 0 until 5) {
+            val a = t * 0.04f + k * 1.3f
+            val lx = w * 0.12f + kotlin.math.cos(a) * h * 0.42f
+            val ly = -h * 0.28f + kotlin.math.sin(a) * h * 0.42f
+            if (ly > 0f && kotlin.math.sin(a) > 0f) { // only on the visible upper limb
+                cTwinkle.set(0.65f, 0.8f, 1f, 0.35f + 0.15f * TitleFx.twinkle(k, t))
+                shapes.color = cTwinkle
+                shapes.circle(lx, ly, 1.8f, 6)
+            }
+        }
+        // v2.71: a soft halo behind the logo, breathing with TitleFx.glow
+        cTwinkle.set(0.55f, 0.75f, 1f, TitleFx.glow(t))
+        shapes.color = cTwinkle
+        shapes.circle(w / 2f, h * 0.72f, minDim * 0.22f, 48)
         // a far jump-gate ring, breathing
         val breath = 0.5f + 0.5f * kotlin.math.sin(t * 0.8f)
         shapes.color = cGate
