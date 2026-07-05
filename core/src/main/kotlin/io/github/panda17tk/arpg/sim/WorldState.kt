@@ -14,6 +14,8 @@ class WorldState(
     var escapePad: Pair<Float, Float>? = null,
     /** On a SURFACE, the built landmarks (camp/crater/dais/eye/shrine/ruins) the society lives among. */
     var facilities: List<Facility> = emptyList(),
+    /** v2.78 装飾: the surface's harmless furniture (trees/grass/rocks…) — set by WorldFactory. */
+    var decor: List<io.github.panda17tk.arpg.map.Decor> = emptyList(),
     /** On a SURFACE, what the society remembers of this visit (ecology events, player deeds). Reset per landing. */
     var society: PlanetSocietyState = PlanetSocietyState(),
     /** In SPACE, the drifting debris/asteroid field flowing around the player (cosmetic; null on a surface). */

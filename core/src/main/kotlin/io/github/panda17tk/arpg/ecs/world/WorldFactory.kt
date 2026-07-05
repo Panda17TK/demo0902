@@ -50,6 +50,7 @@ import io.github.panda17tk.arpg.input.InputState
 import io.github.panda17tk.arpg.item.ItemCatalog
 import io.github.panda17tk.arpg.map.MapLoader
 import io.github.panda17tk.arpg.map.Stages
+import io.github.panda17tk.arpg.map.SurfaceDecor
 import io.github.panda17tk.arpg.map.SurfaceStages
 import io.github.panda17tk.arpg.map.TileMap
 import io.github.panda17tk.arpg.math.Rng
@@ -335,6 +336,11 @@ object WorldFactory {
                 }
             }
             worldState.facilities = ecology.facilities
+            // v2.78 装飾: scatter the biome's furniture, then drop anything buried in a wall.
+            worldState.decor = SurfaceDecor.scatter(biome, seed, worldW, worldH).filter { d ->
+                val tx = (d.x / Tuning.TILE).toInt(); val ty = (d.y / Tuning.TILE).toInt()
+                !map.solidAt(tx, ty)
+            }
             worldState.spawnTweaks = tweaks
         }
 

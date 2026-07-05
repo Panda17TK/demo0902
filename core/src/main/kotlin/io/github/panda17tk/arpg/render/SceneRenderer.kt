@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont
 import com.badlogic.gdx.graphics.g2d.GlyphLayout
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
+import io.github.panda17tk.arpg.map.DecorKind
 import io.github.panda17tk.arpg.ecs.components.Bullet
 import io.github.panda17tk.arpg.ecs.components.EBullet
 import io.github.panda17tk.arpg.ecs.components.Facing
@@ -112,6 +113,7 @@ class SceneRenderer {
         shapes.begin(ShapeRenderer.ShapeType.Filled)
         drawTerrain(shapes, camera, gw)
         drawDrift(shapes, gw)
+        drawDecor(shapes, gw, animTime) // v2.78: the ground's furniture, under everything built
         drawFacilities(shapes, gw, animTime)
         drawEscapePad(shapes, gw)
         drawMobs(shapes, gw, animTime)
@@ -162,6 +164,92 @@ class SceneRenderer {
             } else {
                 tmpC.set(0.52f, 0.52f, 0.58f, 0.5f); shapes.color = tmpC
                 shapes.circle(d.x, d.y, d.size, 6)
+            }
+        }
+    }
+
+    /** v2.78 装飾: trees, grass, flowers, rocks and each biome's own furniture — pure shapes,
+     *  no collision, drawn beneath facilities and actors. A little life on every ground. */
+    private fun drawDecor(shapes: ShapeRenderer, gw: GameWorld, animTime: Float) {
+        val s = Tuning.TILE / 32f // decor is authored at 32px-tile scale
+        for (d in gw.worldState.decor) {
+            val k = d.scale * s
+            when (d.kind) {
+                DecorKind.TREE -> {
+                    val sway = sin(animTime * 0.8f + d.x * 0.05f) * 1.2f * k
+                    tmpC.set(0.30f, 0.20f, 0.12f, 1f); shapes.color = tmpC
+                    shapes.rect(d.x - 1.6f * k, d.y - 2f * k, 3.2f * k, 10f * k)
+                    val g = 0.32f + d.hue * 0.18f // each tree its own green
+                    tmpC.set(0.10f, g, 0.14f, 1f); shapes.color = tmpC
+                    shapes.circle(d.x + sway, d.y + 12f * k, 7.5f * k, 12)
+                    shapes.circle(d.x - 4f * k + sway, d.y + 8f * k, 5f * k, 10)
+                    shapes.circle(d.x + 4f * k + sway, d.y + 8f * k, 5f * k, 10)
+                }
+                DecorKind.GRASS -> {
+                    tmpC.set(0.24f, 0.42f + d.hue * 0.12f, 0.22f, 0.9f); shapes.color = tmpC
+                    for (i in -1..1) shapes.rectLine(d.x + i * 2f * k, d.y, d.x + i * 3f * k, d.y + (5f + i.toFloat()) * k, 1.1f * k)
+                }
+                DecorKind.FLOWER -> {
+                    tmpC.set(0.30f, 0.45f, 0.26f, 0.9f); shapes.color = tmpC
+                    shapes.rectLine(d.x, d.y, d.x, d.y + 4f * k, 1f * k)
+                    when { // three petal hues across the worlds
+                        d.hue < 0.34f -> tmpC.set(0.95f, 0.75f, 0.85f, 1f)
+                        d.hue < 0.67f -> tmpC.set(0.95f, 0.90f, 0.55f, 1f)
+                        else -> tmpC.set(0.75f, 0.80f, 0.98f, 1f)
+                    }
+                    shapes.color = tmpC
+                    for (i in 0 until 4) { val a = i / 4f * TAU + 0.6f; shapes.circle(d.x + cos(a) * 1.8f * k, d.y + 4f * k + sin(a) * 1.8f * k, 1.3f * k, 6) }
+                    tmpC.set(0.98f, 0.85f, 0.35f, 1f); shapes.color = tmpC
+                    shapes.circle(d.x, d.y + 4f * k, 1f * k, 6)
+                }
+                DecorKind.ROCK -> {
+                    tmpC.set(0.42f, 0.41f, 0.44f, 1f); shapes.color = tmpC
+                    shapes.circle(d.x, d.y, 4.5f * k, 9)
+                    tmpC.set(0.33f, 0.32f, 0.35f, 1f); shapes.color = tmpC
+                    shapes.circle(d.x + 3f * k, d.y - 1f * k, 2.8f * k, 8)
+                }
+                DecorKind.DEAD_TREE -> {
+                    tmpC.set(0.24f, 0.20f, 0.17f, 1f); shapes.color = tmpC
+                    shapes.rect(d.x - 1.2f * k, d.y, 2.4f * k, 11f * k)
+                    shapes.rectLine(d.x, d.y + 8f * k, d.x + 5f * k, d.y + 12f * k, 1.4f * k)
+                    shapes.rectLine(d.x, d.y + 6f * k, d.x - 4f * k, d.y + 10f * k, 1.2f * k)
+                }
+                DecorKind.ICE_SPIKE -> {
+                    tmpC.set(0.75f, 0.88f, 0.98f, 0.95f); shapes.color = tmpC
+                    shapes.triangle(d.x - 3f * k, d.y, d.x + 3f * k, d.y, d.x, d.y + 12f * k)
+                    tmpC.set(0.92f, 0.97f, 1f, 0.8f); shapes.color = tmpC
+                    shapes.triangle(d.x - 1f * k, d.y, d.x + 1.5f * k, d.y, d.x + 0.4f * k, d.y + 8f * k)
+                }
+                DecorKind.CRYSTAL_SHARD -> {
+                    val glint = 0.65f + 0.3f * sin(animTime * 1.6f + d.hue * 6f)
+                    tmpC.set(0.45f, 0.75f, 0.95f, glint); shapes.color = tmpC
+                    shapes.triangle(d.x - 2f * k, d.y, d.x + 2f * k, d.y, d.x + 1f * k, d.y + 7f * k)
+                    tmpC.set(0.70f, 0.55f, 0.95f, glint * 0.8f); shapes.color = tmpC
+                    shapes.triangle(d.x, d.y, d.x + 3.4f * k, d.y, d.x + 3f * k, d.y + 5f * k)
+                }
+                DecorKind.VENT -> {
+                    tmpC.set(0.16f, 0.10f, 0.09f, 1f); shapes.color = tmpC
+                    shapes.circle(d.x, d.y, 4f * k, 10)
+                    tmpC.set(0.55f, 0.25f, 0.12f, 0.9f); shapes.color = tmpC
+                    shapes.circle(d.x, d.y, 2f * k, 8)
+                    val puff = (animTime * 0.5f + d.hue) % 1f // a slow breath of smoke, forever rising
+                    tmpC.set(0.5f, 0.45f, 0.42f, 0.30f * (1f - puff)); shapes.color = tmpC
+                    shapes.circle(d.x, d.y + (4f + puff * 14f) * k, (2f + puff * 4f) * k, 8)
+                }
+                DecorKind.SPORE -> {
+                    val bob = sin(animTime * 1.1f + d.hue * 6.28f) * 3f * k
+                    tmpC.set(0.75f, 0.82f, 0.60f, 0.35f); shapes.color = tmpC
+                    shapes.circle(d.x, d.y + 8f * k + bob, 4.5f * k, 10)
+                    tmpC.set(0.88f, 0.92f, 0.70f, 0.55f); shapes.color = tmpC
+                    shapes.circle(d.x, d.y + 8f * k + bob, 2f * k, 8)
+                }
+                DecorKind.CAIRN -> {
+                    tmpC.set(0.40f, 0.39f, 0.37f, 1f); shapes.color = tmpC
+                    shapes.circle(d.x, d.y, 3.6f * k, 8)
+                    shapes.circle(d.x + 0.5f * k, d.y + 3.4f * k, 2.6f * k, 8)
+                    tmpC.set(0.50f, 0.49f, 0.46f, 1f); shapes.color = tmpC
+                    shapes.circle(d.x - 0.3f * k, d.y + 6f * k, 1.8f * k, 8)
+                }
             }
         }
     }
