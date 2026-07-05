@@ -25,12 +25,18 @@ class Tribes(
         return best
     }
 
-    fun areHostile(a: Int, b: Int): Boolean =
-        a != b && a in hostile.indices && b in hostile.indices && hostile[a][b]
+    fun areHostile(a: Int, b: Int): Boolean = when {
+        a == b -> false
+        a == ROGUE || b == ROGUE -> true // v2.83: the rogue drifter answers to no banner
+        else -> a in hostile.indices && b in hostile.indices && hostile[a][b]
+    }
 
     fun intelligenceOf(tribe: Int): Float = if (tribe in intel.indices) intel[tribe] else 0f
 
     companion object {
+        /** v2.83: the bannerless tribe — hostile to every other tribe (and only ever spawned, never built). */
+        const val ROGUE = -9
+
         fun build(numTribes: Int, worldW: Float, worldH: Float, hostileChance: Float, rng: Rng): Tribes {
             val n = numTribes.coerceAtLeast(1)
             val centers = (0 until n).map { floatArrayOf(rng.nextFloat() * worldW, rng.nextFloat() * worldH) }

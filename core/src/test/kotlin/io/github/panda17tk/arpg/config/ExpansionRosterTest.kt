@@ -10,8 +10,9 @@ import org.junit.jupiter.api.Test
 class ExpansionRosterTest {
     private val enemies = GameConfig().enemies
 
-    @Test fun `the roster grew by fifty, to 123 species`() {
-        assertEquals(123, enemies.size, "73 old + 50 new")
+    @Test fun `the roster grew by fifty, to 123 species — plus the rogue`() {
+        assertEquals(124, enemies.size, "73 old + 50 new (v2.82) + rogue_drifter (v2.83)")
+        assertEquals("rogue", enemies.getValue("rogue_drifter").tier, "the rogue stays out of every pool")
     }
 
     @Test fun `the new space kin sit at the surge pool's tail — old waves stay byte-identical`() {

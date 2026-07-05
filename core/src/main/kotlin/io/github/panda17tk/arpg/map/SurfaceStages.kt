@@ -30,8 +30,8 @@ object SurfaceStages {
         val rng = Rng(seed)
         val (w, h, densityDiv, maxBlob) = shapeOf(biome)
         val g = Array(h) { CharArray(w) { '.' } }
-        for (x in 0 until w) { g[0][x] = '#'; g[h - 1][x] = '#' }
-        for (y in 0 until h) { g[y][0] = '#'; g[y][w - 1] = '#' }
+        // v2.83 ループ地表: no border ring — the outermost row/column stays open floor and the
+        // player wraps across it (MovementSystem). Obstacle blobs never write there (1 until w-1).
         val pcx = w / 2
         val pcy = h / 2
         repeat((w * h) / densityDiv) {

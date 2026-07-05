@@ -26,7 +26,7 @@ class WorldDrifterTest {
             }
         }
         // v2.46: each wreck adds a 3-strong drifter picket on top of the 30 void drifters.
-        assertEquals(30 + gw.worldState.wrecks.size * 3, drifters)
+        assertEquals(30 + gw.worldState.wrecks.size * 3 + 2 /* v2.83: the two rogue drifters */, drifters)
     }
 
     @Test fun `surfaces have no drifters`() {

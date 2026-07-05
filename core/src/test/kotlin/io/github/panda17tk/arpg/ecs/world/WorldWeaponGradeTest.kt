@@ -33,8 +33,8 @@ class WorldWeaponGradeTest {
         assertTrue(Weapons.ALL.first { it.id == "beam" }.infiniteAmmo)
     }
 
-    @Test fun `the machine gun carries an 80-round magazine`() {
-        assertEquals(80, Weapons.ALL.first { it.id == "mg" }.magSize)
+    @Test fun `the machine gun carries a 120-round magazine`() {
+        assertEquals(120, Weapons.ALL.first { it.id == "mg" }.magSize)
     }
 
     @Test fun `the new weapon types exist and are reachable through equipment`() {

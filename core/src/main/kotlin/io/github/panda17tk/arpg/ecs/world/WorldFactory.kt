@@ -40,6 +40,7 @@ import io.github.panda17tk.arpg.ecs.systems.MovementSystem
 import io.github.panda17tk.arpg.ecs.systems.PickupSystem
 import io.github.panda17tk.arpg.ecs.systems.ProjectileSystem
 import io.github.panda17tk.arpg.ecs.systems.ReloadSystem
+import io.github.panda17tk.arpg.ecs.systems.RestRegenSystem
 import io.github.panda17tk.arpg.ecs.systems.SmokeSystem
 import io.github.panda17tk.arpg.ecs.systems.SnapshotSystem
 import io.github.panda17tk.arpg.ecs.systems.DesyncSurgeSystem
@@ -201,6 +202,7 @@ object WorldFactory {
                 add(EventFeedSystem())
                 add(GameOverSystem())
                 add(MovementSystem())
+                add(RestRegenSystem()) // v2.83: stand still, heal 1/s
                 add(GravitySystem())
                 add(LandingSystem())
                 add(BuildSystem())
@@ -276,6 +278,27 @@ object WorldFactory {
                     with(world) {
                         e[Velocity].driftX = kotlin.math.cos(va) * sp
                         e[Velocity].driftY = kotlin.math.sin(va) * sp
+                    }
+                }
+            }
+        }
+
+        // v2.83 ならず者: two player-like drifters coast the system, at war with EVERY tribe —
+        // they fight the machines, the tribes, and you, and never stall the wave train.
+        if (mode != WorldMode.SURFACE) {
+            val rogueRng = Rng(seed xor 0x0906_0DEAL)
+            config.enemies["rogue_drifter"]?.let { def ->
+                repeat(2) {
+                    val ang = rogueRng.nextFloat() * TAU
+                    val dist = DRIFTER_MIN_DIST + rogueRng.nextFloat() * DRIFTER_RANGE
+                    val rawX = (spawnX + kotlin.math.cos(ang) * dist).coerceIn(Tuning.TILE * 2f, map.width * Tuning.TILE - Tuning.TILE * 2f)
+                    val rawY = (spawnY + kotlin.math.sin(ang) * dist).coerceIn(Tuning.TILE * 2f, map.height * Tuning.TILE - Tuning.TILE * 2f)
+                    val (rx2, ry2) = snapToFloor(map, rawX, rawY)
+                    val e = MobFactory.spawn(world, def, rx2, ry2, tribe = Tribes.ROGUE, dashes = true, drifter = true)
+                    val va = rogueRng.nextFloat() * TAU
+                    with(world) {
+                        e[Velocity].driftX = kotlin.math.cos(va) * DRIFTER_SPEED_MAX
+                        e[Velocity].driftY = kotlin.math.sin(va) * DRIFTER_SPEED_MAX
                     }
                 }
             }

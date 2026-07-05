@@ -29,6 +29,7 @@ internal fun defaultEnemies(): Map<String, EnemyDef> = buildMap {
     // v2.82 大増員: appended LAST on purpose — the surge pool and midboss rotation grow at the
     // tail, so every wave the old versions produced stays byte-identical (determinism contract).
     putAll(expansionSpace())
+    putAll(rogueDrifter()) // v2.83
     putAll(expansionSociety())
     putAll(expansionWildlife())
 }
@@ -861,6 +862,23 @@ private fun expansionSpace(): Map<String, EnemyDef> = mapOf(
         attacks = listOf(
             AttackSpec("homing", cd = 3.2f, dmg = 13f, speed = 140f, turn = 2.8f, life = 3.5f),
             AttackSpec("mine", cd = 5f, dmg = 18f, life = 8f),
+        ),
+    ),
+)
+
+/** v2.83: a drifter like you — someone else's last keeper, and no friend of anyone's. */
+private fun rogueDrifter(): Map<String, EnemyDef> = mapOf(
+    "rogue_drifter" to EnemyDef(
+        // tier "rogue": kept OUT of the surge pool / drifter rolls / wreck pickets — it only
+        // ever enters the world through its own two-per-system spawn, under the ROGUE banner.
+        name = "ならず者の漂流者", tier = "rogue", color = "#d8e2ec", hp = 280f, speed = 98f, w = 24f, h = 24f,
+        seeRange = 460f, contactKB = 240f, gravityResponse = 0.5f,
+        intelligence = 0.9f, bravery = 0.9f, canSpeak = true, speechStyle = "savage", lifeKind = LifeKind.SAPIENT,
+        dodge = DodgeSpec(0.22f, 0.13f, 1.8f),
+        attacks = listOf(
+            AttackSpec("twin_shot", cd = 0.9f, dmg = 12f, speed = 290f, life = 1.8f),
+            AttackSpec("blink", cd = 4f, maxTiles = 5, dur = 0.1f, minDist = 80f, standoff = 40f),
+            AttackSpec("charge_melee", cd = 3.4f, range = 90f, reach = 34f, windup = 0.6f, dmg = 20f, kb = 420f),
         ),
     ),
 )
