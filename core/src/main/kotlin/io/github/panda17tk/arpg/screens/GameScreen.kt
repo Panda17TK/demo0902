@@ -4,6 +4,7 @@ import com.badlogic.gdx.Application
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
 import com.badlogic.gdx.ScreenAdapter
+import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.OrthographicCamera
 import com.badlogic.gdx.graphics.g2d.BitmapFont
 import com.badlogic.gdx.graphics.g2d.GlyphLayout
@@ -91,6 +92,7 @@ import io.github.panda17tk.arpg.sim.TutorialController
 import io.github.panda17tk.arpg.sim.TutorialStep
 import io.github.panda17tk.arpg.sim.TakeoffReward
 import io.github.panda17tk.arpg.sim.Tuning
+import io.github.panda17tk.arpg.sim.WaveEvent
 import io.github.panda17tk.arpg.sim.WorldMode
 import io.github.panda17tk.arpg.sim.WorldState
 import io.github.panda17tk.arpg.sim.Weather
@@ -110,6 +112,7 @@ import io.github.panda17tk.arpg.upgrade.Upgrade
 import io.github.panda17tk.arpg.upgrade.Upgrades
 import kotlin.math.floor
 import kotlin.math.hypot
+import kotlin.math.sin
 import kotlin.math.pow
 
 /** Half-extent of the toroidal box the drifting debris wraps within (matches WorldFactory's seed range). */
@@ -256,6 +259,10 @@ class GameScreen(
     // v2.44: the fade that is currently running ends in a system jump, not a landing/takeoff.
     private var pendingJump = false
     private var fadeZoomDir = 0f // v2.85: landing dives in (-), takeoff/jump pulls back (+)
+    private val eventBanner = io.github.panda17tk.arpg.ui.EventBanner() // v2.86 開幕バナー
+    private val bannerGlyph = com.badlogic.gdx.graphics.g2d.GlyphLayout()
+    private val cEventTmp = Color()
+    private var eventFxT = 0f // v2.86: clock for the event-flavored screen fx
 
     // Memory tint per planet id (LP v2.30/10c) — rebuilt only when memory can change (transitions/forget).
     private var memoryTones: Map<Long, Int> = emptyMap()
@@ -655,7 +662,7 @@ class GameScreen(
         // v2.45: the sim leaves one-shot announcements (event waves, boss telegraph, bounty kill)
         // on the WaveState; the screen turns them into the same toast the send-off gift uses.
         if (!paused) gw.waveState.announce?.let {
-            rewardToast = it; rewardToastT = TOAST_TIME
+            eventBanner.start(it) // v2.86: the moment lines ride the cinematic band, not a toast
             gw.waveState.announce = null
             Sfx.play("scan")
             if (it.contains("賞金首を討ち取った") && !simMode) tryUnlock(Achievement.BOUNTY_HUNTER) // v2.62
@@ -757,7 +764,85 @@ class GameScreen(
         scene.draw(shapes, batch, font, camera, gw, animTime, pose, memoryTones)
 
         drawWeather(delta) // v2.74: the planet's climate, between the world and the HUD
+        drawEventFx(delta) // v2.86: the wave event colors the whole sky, not just a line
         drawHud(paused, sta, staMax, overheat)
+        drawEventBanner() // v2.86: the opening band rides over the HUD
+    }
+
+    /** v2.86 イベントの見える化: each space wave event owns a screen-space look —
+     *  大群 pulses the rim dark red, 磁気嵐 skates noise streaks, 清掃 sweeps a scanline. */
+    private fun drawEventFx(delta: Float) {
+        if (gw.worldState.mode != WorldMode.SPACE) return
+        val ev = gw.waveState.event
+        if (ev == WaveEvent.NONE || ev == WaveEvent.BOUNTY) return
+        eventFxT += delta
+        hudViewport.apply()
+        Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND)
+        shapes.projectionMatrix = hudViewport.camera.combined
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
+        val w = hudViewport.worldWidth; val h = hudViewport.worldHeight
+        when (ev) {
+            WaveEvent.HORDE -> { // the rim of the sky breathes dark red
+                val a = 0.10f + 0.06f * sin(eventFxT * 2.6f)
+                cEventTmp.set(0.55f, 0.08f, 0.06f, a); shapes.color = cEventTmp
+                val band = h * 0.10f
+                shapes.rect(0f, 0f, w, band); shapes.rect(0f, h - band, w, band)
+                shapes.rect(0f, 0f, w * 0.06f, h); shapes.rect(w - w * 0.06f, 0f, w * 0.06f, h)
+            }
+            WaveEvent.STORM -> { // magnetic noise: brief streaks skating across the view
+                for (i in 0 until 12) {
+                    val ph = (eventFxT * (0.9f + (i % 5) * 0.13f) + i * 0.37f) % 1f
+                    val sx = ((i * 0.083f + ph * 0.61f) % 1f) * w
+                    val sy = ((i * 0.29f + ph * 0.83f) % 1f) * h
+                    cEventTmp.set(0.6f, 0.8f, 1f, 0.16f * (1f - ph)); shapes.color = cEventTmp
+                    shapes.rect(sx, sy, 46f * (1f - ph * 0.5f), 1.5f)
+                }
+            }
+            WaveEvent.PURGE -> { // the custodians' scanline sweeps the hall, top to bottom
+                val ph = (eventFxT % 2.8f) / 2.8f
+                val sy = h * (1f - ph)
+                cEventTmp.set(0.45f, 0.95f, 1f, 0.10f); shapes.color = cEventTmp
+                shapes.rect(0f, sy - 14f, w, 14f)
+                cEventTmp.set(0.65f, 1f, 1f, 0.32f); shapes.color = cEventTmp
+                shapes.rect(0f, sy, w, 2f)
+            }
+            else -> {}
+        }
+        shapes.end()
+    }
+
+    /** v2.86 開幕バナー: a scrim band across the upper-middle carrying the moment line. */
+    private fun drawEventBanner() {
+        if (!eventBanner.active) return
+        val a = eventBanner.alpha()
+        if (a <= 0f) return
+        hudViewport.apply()
+        val w = hudViewport.worldWidth; val h = hudViewport.worldHeight
+        val bandH = 52f
+        val y = h * 0.64f
+        Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND)
+        shapes.projectionMatrix = hudViewport.camera.combined
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
+        cEventTmp.set(0f, 0f, 0f, 0.55f * a); shapes.color = cEventTmp
+        shapes.rect(0f, y, w, bandH)
+        cEventTmp.set(1f, 0.62f, 0.30f, 0.85f * a); shapes.color = cEventTmp
+        shapes.rect(0f, y + bandH, w, 1.5f); shapes.rect(0f, y - 1.5f, w, 1.5f)
+        shapes.end()
+        batch.projectionMatrix = hudViewport.camera.combined
+        batch.begin()
+        val bx = font.data.scaleX; val by = font.data.scaleY
+        font.data.setScale(bx * 1.25f, by * 1.25f)
+        bannerGlyph.setText(font, eventBanner.text)
+        if (bannerGlyph.width > w - 32f) {
+            val k = (w - 32f) / bannerGlyph.width
+            font.data.setScale(bx * 1.25f * k, by * 1.25f * k)
+            bannerGlyph.setText(font, eventBanner.text)
+        }
+        cEventTmp.set(1f, 0.94f, 0.85f, a); font.color = cEventTmp
+        font.draw(batch, bannerGlyph, (w - bannerGlyph.width) / 2f + eventBanner.slide(), y + bandH / 2f + bannerGlyph.height / 2f)
+        font.color = Color.WHITE
+        font.data.setScale(bx, by)
+        batch.end()
     }
 
     /** Gameplay touch (twin-stick / fire) runs only when no modal blocks it (spec §5.2). */
@@ -825,6 +910,7 @@ class GameScreen(
         } else 0f
         Ambience.setLayers(ambHeat.value, shimmerLevel)
         gw.fx.update(delta)
+        eventBanner.update(delta) // v2.86
         animTime += delta
         if (!gw.gameOver.isOver && !choosing && !paused) runTime += delta
         // v2.69 観測依頼: surface time only ticks while actually playing the surface.

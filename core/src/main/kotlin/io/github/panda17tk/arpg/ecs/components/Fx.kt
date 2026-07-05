@@ -24,6 +24,7 @@ class Fx(private val rng: Rng = Rng(0x5DEECE66DL)) {
     val pops = ArrayList<Pop>(32)       // v2.85: floating damage numbers
     val corpses = ArrayList<Corpse>(16) // v2.85: bodies squashing out before the gibs
     val bursts = ArrayList<Burst>(8)    // v2.85: delayed explosion stages (big deaths chain)
+    val warnRings = ArrayList<Ring>(4)  // v2.86: the spawn-point warning of a heavy arrival
 
     class Beam(val sx: Float, val sy: Float, val ex: Float, val ey: Float, var t: Float, val life: Float, val width: Float = 1.8f)
     class Slash(val x: Float, val y: Float, val ang: Float, var t: Float, val life: Float, val scale: Float = 1f)
@@ -31,6 +32,7 @@ class Fx(private val rng: Rng = Rng(0x5DEECE66DL)) {
     class Pop(var x: Float, var y: Float, val text: String, val color: Color, val scale: Float, var t: Float = 0f, val life: Float = 0.7f)
     class Corpse(val x: Float, val y: Float, val w: Float, val h: Float, val color: Color, val big: Boolean, var t: Float = 0f, val life: Float)
     class Burst(val x: Float, val y: Float, val color: Color, val big: Boolean, var delay: Float)
+    class Ring(val x: Float, val y: Float, var t: Float = 0f, val life: Float = 1.1f, val maxR: Float = 72f)
 
     var shakeT = 0f
         private set
@@ -113,6 +115,9 @@ class Fx(private val rng: Rng = Rng(0x5DEECE66DL)) {
         pops.add(Pop(x, y, amount.toString(), color, scale))
     }
 
+    /** v2.86: a heavy arrival announces its spot — an expanding warning ring at the spawn point. */
+    fun spawnWarnRing(x: Float, y: Float) { warnRings.add(Ring(x, y)) }
+
     fun spawnBeam(sx: Float, sy: Float, ex: Float, ey: Float, width: Float = 1.8f) { beams.add(Beam(sx, sy, ex, ey, 0f, 0.12f, width)) }
     fun spawnSlash(x: Float, y: Float, ang: Float, scale: Float = 1f) { slashes.add(Slash(x, y, ang, 0f, 0.22f, scale)) }
     fun spawnAfterimage(x: Float, y: Float, w: Float, h: Float, color: Color) { afters.add(After(x, y, w, h, color, 0f, 0.25f)) }
@@ -151,6 +156,7 @@ class Fx(private val rng: Rng = Rng(0x5DEECE66DL)) {
             b.delay -= dt
             if (b.delay <= 0f) { spawnDeath(b.x, b.y, b.color, b.big); bursts.removeAt(i) }
         }
+        for (i in warnRings.indices.reversed()) { val r = warnRings[i]; r.t += dt; if (r.t >= r.life) warnRings.removeAt(i) }
         for (i in particles.indices.reversed()) {
             val p = particles[i]
             p.t += dt

@@ -373,6 +373,15 @@ class SceneRenderer {
                 val role = e.getOrNull(io.github.panda17tk.arpg.ecs.components.CreatureMind)?.familyRole
                     ?: io.github.panda17tk.arpg.config.FamilyRole.NONE
                 Actors.drawMob(shapes, mm.kind, mm.tier, mt.x, mt.y, mm.def.w, mm.def.h, Color.valueOf(mm.def.color), mf.x, mf.y, moving, mh.hitFlash > 0f, ma.dodgeT > 0f, chargeProg, ma.enrageT > 0f, hpFrac, e.id * 1.3f, animTime, role, mm.level)
+                if (mm.bountyDust > 0) { // v2.86: the head wears its price — a gold pulse + a diamond overhead
+                    val pulse = 0.6f + 0.4f * sin(animTime * 5f)
+                    tmpC.set(1f, 0.82f, 0.35f, 0.16f * pulse); shapes.color = tmpC
+                    shapes.circle(mt.x, mt.y, (mm.def.w + mm.def.h) * 0.5f + 10f + 3f * pulse, 24)
+                    tmpC.set(1f, 0.82f, 0.35f, 0.95f); shapes.color = tmpC
+                    val dy = mt.y - mm.def.h / 2f - 22f + 2f * sin(animTime * 3f)
+                    shapes.triangle(mt.x, dy - 5f, mt.x - 4f, dy, mt.x, dy + 5f)
+                    shapes.triangle(mt.x, dy - 5f, mt.x + 4f, dy, mt.x, dy + 5f)
+                }
             }
         }
     }
@@ -676,6 +685,14 @@ class SceneRenderer {
     /** Pass 2 (Line): gravity-well rings, attack telegraphs and melee slash arcs. */
     private fun drawLinePass(shapes: ShapeRenderer, gw: GameWorld, animTime: Float) {
         shapes.begin(ShapeRenderer.ShapeType.Line)
+        // v2.86: heavy-arrival warning rings — two expanding circles chasing each other
+        gw.fx.warnRings.forEach { r ->
+            val k = (r.t / r.life).coerceIn(0f, 1f)
+            tmpC.set(1f, 0.35f, 0.25f, (1f - k) * 0.9f); shapes.color = tmpC
+            shapes.circle(r.x, r.y, r.maxR * k + 4f, 36)
+            tmpC.set(1f, 0.55f, 0.35f, (1f - k) * 0.5f); shapes.color = tmpC
+            shapes.circle(r.x, r.y, (r.maxR * ((k + 0.4f) % 1f)) + 4f, 30)
+        }
         // gravity wells: concentric procedural rings around each wall cluster's gravity centre
         for (c in gw.gravityField.clusters) {
             tmpC.set(0.55f, 0.52f, 0.66f, 0.45f); shapes.color = tmpC

@@ -5,6 +5,7 @@ import com.github.quillraven.fleks.IteratingSystem
 import com.github.quillraven.fleks.World.Companion.family
 import io.github.panda17tk.arpg.config.GameConfig
 import io.github.panda17tk.arpg.config.WaveConfig
+import io.github.panda17tk.arpg.ecs.components.Fx
 import io.github.panda17tk.arpg.ecs.components.Mob
 import io.github.panda17tk.arpg.ecs.components.PlayerTag
 import io.github.panda17tk.arpg.ecs.components.Transform
@@ -33,6 +34,7 @@ class DesyncSurgeSystem : IteratingSystem(family { all(PlayerTag, Transform) }) 
     private val config: GameConfig = world.inject()
     private val map: TileMap = world.inject()
     private val rng: Rng = world.inject()
+    private val fx: Fx = world.inject()
     private val tribes: Tribes = world.inject()
     private val worldState: WorldState = world.inject()
 
@@ -113,6 +115,7 @@ class DesyncSurgeSystem : IteratingSystem(family { all(PlayerTag, Transform) }) 
             val m = e[Mob]
             m.level = 7 // a bounty head outclasses an ordinary midboss (5) but not a boss (10)
             m.bountyDust = WaveEvents.bountyReward(n)
+            fx.spawnWarnRing(e[Transform].x, e[Transform].y) // v2.86: the head's arrival is marked
         }
         return name
     }
@@ -121,7 +124,8 @@ class DesyncSurgeSystem : IteratingSystem(family { all(PlayerTag, Transform) }) 
         if (keys.isEmpty()) return
         val tile = pickTile(pt) ?: return
         val def = config.enemies[keys[rng.nextInt(keys.size)]] ?: return
-        MobFactory.spawn(world, def, tile.first, tile.second, n, config.waves.hpScalePerWave, config.waves.speedScalePerWave, tribe = tribes.tribeOf(tile.first, tile.second))
+        val e = MobFactory.spawn(world, def, tile.first, tile.second, n, config.waves.hpScalePerWave, config.waves.speedScalePerWave, tribe = tribes.tribeOf(tile.first, tile.second))
+        with(world) { fx.spawnWarnRing(e[Transform].x, e[Transform].y) } // v2.86: the arrival is marked
     }
 
     private fun liveCap(n: Int, c: WaveConfig): Int = minOf(c.maxLiveCap, c.liveCapBase + n * c.liveCapPerWave)
