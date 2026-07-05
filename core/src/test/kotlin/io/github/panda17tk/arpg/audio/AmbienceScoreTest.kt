@@ -94,6 +94,29 @@ class AmbienceScoreTest {
         assertEquals(0f, heat.value) // never below silence
     }
 
+    @Test fun `the sky's loops honour the same seamless contract`() {
+        // v2.76 天候アンビエント: rain and the three winds — pure, bounded, loop-clean.
+        assertEquals(null, AmbienceScore.renderWeather(io.github.panda17tk.arpg.sim.WeatherKind.CLEAR))
+        for (kind in io.github.panda17tk.arpg.sim.WeatherKind.entries) {
+            val a = AmbienceScore.renderWeather(kind) ?: continue
+            val b = AmbienceScore.renderWeather(kind)!!
+            assertEquals(AmbienceScore.SAMPLES, a.size)
+            assertArrayEquals(a, b)
+            var peak = 0
+            for (v in a) { val x = abs(v.toInt()); if (x > peak) peak = x }
+            assertTrue(peak > 500, "$kind must be audible (peak=$peak)")
+            assertTrue(peak < 29000, "$kind must keep headroom (peak=$peak)")
+            val seam = abs(a[a.size - 1] - a[0])
+            assertTrue(seam < 3000, "$kind loop seam pops (delta=$seam)")
+        }
+        // rain and dust wind are different tempers, not one file twice
+        val rain = AmbienceScore.renderWeather(io.github.panda17tk.arpg.sim.WeatherKind.RAIN)!!
+        val dust = AmbienceScore.renderWeather(io.github.panda17tk.arpg.sim.WeatherKind.DUSTWIND)!!
+        var diff = 0L
+        for (i in rain.indices) if (rain[i] != dust[i]) diff++
+        assertTrue(diff > rain.size / 2)
+    }
+
     @Test fun `every track is audible, unclipped and seamless at the loop point`() {
         for (track in AmbientTrack.entries) {
             val s = AmbienceScore.render(track)

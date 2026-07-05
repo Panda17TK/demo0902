@@ -13,6 +13,7 @@ object Ambience {
     private const val VOLUME = 0.22f
     private const val PULSE_MAX = 0.30f   // v2.67: combat heartbeat, at full heat
     private const val SHIMMER_MAX = 0.26f // v2.67: the memory core, standing beside it
+    private const val WEATHER_VOL = 0.20f // v2.76: the sky sits just under the pad
 
     /** Gated by the same サウンド toggle as Sfx (v2.59 設定). */
     var enabled = true
@@ -22,6 +23,8 @@ object Ambience {
     private var music: Music? = null
     private var pulse: Music? = null   // v2.67 reactive layers ride at volume 0 until asked
     private var shimmer: Music? = null
+    private var weather: Music? = null // v2.76: the sky's own loop (rain hiss / wind)
+    private var weatherKind: io.github.panda17tk.arpg.sim.WeatherKind = io.github.panda17tk.arpg.sim.WeatherKind.CLEAR
 
     /** Switch to [track] — no-op if it is already humming. Remembered even while disabled. */
     fun play(track: AmbientTrack) {
@@ -37,10 +40,27 @@ object Ambience {
         try { shimmer?.volume = shimmerLevel.coerceIn(0f, 1f) * SHIMMER_MAX } catch (_: Throwable) {}
     }
 
+    /** v2.76 天候: swap the sky's loop — CLEAR (or leaving the surface) fades it away. */
+    fun playWeather(kind: io.github.panda17tk.arpg.sim.WeatherKind) {
+        if (kind == weatherKind && (weather != null || !enabled || kind == io.github.panda17tk.arpg.sim.WeatherKind.CLEAR)) return
+        weatherKind = kind
+        try { weather?.stop() } catch (_: Throwable) {}
+        try { weather?.dispose() } catch (_: Throwable) {}
+        weather = null
+        if (!enabled) return
+        val samples = AmbienceScore.renderWeather(kind) ?: return
+        weather = loop("bgm/weather-${kind.name.lowercase()}.wav", samples, WEATHER_VOL)
+    }
+
     /** The sound toggle: off stops the loop, on resumes whatever the scene last asked for. */
     fun setEnabled(on: Boolean) {
         enabled = on
-        if (!on) kill() else if (music == null) current?.let { start(it) }
+        if (!on) kill() else {
+            if (music == null) current?.let { start(it) }
+            val k = weatherKind
+            weatherKind = io.github.panda17tk.arpg.sim.WeatherKind.CLEAR
+            playWeather(k) // restart the sky too
+        }
     }
 
     fun stop() { kill(); current = null }
@@ -64,10 +84,10 @@ object Ambience {
     } catch (_: Throwable) { null /* no audio on this platform → silent */ }
 
     private fun kill() {
-        for (m in listOf(music, pulse, shimmer)) {
+        for (m in listOf(music, pulse, shimmer, weather)) {
             try { m?.stop() } catch (_: Throwable) {}
             try { m?.dispose() } catch (_: Throwable) {}
         }
-        music = null; pulse = null; shimmer = null
+        music = null; pulse = null; shimmer = null; weather = null
     }
 }
