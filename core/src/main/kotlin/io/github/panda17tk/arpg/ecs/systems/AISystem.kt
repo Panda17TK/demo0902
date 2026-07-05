@@ -279,7 +279,7 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
                 trig = SpeechLines.Trigger.ProtectKing
             }
             if (trig != null) {
-                val line = SpeechLines.pick(trig, rng.nextInt(1000))
+                val line = SpeechLines.pick(trig, rng.nextInt(1000), m.def.speechStyle) // v2.82: each species its own register
                 if (line != null) { speech.text = line; speech.remaining = BUBBLE_TIME; speech.cooldown = SPEECH_CD }
             }
         }
