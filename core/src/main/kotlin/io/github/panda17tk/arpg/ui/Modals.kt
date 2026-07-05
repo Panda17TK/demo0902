@@ -32,8 +32,11 @@ object Modals {
     fun gameOverButtons(hudW: Float, hudH: Float): List<UiButton> {
         val btnW = min(360f, hudW * 0.5f).coerceAtLeast(160f)
         val x = (hudW - btnW) / 2f
-        val y = hudH * 0.5f - 120f
-        return listOf(UiButton(x, y, btnW, BTN_H, "再挑戦"))
+        val y = hudH * 0.5f - 150f
+        return listOf(
+            UiButton(x, y, btnW, BTN_H, "もう一度"),
+            UiButton(x, y - BTN_H - 12f, btnW, BTN_H, "タイトルへ"), // v2.59
+        )
     }
 
     /** The small ⏸ button shown in the top-right corner during play. */

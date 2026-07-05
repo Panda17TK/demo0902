@@ -117,6 +117,8 @@ private const val SETTINGS_PREFS = "drift-settings" // v2.39: device-level setti
 private const val SETTINGS_SWAP = "controlSwap"
 private const val SETTINGS_ONBOARD = "onboardDone" // v2.47: the first-run walkthrough ran once
 private const val SETTINGS_LAYOUT = "buttonLayout" // v2.56: the layout editor's saved tweaks
+private const val SETTINGS_SOUND = "soundOn"       // v2.59: title-screen toggles
+private const val SETTINGS_HAPTICS = "hapticsOn"
 private const val SAVED_NOTE_TIME = 2f // seconds the 「セーブした」 flash stays on the SAVE tab
 
 /**
@@ -264,6 +266,11 @@ class GameScreen(
         touchEnabled = Gdx.app.type == Application.ApplicationType.Android
         controlSwap = try { Gdx.app.getPreferences(SETTINGS_PREFS).getBoolean(SETTINGS_SWAP, false) } catch (_: Throwable) { false }
         onboardDone = try { Gdx.app.getPreferences(SETTINGS_PREFS).getBoolean(SETTINGS_ONBOARD, false) } catch (_: Throwable) { true }
+        try { // v2.59 設定: sound / haptics master switches (title-screen toggles)
+            val sp = Gdx.app.getPreferences(SETTINGS_PREFS)
+            Sfx.enabled = sp.getBoolean(SETTINGS_SOUND, true)
+            Haptics.enabled = sp.getBoolean(SETTINGS_HAPTICS, true)
+        } catch (_: Throwable) { /* defaults stay on */ }
         touch.layout.tweaks = try {
             LayoutTweaks.fromJson(Gdx.app.getPreferences(SETTINGS_PREFS).getString(SETTINGS_LAYOUT, ""))
         } catch (_: Throwable) { emptyMap() }
@@ -565,9 +572,11 @@ class GameScreen(
                 }
                 Sfx.play("dead"); Haptics.buzz(140)
             }
-            val restartTapped = tapped &&
-                Modals.hitModal(Modals.gameOverButtons(hudViewport.worldWidth, hudViewport.worldHeight), tapX, tapY) != null
-            if (Gdx.input.isKeyJustPressed(Input.Keys.R) || restartTapped) { newRun(); return false }
+            val goHit = if (tapped) {
+                Modals.hitModal(Modals.gameOverButtons(hudViewport.worldWidth, hudViewport.worldHeight), tapX, tapY)
+            } else null
+            if (Gdx.input.isKeyJustPressed(Input.Keys.R) || goHit == 0) { newRun(); return false }
+            if (goHit == 1) { (Gdx.app.applicationListener as? App)?.showTitle(); return false } // v2.59
         } else if (paused) {
             accumulator = 0f // freeze the sim while paused; skip stepping & the upgrade flow
         } else {
@@ -632,9 +641,14 @@ class GameScreen(
         if (gw.gameOver.isOver) {
             val bestText = if (newBest) "自己ベスト更新！  汚染深度 ${Scores.bestWave}"
                 else "ベスト  汚染深度 ${Scores.bestWave}  撃破 ${Scores.bestKills}"
+            val mins = (runTime / 60f).toInt(); val secs = (runTime % 60f).toInt()
             Hud.gameOver(
                 shapes, batch, font, Fonts.title, hudViewport,
-                gw.waveState.num, gw.gameOver.kills, bestText, Modals.gameOverButtons(hudW, hudH).first(),
+                gw.waveState.num, gw.gameOver.kills, bestText, Modals.gameOverButtons(hudW, hudH),
+                summary = listOf( // v2.59: the run's obituary
+                    "第${session.spaceSeed}星系　星間同期復旧 ${syncPercent()}%",
+                    "呼び名 『${Epithet.of(session.memory.memories.values)}』　航行時間 %d:%02d".format(mins, secs),
+                ),
             )
         }
         if (overlay == Overlay.INVENTORY) drawInventory()

@@ -29,7 +29,11 @@ object Sfx {
         gen("scan", freq = 990f, ms = 110, noise = 0f)
     }
 
+    /** v2.59 設定: master switch (persisted by the title screen's toggle). */
+    var enabled = true
+
     fun play(name: String) {
+        if (!enabled) return
         try { sounds[name]?.play(VOLUME) } catch (_: Throwable) {}
     }
 
