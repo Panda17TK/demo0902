@@ -402,6 +402,7 @@ class GameScreen(
             }
             rewardToast = toast
             rewardToastT = if (rewardToast != null) TOAST_TIME else 0f
+            tutorial?.onTakeoff() // v2.61: lifting off the first star completes the diagnostic
             val (seed, spawn) = session.completeTakeoff(soc) // fold the visit back into memory
             transitionWorld(WorldMode.SPACE, null, seed, spawn) // same system, beside the planet we left
         }
@@ -493,6 +494,13 @@ class GameScreen(
                 tutPrevDust = dustNow
                 if (input.dash) t.onDash()
                 if (cachedCard != null) t.onScan()
+                // v2.61 Layer 2: the first surface — observe, the child, the star writing it down.
+                if (gw.worldState.mode == WorldMode.SURFACE) {
+                    t.onSurfaceTick(simDelta)
+                    val soc = gw.worldState.society
+                    if (soc.childHarmed || soc.childKilled) t.onSocietyEvent(protected = false)
+                    else if (soc.predatorKilledNearChild || soc.mercy > 0.05f) t.onSocietyEvent(protected = true)
+                }
                 if (t.done) finishTutorial()
             }
         }

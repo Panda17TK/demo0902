@@ -19,7 +19,16 @@ class TutorialControllerTest {
         t.onDustPicked(); assertEquals(TutorialStep.DASH, t.step)
         t.onDash(); assertEquals(TutorialStep.FIND_PLANET, t.step)
         t.onScan(); assertEquals(TutorialStep.LAND, t.step)
-        t.onLanded(); assertEquals(TutorialStep.COMPLETE, t.step)
+        // v2.61 Layer 2: touchdown opens the surface beats instead of ending the diagnostic.
+        t.onLanded(); assertEquals(TutorialStep.OBSERVE, t.step)
+        t.onSurfaceTick(TutorialController.OBSERVE_TIME)
+        assertEquals(TutorialStep.CHILD, t.step)
+        t.onSocietyEvent(protected = true)
+        assertEquals(TutorialStep.MEMORY, t.step)
+        assertEquals(TutorialMemory.PROTECTED, t.memory)
+        t.onSurfaceTick(TutorialController.MEMORY_TIME)
+        assertEquals(TutorialStep.RETURN_PAD, t.step)
+        t.onTakeoff()
         assertTrue(t.done)
         assertFalse(t.skipped)
     }
@@ -40,10 +49,31 @@ class TutorialControllerTest {
         assertTrue(t.completionToast().contains("スキップ"))
     }
 
-    @Test fun `landing early still completes the diagnostic`() {
+    @Test fun `landing early still opens the surface beats`() {
         val t = TutorialController()
         t.begin(); t.onMoved(999f); t.onKill(); t.onDustPicked(); t.onDash()
         t.onLanded() // landed straight from FIND_PLANET without a latched scan
+        assertEquals(TutorialStep.OBSERVE, t.step)
+    }
+
+    @Test fun `a harmed child writes the harsher memory`() {
+        val t = TutorialController()
+        t.begin(); t.onMoved(999f); t.onKill(); t.onDustPicked(); t.onDash(); t.onScan(); t.onLanded()
+        t.onSocietyEvent(protected = false) // even during OBSERVE — the star notices immediately
+        assertEquals(TutorialStep.MEMORY, t.step)
+        assertEquals(TutorialMemory.HARMED, t.memory)
+        assertTrue(t.prompt(true).any { it.contains("敵意") })
+    }
+
+    @Test fun `a quiet visit falls back to the neutral memory`() {
+        val t = TutorialController()
+        t.begin(); t.onMoved(999f); t.onKill(); t.onDustPicked(); t.onDash(); t.onScan(); t.onLanded()
+        t.onSurfaceTick(TutorialController.OBSERVE_TIME) // → CHILD
+        t.onSurfaceTick(TutorialController.CHILD_TIMEOUT) // nothing happened
+        assertEquals(TutorialStep.MEMORY, t.step)
+        assertEquals(TutorialMemory.NONE, t.memory)
+        // takeoff finishes from anywhere in Layer 2
+        t.onTakeoff()
         assertTrue(t.done)
     }
 
