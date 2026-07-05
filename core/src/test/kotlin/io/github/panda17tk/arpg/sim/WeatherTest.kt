@@ -14,12 +14,12 @@ class WeatherTest {
     }
 
     @Test fun `each biome rains only what belongs to it — and some skies stay clear`() {
-        val allowed = mapOf(
-            PlanetBiome.NATURE to setOf(WeatherKind.CLEAR, WeatherKind.RAIN),
-            PlanetBiome.GAS to setOf(WeatherKind.CLEAR, WeatherKind.RAIN),
-            PlanetBiome.ICE to setOf(WeatherKind.CLEAR, WeatherKind.SNOW),
+        val allowed = mapOf( // v2.77: the heavier/stranger skies joined their home biomes
+            PlanetBiome.NATURE to setOf(WeatherKind.CLEAR, WeatherKind.RAIN, WeatherKind.THUNDER),
+            PlanetBiome.GAS to setOf(WeatherKind.CLEAR, WeatherKind.RAIN, WeatherKind.THUNDER),
+            PlanetBiome.ICE to setOf(WeatherKind.CLEAR, WeatherKind.SNOW, WeatherKind.AURORA),
             PlanetBiome.MAGMA to setOf(WeatherKind.CLEAR, WeatherKind.ASH),
-            PlanetBiome.DEAD to setOf(WeatherKind.CLEAR, WeatherKind.ASH),
+            PlanetBiome.DEAD to setOf(WeatherKind.CLEAR, WeatherKind.ASH, WeatherKind.FOG),
             PlanetBiome.LONELY to setOf(WeatherKind.CLEAR, WeatherKind.DUSTWIND),
         )
         for (b in PlanetBiome.entries) {
@@ -30,9 +30,8 @@ class WeatherTest {
 
     @Test fun `particles stay in the unit square and drift deterministically`() {
         for (kind in WeatherKind.entries) {
-            if (kind == WeatherKind.CLEAR) continue
             val p = Weather.paramsFor(kind)
-            assertTrue(p.count > 0 && p.size > 0f)
+            if (p.count == 0) continue // CLEAR, and the shape-based skies (FOG / AURORA)
             for (i in 0 until p.count step 7) for (t in listOf(0f, 3.3f, 47.9f)) {
                 val (x, y) = Weather.pos(i, t, p)
                 assertTrue(x in 0f..1f && y in 0f..1f, "$kind particle $i strayed to ($x,$y)")
@@ -53,6 +52,21 @@ class WeatherTest {
             val e = Weather.ecologyTweaks(k)
             assertTrue(e.predatorMul in 0.3f..1f && e.grazerMul in 0.3f..1f, "$k tweaks out of band")
         }
+    }
+
+    @Test fun `lightning strikes on schedule, rests between windows, and stays bounded`() {
+        // v2.77: pure in time — same second, same sky; flashes exist but darkness dominates.
+        var lit = 0; var dark = 0
+        var t = 0f
+        while (t < 140f) {
+            val a = Weather.lightningAt(t)
+            assertEquals(a, Weather.lightningAt(t))
+            assertTrue(a in 0f..1f, "flash out of range: $a")
+            if (a > 0f) lit++ else dark++
+            t += 0.03f
+        }
+        assertTrue(lit > 0, "no strike in 140 seconds of storm")
+        assertTrue(dark > lit * 5, "the storm should be mostly darkness")
     }
 
     @Test fun `rain falls hard, snow floats, the dust wind blows sideways`() {

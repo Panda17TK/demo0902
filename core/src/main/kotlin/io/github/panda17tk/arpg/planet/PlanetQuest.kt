@@ -53,7 +53,7 @@ object PlanetQuest {
             // v2.69 護衛: cull the predators pressing on the children. The lonely asteroid has
             // no wildlife to guard against — and on a RAINY world the hunters are already
             // sheltering (v2.75 thins them), so both ask for observation time instead.
-            roll < 0.85f -> if (biome == PlanetBiome.LONELY || Weather.kindFor(planetId, biome) == WeatherKind.RAIN) {
+            roll < 0.85f -> if (biome == PlanetBiome.LONELY || Weather.kindFor(planetId, biome) in STORMY) {
                 observed(r)
             } else {
                 // 1..2 predators — never more than the fewest a biome actually fields (v2.75 fix)
@@ -68,6 +68,9 @@ object PlanetQuest {
         val t = 45 + r.nextInt(46) // 45..90 seconds on the surface
         return QuestDef(QuestKind.OBSERVE, t, 40 + t)
     }
+
+    /** v2.75/77: skies that shelter the hunters — those planets ask for observation instead. */
+    private val STORMY = setOf(WeatherKind.RAIN, WeatherKind.THUNDER)
 
     private const val SALT = 0x51E5_7A2DL
 }

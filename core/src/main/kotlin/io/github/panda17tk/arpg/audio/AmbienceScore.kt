@@ -120,18 +120,22 @@ object AmbienceScore {
      * tempers. Same contract as everything here: quantized LFOs, head-crossfaded noise, pure.
      * CLEAR has no sound and returns null.
      */
-    fun renderWeather(kind: io.github.panda17tk.arpg.sim.WeatherKind): ShortArray? {
-        // (smooth, amp, lfoHz, lfoDepth) — rain is a steady bright hiss; the winds swell in gusts.
-        val (smooth, amp, lfoHz, lfoDepth) = when (kind) {
-            io.github.panda17tk.arpg.sim.WeatherKind.CLEAR -> return null
-            io.github.panda17tk.arpg.sim.WeatherKind.RAIN -> listOf(0.45f, 0.16f, 0.25f, 0.15f)
-            io.github.panda17tk.arpg.sim.WeatherKind.SNOW -> listOf(0.12f, 0.06f, 0.20f, 0.40f)
-            io.github.panda17tk.arpg.sim.WeatherKind.ASH -> listOf(0.05f, 0.07f, 0.15f, 0.35f)
-            io.github.panda17tk.arpg.sim.WeatherKind.DUSTWIND -> listOf(0.08f, 0.13f, 0.50f, 0.60f)
-        }
+    fun renderWeather(kind: io.github.panda17tk.arpg.sim.WeatherKind): ShortArray? = when (kind) {
+        io.github.panda17tk.arpg.sim.WeatherKind.CLEAR -> null
+        io.github.panda17tk.arpg.sim.WeatherKind.RAIN -> windLoop(kind.ordinal, 0.45f, 0.16f, 0.25f, 0.15f)
+        io.github.panda17tk.arpg.sim.WeatherKind.SNOW -> windLoop(kind.ordinal, 0.12f, 0.06f, 0.20f, 0.40f)
+        io.github.panda17tk.arpg.sim.WeatherKind.ASH -> windLoop(kind.ordinal, 0.05f, 0.07f, 0.15f, 0.35f)
+        io.github.panda17tk.arpg.sim.WeatherKind.DUSTWIND -> windLoop(kind.ordinal, 0.08f, 0.13f, 0.50f, 0.60f)
+        io.github.panda17tk.arpg.sim.WeatherKind.FOG -> windLoop(kind.ordinal, 0.03f, 0.05f, 0.125f, 0.30f)
+        io.github.panda17tk.arpg.sim.WeatherKind.THUNDER -> thunderLoop()
+        io.github.panda17tk.arpg.sim.WeatherKind.AURORA -> auroraLoop()
+    }
+
+    /** The shared wind body: one-pole noise, quantized gust LFO, head-crossfaded. */
+    private fun windLoop(seedOrd: Int, smooth: Float, amp: Float, lfoHz: Float, lfoDepth: Float): ShortArray {
         val n = SAMPLES
         val out = ShortArray(n)
-        val rng = Rng(0x5EA7_0000L + kind.ordinal)
+        val rng = Rng(0x5EA7_0000L + seedOrd)
         val raw = FloatArray(n + FADE)
         var y = 0f
         for (i in raw.indices) {
@@ -153,6 +157,41 @@ object AmbienceScore {
             val gust = 1f - lfoDepth * (0.5f + 0.5f * sin(two_pi * (lfoCyc / LOOP_SECONDS) * tSec).toFloat())
             val v = noise * gain * gust * 32767f
             out[i] = v.toInt().coerceIn(-32768, 32767).toShort()
+        }
+        return out
+    }
+
+    /** v2.77 雷雨: the rain's hiss with a low rumble swelling once per loop — distant thunder. */
+    private fun thunderLoop(): ShortArray {
+        val rain = windLoop(100, 0.45f, 0.12f, 0.25f, 0.15f)
+        val rumble = windLoop(101, 0.006f, 0.24f, 0.125f, 0f) // deep brown-ish noise, steady
+        val out = ShortArray(SAMPLES)
+        val two_pi = (2.0 * PI)
+        for (i in out.indices) {
+            val tSec = i.toDouble() / RATE
+            // one swell per 8s loop, raised to the 4th power → a long quiet, then the roll
+            val g0 = 0.5f + 0.5f * sin(two_pi * (1.0 / LOOP_SECONDS) * tSec + 4.2).toFloat()
+            val gate = g0 * g0 * g0 * g0
+            val v = rain[i] + (rumble[i] * gate).toInt()
+            out[i] = v.coerceIn(-32768, 32767).toShort()
+        }
+        return out
+    }
+
+    /** v2.77 オーロラ: two quiet high tones trembling over a whisper of air — the sky humming. */
+    private fun auroraLoop(): ShortArray {
+        val air = windLoop(102, 0.10f, 0.025f, 0.125f, 0.30f)
+        val out = ShortArray(SAMPLES)
+        val two_pi = (2.0 * PI)
+        fun quant(hz: Float) = (hz * LOOP_SECONDS).roundToInt().coerceAtLeast(1) / LOOP_SECONDS.toFloat()
+        val f1 = quant(523f); val f2 = quant(784f)
+        val trem = quant(0.25f)
+        for (i in out.indices) {
+            val tSec = i.toDouble() / RATE
+            val tr = 0.6f + 0.4f * sin(two_pi * trem * tSec).toFloat()
+            val tone = 0.055f * tr * (sin(two_pi * f1 * tSec).toFloat() + 0.7f * sin(two_pi * f2 * tSec + 1.3).toFloat())
+            val v = air[i] + (tone * 32767f).toInt()
+            out[i] = v.coerceIn(-32768, 32767).toShort()
         }
         return out
     }
