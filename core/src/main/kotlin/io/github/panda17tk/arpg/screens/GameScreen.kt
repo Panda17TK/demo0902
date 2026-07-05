@@ -15,6 +15,7 @@ import com.badlogic.gdx.utils.viewport.ExtendViewport
 import com.badlogic.gdx.utils.viewport.ScreenViewport
 import io.github.panda17tk.arpg.audio.Ambience
 import io.github.panda17tk.arpg.audio.AmbienceScore
+import io.github.panda17tk.arpg.audio.CombatHeat
 import io.github.panda17tk.arpg.audio.Sfx
 import io.github.panda17tk.arpg.config.ConfigStore
 import io.github.panda17tk.arpg.core.Constants
@@ -169,6 +170,7 @@ class GameScreen(
     // Phase 7: screen-shake trigger — compare HP frame-to-frame to detect the player taking damage.
     private var lastHp = Float.NaN
     private var lastKills = 0
+    private val ambHeat = CombatHeat() // v2.67 状況反応: combat drives the pulse layer
     private var prevOver = false
     private var newBest = false
 
@@ -669,6 +671,15 @@ class GameScreen(
             trackPlayerHitShake()
         }
         prevOver = gw.gameOver.isOver
+        // v2.67 状況反応: combat heat breathes the pulse in; the memory core, the shimmer.
+        ambHeat.tick(delta)
+        val shimmerLevel = if (gw.worldState.mode == WorldMode.SURFACE) {
+            gw.worldState.memoryCore?.let { core ->
+                val (apx, apy) = with(gw.world) { val t = gw.player[Transform]; t.x to t.y }
+                AmbienceScore.shimmerFor(hypot(apx - core.first, apy - core.second), Tuning.TILE)
+            } ?: 0f
+        } else 0f
+        Ambience.setLayers(ambHeat.value, shimmerLevel)
         gw.fx.update(delta)
         animTime += delta
         if (!gw.gameOver.isOver && !choosing && !paused) runTime += delta
@@ -912,10 +923,13 @@ class GameScreen(
 
     private fun trackPlayerHitShake() {
         val hp = with(gw.world) { gw.player[Health].hp }
-        if (!lastHp.isNaN() && hp < lastHp - 0.01f) { gw.fx.addShake(0.18f, 6f); Sfx.play("hit"); Haptics.buzz(25) }
+        if (!lastHp.isNaN() && hp < lastHp - 0.01f) {
+            gw.fx.addShake(0.18f, 6f); Sfx.play("hit"); Haptics.buzz(25)
+            ambHeat.onPlayerHit() // v2.67: taking fire quickens the pulse
+        }
         lastHp = hp
         val kills = gw.gameOver.kills
-        if (kills > lastKills) Sfx.play("kill")
+        if (kills > lastKills) { Sfx.play("kill"); ambHeat.onKill() }
         lastKills = kills
     }
 
