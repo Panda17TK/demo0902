@@ -693,9 +693,10 @@ class SceneRenderer {
         gw.fx.slashes.forEach { sl ->
             val p = (sl.t / sl.life).coerceIn(0f, 1f); val k = 1f - p
             val a0 = sl.ang - 1.15f; val a1 = sl.ang + 1.15f
-            val rBase = 30f + p * 16f; val steps = 14 // expands outward over its life (the swoosh)
+            // v2.81: the crescent grows with the combo swing that made it
+            val rBase = (30f + p * 16f) * sl.scale; val steps = 14 // expands outward over its life (the swoosh)
             for (layer in -1..1) { // 3 offset radii → a thick glowing band
-                val rr = rBase + layer * 3.5f
+                val rr = rBase + layer * 3.5f * sl.scale
                 shapes.color = tmpC.set(0.62f, 0.9f, 1f, 0.5f * k)
                 for (i in 0 until steps) {
                     val b0 = a0 + (a1 - a0) * i / steps; val b1 = a0 + (a1 - a0) * (i + 1) / steps

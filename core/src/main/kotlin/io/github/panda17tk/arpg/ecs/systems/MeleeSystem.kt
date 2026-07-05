@@ -72,7 +72,7 @@ class MeleeSystem(private val mobGrid: SpatialGrid<Entity>) :
         lastCd = MeleeCombo.cooldown(comboStep, config.player.meleeCd)
         sinceSwing = 0f
         cd.melee = lastCd
-        fx.spawnSlash(t.x, t.y, atan2(f.y, f.x))
+        fx.spawnSlash(t.x, t.y, atan2(f.y, f.x), MeleeCombo.slashScale(comboStep)) // v2.81: the crescent grows
         // the show grows with the rhythm: more sparks each step, gold at the peak, a kick at 3+
         fx.spawnSparks(t.x + f.x * 20f, t.y + f.y * 20f, MeleeCombo.sparks(comboStep),
             if (comboStep >= MeleeCombo.MAX_STEP) comboGold else if (comboStep >= 3) comboHot else comboCool)
@@ -98,16 +98,20 @@ class MeleeSystem(private val mobGrid: SpatialGrid<Entity>) :
         val arc = (PI.toFloat() * gearMelee.meleeArcMul * MeleeCombo.arcMul(comboStep))
             .coerceAtMost(2f * PI.toFloat()) // 大鉈 swings wider; the combo opens it further
         val faceAng = atan2(f.y, f.x)
-        mobGrid.forNearby(t.x, t.y, reach + 24f) { mobEntity ->
+        // v2.81: the combo lunges FORWARD — reach stretches dead ahead (cos²-weighted), sides stay honest.
+        val fwd = MeleeCombo.forwardMul(comboStep)
+        mobGrid.forNearby(t.x, t.y, reach * (1f + fwd) + 24f) { mobEntity ->
             val mobT = with(world) { mobEntity[Transform] }
             val mobB = with(world) { mobEntity[Body] }
             val ddx = mobT.x - t.x; val ddy = mobT.y - t.y
             val dist = hypot(ddx, ddy)
             val mobHalf = (mobB.halfW + mobB.halfH) * 0.5f
-            if (dist < reach + mobHalf) {
+            run {
                 val ang = atan2(ddy, ddx) - faceAng
                 val a = abs(((ang + 3f * PI.toFloat()) % (2f * PI.toFloat())) - PI.toFloat())
-                if (a <= arc / 2f) {
+                val ahead = kotlin.math.cos(a).coerceAtLeast(0f)
+                val effReach = reach * (1f + fwd * ahead * ahead)
+                if (dist < effReach + mobHalf && a <= arc / 2f) {
                     val mobH = with(world) { mobEntity[Health] }
                     val mobV = with(world) { mobEntity[Velocity] }
                     val mobA = with(world) { mobEntity[MobAction] }
