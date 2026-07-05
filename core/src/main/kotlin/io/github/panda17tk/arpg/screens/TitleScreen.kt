@@ -181,10 +181,8 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         title.data.setScale(tx, ty)
         val font = Fonts.ui
         font.color = cSub
-        glyph.setText(font, "慣性で漂う宇宙と、あなたを覚えている星々。")
-        font.draw(batch, glyph, (w - glyph.width) / 2f, h * 0.63f)
-        glyph.setText(font, "— 稼働中の人類保全装置群、その最後の保守員 —")
-        font.draw(batch, glyph, (w - glyph.width) / 2f, h * 0.59f)
+        // v2.84: one quiet line, auto-fitted — the tagline used to run off both screen edges.
+        drawFitted(font, "慣性で漂う宇宙と、あなたを覚えている星々。", w / 2f, h * 0.62f, w - 48f)
         font.color = Color.WHITE
         (buttons + rec + set).forEach { b ->
             glyph.setText(font, b.label)
@@ -198,11 +196,8 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         }
         font.color = cSub
         if (Scores.simBestWave > 0) { // v2.62 訓練スコアボード
-            glyph.setText(font, "訓練記録　ウェーブ ${Scores.simBestWave}　撃破 ${Scores.simBestKills}")
-            font.draw(batch, glyph, (w - glyph.width) / 2f, h * 0.12f)
+            drawFitted(font, "訓練記録　ウェーブ ${Scores.simBestWave}　撃破 ${Scores.simBestKills}", w / 2f, h * 0.10f, w - 48f)
         }
-        glyph.setText(font, "外部同期: 停止　ローカル保全モード: 稼働")
-        font.draw(batch, glyph, (w - glyph.width) / 2f, h * 0.08f)
         font.color = Color.WHITE
         batch.end()
 
@@ -231,15 +226,18 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         batch.begin()
         val font = Fonts.ui
         font.color = cSub
-        drawFitted(font, "── 設定 ──", w / 2f, h * 0.83f, pw - 24f)
+        // v2.84: the header owns the panel head — it used to print straight over the first row.
+        drawFitted(font, "設定", w / 2f, pTop - 22f, pw - 24f)
         font.color = Color.WHITE
         btns.forEach { b ->
             val text = if (b.label == SettingsPanel.CLOSE_LABEL) b.label
             else "${b.label}: ${if (toggleState(b.label)) "ON" else "OFF"}"
-            drawFitted(font, text, b.centerX, b.centerY + 12f, b.w - 16f)
-            if (b.label != SettingsPanel.CLOSE_LABEL) {
+            if (b.label == SettingsPanel.CLOSE_LABEL) {
+                drawFitted(font, text, b.centerX, b.centerY + 9f, b.w - 24f)
+            } else { // two lines inside the taller row: state up top, its whisper below, smaller
+                drawFitted(font, text, b.centerX, b.centerY + 22f, b.w - 24f)
                 font.color = cSub
-                drawFitted(font, SettingsPanel.hintFor(b.label), b.centerX, b.centerY - 6f, b.w - 16f)
+                drawFitted(font, SettingsPanel.hintFor(b.label), b.centerX, b.centerY - 2f, b.w - 24f, scale = 0.85f)
                 font.color = Color.WHITE
             }
         }
@@ -291,7 +289,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         val font = Fonts.ui
         var y = pTop - 26f
         for (line in lines) {
-            font.color = if (line.startsWith("──")) cSub else Color.WHITE
+            font.color = if (RecordsPanel.isHeader(line)) cSub else Color.WHITE
             drawFitted(font, line, w / 2f, y, pw - 24f)
             y -= 24f
         }
@@ -302,13 +300,15 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         batch.end()
     }
 
-    /** Centered text that shrinks to fit [maxW] — the title screen's copy of Hud.fitText. */
-    private fun drawFitted(font: com.badlogic.gdx.graphics.g2d.BitmapFont, text: String, cx: Float, y: Float, maxW: Float) {
+    /** Centered text that shrinks to fit [maxW] — the title screen's copy of Hud.fitText.
+     *  v2.84: [scale] pre-shrinks (for the quiet secondary lines) before the fit kicks in. */
+    private fun drawFitted(font: com.badlogic.gdx.graphics.g2d.BitmapFont, text: String, cx: Float, y: Float, maxW: Float, scale: Float = 1f) {
         val sx = font.data.scaleX; val sy = font.data.scaleY
+        if (scale != 1f) font.data.setScale(sx * scale, sy * scale)
         glyph.setText(font, text)
         if (glyph.width > maxW) {
             val k = (maxW / glyph.width).coerceAtLeast(0.55f)
-            font.data.setScale(sx * k, sy * k)
+            font.data.setScale(sx * scale * k, sy * scale * k)
             glyph.setText(font, text)
         }
         font.draw(batch, glyph, cx - glyph.width / 2f, y)

@@ -72,12 +72,14 @@ object Modals {
     fun tutorialSkipButton(hudW: Float, hudH: Float): UiButton =
         UiButton(hudW - 132f, hudH - 244f, 120f, 40f, "スキップ")
 
-    /** v2.56 ボタン配置エディタ: [大きく][小さく][リセット][完了] in one row below the HUD band. */
+    /** v2.56 ボタン配置エディタ: [大きく][小さく][リセット][完了] in one row.
+     *  v2.84: dropped below the editor's hint panel (top ≈ hudH−138, two lines ≈ 66dp tall)
+     *  — the row used to sit at hudH−190, straight under the panel's text. */
     fun layoutEditButtons(hudW: Float, hudH: Float): List<UiButton> {
         val labels = listOf("大きく", "小さく", "リセット", "完了")
         val gap = 8f
         val bw = (hudW - 2f * MARGIN - gap * (labels.size - 1)) / labels.size
-        val y = hudH - 190f
+        val y = hudH - 262f
         return labels.mapIndexed { i, lab -> UiButton(MARGIN + i * (bw + gap), y, bw, 48f, lab) }
     }
 

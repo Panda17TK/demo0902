@@ -25,7 +25,7 @@ class AchievementsTest {
     @Test fun `logbook lines carry the tally and the unlocked titles`() {
         Achievements.unlock(Achievement.BOUNTY_HUNTER)
         val lines = Achievements.logLines()
-        assertEquals("── 実績 ${Achievements.count()}/${Achievements.total()} ──", lines.first())
+        assertEquals("実績 ${Achievements.count()}/${Achievements.total()}", lines.first())
         assertTrue(lines.any { it.contains("賞金稼ぎ") })
         assertEquals(Achievements.count() + 1, lines.size) // tally line + one line per unlock
     }

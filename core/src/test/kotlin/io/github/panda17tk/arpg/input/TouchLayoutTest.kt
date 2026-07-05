@@ -59,6 +59,48 @@ class TouchLayoutTest {
         }
     }
 
+    // ── v2.84 既定配置（縦持ち） ────────────────────────────────────────
+    // Phones ship the reference arrangement: an edge column (武器/全開/壁/持物) climbing
+    // the right rim above the dash hub, and an inner column (装填/近接/着陸) a thumb in.
+
+    @Test fun `portrait screens ship the reference arrangement`() {
+        val p = TouchLayout(360f, 800f)
+        assertEquals(0.855f * 360f, p.centerX(TouchButton.DASH), 0.001f)
+        assertEquals(0.170f * 800f, p.centerY(TouchButton.DASH), 0.001f)
+        assertEquals(0.630f * 800f, p.centerY(TouchButton.LAND), 0.001f)
+        // the edge column reads bottom-up: 武器 → 全開 → 壁 → 持物
+        assertTrue(p.centerY(TouchButton.WEAPON) < p.centerY(TouchButton.FULL))
+        assertTrue(p.centerY(TouchButton.FULL) < p.centerY(TouchButton.WALL))
+        assertTrue(p.centerY(TouchButton.WALL) < p.centerY(TouchButton.INV))
+        // the inner column sits a thumb-length left of the edge column
+        for (inner in listOf(TouchButton.RELOAD, TouchButton.MELEE, TouchButton.LAND)) {
+            assertTrue(p.centerX(inner) < p.centerX(TouchButton.WEAPON), "$inner belongs to the inner column")
+        }
+    }
+
+    @Test fun `portrait buttons stay on screen and apart across phone shapes`() {
+        for (layout in listOf(TouchLayout(360f, 640f), TouchLayout(360f, 800f), TouchLayout(411f, 914f))) {
+            val bs = layout.all()
+            for (b in bs) {
+                val r = layout.radiusOf(b)
+                assertTrue(layout.centerX(b) - r >= 0f && layout.centerX(b) + r <= layout.screenW, "$b clips horizontally")
+                assertTrue(layout.centerY(b) - r >= 0f && layout.centerY(b) + r <= layout.screenH, "$b clips vertically")
+            }
+            for (i in bs.indices) for (j in i + 1 until bs.size) {
+                val a = bs[i]; val b = bs[j]
+                val dist = kotlin.math.hypot(layout.centerX(a) - layout.centerX(b), layout.centerY(a) - layout.centerY(b))
+                assertTrue(dist >= layout.radiusOf(a) + layout.radiusOf(b), "$a overlaps $b (dist $dist)")
+            }
+        }
+    }
+
+    @Test fun `landscape keeps the compact hub-and-arc`() {
+        // a 600dp-tall desktop window can't hold the portrait column — the arc stays.
+        val l = TouchLayout(1000f, 600f)
+        assertTrue(l.centerY(TouchButton.INV) > l.screenH * 0.6f, "持物 docks under the top band")
+        assertTrue(l.centerY(TouchButton.DASH) < l.screenH * 0.35f, "the hub hugs the bottom corner")
+    }
+
     // ── v2.65 左利き配置 ────────────────────────────────────────────────
 
     private fun mirroredOf(w: Float, h: Float) = TouchLayout(w, h).apply { mirrored = true }

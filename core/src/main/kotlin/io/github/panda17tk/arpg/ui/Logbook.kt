@@ -27,7 +27,7 @@ object Logbook {
             "星間同期復旧 $syncPercent%", // v2.52: repair, not pressure, is the run's true progress
             "自己ベスト　汚染深度 $bestWave　撃破 $bestKills",
             "",
-            "── 星の記憶 ──",
+            "星の記憶",
         )
         return head + planetLines.ifEmpty { listOf("まだどの星にも知られていない") }
     }

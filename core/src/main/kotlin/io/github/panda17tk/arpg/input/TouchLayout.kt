@@ -55,8 +55,38 @@ class TouchLayout(var screenW: Float = 0f, var screenH: Float = 0f) {
 
     fun all(): List<TouchButton> = order
 
+    /** v2.84: phones are tall — on portrait screens the shipped default is the reference
+     *  arrangement (two thumb columns up the right side); the hub-and-arc stays for
+     *  landscape/desktop, whose short height can't hold the portrait column. */
+    private val portrait get() = screenH >= screenW * 1.75f
+
+    // v2.84 既定配置 (portrait): an edge column (武器/全開/壁/持物) climbing the right rim
+    // above the dash hub, and an inner column (装填/近接/着陸) one thumb-length in.
+    private fun portraitFx(b: TouchButton): Float = when (b) {
+        TouchButton.DASH -> 0.855f
+        TouchButton.MELEE -> 0.655f
+        TouchButton.WEAPON -> 0.890f
+        TouchButton.RELOAD -> 0.600f
+        TouchButton.FULL -> 0.905f
+        TouchButton.WALL -> 0.890f
+        TouchButton.INV -> 0.905f
+        TouchButton.LAND, TouchButton.FIRE -> 0.600f
+    }
+
+    private fun portraitFy(b: TouchButton): Float = when (b) {
+        TouchButton.DASH -> 0.170f
+        TouchButton.MELEE -> 0.235f
+        TouchButton.WEAPON -> 0.280f
+        TouchButton.RELOAD -> 0.150f
+        TouchButton.FULL -> 0.370f
+        TouchButton.WALL -> 0.545f
+        TouchButton.INV -> 0.710f
+        TouchButton.LAND, TouchButton.FIRE -> 0.630f
+    }
+
     private fun baseCenterX(b: TouchButton): Float = mx(
-        when (b) {
+        if (portrait) portraitFx(b) * screenW
+        else when (b) {
             TouchButton.DASH -> hubX
             TouchButton.MELEE -> arcX(180f, orbit1)   // inner arc, thumb-nearest first
             TouchButton.WEAPON -> arcX(135f, orbit1)
@@ -69,17 +99,19 @@ class TouchLayout(var screenW: Float = 0f, var screenH: Float = 0f) {
         }
     )
 
-    private fun baseCenterY(b: TouchButton): Float = when (b) {
-        TouchButton.DASH -> hubY
-        TouchButton.MELEE -> arcY(180f, orbit1)
-        TouchButton.WEAPON -> arcY(135f, orbit1)
-        TouchButton.RELOAD -> arcY(90f, orbit1)
-        TouchButton.FULL -> arcY(157.5f, orbit2)
-        TouchButton.WALL -> arcY(112.5f, orbit2)
-        TouchButton.INV -> screenH - 130f - buttonRadius - 10f // just under the top HUD band
-        TouchButton.LAND -> screenH * 0.82f
-        TouchButton.FIRE -> screenH * 0.18f
-    }
+    private fun baseCenterY(b: TouchButton): Float =
+        if (portrait) portraitFy(b) * screenH
+        else when (b) {
+            TouchButton.DASH -> hubY
+            TouchButton.MELEE -> arcY(180f, orbit1)
+            TouchButton.WEAPON -> arcY(135f, orbit1)
+            TouchButton.RELOAD -> arcY(90f, orbit1)
+            TouchButton.FULL -> arcY(157.5f, orbit2)
+            TouchButton.WALL -> arcY(112.5f, orbit2)
+            TouchButton.INV -> screenH - 130f - buttonRadius - 10f // just under the top HUD band
+            TouchButton.LAND -> screenH * 0.82f
+            TouchButton.FIRE -> screenH * 0.18f
+        }
 
     /** The movement-stick zone: the left half — or the right half when mirrored (v2.65). */
     fun isInStickZone(x: Float, y: Float): Boolean =
