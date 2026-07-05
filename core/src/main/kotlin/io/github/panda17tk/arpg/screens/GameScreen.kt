@@ -126,6 +126,7 @@ private const val SETTINGS_LAYOUT = "buttonLayout" // v2.56: the layout editor's
 private const val SETTINGS_SOUND = "soundOn"       // v2.59: title-screen toggles
 private const val SETTINGS_TUTORIAL = "tutorialDone" // v2.60: the boot diagnostic ran (or was skipped)
 private const val SETTINGS_HAPTICS = "hapticsOn"
+private const val SETTINGS_LEFTY = "leftHanded"    // v2.65: mirror the touch layout
 private const val SAVED_NOTE_TIME = 2f // seconds the 「セーブした」 flash stays on the SAVE tab
 
 /**
@@ -289,6 +290,9 @@ class GameScreen(
         touch.layout.tweaks = try {
             LayoutTweaks.fromJson(Gdx.app.getPreferences(SETTINGS_PREFS).getString(SETTINGS_LAYOUT, ""))
         } catch (_: Throwable) { emptyMap() }
+        touch.layout.mirrored = try { // v2.65 左利き配置
+            Gdx.app.getPreferences(SETTINGS_PREFS).getBoolean(SETTINGS_LEFTY, false)
+        } catch (_: Throwable) { false }
         if (startFresh) runStore.clear() // v2.58: タイトルの「はじめから」は前のランを置いていく
         if (startFresh || !tryRestoreRun()) newRun() // v2.33: a saved run resumes where it left off
         if (startInTraining && !simMode) toggleTraining() // v2.58: straight into the simulation

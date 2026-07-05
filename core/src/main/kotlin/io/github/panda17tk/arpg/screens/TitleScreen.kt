@@ -39,6 +39,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
     private var hasSave = false
     private var showRecords = false // v2.64 記録: the service-record overlay
     private var diagQueued = false  // v2.64: 起動診断をもう一度 was pressed this visit
+    private var leftyOn = false     // v2.65 左利き配置 (applied by the game screen on entry)
 
     // A deterministic drifting star field: fraction positions + parallax speed per star.
     private data class Star(val fx: Float, val fy: Float, val size: Float, val speed: Float)
@@ -68,6 +69,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             val sp = Gdx.app.getPreferences("drift-settings")
             Sfx.enabled = sp.getBoolean("soundOn", true)
             Haptics.enabled = sp.getBoolean("hapticsOn", true)
+            leftyOn = sp.getBoolean("leftHanded", false) // v2.65
         } catch (_: Throwable) { /* defaults stay on */ }
         Ambience.setEnabled(Sfx.enabled) // v2.63: the サウンド toggle gates the ambient loop too
         Ambience.play(AmbientTrack.TITLE)
@@ -138,7 +140,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         }
         font.color = cSub
         toggles.forEachIndexed { i, b ->
-            val on = if (i == 0) Sfx.enabled else Haptics.enabled
+            val on = when (i) { 0 -> Sfx.enabled; 1 -> Haptics.enabled; else -> leftyOn }
             glyph.setText(font, "${b.label}: ${if (on) "ON" else "OFF"}")
             font.draw(batch, glyph, b.centerX - glyph.width / 2f, b.centerY + glyph.height / 2f)
         }
@@ -235,14 +237,19 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             // v2.59 設定: the toggle pair flips + persists in place
             toggles.forEachIndexed { i, b ->
                 if (b.contains(tmp.x, tmp.y)) {
-                    if (i == 0) {
-                        Sfx.enabled = !Sfx.enabled
-                        Ambience.setEnabled(Sfx.enabled) // v2.63: same switch quiets the ambience
-                    } else Haptics.enabled = !Haptics.enabled
+                    when (i) {
+                        0 -> {
+                            Sfx.enabled = !Sfx.enabled
+                            Ambience.setEnabled(Sfx.enabled) // v2.63: same switch quiets the ambience
+                        }
+                        1 -> Haptics.enabled = !Haptics.enabled
+                        else -> leftyOn = !leftyOn // v2.65: applied by the game screen on entry
+                    }
                     try {
                         val sp = Gdx.app.getPreferences("drift-settings")
                         sp.putBoolean("soundOn", Sfx.enabled)
                         sp.putBoolean("hapticsOn", Haptics.enabled)
+                        sp.putBoolean("leftHanded", leftyOn)
                         sp.flush()
                     } catch (_: Throwable) { /* persist best-effort */ }
                     return

@@ -32,6 +32,7 @@ object TitleLayout {
         return listOf(
             UiButton(x, y, bw, 40f, "サウンド"),
             UiButton(x + bw + GAP, y, bw, 40f, "振動"),
+            UiButton(x, y - 48f, bw * 2f + GAP, 40f, "左利き配置"), // v2.65: mirror the touch controls
         )
     }
 }
