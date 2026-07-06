@@ -38,15 +38,18 @@ object Sfx {
     /** v2.59 設定: master switch (persisted by the title screen's toggle). */
     var enabled = true
 
+    /** v2.96 音量: master gain 0..1 (persisted; scales every one-shot). */
+    var volume = 1f
+
     fun play(name: String) {
         if (!enabled) return
-        try { sounds[name]?.play(VOLUME) } catch (_: Throwable) {}
+        try { sounds[name]?.play(VOLUME * volume) } catch (_: Throwable) {}
     }
 
     /** v2.89: pitched playback — a combo climbing in semitone-ish steps, a soft distant boom. */
     fun play(name: String, pitch: Float, vol: Float = VOLUME) {
         if (!enabled) return
-        try { sounds[name]?.play(vol, pitch.coerceIn(0.5f, 2f), 0f) } catch (_: Throwable) {}
+        try { sounds[name]?.play(vol * volume, pitch.coerceIn(0.5f, 2f), 0f) } catch (_: Throwable) {}
     }
 
     fun dispose() {
