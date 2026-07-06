@@ -19,6 +19,7 @@ object Ambience {
     var enabled = true
         private set
 
+    private var duck = 1f // v2.89: slow-mo / the white-out pull the whole bed down with them
     private var current: AmbientTrack? = null
     private var music: Music? = null
     private var pulse: Music? = null   // v2.67 reactive layers ride at volume 0 until asked
@@ -36,8 +37,15 @@ object Ambience {
 
     /** v2.67 状況反応: fade the reactive layers (0..1 each) — called every frame, cheap. */
     fun setLayers(pulseLevel: Float, shimmerLevel: Float) {
-        try { pulse?.volume = pulseLevel.coerceIn(0f, 1f) * PULSE_MAX } catch (_: Throwable) {}
-        try { shimmer?.volume = shimmerLevel.coerceIn(0f, 1f) * SHIMMER_MAX } catch (_: Throwable) {}
+        try { pulse?.volume = pulseLevel.coerceIn(0f, 1f) * PULSE_MAX * duck } catch (_: Throwable) {}
+        try { shimmer?.volume = shimmerLevel.coerceIn(0f, 1f) * SHIMMER_MAX * duck } catch (_: Throwable) {}
+    }
+
+    /** v2.89 オーディオダック: 1 = full bed, ~0.35 while time is held. Applied every frame. */
+    fun setDuck(f: Float) {
+        duck = f.coerceIn(0.2f, 1f)
+        try { music?.volume = VOLUME * duck } catch (_: Throwable) {}
+        try { weather?.volume = WEATHER_VOL * duck } catch (_: Throwable) {}
     }
 
     /** v2.76 天候: swap the sky's loop — CLEAR (or leaving the surface) fades it away. */

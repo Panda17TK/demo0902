@@ -68,6 +68,7 @@ class DesyncSurgeSystem : IteratingSystem(family { all(PlayerTag, Transform) }) 
                             it += Transform(x = mx, y = my)
                             it += io.github.panda17tk.arpg.ecs.components.Meteor(WaveEvents.METEOR_FALL)
                         }
+                        fx.requestSfx("meteor") // v2.89: the falling whistle
                     }
                     w.meteorCd = WaveEvents.METEOR_INTERVAL
                 }

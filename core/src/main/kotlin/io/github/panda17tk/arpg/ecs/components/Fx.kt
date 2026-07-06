@@ -25,6 +25,7 @@ class Fx(private val rng: Rng = Rng(0x5DEECE66DL)) {
     val corpses = ArrayList<Corpse>(16) // v2.85: bodies squashing out before the gibs
     val bursts = ArrayList<Burst>(8)    // v2.85: delayed explosion stages (big deaths chain)
     val warnRings = ArrayList<Ring>(4)  // v2.86: the spawn-point warning of a heavy arrival
+    private val sfxQueue = ArrayList<SfxReq>(8) // v2.89: sim systems ask, the screen plays
     val pillars = ArrayList<Pillar>(2)  // v2.87: the star's answer to a settled request
 
     class Beam(val sx: Float, val sy: Float, val ex: Float, val ey: Float, var t: Float, val life: Float, val width: Float = 1.8f)
@@ -34,6 +35,7 @@ class Fx(private val rng: Rng = Rng(0x5DEECE66DL)) {
     class Corpse(val x: Float, val y: Float, val w: Float, val h: Float, val color: Color, val big: Boolean, var t: Float = 0f, val life: Float)
     class Burst(val x: Float, val y: Float, val color: Color, val big: Boolean, var delay: Float)
     class Ring(val x: Float, val y: Float, var t: Float = 0f, val life: Float = 1.1f, val maxR: Float = 72f)
+    class SfxReq(val name: String, val pitch: Float)
     class Pillar(val x: Float, val y: Float, var t: Float = 0f, val life: Float = 1.2f)
 
     var shakeT = 0f
@@ -68,6 +70,19 @@ class Fx(private val rng: Rng = Rng(0x5DEECE66DL)) {
 
     /** A directional camera punch (recoil); decays exponentially in [update]. */
     fun addKick(dx: Float, dy: Float) { kickX += dx; kickY += dy }
+
+    /** v2.89: queue a sound from sim-side code (the screen drains and plays; capped, never grows). */
+    fun requestSfx(name: String, pitch: Float = 1f) {
+        if (sfxQueue.size < SFX_QUEUE_CAP) sfxQueue.add(SfxReq(name, pitch))
+    }
+
+    /** Drain this frame's sound requests (returns them; the queue empties). */
+    fun drainSfx(): List<SfxReq> {
+        if (sfxQueue.isEmpty()) return emptyList()
+        val out = ArrayList(sfxQueue)
+        sfxQueue.clear()
+        return out
+    }
 
     // v2.88: the white-out that crowns a boss kill (screen-space; GameScreen draws it).
     var flashT = 0f
@@ -211,6 +226,7 @@ class Fx(private val rng: Rng = Rng(0x5DEECE66DL)) {
         const val SLOWMO_SCALE = 0.3f // v2.85: the big-kill exhale runs at this speed
         private const val POP_RISE = 46f // v2.85: damage numbers float up this fast (world px/s)
         const val FLASH_LIFE = 0.45f // v2.88: how long the boss-kill white-out takes to clear
+        private const val SFX_QUEUE_CAP = 16 // v2.89: one frame's worth of asks, never a backlog
         private const val HALF_PI = (Math.PI / 2.0).toFloat()
         private val GOLD = Color(1f, 0.85f, 0.42f, 1f)
     }
