@@ -26,4 +26,7 @@ object TitleLayout {
 
     /** v2.66 設定: its twin, top-left — every toggle moved into the settings panel behind it. */
     fun settingsButton(w: Float, h: Float): UiButton = UiButton(12f, h - 52f, 92f, 40f, "設定")
+
+    /** v2.90 工房: the keeper's workshop, docked under 設定 — permanent boons live behind it. */
+    fun workshopButton(w: Float, h: Float): UiButton = UiButton(12f, h - 100f, 92f, 40f, "工房")
 }
