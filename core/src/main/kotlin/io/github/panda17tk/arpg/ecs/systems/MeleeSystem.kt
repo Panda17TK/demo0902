@@ -140,6 +140,7 @@ class MeleeSystem(private val mobGrid: SpatialGrid<Entity>) :
             }
         }
         if (landedAny) fx.requestSfx("melee_hit", 1f + 0.09f * (comboStep - 1)) // v2.89: the rhythm climbs
+        fx.showCombo(comboStep, MeleeCombo.chainWindow(comboStep)) // v2.92: the chip shows the beat
         // v2.39: a resonant blade throws the swing as a wave — a short-lived 3-shard fan that
         // carries 60% of the melee damage (and chips blocks at half strength).
         if (gearMelee.meleeWave) {

@@ -71,6 +71,14 @@ class Fx(private val rng: Rng = Rng(0x5DEECE66DL)) {
     /** A directional camera punch (recoil); decays exponentially in [update]. */
     fun addKick(dx: Float, dy: Float) { kickX += dx; kickY += dy }
 
+    // v2.92 連撃チップ: the melee rhythm, shown while its window is alive.
+    var comboStep = 0
+        private set
+    var comboT = 0f
+        private set
+
+    fun showCombo(step: Int, window: Float) { comboStep = step; comboT = window }
+
     /** v2.89: queue a sound from sim-side code (the screen drains and plays; capped, never grows). */
     fun requestSfx(name: String, pitch: Float = 1f) {
         if (sfxQueue.size < SFX_QUEUE_CAP) sfxQueue.add(SfxReq(name, pitch))
@@ -179,6 +187,7 @@ class Fx(private val rng: Rng = Rng(0x5DEECE66DL)) {
     }
 
     private fun add(x: Float, y: Float, vx: Float, vy: Float, life: Float, size: Float, color: Color, gravity: Boolean) {
+        if (particles.size >= PARTICLE_CAP) particles.removeAt(0) // v2.92: low-end phones stay smooth
         particles.add(Particle(x, y, vx, vy, 0f, life, size, color, gravity))
     }
 
@@ -192,6 +201,7 @@ class Fx(private val rng: Rng = Rng(0x5DEECE66DL)) {
         if (hitstopT > 0f) hitstopT = (hitstopT - dt).coerceAtLeast(0f)
         else if (slowmoT > 0f) slowmoT = (slowmoT - dt).coerceAtLeast(0f)
         if (flashT > 0f) flashT = (flashT - dt).coerceAtLeast(0f)
+        if (comboT > 0f) { comboT -= dt; if (comboT <= 0f) { comboT = 0f; comboStep = 0 } }
         val kickDecay = 0.000006f.pow(dt) // ~gone in a tenth of a second
         kickX *= kickDecay; kickY *= kickDecay
         for (i in pops.indices.reversed()) {
@@ -227,6 +237,7 @@ class Fx(private val rng: Rng = Rng(0x5DEECE66DL)) {
         private const val POP_RISE = 46f // v2.85: damage numbers float up this fast (world px/s)
         const val FLASH_LIFE = 0.45f // v2.88: how long the boss-kill white-out takes to clear
         private const val SFX_QUEUE_CAP = 16 // v2.89: one frame's worth of asks, never a backlog
+        private const val PARTICLE_CAP = 700 // v2.92: the show never outruns a low-end phone
         private const val HALF_PI = (Math.PI / 2.0).toFloat()
         private val GOLD = Color(1f, 0.85f, 0.42f, 1f)
     }
