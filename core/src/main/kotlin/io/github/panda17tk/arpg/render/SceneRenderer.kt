@@ -132,6 +132,7 @@ class SceneRenderer {
         drawSmoke(shapes, gw)
         drawPlanets(shapes, gw)
         drawGate(shapes, gw, animTime)
+        drawControlCore(shapes, gw, animTime) // v2.93: the ending, waiting off the gate's shoulder
         drawWrecks(shapes, gw, animTime)
         drawMemoryCore(shapes, gw, animTime)
         drawBases(shapes, gw, animTime)
@@ -598,6 +599,23 @@ class SceneRenderer {
     }
 
     /** v2.48 惑星サーバー: the surface's memory core — a dark monolith with a slow-breathing light. */
+    /** v2.93 管制核: a pale gold presence — two breathing halos and a slow orbit of motes. */
+    private fun drawControlCore(shapes: ShapeRenderer, gw: GameWorld, animTime: Float) {
+        val (cx, cy) = gw.worldState.controlCore ?: return
+        val breath = 0.5f + 0.5f * sin(animTime * 1.4f)
+        tmpC.set(1f, 0.92f, 0.72f, 0.10f + 0.06f * breath); shapes.color = tmpC
+        shapes.circle(cx, cy, 40f + 5f * breath, 36)
+        tmpC.set(1f, 0.95f, 0.82f, 0.22f + 0.10f * breath); shapes.color = tmpC
+        shapes.circle(cx, cy, 22f + 3f * breath, 28)
+        tmpC.set(1f, 0.99f, 0.94f, 0.95f); shapes.color = tmpC
+        shapes.circle(cx, cy, 6f, 16)
+        for (k in 0 until 3) {
+            val a = animTime * 0.7f + k * (TAU / 3f)
+            tmpC.set(1f, 0.9f, 0.6f, 0.8f); shapes.color = tmpC
+            shapes.circle(cx + cos(a) * 30f, cy + sin(a) * 30f, 2f, 8)
+        }
+    }
+
     private fun drawMemoryCore(shapes: ShapeRenderer, gw: GameWorld, animTime: Float) {
         val m = gw.worldState.memoryCore ?: return
         val (mx, my) = m

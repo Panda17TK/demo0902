@@ -83,6 +83,15 @@ object Modals {
         return labels.mapIndexed { i, lab -> UiButton(MARGIN + i * (bw + gap), y, bw, 48f, lab) }
     }
 
+    /** v2.93 エンディング: the final choice — sleep with the network, or keep drifting. */
+    fun endingButtons(hudW: Float, hudH: Float): List<UiButton> = stack(
+        hudW, hudH,
+        listOf(
+            io.github.panda17tk.arpg.sim.Endgame.CHOICE_SLEEP,
+            io.github.panda17tk.arpg.sim.Endgame.CHOICE_DRIFT,
+        ),
+    )
+
     /** LP v2.28: the 2-step confirmation for 「宇宙の記憶を消す」 — [消す][戻る], stacked and centered. */
     fun forgetButtons(hudW: Float, hudH: Float): List<UiButton> =
         stack(hudW, hudH, listOf("消す", "戻る"))

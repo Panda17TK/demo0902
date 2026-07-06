@@ -78,6 +78,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         Scores.load() // v2.62: the training scoreboard shows on the front door
         Achievements.load() // v2.64 記録: the service record reads from here
         Workshop.load() // v2.90 工房: the ledger and its ranks
+        io.github.panda17tk.arpg.save.Endings.load() // v2.93: the completed syncs
         try { // v2.59 設定: restore the sound / haptics switches
             val sp = Gdx.app.getPreferences("drift-settings")
             Sfx.enabled = sp.getBoolean("soundOn", true)
@@ -316,6 +317,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
     private fun drawRecords(w: Float, h: Float) {
         val lines = RecordsPanel.lines(
             Scores.bestWave, Scores.bestKills, Scores.simBestWave, Scores.simBestKills,
+            clears = io.github.panda17tk.arpg.save.Endings.clears, // v2.93
         ) { Achievements.has(it) }
         val btns = RecordsPanel.buttons(w, h)
         val px = 14f; val pw = w - 28f; val pTop = h * 0.90f; val pBot = h * 0.11f

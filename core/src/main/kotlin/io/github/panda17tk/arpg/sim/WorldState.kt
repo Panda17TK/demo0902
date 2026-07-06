@@ -38,6 +38,8 @@ class WorldState(
     var gate: Pair<Float, Float>? = null,
     /** v2.87 儀式: display-only — true while the keeper holds enough shards; the gate lights up. */
     var gateReady: Boolean = false,
+    /** v2.93 管制核: set by the screen when the sync tops out — the ending waits here. */
+    var controlCore: Pair<Float, Float>? = null,
     /** v2.45 星の依頼: this visit's kill tallies (any hostile / elite tier) — reset with the WorldState. */
     var questKills: Int = 0,
     var questElites: Int = 0,

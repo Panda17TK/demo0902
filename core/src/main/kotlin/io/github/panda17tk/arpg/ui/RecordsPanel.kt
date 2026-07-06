@@ -16,6 +16,7 @@ object RecordsPanel {
     fun lines(
         bestWave: Int, bestKills: Int,
         simWave: Int, simKills: Int,
+        clears: Int = 0, // v2.93: completed syncs
         has: (Achievement) -> Boolean,
     ): List<String> = buildList {
         // v2.84: plain section headers — the ── flourishes were noise (isHeader colours them).
@@ -26,6 +27,7 @@ object RecordsPanel {
         )
         add("訓練記録（旧式）")
         add(if (simWave > 0) "ウェーブ $simWave　撃破 $simKills" else "未実施")
+        if (clears > 0) add("同期完了 ${clears}回 — 網は眠り、また編み直された") // v2.93
         val unlocked = Achievement.entries.count(has)
         add("実績 $unlocked/${Achievement.entries.size}")
         // v2.70: 18 entries — titles two to a row so the panel never outgrows a small screen
