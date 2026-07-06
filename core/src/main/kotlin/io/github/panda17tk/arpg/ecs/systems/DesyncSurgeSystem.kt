@@ -128,6 +128,7 @@ class DesyncSurgeSystem : IteratingSystem(family { all(PlayerTag, Transform) }) 
             val m = e[Mob]
             m.level = 7 // a bounty head outclasses an ordinary midboss (5) but not a boss (10)
             m.bountyDust = WaveEvents.bountyReward(n)
+            m.bountyName = name // v2.88: the boss bar wears it
             fx.spawnWarnRing(e[Transform].x, e[Transform].y) // v2.86: the head's arrival is marked
         }
         return name

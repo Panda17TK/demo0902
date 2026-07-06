@@ -69,6 +69,15 @@ class Fx(private val rng: Rng = Rng(0x5DEECE66DL)) {
     /** A directional camera punch (recoil); decays exponentially in [update]. */
     fun addKick(dx: Float, dy: Float) { kickX += dx; kickY += dy }
 
+    // v2.88: the white-out that crowns a boss kill (screen-space; GameScreen draws it).
+    var flashT = 0f
+        private set
+
+    fun flash() { flashT = FLASH_LIFE }
+
+    /** 0..1 white overlay strength this frame (eased quadratically at draw time). */
+    fun flashAlpha(): Float = (flashT / FLASH_LIFE).coerceIn(0f, 1f)
+
     /** Combine shake additively-by-max so the strongest recent hit wins (legacy addShake). */
     fun addShake(t: Float, mag: Float) {
         if (t > shakeT) shakeT = t
@@ -111,6 +120,25 @@ class Fx(private val rng: Rng = Rng(0x5DEECE66DL)) {
         }
     }
 
+    /** v2.88 撃破の儀式: a boss-grade death — a longer corpse and FIVE chained bursts. */
+    fun spawnDeathGrand(x: Float, y: Float, w: Float, h: Float, color: Color) {
+        corpses.add(Corpse(x, y, w, h, color, big = true, life = 0.42f))
+        for (i in 0 until 5) {
+            val ox = (rng.nextFloat() * 2f - 1f) * w * 0.55f
+            val oy = (rng.nextFloat() * 2f - 1f) * h * 0.55f
+            bursts.add(Burst(x + ox, y + oy, color, big = i >= 3, delay = i * 0.10f))
+        }
+    }
+
+    /** v2.88: the reward shower — gold motes fountaining up and raining back down. */
+    fun spawnRewardShower(x: Float, y: Float) {
+        repeat(26) {
+            val a = -HALF_PI + (rng.nextFloat() * 2f - 1f) * 0.9f
+            val sp = 140f + rng.nextFloat() * 180f
+            add(x, y, cos(a) * sp, sin(a) * sp, 0.7f + rng.nextFloat() * 0.4f, 2f + rng.nextFloat() * 2f, GOLD, gravity = true)
+        }
+    }
+
     /** v2.85 damage pop: a small number that floats up and fades ([amount] rounded up). */
     fun spawnPop(x: Float, y: Float, amount: Int, color: Color, scale: Float = 1f) {
         if (amount <= 0) return
@@ -148,6 +176,7 @@ class Fx(private val rng: Rng = Rng(0x5DEECE66DL)) {
         // v2.85: hitstop runs down first, then slow-mo; the camera kick decays exponentially.
         if (hitstopT > 0f) hitstopT = (hitstopT - dt).coerceAtLeast(0f)
         else if (slowmoT > 0f) slowmoT = (slowmoT - dt).coerceAtLeast(0f)
+        if (flashT > 0f) flashT = (flashT - dt).coerceAtLeast(0f)
         val kickDecay = 0.000006f.pow(dt) // ~gone in a tenth of a second
         kickX *= kickDecay; kickY *= kickDecay
         for (i in pops.indices.reversed()) {
@@ -181,5 +210,8 @@ class Fx(private val rng: Rng = Rng(0x5DEECE66DL)) {
         private val FLASH = Color(1f, 0.95f, 0.8f, 1f)
         const val SLOWMO_SCALE = 0.3f // v2.85: the big-kill exhale runs at this speed
         private const val POP_RISE = 46f // v2.85: damage numbers float up this fast (world px/s)
+        const val FLASH_LIFE = 0.45f // v2.88: how long the boss-kill white-out takes to clear
+        private const val HALF_PI = (Math.PI / 2.0).toFloat()
+        private val GOLD = Color(1f, 0.85f, 0.42f, 1f)
     }
 }
