@@ -100,6 +100,7 @@ class MeleeSystem(private val mobGrid: SpatialGrid<Entity>) :
         val faceAng = atan2(f.y, f.x)
         // v2.81: the combo lunges FORWARD — reach stretches dead ahead (cos²-weighted), sides stay honest.
         val fwd = MeleeCombo.forwardMul(comboStep)
+        var landedAny = false // v2.89: one pitched hit-sound per swing, not per victim
         mobGrid.forNearby(t.x, t.y, reach * (1f + fwd) + 24f) { mobEntity ->
             val mobT = with(world) { mobEntity[Transform] }
             val mobB = with(world) { mobEntity[Body] }
@@ -122,6 +123,7 @@ class MeleeSystem(private val mobGrid: SpatialGrid<Entity>) :
                     val dealt = outcome.dmg * mods.meleeMul * gearMelee.meleeDmgMul * MeleeCombo.dmgMul(comboStep) // v2.80
                     val landed = MobDamage.hurt(mobH, mobV, mobA, mobDodge, dealt, nx, ny, 450f * gearMelee.meleeKbMul, rng.nextFloat())
                     if (landed) { // v2.85: the hold + the number sell the swing
+                        landedAny = true
                         fx.hitstop(MeleeCombo.hitstop(comboStep))
                         fx.spawnPop(
                             mobT.x, mobT.y - mobB.halfH - 6f, dealt.toInt(),
@@ -137,6 +139,7 @@ class MeleeSystem(private val mobGrid: SpatialGrid<Entity>) :
                 }
             }
         }
+        if (landedAny) fx.requestSfx("melee_hit", 1f + 0.09f * (comboStep - 1)) // v2.89: the rhythm climbs
         // v2.39: a resonant blade throws the swing as a wave — a short-lived 3-shard fan that
         // carries 60% of the melee damage (and chips blocks at half strength).
         if (gearMelee.meleeWave) {

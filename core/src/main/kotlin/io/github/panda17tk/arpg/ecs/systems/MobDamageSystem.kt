@@ -68,6 +68,7 @@ class MobDamageSystem(private val grid: SpatialGrid<Entity>) :
                 fx.addShake(0.45f, 12f)
                 fx.slowmo(0.5f)
                 fx.flash()
+                fx.requestSfx("boss_down") // v2.89
             } else {
                 fx.spawnDeathStaged(t.x, t.y, mob.def.w, mob.def.h, bodyColor, big)
                 fx.addShake(if (big) 0.25f else 0.08f, if (big) 9f else 3.5f)
@@ -103,6 +104,7 @@ class MobDamageSystem(private val grid: SpatialGrid<Entity>) :
                 }
                 fx.spawnWarnRing(t.x, t.y)
                 fx.addShake(0.2f, 5f)
+                fx.requestSfx("phase") // v2.89: the rage has a voice
             }
         }
         grid.insert(entity, t.x, t.y)

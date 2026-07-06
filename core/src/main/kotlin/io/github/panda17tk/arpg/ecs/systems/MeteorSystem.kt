@@ -46,6 +46,7 @@ class MeteorSystem : IteratingSystem(family { all(Meteor, Transform) }) {
         fx.spawnDeath(t.x, t.y, ROCK, big = false)
         fx.spawnSparks(t.x, t.y, 10, EMBER)
         fx.addShake(0.12f, 5f)
+        fx.requestSfx("hit", 0.55f) // v2.89: a dull rock-thud (the low-pitched hit)
         world -= entity
     }
 

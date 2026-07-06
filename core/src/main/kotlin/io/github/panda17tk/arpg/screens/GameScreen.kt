@@ -267,6 +267,7 @@ class GameScreen(
     private val cQuestPale = Color.valueOf("fff2c8")
     private var eventFxT = 0f // v2.86: clock for the event-flavored screen fx
     private val bossBar = io.github.panda17tk.arpg.ui.BossBar() // v2.88
+    private var duckLevel = 1f // v2.89: the running ambient duck
 
     // Memory tint per planet id (LP v2.30/10c) — rebuilt only when memory can change (transitions/forget).
     private var memoryTones: Map<Long, Int> = emptyMap()
@@ -668,7 +669,7 @@ class GameScreen(
         if (!paused) gw.waveState.announce?.let {
             eventBanner.start(it) // v2.86: the moment lines ride the cinematic band, not a toast
             gw.waveState.announce = null
-            Sfx.play("scan")
+            Sfx.play("banner") // v2.89: the band has its own stinger
             if (it.contains("賞金首を討ち取った") && !simMode) tryUnlock(Achievement.BOUNTY_HUNTER) // v2.62
         }
         // v2.62 実績: surviving deep into the desync (the real run only).
@@ -996,8 +997,19 @@ class GameScreen(
                 AmbienceScore.shimmerFor(hypot(apx - core.first, apy - core.second), Tuning.TILE)
             } ?: 0f
         } else 0f
-        Ambience.setLayers(ambHeat.value, shimmerLevel)
+        // v2.89: a heavy on the boss bar keeps the combat pulse from cooling below a floor.
+        val pulseFloor = if (bossBar.k > 0.5f) 0.7f else 0f
+        Ambience.setLayers(maxOf(ambHeat.value, pulseFloor), shimmerLevel)
         gw.fx.update(delta)
+        // v2.89: sim systems queue their sounds through Fx; the screen is the only speaker.
+        for (req in gw.fx.drainSfx()) Sfx.play(req.name, req.pitch)
+        // v2.89 オーディオダック: held time pulls the ambient bed down; release eases it back.
+        duckLevel = io.github.panda17tk.arpg.audio.AudioDuck.step(
+            duckLevel,
+            io.github.panda17tk.arpg.audio.AudioDuck.target(gw.fx.simTimeScale() < 1f, gw.fx.flashAlpha()),
+            delta,
+        )
+        Ambience.setDuck(duckLevel)
         eventBanner.update(delta) // v2.86
         animTime += delta
         if (!gw.gameOver.isOver && !choosing && !paused) runTime += delta
