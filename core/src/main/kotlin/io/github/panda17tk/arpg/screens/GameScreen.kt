@@ -272,6 +272,7 @@ class GameScreen(
     private var duckLevel = 1f // v2.89: the running ambient duck
     private var metaBoons = io.github.panda17tk.arpg.config.WorkshopBoons.NONE // v2.90 工房
     private var shakeOn = true    // v2.96: motion comfort — gates shake + recoil kick
+    private var runDifficulty = io.github.panda17tk.arpg.sim.Difficulty.NORMAL // v2.97
     private var softFlash = false // v2.96: photosensitivity — dims the white-outs
     private var prevWaveNum = 0 // v2.92: to notice a wave ending (流星群を生き延びた)
     private var prevWaveEvent = WaveEvent.NONE
@@ -325,6 +326,7 @@ class GameScreen(
             Ambience.setMaster(Sfx.volume)
             shakeOn = sp.getBoolean("shakeOn", true)
             softFlash = sp.getBoolean("softFlash", false)
+            runDifficulty = io.github.panda17tk.arpg.sim.Difficulty.byName(sp.getString("difficulty", "NORMAL")) // v2.97
         } catch (_: Throwable) { /* defaults stay on */ }
         touch.layout.tweaks = try {
             LayoutTweaks.fromJson(Gdx.app.getPreferences(SETTINGS_PREFS).getString(SETTINGS_LAYOUT, ""))
@@ -364,11 +366,11 @@ class GameScreen(
             simMode = true
             preSimCarry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
             worldSeed = TRAINING_SEED
-            gw = WorldFactory.create(input, configStore.config, seed = TRAINING_SEED, carry = preSimCarry, boons = metaBoons)
+            gw = WorldFactory.create(input, configStore.config, seed = TRAINING_SEED, carry = preSimCarry, boons = metaBoons, difficulty = runDifficulty)
         } else {
             simMode = false
             worldSeed = session.spaceSeed
-            gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed, carry = preSimCarry, boons = metaBoons, trait = SystemTraits.traitFor(session.spaceSeed))
+            gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed, carry = preSimCarry, boons = metaBoons, trait = SystemTraits.traitFor(session.spaceSeed), difficulty = runDifficulty)
             gw.waveState.num = preSimCarry?.wave ?: 1
             preSimCarry = null
         }
@@ -388,7 +390,7 @@ class GameScreen(
         session.reset() // a fresh run forgets every planet
         runStore.clear() // v2.33: restarting abandons the saved run
         worldSeed = session.spaceSeed
-        gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed, boons = metaBoons, trait = SystemTraits.traitFor(session.spaceSeed))
+        gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed, boons = metaBoons, trait = SystemTraits.traitFor(session.spaceSeed), difficulty = runDifficulty)
         accumulator = 0f
         camInit = false
         choosing = false
@@ -493,7 +495,7 @@ class GameScreen(
     ) {
         val carry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
         worldSeed = seed
-        gw = WorldFactory.create(input, configStore.config, seed, mode, biome, carry, spawn, context, society, weather, boons = metaBoons, trait = if (mode == WorldMode.SPACE) SystemTraits.traitFor(session.spaceSeed) else SystemTrait.NONE)
+        gw = WorldFactory.create(input, configStore.config, seed, mode, biome, carry, spawn, context, society, weather, boons = metaBoons, trait = if (mode == WorldMode.SPACE) SystemTraits.traitFor(session.spaceSeed) else SystemTrait.NONE, difficulty = runDifficulty)
         gw.waveState.num = carry.wave
         accumulator = 0f; camInit = false; overlay = Overlay.NONE
         choosing = false; offered = false; choices = emptyList(); lastHp = Float.NaN
@@ -1958,6 +1960,7 @@ class GameScreen(
             } else WeatherKind.CLEAR,
             boons = metaBoons, // v2.90
             trait = if (mode == WorldMode.SPACE) SystemTraits.traitFor(dto.worldSeed) else SystemTrait.NONE, // v2.91
+            difficulty = runDifficulty, // v2.97
         )
         gw.waveState.num = dto.wave
         with(gw.world) {
