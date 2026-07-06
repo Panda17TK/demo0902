@@ -75,7 +75,8 @@ class MobDamageSystem(private val grid: SpatialGrid<Entity>) :
                 if (big && !wild) fx.slowmo(0.30f)
             }
             // v2.45: a magnetic-storm wave shakes double dust from every kill.
-            val dustMul = if (waveState.event == WaveEvent.STORM) WaveEvents.STORM_DUST_MUL else 1
+            val dustMul = (if (waveState.event == WaveEvent.STORM) WaveEvents.STORM_DUST_MUL else 1) +
+                io.github.panda17tk.arpg.sim.SystemTraits.dustBonus(worldState.trait) // v2.91 RICH
             if (!wild) Pickups.dropOnKill(world, rng, t.x, t.y, big, worldState.spawnTweaks.bonusMaterialChance, dustMul)
             // v2.45 賞金首: a bounty head bursts into its dust pile, and the HUD says so.
             if (mob.bountyDust > 0) {

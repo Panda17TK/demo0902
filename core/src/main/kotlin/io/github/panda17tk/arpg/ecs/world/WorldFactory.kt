@@ -97,6 +97,7 @@ object WorldFactory {
         society: PlanetSocietyState? = null,
         weather: WeatherKind = WeatherKind.CLEAR, // v2.75: the landing's sky (SURFACE only)
         boons: io.github.panda17tk.arpg.config.WorkshopBoons = io.github.panda17tk.arpg.config.WorkshopBoons.NONE, // v2.90 工房
+        trait: io.github.panda17tk.arpg.sim.SystemTrait = io.github.panda17tk.arpg.sim.SystemTrait.NONE, // v2.91 星系の個性
     ): GameWorld {
         val loaded = MapLoader.load(
             if (mode == WorldMode.SURFACE) SurfaceStages.forBiome(biome, seed) else Stages.random(Rng(seed)),
@@ -245,6 +246,7 @@ object WorldFactory {
             it += Gear(ItemCatalog.starterLoadout(), ItemCatalog.starterBackpack()) // v2.33 装備+持物
         }
         carry?.applyTo(world, player) // carry HP/ammo/upgrades across a SPACE⇄SURFACE landing
+        worldState.trait = if (mode == WorldMode.SPACE) trait else io.github.panda17tk.arpg.sim.SystemTrait.NONE // v2.91
         if (boons.loot > 0f) { // v2.90 拾集の目: rides on top of the visit's own tweaks
             worldState.spawnTweaks = worldState.spawnTweaks.copy(
                 bonusMaterialChance = worldState.spawnTweaks.bonusMaterialChance + boons.loot,
