@@ -51,6 +51,7 @@ class ExpansionRosterTest {
             "melee", "lunge", "shot", "blink", "charge_melee", "burst", "spray", "spiral", "nova",
             "mine", "homing", "slam", "shockwave", "summon", "heal", "guard", "enrage", "barrage",
             "charge", "twin_shot",
+            "ring_gap", "cutoff_volley", "page_wall", // v2.94 固有ボス技
         )
         for (k in newKeys) for (a in enemies.getValue(k).attacks) {
             assertTrue(a.type in known, "$k uses unknown attack type ${a.type}")

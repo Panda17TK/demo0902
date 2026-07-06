@@ -820,6 +820,8 @@ private fun expansionSpace(): Map<String, EnemyDef> = mapOf(
         attacks = listOf(
             AttackSpec("summon", cd = 7f, count = 3, minion = "archive_moth"),
             AttackSpec("barrage", cd = 4.2f, dmg = 10f, count = 7, speed = 210f, spread = 0.9f),
+            // v2.94 固有技: 頁の壁 — a written line advancing abreast; dodge past its edges.
+            AttackSpec("page_wall", cd = 6.5f, dmg = 12f, count = 7, spread = 30f, speed = 130f, life = 3.2f),
         ),
     ),
     "tide_warden" to EnemyDef(
@@ -845,6 +847,8 @@ private fun expansionSpace(): Map<String, EnemyDef> = mapOf(
         attacks = listOf(
             AttackSpec("spiral", cd = 3.6f, dmg = 9f, count = 10, speed = 170f, life = 2f),
             AttackSpec("summon", cd = 8f, count = 2, minion = "echo_wisp"),
+            // v2.94 固有技: 退路封じ — the echo lands ahead of the runner and sings back.
+            AttackSpec("cutoff_volley", cd = 5.5f, dmg = 11f, count = 3, speed = 200f, life = 2.4f),
         ),
     ),
     "rust_titan" to EnemyDef(
@@ -853,6 +857,8 @@ private fun expansionSpace(): Map<String, EnemyDef> = mapOf(
         attacks = listOf(
             AttackSpec("slam", cd = 3.4f, dmg = 26f, range = 80f, windup = 1.0f, kb = 520f),
             AttackSpec("enrage", cd = 12f, duration = 4f, mul = 1.5f),
+            // v2.94 固有技: 輪の裂け目 — a full ring with one silence; read it and dash through.
+            AttackSpec("ring_gap", cd = 7f, dmg = 13f, count = 18, spread = 70f, speed = 150f, life = 2.6f),
         ),
     ),
     "lantern_bearer" to EnemyDef(

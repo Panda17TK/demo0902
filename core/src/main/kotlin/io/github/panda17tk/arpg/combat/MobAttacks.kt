@@ -28,6 +28,9 @@ import kotlin.math.sin
  * (finished by MobActionSystem); enrage/guard set MobAction timers (read by AISystem/MobDamage).
  */
 object MobAttacks {
+    private val TWO_PI = (Math.PI * 2.0).toFloat()
+    private const val CUTOFF_LEAD = 130f // v2.94: how far ahead of the runner the echo lands
+
     @Suppress("LongParameterList")
     fun tryAttack(
         world: World,
@@ -110,7 +113,72 @@ object MobAttacks {
             if (playerH.iTime <= 0f) { playerH.hp -= spec.dmg * dmgTakenMul; playerH.iTime = iFrameMelee }
             true
         }
+        // --- v2.94 固有ボス技 ---
+        // ring_gap (錆の巨人): a full ring with ONE deterministic gap — read it, dash through it.
+        "ring_gap" -> { ringGap(world, mobT, spec.count, spec.spread, spec.speed, spec.dmg, spec.life, rng); true }
+        // cutoff_volley (合唱ノード): the echo lands ahead of the fleeing player and sings back —
+        // running in straight lines is punished; a standing player just gets an aimed shot.
+        "cutoff_volley" -> if (!see) false else {
+            cutoff(world, mobT, dist, toPx, toPy, playerV, spec.count, spec.speed, spec.dmg, spec.life); true
+        }
+        // page_wall (書庫長): a written line — bullets abreast, advancing as a wall with dodgeable edges.
+        "page_wall" -> if (!see) false else {
+            pageWall(world, mobT, atan2(toPy, toPx), spec.count, spec.spread, spec.speed, spec.dmg, spec.life); true
+        }
         else -> false
+    }
+
+    /** v2.94: a radial ring with a [gapDeg]-wide silence at a deterministic angle. */
+    private fun ringGap(world: World, mobT: Transform, count: Int, gapDeg: Float, speed: Float, dmg: Float, life: Float, rng: Rng) {
+        val gapAt = rng.nextFloat() * TWO_PI
+        val gapHalf = gapDeg * PI.toFloat() / 180f / 2f
+        for (i in 0 until count) {
+            val a = TWO_PI * i / count
+            val delta = kotlin.math.abs(((a - gapAt + 3f * PI.toFloat()) % TWO_PI) - PI.toFloat())
+            if (delta < gapHalf) continue // the gap the keeper reads and slips through
+            world.entity {
+                it += Transform(x = mobT.x, y = mobT.y, prevX = mobT.x, prevY = mobT.y)
+                it += EBullet(cos(a) * speed, sin(a) * speed, life, dmg)
+            }
+        }
+    }
+
+    /** v2.94: shots seeded AHEAD of the player's motion, singing back at them. */
+    private fun cutoff(
+        world: World, mobT: Transform, dist: Float, toPx: Float, toPy: Float, playerV: Velocity,
+        count: Int, speed: Float, dmg: Float, life: Float,
+    ) {
+        val px = mobT.x + toPx * dist; val py = mobT.y + toPy * dist
+        val vLen = kotlin.math.hypot(playerV.vx + playerV.driftX, playerV.vy + playerV.driftY)
+        if (vLen < 30f) { // a standing listener just hears one aimed note
+            fire(world, mobT, atan2(toPy, toPx), speed, dmg, life)
+            return
+        }
+        val ux = (playerV.vx + playerV.driftX) / vLen; val uy = (playerV.vy + playerV.driftY) / vLen
+        val perpX = -uy; val perpY = ux
+        for (i in 0 until count) {
+            val off = (i - (count - 1) / 2f) * 26f
+            val sx = px + ux * CUTOFF_LEAD + perpX * off
+            val sy = py + uy * CUTOFF_LEAD + perpY * off
+            world.entity {
+                it += Transform(x = sx, y = sy, prevX = sx, prevY = sy)
+                it += EBullet(-ux * speed, -uy * speed, life, dmg)
+            }
+        }
+    }
+
+    /** v2.94: [count] bullets abreast (spread px apart), advancing as one written line. */
+    private fun pageWall(world: World, mobT: Transform, ang: Float, count: Int, spreadPx: Float, speed: Float, dmg: Float, life: Float) {
+        val dx = cos(ang); val dy = sin(ang)
+        val perpX = -dy; val perpY = dx
+        for (i in 0 until count) {
+            val off = (i - (count - 1) / 2f) * spreadPx
+            val sx = mobT.x + perpX * off; val sy = mobT.y + perpY * off
+            world.entity {
+                it += Transform(x = sx, y = sy, prevX = sx, prevY = sy)
+                it += EBullet(dx * speed, dy * speed, life, dmg)
+            }
+        }
     }
 
     private fun hitPlayer(playerH: Health, playerV: Velocity, dmg: Float, toPx: Float, toPy: Float, kb: Float, iFrameMelee: Float) {
