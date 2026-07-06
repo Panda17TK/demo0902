@@ -273,6 +273,9 @@ class GameScreen(
     private var metaBoons = io.github.panda17tk.arpg.config.WorkshopBoons.NONE // v2.90 工房
     private var prevWaveNum = 0 // v2.92: to notice a wave ending (流星群を生き延びた)
     private var prevWaveEvent = WaveEvent.NONE
+    // v2.93 エンディング: 0=off, 1..pages=dialogue, pages+1=choice, pages+2=epilogue.
+    private var endingStage = 0
+    private var endingSeenThisWorld = false // 「切断」した空では核はもう問わない
 
     // Memory tint per planet id (LP v2.30/10c) — rebuilt only when memory can change (transitions/forget).
     private var memoryTones: Map<Long, Int> = emptyMap()
@@ -586,12 +589,13 @@ class GameScreen(
         KeyboardInput.poll(input)
         pollTap()
         if ((Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE) || Gdx.input.isKeyJustPressed(Input.Keys.P)) &&
-            !choosing && !gw.gameOver.isOver && !layoutEditing) overlay = PauseFlow.toggle(overlay)
+            !choosing && !gw.gameOver.isOver && !layoutEditing && endingStage == 0) overlay = PauseFlow.toggle(overlay)
         if (layoutEditing) handleLayoutEdit() // v2.56: the editor swallows all input while open
-        if (!layoutEditing && !handleTutorialTaps()) handlePauseTaps() // v2.60: diagnostic taps first
+        if (endingStage > 0) handleEndingTaps() // v2.93: the final dialogue owns every tap
+        else if (!layoutEditing && !handleTutorialTaps()) handlePauseTaps() // v2.60: diagnostic taps first
 
         pollGameplayTouch(
-            overlay != Overlay.NONE || fade.blocksInput || layoutEditing ||
+            overlay != Overlay.NONE || fade.blocksInput || layoutEditing || endingStage > 0 ||
                 tutorial?.step == TutorialStep.BOOT_PROMPT,
         )
         // v2.33: the I key / INV button toggles the inventory. Unlike pause it does not freeze the
@@ -603,6 +607,7 @@ class GameScreen(
             readingLore = null
         }
         val paused = (overlay != Overlay.NONE && overlay != Overlay.INVENTORY) || layoutEditing ||
+            endingStage > 0 || // v2.93: the final dialogue holds the world still
             tutorial?.step == TutorialStep.BOOT_PROMPT // sim-freezing overlays (+ the boot prompt)
         val simDelta = delta * if (overlay == Overlay.INVENTORY) INV_TIME_SCALE else 1f
         if (invNoteT > 0f) invNoteT -= delta
@@ -776,6 +781,20 @@ class GameScreen(
                 }
             }
         }
+        // v2.93 管制核: when the sync tops out, the core surfaces beside the gate — once per sky.
+        if (!simMode && gw.worldState.mode == WorldMode.SPACE && !endingSeenThisWorld &&
+            gw.worldState.controlCore == null && io.github.panda17tk.arpg.sim.Endgame.ready(syncPercent())
+        ) {
+            gw.worldState.gate?.let { gw.worldState.controlCore = io.github.panda17tk.arpg.sim.Endgame.corePos(it) }
+        }
+        if (!paused && endingStage == 0 && !gw.gameOver.isOver) {
+            gw.worldState.controlCore?.let { (ccx, ccy) ->
+                if (hypot(px - ccx, py - ccy) < Tuning.TILE * 2f) {
+                    endingStage = 1
+                    Sfx.play("scan")
+                }
+            }
+        }
         val playerHit = pit > 0f && ((pit * 20f).toInt() % 2 == 0)
         // v2.37: the gear look — the active weapon shapes the drawn gun, armor tints the suit, OC burns blue.
         val gearLook = with(gw.world) { gw.player[Gear].loadout }
@@ -812,6 +831,91 @@ class GameScreen(
         drawBossBar()      // v2.88: the heavy's name and health, top-center
         drawComboChip()    // v2.92: the melee rhythm while its window is alive
         drawEventBanner() // v2.86: the opening band rides over the HUD
+        drawEnding()       // v2.93: the final dialogue, over everything
+    }
+
+    /** v2.93 エンディング: dim + the dialogue pages / choice / epilogue, glass style. */
+    private fun drawEnding() {
+        if (endingStage <= 0) return
+        hudViewport.apply()
+        val w = hudViewport.worldWidth; val h = hudViewport.worldHeight
+        val pages = io.github.panda17tk.arpg.sim.Endgame.PAGES
+        Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND)
+        shapes.projectionMatrix = hudViewport.camera.combined
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
+        cEventTmp.set(0f, 0f, 0f, 0.78f); shapes.color = cEventTmp
+        shapes.rect(0f, 0f, w, h)
+        if (endingStage == pages.size + 1) { // the choice carries its two glass buttons
+            Modals.endingButtons(w, h).forEach { b ->
+                cEventTmp.set(0.55f, 0.75f, 1f, 0.22f); shapes.color = cEventTmp
+                shapes.rect(b.x - 1.5f, b.y - 1.5f, b.w + 3f, b.h + 3f)
+                cEventTmp.set(0.09f, 0.12f, 0.18f, 0.95f); shapes.color = cEventTmp
+                shapes.rect(b.x, b.y, b.w, b.h)
+            }
+        }
+        shapes.end()
+        batch.projectionMatrix = hudViewport.camera.combined
+        batch.begin()
+        val lines = when {
+            endingStage <= pages.size -> pages[endingStage - 1]
+            endingStage == pages.size + 1 -> pages.last() // the question stays on screen behind the choice
+            else -> io.github.panda17tk.arpg.sim.Endgame.EPILOGUE
+        }
+        var y = h * (if (endingStage == pages.size + 1) 0.80f else 0.62f)
+        cEventTmp.set(0.90f, 0.93f, 1f, 1f); font.color = cEventTmp
+        for (line in lines) {
+            bannerGlyph.setText(font, line)
+            font.draw(batch, bannerGlyph, (w - bannerGlyph.width) / 2f, y)
+            y -= 30f
+        }
+        cEventTmp.set(0.62f, 0.68f, 0.80f, 1f); font.color = cEventTmp
+        val hint = when {
+            endingStage <= pages.size -> "タップで続ける"
+            endingStage == pages.size + 1 -> ""
+            else -> "タップで記録を閉じる"
+        }
+        if (hint.isNotEmpty()) {
+            bannerGlyph.setText(font, hint)
+            font.draw(batch, bannerGlyph, (w - bannerGlyph.width) / 2f, h * 0.16f)
+        }
+        if (endingStage == pages.size + 1) {
+            font.color = Color.WHITE
+            Modals.endingButtons(w, h).forEach { b ->
+                bannerGlyph.setText(font, b.label)
+                font.draw(batch, bannerGlyph, b.centerX - bannerGlyph.width / 2f, b.centerY + bannerGlyph.height / 2f)
+            }
+        }
+        font.color = Color.WHITE
+        batch.end()
+    }
+
+    /** v2.93: taps drive the final dialogue — pages, the choice, then the closing of the record. */
+    private fun handleEndingTaps() {
+        if (!tapped) return
+        val pages = io.github.panda17tk.arpg.sim.Endgame.PAGES
+        when {
+            endingStage in 1..pages.size -> { endingStage++; Sfx.play("scan") }
+            endingStage == pages.size + 1 -> {
+                val hit = Modals.hitModal(Modals.endingButtons(hudViewport.worldWidth, hudViewport.worldHeight), tapX, tapY)
+                if (hit == 0) { // 眠りにつく — the record closes
+                    tryUnlock(Achievement.FINAL_SYNC)
+                    io.github.panda17tk.arpg.save.Endings.recordClear()
+                    endingStage = pages.size + 2
+                    Sfx.play("levelup")
+                } else if (hit == 1) { // 漂流を続ける — the sky lets go
+                    tryUnlock(Achievement.DRIFT_ON)
+                    endingStage = 0
+                    endingSeenThisWorld = true
+                    gw.worldState.controlCore = null
+                    eventBanner.start(io.github.panda17tk.arpg.sim.Endgame.DRIFT_LINE)
+                    Sfx.play("scan")
+                }
+            }
+            else -> { // the epilogue closes to the title; the finished run is consumed
+                runStore.clear()
+                (Gdx.app.applicationListener as? App)?.showTitle()
+            }
+        }
     }
 
     /** v2.88: scan for the nearest-priority heavy (boss > bounty > midboss) within earshot. */
@@ -1423,6 +1527,7 @@ class GameScreen(
         session.surfSeed = session.spaceSeed * 100
         session.landedPlanetId = null
         session.returnSpawn = null
+        endingSeenThisWorld = false // v2.93: a new sky may ask the question again
         transitionWorld(WorldMode.SPACE, null, session.spaceSeed, null)
         with(gw.world) { val h = gw.player[Health]; h.hp = h.hpMax } // the jump mends the hull
         tryUnlock(Achievement.FIRST_JUMP) // v2.62

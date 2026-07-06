@@ -1,0 +1,37 @@
+package io.github.panda17tk.arpg.sim
+
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+
+/** v2.93 エンディング: the threshold, the core's rest, and the words that close the story. */
+class EndgameTest {
+    @Test fun `the core surfaces only when the sync tops out`() {
+        assertFalse(Endgame.ready(98))
+        assertTrue(Endgame.ready(99))
+        assertEquals(99, Endgame.THRESHOLD, "SyncRestoration caps at 99 — the core asks for the last percent")
+    }
+
+    @Test fun `the core rests just off the gate's shoulder`() {
+        val (cx, cy) = Endgame.corePos(1000f to 800f)
+        assertEquals(1150f, cx)
+        assertEquals(710f, cy)
+    }
+
+    @Test fun `the dialogue closes the story and both endings have words`() {
+        assertTrue(Endgame.PAGES.size >= 3, "a real conversation, not a toast")
+        for (page in Endgame.PAGES) assertTrue(page.isNotEmpty() && page.all { it.isNotBlank() })
+        assertTrue(Endgame.PAGES.last().any { it.contains("選") }, "the last page carries the question")
+        assertTrue(Endgame.CHOICE_SLEEP.isNotBlank() && Endgame.CHOICE_DRIFT.isNotBlank())
+        assertTrue(Endgame.EPILOGUE.size >= 3, "the record closes with more than one breath")
+        assertTrue(Endgame.EPILOGUE.last().contains("閉じる"))
+        assertTrue(Endgame.DRIFT_LINE.isNotBlank())
+    }
+
+    @Test fun `the sync arithmetic can actually reach the threshold`() {
+        // 8 systems in + 8 planets visited + 5 trusted → (7*12) + 40 + 40 = 99+ (capped at 99)
+        val states = List(8) { i -> PlanetSocietyState().apply { if (i < 5) mercy = 0.6f } }
+        assertTrue(SyncRestoration.percent(8, states) >= Endgame.THRESHOLD, "the ending is reachable")
+    }
+}
