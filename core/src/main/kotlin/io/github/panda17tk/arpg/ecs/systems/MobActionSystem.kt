@@ -23,6 +23,7 @@ import kotlin.math.min
 /** Progresses multi-frame mob actions (legacy updateMobActions): charge_melee strike, blink move, dodge timers. */
 class MobActionSystem : IteratingSystem(family { all(Mob, Transform, MobAction, Body, Velocity) }) {
     private val map: TileMap = world.inject()
+    private val difficulty: io.github.panda17tk.arpg.sim.Difficulty = world.inject() // v2.97
     private val config: GameConfig = world.inject()
     private val fx: Fx = world.inject()
     private val players by lazy { world.family { all(PlayerTag, Transform, Health, Velocity) } }
@@ -58,7 +59,7 @@ class MobActionSystem : IteratingSystem(family { all(Mob, Transform, MobAction, 
                         val d = hypot(pt.x - t.x, pt.y - t.y)
                         val reach = (if (atk.reach > 0f) atk.reach else atk.range) + 11f
                         if (d < reach && ph.iTime <= 0f) {
-                            ph.hp -= atk.dmg * (e.getOrNull(Gear)?.loadout?.damageTakenMul ?: 1f) // v2.33: armor
+                            ph.hp -= atk.dmg * (e.getOrNull(Gear)?.loadout?.damageTakenMul ?: 1f) * difficulty.dmgTakenMul // v2.33 armor / v2.97
                             ph.iTime = config.ai.iFrameContact
                             val dd = d.coerceAtLeast(0.0001f)
                             pv.vx += (pt.x - t.x) / dd * atk.kb; pv.vy += (pt.y - t.y) / dd * atk.kb

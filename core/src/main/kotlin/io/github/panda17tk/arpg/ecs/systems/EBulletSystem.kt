@@ -25,6 +25,7 @@ import kotlin.math.sin
 /** Enemy bullet update (legacy updateEnemyBullets): homing/move, despawn on wall/expiry, damage the player. */
 class EBulletSystem : IteratingSystem(family { all(EBullet, Transform) }) {
     private val map: TileMap = world.inject()
+    private val difficulty: io.github.panda17tk.arpg.sim.Difficulty = world.inject() // v2.97
     private val rng: Rng = world.inject()
     private val fx: Fx = world.inject()
     private val deflectColor = Color.valueOf("9ec5ff")
@@ -39,7 +40,7 @@ class EBulletSystem : IteratingSystem(family { all(EBullet, Transform) }) {
         var pDmgMul = 1f // v2.33: armor — scales enemy-bullet damage to the player
         players.forEach { e ->
             pt = e[Transform]; ph = e[Health]; pv = e[Velocity]; pb = e[Body]; pdash = e[PlayerTag].dashing
-            pDmgMul = e.getOrNull(Gear)?.loadout?.damageTakenMul ?: 1f
+            pDmgMul = (e.getOrNull(Gear)?.loadout?.damageTakenMul ?: 1f) * difficulty.dmgTakenMul // v2.97
         }
 
         if (b.homing > 0f && pt != null) {

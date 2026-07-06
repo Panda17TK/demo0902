@@ -29,4 +29,7 @@ object TitleLayout {
 
     /** v2.90 工房: the keeper's workshop, docked under 設定 — permanent boons live behind it. */
     fun workshopButton(w: Float, h: Float): UiButton = UiButton(12f, h - 100f, 92f, 40f, "工房")
+
+    /** v2.97 難易度: the run-mode chip under 工房 — taps cycle 安定運転/標準/過負荷. */
+    fun difficultyButton(w: Float, h: Float, label: String): UiButton = UiButton(12f, h - 148f, 92f, 40f, label)
 }

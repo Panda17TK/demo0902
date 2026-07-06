@@ -65,6 +65,7 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
     private val flow: FlowField = world.inject()
     private val config: GameConfig = world.inject()
     private val rng: Rng = world.inject()
+    private val difficulty: io.github.panda17tk.arpg.sim.Difficulty = world.inject() // v2.97
     private val tribes: Tribes = world.inject()
     private val planetField: PlanetField = world.inject()
     private val worldState: WorldState = world.inject()
@@ -179,7 +180,7 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         players.forEach { e ->
             playerRef.t = e[Transform]; playerRef.h = e[Health]; playerRef.v = e[Velocity]
             playerRef.x = e[Transform].x; playerRef.y = e[Transform].y
-            playerRef.dmgMul = e.getOrNull(Gear)?.loadout?.damageTakenMul ?: 1f
+            playerRef.dmgMul = (e.getOrNull(Gear)?.loadout?.damageTakenMul ?: 1f) * difficulty.dmgTakenMul // v2.97
         }
         return playerRef
     }

@@ -35,6 +35,7 @@ class DesyncSurgeSystem : IteratingSystem(family { all(PlayerTag, Transform) }) 
     private val map: TileMap = world.inject()
     private val rng: Rng = world.inject()
     private val fx: Fx = world.inject()
+    private val difficulty: io.github.panda17tk.arpg.sim.Difficulty = world.inject() // v2.97
     private val tribes: Tribes = world.inject()
     private val worldState: WorldState = world.inject()
 
@@ -99,7 +100,8 @@ class DesyncSurgeSystem : IteratingSystem(family { all(PlayerTag, Transform) }) 
         wave.spawnCd = 0.4f
         // v2.45 イベントウェーブ: the wave's flavor is fixed by its number (learnable rhythm).
         wave.event = io.github.panda17tk.arpg.sim.SystemTraits.fillEvent(worldState.trait, WaveEvents.eventFor(n), n) // v2.91
-        wave.toSpawn = (wave.toSpawn * io.github.panda17tk.arpg.sim.SystemTraits.quotaMul(worldState.trait)).toInt() // v2.91 RICH
+        wave.toSpawn = (wave.toSpawn * io.github.panda17tk.arpg.sim.SystemTraits.quotaMul(worldState.trait) *
+            difficulty.quotaMul).toInt() // v2.91 RICH / v2.97 過負荷
         if (wave.event == WaveEvent.HORDE) {
             wave.toSpawn = (wave.toSpawn * WaveEvents.HORDE_QUOTA_MUL).toInt()
         }

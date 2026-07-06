@@ -52,6 +52,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
     private var shakeOn = true      // v2.96 画面の揺れ
     private var softFlash = false   // v2.96 閃光をやわらげる
     private var volume = 1f         // v2.96 音量 (0/0.25/0.5/0.75/1)
+    private var difficulty = io.github.panda17tk.arpg.sim.Difficulty.NORMAL // v2.97
 
     // A deterministic drifting star field: fraction positions + parallax speed per star.
     private data class Star(val fx: Float, val fy: Float, val size: Float, val speed: Float)
@@ -92,6 +93,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             shakeOn = sp.getBoolean("shakeOn", true)        // v2.96
             softFlash = sp.getBoolean("softFlash", false)   // v2.96
             volume = sp.getFloat("masterVolume", 1f).coerceIn(0f, 1f) // v2.96
+            difficulty = io.github.panda17tk.arpg.sim.Difficulty.byName(sp.getString("difficulty", "NORMAL")) // v2.97
         } catch (_: Throwable) { /* defaults stay on */ }
         Sfx.volume = volume
         Ambience.setMaster(volume)
@@ -171,7 +173,8 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         val rec = TitleLayout.recordsButton(w, h)
         val set = TitleLayout.settingsButton(w, h)
         val wsh = TitleLayout.workshopButton(w, h) // v2.90
-        (buttons + rec + set + wsh).forEach { b ->
+        val dif = TitleLayout.difficultyButton(w, h, difficulty.label) // v2.97
+        (buttons + rec + set + wsh + dif).forEach { b ->
             shapes.color = Color(0.55f, 0.75f, 1f, 0.22f)
             shapes.rect(b.x - 1.5f, b.y - 1.5f, b.w + 3f, b.h + 3f)
             shapes.color = Color(0.05f, 0.07f, 0.11f, 0.85f)
@@ -199,7 +202,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         // v2.84: one quiet line, auto-fitted — the tagline used to run off both screen edges.
         drawFitted(font, "慣性で漂う宇宙と、あなたを覚えている星々。", w / 2f, h * 0.62f, w - 48f)
         font.color = Color.WHITE
-        (buttons + rec + set + wsh).forEach { b ->
+        (buttons + rec + set + wsh + dif).forEach { b ->
             glyph.setText(font, b.label)
             font.draw(batch, glyph, b.centerX - glyph.width / 2f, b.centerY + glyph.height / 2f)
         }
@@ -219,7 +222,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         if (showRecords) drawRecords(w, h) // v2.64: the service record sits over everything
         if (showSettings) drawSettings(w, h) // v2.66: so does the settings panel
         if (showWorkshop) drawWorkshop(w, h) // v2.90: and the workshop
-        handleInput(buttons, rec, set, wsh)
+        handleInput(buttons, rec, set, wsh, dif)
     }
 
     /** v2.66 設定: dim + glass panel + the five toggles (状態つき) + 閉じる. */
@@ -315,6 +318,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             sp.putBoolean("shakeOn", shakeOn)      // v2.96
             sp.putBoolean("softFlash", softFlash)  // v2.96
             sp.putFloat("masterVolume", volume)    // v2.96
+            sp.putString("difficulty", difficulty.name) // v2.97
             sp.flush()
         } catch (_: Throwable) { /* persist best-effort */ }
     }
@@ -380,7 +384,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         font.data.setScale(sx, sy)
     }
 
-    private fun handleInput(buttons: List<UiButton>, rec: UiButton, set: UiButton, wsh: UiButton) {
+    private fun handleInput(buttons: List<UiButton>, rec: UiButton, set: UiButton, wsh: UiButton, dif: UiButton) {
         if (Gdx.input.justTouched()) {
             tmp.set(Gdx.input.x.toFloat(), Gdx.input.y.toFloat(), 0f)
             viewport.unproject(tmp)
@@ -457,6 +461,12 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             }
             if (wsh.contains(tmp.x, tmp.y)) { // v2.90 工房
                 showWorkshop = true
+                Sfx.play("scan")
+                return
+            }
+            if (dif.contains(tmp.x, tmp.y)) { // v2.97 難易度: taps cycle the run mode
+                difficulty = difficulty.next()
+                persistSettings()
                 Sfx.play("scan")
                 return
             }

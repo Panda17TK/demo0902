@@ -98,6 +98,7 @@ object WorldFactory {
         weather: WeatherKind = WeatherKind.CLEAR, // v2.75: the landing's sky (SURFACE only)
         boons: io.github.panda17tk.arpg.config.WorkshopBoons = io.github.panda17tk.arpg.config.WorkshopBoons.NONE, // v2.90 工房
         trait: io.github.panda17tk.arpg.sim.SystemTrait = io.github.panda17tk.arpg.sim.SystemTrait.NONE, // v2.91 星系の個性
+        difficulty: io.github.panda17tk.arpg.sim.Difficulty = io.github.panda17tk.arpg.sim.Difficulty.NORMAL, // v2.97
     ): GameWorld {
         val loaded = MapLoader.load(
             if (mode == WorldMode.SURFACE) SurfaceStages.forBiome(biome, seed) else Stages.random(Rng(seed)),
@@ -201,6 +202,7 @@ object WorldFactory {
                 add(planetField)
                 add(worldState)
                 add(boons) // v2.90 工房: systems read the permanent boons
+                add(difficulty) // v2.97 難易度: pure multipliers the sim consults
             }
             systems {
                 add(SnapshotSystem())
