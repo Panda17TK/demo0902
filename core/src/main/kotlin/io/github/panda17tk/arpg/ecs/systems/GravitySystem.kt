@@ -28,6 +28,7 @@ class GravitySystem : IntervalSystem() {
     private val map: TileMap = world.inject()
     private val gravityField: GravityField = world.inject()
     private val planetField: PlanetField = world.inject()
+    private val worldState: io.github.panda17tk.arpg.sim.WorldState = world.inject() // v2.91
     private var timer = 0f
     private var clusters: List<Cluster> = emptyList()
     private val players by lazy { world.family { all(PlayerTag, Transform, Velocity) } }
@@ -68,7 +69,8 @@ class GravitySystem : IntervalSystem() {
     private fun applyGravity(t: Transform, v: Velocity, response: Float, dashMul: Float, dt: Float) {
         val (ax, ay) = PlanetGravity.combinedGravityAccel(planetField.planets, clusters, t.x, t.y, RANGE, STRENGTH)
         if (ax == 0f && ay == 0f) return
-        val (ndx, ndy) = Gravity.applyToDrift(v.driftX, v.driftY, ax, ay, response, dashMul, dt)
+        val heavy = io.github.panda17tk.arpg.sim.SystemTraits.gravityMul(worldState.trait) // v2.91 HEAVY
+        val (ndx, ndy) = Gravity.applyToDrift(v.driftX, v.driftY, ax, ay, response * heavy, dashMul, dt)
         v.driftX = ndx; v.driftY = ndy
     }
 

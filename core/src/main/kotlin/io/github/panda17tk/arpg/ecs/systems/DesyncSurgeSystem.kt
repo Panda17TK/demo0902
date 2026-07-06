@@ -98,7 +98,8 @@ class DesyncSurgeSystem : IteratingSystem(family { all(PlayerTag, Transform) }) 
         wave.toSpawn = minOf(c.maxQuota, c.baseQuota + (n - 1) * c.quotaPerWave)
         wave.spawnCd = 0.4f
         // v2.45 イベントウェーブ: the wave's flavor is fixed by its number (learnable rhythm).
-        wave.event = WaveEvents.eventFor(n)
+        wave.event = io.github.panda17tk.arpg.sim.SystemTraits.fillEvent(worldState.trait, WaveEvents.eventFor(n), n) // v2.91
+        wave.toSpawn = (wave.toSpawn * io.github.panda17tk.arpg.sim.SystemTraits.quotaMul(worldState.trait)).toInt() // v2.91 RICH
         if (wave.event == WaveEvent.HORDE) {
             wave.toSpawn = (wave.toSpawn * WaveEvents.HORDE_QUOTA_MUL).toInt()
         }

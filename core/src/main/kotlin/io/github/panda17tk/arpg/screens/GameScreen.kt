@@ -92,6 +92,8 @@ import io.github.panda17tk.arpg.sim.TutorialController
 import io.github.panda17tk.arpg.sim.TutorialStep
 import io.github.panda17tk.arpg.sim.TakeoffReward
 import io.github.panda17tk.arpg.sim.Tuning
+import io.github.panda17tk.arpg.sim.SystemTrait
+import io.github.panda17tk.arpg.sim.SystemTraits
 import io.github.panda17tk.arpg.sim.WaveEvent
 import io.github.panda17tk.arpg.sim.WorldMode
 import io.github.panda17tk.arpg.sim.WorldState
@@ -354,7 +356,7 @@ class GameScreen(
         } else {
             simMode = false
             worldSeed = session.spaceSeed
-            gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed, carry = preSimCarry, boons = metaBoons)
+            gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed, carry = preSimCarry, boons = metaBoons, trait = SystemTraits.traitFor(session.spaceSeed))
             gw.waveState.num = preSimCarry?.wave ?: 1
             preSimCarry = null
         }
@@ -374,7 +376,7 @@ class GameScreen(
         session.reset() // a fresh run forgets every planet
         runStore.clear() // v2.33: restarting abandons the saved run
         worldSeed = session.spaceSeed
-        gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed, boons = metaBoons)
+        gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed, boons = metaBoons, trait = SystemTraits.traitFor(session.spaceSeed))
         accumulator = 0f
         camInit = false
         choosing = false
@@ -479,7 +481,7 @@ class GameScreen(
     ) {
         val carry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
         worldSeed = seed
-        gw = WorldFactory.create(input, configStore.config, seed, mode, biome, carry, spawn, context, society, weather, boons = metaBoons)
+        gw = WorldFactory.create(input, configStore.config, seed, mode, biome, carry, spawn, context, society, weather, boons = metaBoons, trait = if (mode == WorldMode.SPACE) SystemTraits.traitFor(session.spaceSeed) else SystemTrait.NONE)
         gw.waveState.num = carry.wave
         accumulator = 0f; camInit = false; overlay = Overlay.NONE
         choosing = false; offered = false; choices = emptyList(); lastHp = Float.NaN
@@ -1387,6 +1389,8 @@ class GameScreen(
         if (session.spaceSeed >= 3) tryUnlock(Achievement.SYSTEM_3) // v2.70
         rewardToast = "第${session.spaceSeed}星系に到達した"
         rewardToastT = TOAST_TIME
+        // v2.91 星系の個性: the new sky introduces itself on the banner.
+        gw.worldState.trait.takeIf { it != SystemTrait.NONE }?.let { eventBanner.start(it.line) }
         Sfx.play("takeoff")
     }
 
@@ -1785,6 +1789,7 @@ class GameScreen(
                 Weather.kindFor(dto.landedPlanetId, biome) // v2.75: same sky after a restore
             } else WeatherKind.CLEAR,
             boons = metaBoons, // v2.90
+            trait = if (mode == WorldMode.SPACE) SystemTraits.traitFor(dto.worldSeed) else SystemTrait.NONE, // v2.91
         )
         gw.waveState.num = dto.wave
         with(gw.world) {

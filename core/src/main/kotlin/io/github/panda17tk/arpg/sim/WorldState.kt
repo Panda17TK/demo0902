@@ -33,6 +33,7 @@ class WorldState(
     val recentEvents: MutableList<PlanetEvent> = mutableListOf(),
     /** On a SURFACE, how the planet's memory reshaped this landing's spawn (LP v2.27) — set once by WorldFactory. */
     var spawnTweaks: SpawnTweaks = SpawnTweaks.NEUTRAL,
+    var trait: SystemTrait = SystemTrait.NONE, // v2.91 星系の個性 (SPACE only; surfaces stay calm)
     /** In SPACE, the system's jump gate (v2.44) — 3 key shards open the way to the next star system. */
     var gate: Pair<Float, Float>? = null,
     /** v2.87 儀式: display-only — true while the keeper holds enough shards; the gate lights up. */
