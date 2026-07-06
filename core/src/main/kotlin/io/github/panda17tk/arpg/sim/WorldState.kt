@@ -40,6 +40,9 @@ class WorldState(
     var gateReady: Boolean = false,
     /** v2.93 管制核: set by the screen when the sync tops out — the ending waits here. */
     var controlCore: Pair<Float, Float>? = null,
+    /** v2.95 地下遺構: the sealed chamber's centre (SURFACE only) + first-entry latch. */
+    var vault: Pair<Float, Float>? = null,
+    var vaultEntered: Boolean = false,
     /** v2.45 星の依頼: this visit's kill tallies (any hostile / elite tier) — reset with the WorldState. */
     var questKills: Int = 0,
     var questElites: Int = 0,

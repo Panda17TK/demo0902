@@ -44,6 +44,7 @@ enum class Achievement(val title: String, val desc: String) {
     // v2.93: the two ways the story closes (append-only ids).
     FINAL_SYNC("最後の保守員", "同期を完了し、網とともに眠りについた"),
     DRIFT_ON("それでも漂う", "最後の選択で、切断して漂流を続けた"),
+    VAULT_DELVER("遺構の底へ", "封じられた地下遺構の最奥に立った"), // v2.95
 }
 
 object Achievements {
