@@ -271,6 +271,8 @@ class GameScreen(
     private val bossBar = io.github.panda17tk.arpg.ui.BossBar() // v2.88
     private var duckLevel = 1f // v2.89: the running ambient duck
     private var metaBoons = io.github.panda17tk.arpg.config.WorkshopBoons.NONE // v2.90 工房
+    private var shakeOn = true    // v2.96: motion comfort — gates shake + recoil kick
+    private var softFlash = false // v2.96: photosensitivity — dims the white-outs
     private var prevWaveNum = 0 // v2.92: to notice a wave ending (流星群を生き延びた)
     private var prevWaveEvent = WaveEvent.NONE
     // v2.93 エンディング: 0=off, 1..pages=dialogue, pages+1=choice, pages+2=epilogue.
@@ -318,6 +320,11 @@ class GameScreen(
             val sp = Gdx.app.getPreferences(SETTINGS_PREFS)
             Sfx.enabled = sp.getBoolean(SETTINGS_SOUND, true)
             Haptics.enabled = sp.getBoolean(SETTINGS_HAPTICS, true)
+            // v2.96 快適設定: master volume + motion/photosensitivity comfort
+            Sfx.volume = sp.getFloat("masterVolume", 1f).coerceIn(0f, 1f)
+            Ambience.setMaster(Sfx.volume)
+            shakeOn = sp.getBoolean("shakeOn", true)
+            softFlash = sp.getBoolean("softFlash", false)
         } catch (_: Throwable) { /* defaults stay on */ }
         touch.layout.tweaks = try {
             LayoutTweaks.fromJson(Gdx.app.getPreferences(SETTINGS_PREFS).getString(SETTINGS_LAYOUT, ""))
@@ -820,9 +827,9 @@ class GameScreen(
         )
 
         updateCamera(delta, px, py, fx, fy)
-        if (gw.fx.shakeMag > 0f) { camera.position.add(gw.fx.shakeX(), gw.fx.shakeY(), 0f); camera.update() }
+        if (shakeOn && gw.fx.shakeMag > 0f) { camera.position.add(gw.fx.shakeX(), gw.fx.shakeY(), 0f); camera.update() }
         // v2.85: the recoil kick — a directional punch that snaps back in a tenth of a second.
-        if (gw.fx.kickX != 0f || gw.fx.kickY != 0f) { camera.position.add(gw.fx.kickX, gw.fx.kickY, 0f); camera.update() }
+        if (shakeOn && (gw.fx.kickX != 0f || gw.fx.kickY != 0f)) { camera.position.add(gw.fx.kickX, gw.fx.kickY, 0f); camera.update() }
 
         ScreenUtils.clear(0.06f, 0.07f, 0.10f, 1f)
 
@@ -1009,7 +1016,7 @@ class GameScreen(
 
     /** v2.88 撃破の儀式: a whole-screen white-out easing away after the killing blow. */
     private fun drawKillFlash() {
-        val a = gw.fx.flashAlpha()
+        val a = gw.fx.flashAlpha() * (if (softFlash) 0.35f else 1f) // v2.96 光過敏に配慮
         if (a <= 0f) return
         hudViewport.apply()
         Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND)

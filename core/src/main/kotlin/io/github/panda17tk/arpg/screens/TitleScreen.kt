@@ -49,6 +49,9 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
     private var leftyOn = false     // v2.65 左利き配置 (applied by the game screen on entry)
     private var hintsOn = true      // v2.66 操作ヒント (applied by the game screen on entry)
     private var loreOn = true       // v2.66 世界観ヒント (applied by the game screen on entry)
+    private var shakeOn = true      // v2.96 画面の揺れ
+    private var softFlash = false   // v2.96 閃光をやわらげる
+    private var volume = 1f         // v2.96 音量 (0/0.25/0.5/0.75/1)
 
     // A deterministic drifting star field: fraction positions + parallax speed per star.
     private data class Star(val fx: Float, val fy: Float, val size: Float, val speed: Float)
@@ -86,7 +89,12 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             leftyOn = sp.getBoolean("leftHanded", false) // v2.65
             hintsOn = sp.getBoolean("controlHintsOn", true) // v2.66
             loreOn = sp.getBoolean("loreHintsOn", true)     // v2.66
+            shakeOn = sp.getBoolean("shakeOn", true)        // v2.96
+            softFlash = sp.getBoolean("softFlash", false)   // v2.96
+            volume = sp.getFloat("masterVolume", 1f).coerceIn(0f, 1f) // v2.96
         } catch (_: Throwable) { /* defaults stay on */ }
+        Sfx.volume = volume
+        Ambience.setMaster(volume)
         Ambience.setEnabled(Sfx.enabled) // v2.63: the サウンド toggle gates the ambient loop too
         Ambience.play(AmbientTrack.TITLE)
     }
@@ -238,8 +246,11 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         drawFitted(font, "設定", w / 2f, pTop - 22f, pw - 24f)
         font.color = Color.WHITE
         btns.forEach { b ->
-            val text = if (b.label == SettingsPanel.CLOSE_LABEL) b.label
-            else "${b.label}: ${if (toggleState(b.label)) "ON" else "OFF"}"
+            val text = when (b.label) {
+                SettingsPanel.CLOSE_LABEL -> b.label
+                SettingsPanel.VOLUME -> "音量: ${(volume * 100).toInt()}%" // v2.96: a cycle, not a toggle
+                else -> "${b.label}: ${if (toggleState(b.label)) "ON" else "OFF"}"
+            }
             if (b.label == SettingsPanel.CLOSE_LABEL) {
                 drawFitted(font, text, b.centerX, b.centerY + 9f, b.w - 24f)
             } else { // two lines inside the taller row: state up top, its whisper below, smaller
@@ -301,6 +312,9 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             sp.putBoolean("leftHanded", leftyOn)
             sp.putBoolean("controlHintsOn", hintsOn)
             sp.putBoolean("loreHintsOn", loreOn)
+            sp.putBoolean("shakeOn", shakeOn)      // v2.96
+            sp.putBoolean("softFlash", softFlash)  // v2.96
+            sp.putFloat("masterVolume", volume)    // v2.96
             sp.flush()
         } catch (_: Throwable) { /* persist best-effort */ }
     }
@@ -310,6 +324,8 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         SettingsPanel.HAPTICS -> Haptics.enabled
         SettingsPanel.LEFTY -> leftyOn
         SettingsPanel.CONTROL_HINTS -> hintsOn
+        SettingsPanel.SHAKE -> shakeOn      // v2.96
+        SettingsPanel.SOFT_FLASH -> softFlash // v2.96
         else -> loreOn
     }
 
@@ -416,6 +432,15 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
                     SettingsPanel.LEFTY -> { leftyOn = !leftyOn; persistSettings() }
                     SettingsPanel.CONTROL_HINTS -> { hintsOn = !hintsOn; persistSettings() }
                     SettingsPanel.LORE_HINTS -> { loreOn = !loreOn; persistSettings() }
+                    SettingsPanel.VOLUME -> { // v2.96: cycle down, wrap to full; the ping previews it
+                        volume = if (volume <= 0f) 1f else ((volume * 4).toInt() - 1) / 4f
+                        Sfx.volume = volume
+                        Ambience.setMaster(volume)
+                        persistSettings()
+                        Sfx.play("scan")
+                    }
+                    SettingsPanel.SHAKE -> { shakeOn = !shakeOn; persistSettings() }      // v2.96
+                    SettingsPanel.SOFT_FLASH -> { softFlash = !softFlash; persistSettings() } // v2.96
                 }
                 return
             }

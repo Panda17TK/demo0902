@@ -10,8 +10,9 @@ class SettingsPanelTest {
         val bs = SettingsPanel.buttons(360f, 780f)
         assertEquals(
             listOf(
-                SettingsPanel.SOUND, SettingsPanel.HAPTICS, SettingsPanel.LEFTY,
-                SettingsPanel.CONTROL_HINTS, SettingsPanel.LORE_HINTS, SettingsPanel.CLOSE_LABEL,
+                SettingsPanel.SOUND, SettingsPanel.VOLUME, SettingsPanel.HAPTICS, SettingsPanel.LEFTY,
+                SettingsPanel.CONTROL_HINTS, SettingsPanel.LORE_HINTS,
+                SettingsPanel.SHAKE, SettingsPanel.SOFT_FLASH, SettingsPanel.CLOSE_LABEL, // v2.96
             ),
             bs.map { it.label },
         )
