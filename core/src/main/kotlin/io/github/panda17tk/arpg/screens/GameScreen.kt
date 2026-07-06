@@ -795,6 +795,17 @@ class GameScreen(
                 }
             }
         }
+        // v2.95 地下遺構: crossing into the chamber marks the visit once.
+        if (!paused && gw.worldState.mode == WorldMode.SURFACE && !gw.worldState.vaultEntered) {
+            gw.worldState.vault?.let { (vx2, vy2) ->
+                if (hypot(px - vx2, py - vy2) < Tuning.TILE * 2f) {
+                    gw.worldState.vaultEntered = true
+                    gw.worldState.recentEvents.add(PlanetEvent("封じられた遺構に踏み入った", EventKind.NEUTRAL))
+                    if (!simMode) tryUnlock(Achievement.VAULT_DELVER)
+                    Sfx.play("scan")
+                }
+            }
+        }
         val playerHit = pit > 0f && ((pit * 20f).toInt() % 2 == 0)
         // v2.37: the gear look — the active weapon shapes the drawn gun, armor tints the suit, OC burns blue.
         val gearLook = with(gw.world) { gw.player[Gear].loadout }

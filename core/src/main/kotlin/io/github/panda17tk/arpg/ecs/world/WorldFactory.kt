@@ -106,6 +106,10 @@ object WorldFactory {
         // The player normally starts at the stage's spawn; a return-to-space override re-emerges them beside a planet.
         val spawnX = playerSpawn?.first ?: loaded.playerSpawnX
         val spawnY = playerSpawn?.second ?: loaded.playerSpawnY
+        // v2.95 地下遺構: stamped BEFORE the flow field reads the map, so pathing knows the plating.
+        val vaultPos = if (mode == WorldMode.SURFACE && biome != null) {
+            io.github.panda17tk.arpg.map.SurfaceVault.place(map, spawnX, spawnY, seed)
+        } else null
         val flow = FlowField(map.width, map.height)
         flow.rebuild(map, floor(loaded.playerSpawnX / Tuning.TILE).toInt(), floor(loaded.playerSpawnY / Tuning.TILE).toInt(), FlowRebuildSystem.MAX_DIST)
         val combatRng = Rng(seed xor 0x9E3779B9L)
@@ -139,6 +143,7 @@ object WorldFactory {
         val worldState = WorldState(mode = mode, biome = biome, context = context, society = society ?: PlanetSocietyState())
         // The escape pad sits at the surface landing point; standing on it lets the player take off again.
         if (mode == WorldMode.SURFACE) worldState.escapePad = loaded.playerSpawnX to loaded.playerSpawnY
+        worldState.vault = vaultPos // v2.95
         // v2.48 惑星サーバー: every surface carries its memory core — the star's Layer-1 archive,
         // placed deterministically a walk away from the pad. Stand before it and it speaks once.
         if (mode == WorldMode.SURFACE) {
@@ -380,6 +385,18 @@ object WorldFactory {
                 !map.solidAt(tx, ty) && !SurfaceWater.inWater(worldState.water, d.x, d.y)
             }
             worldState.spawnTweaks = tweaks
+            // v2.95 地下遺構: the sealed chamber holds a keeper and its hoard.
+            vaultPos?.let { (vxp, vyp) ->
+                val gKey = config.enemies.entries.firstOrNull { it.value.tier == "midboss" && it.value.biome == biome }?.key
+                val gDef = config.enemies[gKey] ?: config.enemies["brute"]
+                if (gDef != null) {
+                    val g = MobFactory.spawn(world, gDef, vxp, vyp - Tuning.TILE, tribe = tribes.tribeOf(vxp, vyp))
+                    with(world) { g[Mob].level = 6 } // the vault's keeper outranks the field
+                }
+                Pickups.spawn(world, "dust", 80, vxp, vyp + 8f)
+                Pickups.spawn(world, "med", 40, vxp - 14f, vyp)
+                Pickups.spawn(world, "mat_" + biome.name.lowercase(), 1, vxp + 14f, vyp)
+            }
         }
 
         return GameWorld(world, player).also {
