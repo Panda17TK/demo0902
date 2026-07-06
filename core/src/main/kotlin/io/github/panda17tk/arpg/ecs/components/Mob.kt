@@ -23,6 +23,8 @@ class Mob(
     val drifter: Boolean = false,
     // v2.45 賞金首: a named bounty head bursts into this much dust when it falls (0 = not a bounty).
     var bountyDust: Int = 0,
+    var bountyName: String = "", // v2.88: the head's name, worn on the boss bar
+    var phase2: Boolean = false, // v2.88: heavies rage past half health (one-way latch)
     // Wildlife runtime (WildlifeSystem / WildPredationSystem only; ignored by hostile/sapient mobs).
     var wildState: WildState = WildState.Wander,
     var hunger: Float = 0f,   // 0..1, climbs over time; a predator hunts when high, drops while feeding

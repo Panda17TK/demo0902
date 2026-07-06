@@ -125,6 +125,7 @@ private const val PLANET_TAP_PAD = 48f   // v2.38: extra world-px around a plane
 private const val GATE_TAP_R = 96f       // v2.44: world-px radius that counts as tapping the jump gate
 private const val TRAINING_SEED = 4242L   // v2.53: the simulation always rebuilds the same arena
 private const val HINT_TOP = 138f          // v2.54: hint panels start below the top HUD band
+private const val BOSSBAR_RANGE = 680f     // v2.88: a heavy inside this range owns the boss bar
 private const val SETTINGS_PREFS = "drift-settings" // v2.39: device-level settings (not run state)
 private const val SETTINGS_SWAP = "controlSwap"
 private const val SETTINGS_ONBOARD = "onboardDone" // v2.47: the first-run walkthrough ran once
@@ -265,6 +266,7 @@ class GameScreen(
     private val cQuestGold = Color.valueOf("ffd980") // v2.87: the star's answer, dust gold
     private val cQuestPale = Color.valueOf("fff2c8")
     private var eventFxT = 0f // v2.86: clock for the event-flavored screen fx
+    private val bossBar = io.github.panda17tk.arpg.ui.BossBar() // v2.88
 
     // Memory tint per planet id (LP v2.30/10c) — rebuilt only when memory can change (transitions/forget).
     private var memoryTones: Map<Long, Int> = emptyMap()
@@ -782,8 +784,77 @@ class GameScreen(
 
         drawWeather(delta) // v2.74: the planet's climate, between the world and the HUD
         drawEventFx(delta) // v2.86: the wave event colors the whole sky, not just a line
+        drawKillFlash()    // v2.88: the white-out that crowns a boss kill
         drawHud(paused, sta, staMax, overheat)
+        updateBossBar(delta, px, py)
+        drawBossBar()      // v2.88: the heavy's name and health, top-center
         drawEventBanner() // v2.86: the opening band rides over the HUD
+    }
+
+    /** v2.88: scan for the nearest-priority heavy (boss > bounty > midboss) within earshot. */
+    private fun updateBossBar(delta: Float, ppx: Float, ppy: Float) {
+        var bestName: String? = null; var bestFrac = 1f; var bestRank = -1
+        with(gw.world) {
+            gw.world.family { all(Mob, Health, Transform) }.forEach { e ->
+                val m = e[Mob]
+                if (m.def.lifeKind == io.github.panda17tk.arpg.config.LifeKind.WILDLIFE) return@forEach
+                val rank = when {
+                    m.tier == "boss" -> 3
+                    m.bountyDust > 0 -> 2
+                    m.tier == "midboss" -> 1
+                    else -> -1
+                }
+                if (rank <= bestRank) return@forEach
+                val mt = e[Transform]
+                if (hypot(mt.x - ppx, mt.y - ppy) > BOSSBAR_RANGE) return@forEach
+                val mh = e[Health]
+                bestRank = rank
+                bestName = m.bountyName.ifEmpty { m.def.name }
+                bestFrac = if (mh.hpMax > 0f) mh.hp / mh.hpMax else 1f
+            }
+        }
+        bossBar.update(bestName != null, bestName, bestFrac, delta)
+    }
+
+    /** v2.88 ボスHPバー: name over a slim bar, top-center under the status band. */
+    private fun drawBossBar() {
+        if (!bossBar.visible) return
+        hudViewport.apply()
+        val w = hudViewport.worldWidth; val h = hudViewport.worldHeight
+        val a = bossBar.k
+        val bw = minOf(280f, w * 0.7f); val bh = 7f
+        val x = (w - bw) / 2f
+        val y = h - 132f - (1f - a) * 10f
+        Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND)
+        shapes.projectionMatrix = hudViewport.camera.combined
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
+        cEventTmp.set(0f, 0f, 0f, 0.55f * a); shapes.color = cEventTmp
+        shapes.rect(x - 4f, y - 4f, bw + 8f, bh + 8f)
+        cEventTmp.set(0.28f, 0.06f, 0.08f, 0.9f * a); shapes.color = cEventTmp
+        shapes.rect(x, y, bw, bh)
+        cEventTmp.set(0.95f, 0.30f, 0.28f, 0.95f * a); shapes.color = cEventTmp
+        shapes.rect(x, y, bw * bossBar.frac.coerceIn(0f, 1f), bh)
+        shapes.end()
+        batch.projectionMatrix = hudViewport.camera.combined
+        batch.begin()
+        cEventTmp.set(1f, 0.92f, 0.9f, a); font.color = cEventTmp
+        bannerGlyph.setText(font, bossBar.name)
+        font.draw(batch, bannerGlyph, (w - bannerGlyph.width) / 2f, y + bh + 6f + bannerGlyph.height)
+        font.color = Color.WHITE
+        batch.end()
+    }
+
+    /** v2.88 撃破の儀式: a whole-screen white-out easing away after the killing blow. */
+    private fun drawKillFlash() {
+        val a = gw.fx.flashAlpha()
+        if (a <= 0f) return
+        hudViewport.apply()
+        Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND)
+        shapes.projectionMatrix = hudViewport.camera.combined
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
+        cEventTmp.set(1f, 0.98f, 0.92f, 0.8f * a * a); shapes.color = cEventTmp
+        shapes.rect(0f, 0f, hudViewport.worldWidth, hudViewport.worldHeight)
+        shapes.end()
     }
 
     /** v2.86 イベントの見える化: each space wave event owns a screen-space look —

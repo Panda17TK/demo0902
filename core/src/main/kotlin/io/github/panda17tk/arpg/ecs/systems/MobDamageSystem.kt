@@ -10,6 +10,7 @@ import io.github.panda17tk.arpg.config.LifeKind
 import io.github.panda17tk.arpg.config.WildRole
 import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Mob
+import io.github.panda17tk.arpg.ecs.components.MobAction
 import io.github.panda17tk.arpg.ecs.components.Mods
 import io.github.panda17tk.arpg.ecs.components.PlayerTag
 import io.github.panda17tk.arpg.ecs.components.Transform
@@ -56,11 +57,22 @@ class MobDamageSystem(private val grid: SpatialGrid<Entity>) :
                 // the ecosystem's own kills count too; the star only sees the pressure lift).
                 worldState.questPredators++
             }
-            // v2.85 段階的な死: the body squashes out, then bursts (big ones chain three blasts) —
-            // and a big kill earns the slow-motion exhale (the player's kills only, not the wild's).
-            fx.spawnDeathStaged(t.x, t.y, mob.def.w, mob.def.h, Color.valueOf(mob.def.color.removePrefix("#")), big)
-            fx.addShake(if (big) 0.25f else 0.08f, if (big) 9f else 3.5f)
-            if (big && !wild) fx.slowmo(0.30f)
+            // v2.85 段階的な死 / v2.88 撃破の儀式: bodies squash out, then burst. A true boss or a
+            // bounty head goes grander — five chained blasts, a white-out, a longer slow-mo and a
+            // gold reward shower (the player's kills only, never the wild's own hunts).
+            val bodyColor = Color.valueOf(mob.def.color.removePrefix("#"))
+            val grand = !wild && (mob.tier == "boss" || mob.bountyDust > 0)
+            if (grand) {
+                fx.spawnDeathGrand(t.x, t.y, mob.def.w, mob.def.h, bodyColor)
+                fx.spawnRewardShower(t.x, t.y)
+                fx.addShake(0.45f, 12f)
+                fx.slowmo(0.5f)
+                fx.flash()
+            } else {
+                fx.spawnDeathStaged(t.x, t.y, mob.def.w, mob.def.h, bodyColor, big)
+                fx.addShake(if (big) 0.25f else 0.08f, if (big) 9f else 3.5f)
+                if (big && !wild) fx.slowmo(0.30f)
+            }
             // v2.45: a magnetic-storm wave shakes double dust from every kill.
             val dustMul = if (waveState.event == WaveEvent.STORM) WaveEvents.STORM_DUST_MUL else 1
             if (!wild) Pickups.dropOnKill(world, rng, t.x, t.y, big, worldState.spawnTweaks.bonusMaterialChance, dustMul)
@@ -74,6 +86,24 @@ class MobDamageSystem(private val grid: SpatialGrid<Entity>) :
             if (biome != null && big) Pickups.spawn(world, "mat_" + biome.name.lowercase(), 1, t.x, t.y)
             world -= entity
             return
+        }
+        // v2.88 フェーズ変化: a heavy that falls past half health rages once — a one-way latch
+        // riding the existing enrage machinery (faster swings, quicker attacks, the red aura).
+        val mobAlive = entity[Mob]
+        if (!mobAlive.phase2 && mobAlive.def.lifeKind != LifeKind.WILDLIFE &&
+            (mobAlive.tier == "midboss" || mobAlive.tier == "boss" || mobAlive.bountyDust > 0)
+        ) {
+            val h = entity[Health]
+            if (h.hp <= h.hpMax * 0.5f) {
+                mobAlive.phase2 = true
+                val a = entity.getOrNull(MobAction)
+                if (a != null) {
+                    a.enrageMul = maxOf(a.enrageMul, 1.35f)
+                    a.enrageT = maxOf(a.enrageT, 9999f) // the rage does not cool
+                }
+                fx.spawnWarnRing(t.x, t.y)
+                fx.addShake(0.2f, 5f)
+            }
         }
         grid.insert(entity, t.x, t.y)
     }
