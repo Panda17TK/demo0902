@@ -31,6 +31,16 @@ enum class Achievement(val title: String, val desc: String) {
     // v2.77: the rare skies.
     STORM_WATCHER("雷鳴の記録", "雷雨の星に降り立った"),
     AURORA_GAZER("極光の下で", "オーロラの星に降り立った"),
+    // v2.92: the feel-pass record — nine more, to thirty (append-only ids).
+    METEOR_SURVIVOR("流星のただ中で", "流星群の波を生き延びた"),
+    ROGUE_SLAYER("ならず者狩り", "はぐれの漂流者を討った"),
+    RAGE_BREAKER("怒りを鎮めた", "怒れる重量級を討った"),
+    GRAND_RITUAL("儀式の目撃者", "撃破の儀式に立ち会った"),
+    COMBO_MASTER("五連の呼吸", "連撃を最高段まで重ねた"),
+    WORKSHOP_PATRON("工房の初仕事", "工房で最初の工芸を求めた"),
+    WORKSHOP_MASTER("工房の常連", "工房の工芸をひとつ極めた"),
+    TRAIT_ARRIVAL("気質ある空へ", "性格を持つ星系に到達した"),
+    GATE_READY("鍵は揃った", "ゲート鍵を三つ束ねた"),
 }
 
 object Achievements {

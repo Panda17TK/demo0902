@@ -271,6 +271,8 @@ class GameScreen(
     private val bossBar = io.github.panda17tk.arpg.ui.BossBar() // v2.88
     private var duckLevel = 1f // v2.89: the running ambient duck
     private var metaBoons = io.github.panda17tk.arpg.config.WorkshopBoons.NONE // v2.90 工房
+    private var prevWaveNum = 0 // v2.92: to notice a wave ending (流星群を生き延びた)
+    private var prevWaveEvent = WaveEvent.NONE
 
     // Memory tint per planet id (LP v2.30/10c) — rebuilt only when memory can change (transitions/forget).
     private var memoryTones: Map<Long, Int> = emptyMap()
@@ -679,6 +681,20 @@ class GameScreen(
         }
         // v2.62 実績: surviving deep into the desync (the real run only).
         if (!paused && !simMode && gw.waveState.num >= 15) tryUnlock(Achievement.DEEP_SURGE)
+        // v2.92 実績: the sim counts feats; the screen turns counts into unlocks.
+        if (!paused && !simMode) {
+            if (gw.gameOver.rogueKills > 0) tryUnlock(Achievement.ROGUE_SLAYER)
+            if (gw.gameOver.rageKills > 0) tryUnlock(Achievement.RAGE_BREAKER)
+            if (gw.gameOver.grandKills > 0) tryUnlock(Achievement.GRAND_RITUAL)
+            if (gw.fx.comboStep >= io.github.panda17tk.arpg.combat.MeleeCombo.MAX_STEP) tryUnlock(Achievement.COMBO_MASTER)
+            if (with(gw.world) { gw.player[Materials].shards } >= gateNeed()) tryUnlock(Achievement.GATE_READY)
+            // surviving a meteor wave: the wave number moved on while the sky was falling
+            if (gw.waveState.num > prevWaveNum && prevWaveEvent == WaveEvent.METEOR && !gw.gameOver.isOver) {
+                tryUnlock(Achievement.METEOR_SURVIVOR)
+            }
+            prevWaveNum = gw.waveState.num
+            prevWaveEvent = gw.waveState.event
+        }
         // v2.70 実績: a real hoard of memory fragments, held all at once.
         if (!paused && !simMode && with(gw.world) { gw.player[Materials].dust } >= 500) {
             tryUnlock(Achievement.DUST_RICH)
@@ -794,6 +810,7 @@ class GameScreen(
         drawHud(paused, sta, staMax, overheat)
         updateBossBar(delta, px, py)
         drawBossBar()      // v2.88: the heavy's name and health, top-center
+        drawComboChip()    // v2.92: the melee rhythm while its window is alive
         drawEventBanner() // v2.86: the opening band rides over the HUD
     }
 
@@ -847,6 +864,31 @@ class GameScreen(
         bannerGlyph.setText(font, bossBar.name)
         font.draw(batch, bannerGlyph, (w - bannerGlyph.width) / 2f, y + bh + 6f + bannerGlyph.height)
         font.color = Color.WHITE
+        batch.end()
+    }
+
+    /** v2.92 連撃チップ: 「連撃 ×N」 riding mid-low screen while the chain window lives. */
+    private fun drawComboChip() {
+        val fxc = gw.fx
+        if (fxc.comboT <= 0f || fxc.comboStep < 2) return
+        hudViewport.apply()
+        val w = hudViewport.worldWidth; val h = hudViewport.worldHeight
+        val a = (fxc.comboT / 0.3f).coerceIn(0f, 1f)
+        batch.projectionMatrix = hudViewport.camera.combined
+        batch.begin()
+        val bx = font.data.scaleX; val by = font.data.scaleY
+        val grow = 1f + 0.06f * (fxc.comboStep - 1)
+        font.data.setScale(bx * grow, by * grow)
+        when { // alloc-free tinting, tier by rhythm
+            fxc.comboStep >= io.github.panda17tk.arpg.combat.MeleeCombo.MAX_STEP -> cEventTmp.set(1f, 0.91f, 0.29f, a)
+            fxc.comboStep >= 3 -> cEventTmp.set(1f, 0.82f, 0.48f, a)
+            else -> cEventTmp.set(0.81f, 0.89f, 1f, a)
+        }
+        font.color = cEventTmp
+        bannerGlyph.setText(font, "連撃 ×${fxc.comboStep}")
+        font.draw(batch, bannerGlyph, (w - bannerGlyph.width) / 2f, h * 0.40f)
+        font.color = Color.WHITE
+        font.data.setScale(bx, by)
         batch.end()
     }
 
@@ -1390,7 +1432,10 @@ class GameScreen(
         rewardToast = "第${session.spaceSeed}星系に到達した"
         rewardToastT = TOAST_TIME
         // v2.91 星系の個性: the new sky introduces itself on the banner.
-        gw.worldState.trait.takeIf { it != SystemTrait.NONE }?.let { eventBanner.start(it.line) }
+        gw.worldState.trait.takeIf { it != SystemTrait.NONE }?.let {
+            eventBanner.start(it.line)
+            tryUnlock(Achievement.TRAIT_ARRIVAL) // v2.92
+        }
         Sfx.play("takeoff")
     }
 

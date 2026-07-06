@@ -62,6 +62,10 @@ class MobDamageSystem(private val grid: SpatialGrid<Entity>) :
             // gold reward shower (the player's kills only, never the wild's own hunts).
             val bodyColor = Color.valueOf(mob.def.color.removePrefix("#"))
             val grand = !wild && (mob.tier == "boss" || mob.bountyDust > 0)
+            // v2.92 feats: the sim only counts; the screen decides what a count unlocks.
+            if (mob.tier == "rogue") gameOver.rogueKills++
+            if (mob.phase2 && !wild) gameOver.rageKills++
+            if (grand) gameOver.grandKills++
             if (grand) {
                 fx.spawnDeathGrand(t.x, t.y, mob.def.w, mob.def.h, bodyColor)
                 fx.spawnRewardShower(t.x, t.y)

@@ -388,7 +388,16 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
                 val hit = WorkshopPanel.buttons(viewport.worldWidth, viewport.worldHeight)
                     .firstOrNull { it.contains(tmp.x, tmp.y) } ?: return
                 if (hit.label == WorkshopPanel.CLOSE_LABEL) { showWorkshop = false; return }
-                if (Workshop.buy(hit.label)) Sfx.play("levelup") else Sfx.play("hit")
+                if (Workshop.buy(hit.label)) {
+                    Sfx.play("levelup")
+                    // v2.92: the first craft — and a mastered one — join the service record.
+                    Achievements.unlock(io.github.panda17tk.arpg.save.Achievement.WORKSHOP_PATRON)
+                    WorkshopCatalog.byId(hit.label)?.let { item ->
+                        if (Workshop.rank(item.id) >= item.maxRank) {
+                            Achievements.unlock(io.github.panda17tk.arpg.save.Achievement.WORKSHOP_MASTER)
+                        }
+                    }
+                } else Sfx.play("hit")
                 return
             }
             if (showSettings) { // v2.66: same rule — the panel owns every tap
