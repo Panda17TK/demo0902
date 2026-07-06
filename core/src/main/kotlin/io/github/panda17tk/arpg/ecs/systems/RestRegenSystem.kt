@@ -15,6 +15,7 @@ import io.github.panda17tk.arpg.input.InputState
  */
 class RestRegenSystem : IteratingSystem(family { all(PlayerTag, Health, Velocity) }) {
     private val input: InputState = world.inject()
+    private val boons: io.github.panda17tk.arpg.config.WorkshopBoons = world.inject() // v2.90
     private var sinceHurt = Float.MAX_VALUE / 2f
     private var lastHp = Float.NaN
     private var acc = 0f
@@ -30,7 +31,7 @@ class RestRegenSystem : IteratingSystem(family { all(PlayerTag, Health, Velocity
         val resting = speedSq < SPEED_EPS * SPEED_EPS &&
             !input.fire && !input.melee && !input.dash && sinceHurt >= REST_DELAY
         if (resting && h.hp < h.hpMax) {
-            acc += deltaTime
+            acc += deltaTime * (1f + boons.regenPerSec) // v2.90 自己修復の学習: the mend runs faster
             while (acc >= 1f) { acc -= 1f; h.hp = (h.hp + 1f).coerceAtMost(h.hpMax) }
         } else if (!resting) {
             acc = 0f // moving/fighting breaks the breath — the next point starts over

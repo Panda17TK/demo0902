@@ -96,6 +96,7 @@ object WorldFactory {
         playerSpawn: Pair<Float, Float>? = null, context: PlanetContext? = null,
         society: PlanetSocietyState? = null,
         weather: WeatherKind = WeatherKind.CLEAR, // v2.75: the landing's sky (SURFACE only)
+        boons: io.github.panda17tk.arpg.config.WorkshopBoons = io.github.panda17tk.arpg.config.WorkshopBoons.NONE, // v2.90 工房
     ): GameWorld {
         val loaded = MapLoader.load(
             if (mode == WorldMode.SURFACE) SurfaceStages.forBiome(biome, seed) else Stages.random(Rng(seed)),
@@ -193,6 +194,7 @@ object WorldFactory {
                 add(gravityField)
                 add(planetField)
                 add(worldState)
+                add(boons) // v2.90 工房: systems read the permanent boons
             }
             systems {
                 add(SnapshotSystem())
@@ -230,7 +232,7 @@ object WorldFactory {
             it += Transform(x = spawnX, y = spawnY)
             it += PlayerTag()
             it += Facing()
-            it += Stamina(config.player.staMax, config.player.staMax)
+            it += Stamina(config.player.staMax + boons.stamina, config.player.staMax + boons.stamina) // v2.90
             it += Body(Tuning.PLAYER_HALF, Tuning.PLAYER_HALF)
             it += Materials()
             it += Mods()
@@ -238,11 +240,16 @@ object WorldFactory {
             it += Arsenal(config.weapons.map { d -> WeaponRuntime(d, d.magSize ?: 0) })
             it += Ammo()
             it += Cooldowns()
-            it += Health(config.player.hpMax, config.player.hpMax)
+            it += Health(config.player.hpMax + boons.hull, config.player.hpMax + boons.hull) // v2.90
             it += Velocity()
             it += Gear(ItemCatalog.starterLoadout(), ItemCatalog.starterBackpack()) // v2.33 装備+持物
         }
         carry?.applyTo(world, player) // carry HP/ammo/upgrades across a SPACE⇄SURFACE landing
+        if (boons.loot > 0f) { // v2.90 拾集の目: rides on top of the visit's own tweaks
+            worldState.spawnTweaks = worldState.spawnTweaks.copy(
+                bonusMaterialChance = worldState.spawnTweaks.bonusMaterialChance + boons.loot,
+            )
+        }
 
         // ~Half of each tribe's rank-and-file (normal tier) dash; bosses/elites keep their own kit.
         val dashRng = Rng(seed xor 0x0DA54DA5L)

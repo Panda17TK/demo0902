@@ -21,7 +21,10 @@ import io.github.panda17tk.arpg.save.Achievements
 import io.github.panda17tk.arpg.save.PreferencesRunSaveStore
 import io.github.panda17tk.arpg.save.Scores
 import io.github.panda17tk.arpg.ui.RecordsPanel
+import io.github.panda17tk.arpg.save.Workshop
+import io.github.panda17tk.arpg.save.WorkshopCatalog
 import io.github.panda17tk.arpg.ui.SettingsPanel
+import io.github.panda17tk.arpg.ui.WorkshopPanel
 import io.github.panda17tk.arpg.ui.TitleFx
 import io.github.panda17tk.arpg.ui.TitleLayout
 import io.github.panda17tk.arpg.ui.UiButton
@@ -42,6 +45,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
     private var showRecords = false // v2.64 記録: the service-record overlay
     private var diagQueued = false  // v2.64: 起動診断をもう一度 was pressed this visit
     private var showSettings = false // v2.66 設定: the settings-panel overlay
+    private var showWorkshop = false // v2.90 工房: the workshop overlay
     private var leftyOn = false     // v2.65 左利き配置 (applied by the game screen on entry)
     private var hintsOn = true      // v2.66 操作ヒント (applied by the game screen on entry)
     private var loreOn = true       // v2.66 世界観ヒント (applied by the game screen on entry)
@@ -73,6 +77,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         hasSave = try { PreferencesRunSaveStore().load() != null } catch (_: Throwable) { false }
         Scores.load() // v2.62: the training scoreboard shows on the front door
         Achievements.load() // v2.64 記録: the service record reads from here
+        Workshop.load() // v2.90 工房: the ledger and its ranks
         try { // v2.59 設定: restore the sound / haptics switches
             val sp = Gdx.app.getPreferences("drift-settings")
             Sfx.enabled = sp.getBoolean("soundOn", true)
@@ -156,7 +161,8 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         // menu buttons (glass cards) + the two corner chips (設定 left, 記録 right)
         val rec = TitleLayout.recordsButton(w, h)
         val set = TitleLayout.settingsButton(w, h)
-        (buttons + rec + set).forEach { b ->
+        val wsh = TitleLayout.workshopButton(w, h) // v2.90
+        (buttons + rec + set + wsh).forEach { b ->
             shapes.color = Color(0.55f, 0.75f, 1f, 0.22f)
             shapes.rect(b.x - 1.5f, b.y - 1.5f, b.w + 3f, b.h + 3f)
             shapes.color = Color(0.05f, 0.07f, 0.11f, 0.85f)
@@ -184,7 +190,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         // v2.84: one quiet line, auto-fitted — the tagline used to run off both screen edges.
         drawFitted(font, "慣性で漂う宇宙と、あなたを覚えている星々。", w / 2f, h * 0.62f, w - 48f)
         font.color = Color.WHITE
-        (buttons + rec + set).forEach { b ->
+        (buttons + rec + set + wsh).forEach { b ->
             glyph.setText(font, b.label)
             font.draw(batch, glyph, b.centerX - glyph.width / 2f, b.centerY + glyph.height / 2f)
         }
@@ -203,7 +209,8 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
 
         if (showRecords) drawRecords(w, h) // v2.64: the service record sits over everything
         if (showSettings) drawSettings(w, h) // v2.66: so does the settings panel
-        handleInput(buttons, rec, set)
+        if (showWorkshop) drawWorkshop(w, h) // v2.90: and the workshop
+        handleInput(buttons, rec, set, wsh)
     }
 
     /** v2.66 設定: dim + glass panel + the five toggles (状態つき) + 閉じる. */
@@ -238,6 +245,46 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
                 drawFitted(font, text, b.centerX, b.centerY + 22f, b.w - 24f)
                 font.color = cSub
                 drawFitted(font, SettingsPanel.hintFor(b.label), b.centerX, b.centerY - 2f, b.w - 24f, scale = 0.85f)
+                font.color = Color.WHITE
+            }
+        }
+        batch.end()
+    }
+
+    /** v2.90 工房: dim + glass panel + the fragment bank + one row per craft + 閉じる. */
+    private fun drawWorkshop(w: Float, h: Float) {
+        val btns = WorkshopPanel.buttons(w, h)
+        val px = 14f; val pw = w - 28f; val pTop = h * 0.88f; val pBot = h * 0.10f
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
+        shapes.color = Color(0f, 0f, 0f, 0.72f); shapes.rect(0f, 0f, w, h)
+        shapes.color = Color(0.55f, 0.75f, 1f, 0.22f)
+        shapes.rect(px - 1.5f, pBot - 1.5f, pw + 3f, (pTop - pBot) + 3f)
+        shapes.color = Color(0.05f, 0.07f, 0.11f, 0.94f)
+        shapes.rect(px, pBot, pw, pTop - pBot)
+        btns.forEach { b ->
+            shapes.color = Color(0.55f, 0.75f, 1f, 0.22f)
+            shapes.rect(b.x - 1.5f, b.y - 1.5f, b.w + 3f, b.h + 3f)
+            shapes.color = Color(0.09f, 0.12f, 0.18f, 0.95f)
+            shapes.rect(b.x, b.y, b.w, b.h)
+        }
+        shapes.end()
+        batch.begin()
+        val font = Fonts.ui
+        font.color = cSub
+        drawFitted(font, "工房", w / 2f, pTop - 22f, pw - 24f)
+        drawFitted(font, "記録断片 ${Workshop.bank}", w / 2f, pTop - 46f, pw - 24f, scale = 0.9f)
+        font.color = Color.WHITE
+        btns.forEach { b ->
+            if (b.label == WorkshopPanel.CLOSE_LABEL) {
+                drawFitted(font, b.label, b.centerX, b.centerY + 9f, b.w - 24f)
+            } else {
+                val item = WorkshopCatalog.byId(b.label) ?: return@forEach
+                val r = Workshop.rank(item.id)
+                val pips = "●".repeat(r) + "○".repeat(item.maxRank - r)
+                val price = if (r >= item.maxRank) "習得済" else "${WorkshopCatalog.cost(item, r)}片"
+                drawFitted(font, "${item.title}　$pips　$price", b.centerX, b.centerY + 22f, b.w - 24f)
+                font.color = cSub
+                drawFitted(font, item.desc, b.centerX, b.centerY - 2f, b.w - 24f, scale = 0.85f)
                 font.color = Color.WHITE
             }
         }
@@ -315,7 +362,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         font.data.setScale(sx, sy)
     }
 
-    private fun handleInput(buttons: List<UiButton>, rec: UiButton, set: UiButton) {
+    private fun handleInput(buttons: List<UiButton>, rec: UiButton, set: UiButton, wsh: UiButton) {
         if (Gdx.input.justTouched()) {
             tmp.set(Gdx.input.x.toFloat(), Gdx.input.y.toFloat(), 0f)
             viewport.unproject(tmp)
@@ -335,6 +382,13 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
                     }
                     RecordsPanel.CLOSE_LABEL -> showRecords = false
                 }
+                return
+            }
+            if (showWorkshop) { // v2.90: the workshop owns every tap while open
+                val hit = WorkshopPanel.buttons(viewport.worldWidth, viewport.worldHeight)
+                    .firstOrNull { it.contains(tmp.x, tmp.y) } ?: return
+                if (hit.label == WorkshopPanel.CLOSE_LABEL) { showWorkshop = false; return }
+                if (Workshop.buy(hit.label)) Sfx.play("levelup") else Sfx.play("hit")
                 return
             }
             if (showSettings) { // v2.66: same rule — the panel owns every tap
@@ -365,6 +419,11 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
                 Sfx.play("scan")
                 return
             }
+            if (wsh.contains(tmp.x, tmp.y)) { // v2.90 工房
+                showWorkshop = true
+                Sfx.play("scan")
+                return
+            }
             val hit = buttons.firstOrNull { it.contains(tmp.x, tmp.y) } ?: return
             when (hit.label) {
                 "つづきから" -> app.startRun(fresh = false)
@@ -373,7 +432,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             }
             return
         }
-        if (showRecords || showSettings) return // v2.64/66: keys don't start a run under an overlay
+        if (showRecords || showSettings || showWorkshop) return // v2.64/66/90: keys don't start a run under an overlay
         if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ENTER) ||
             Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.SPACE)
         ) {

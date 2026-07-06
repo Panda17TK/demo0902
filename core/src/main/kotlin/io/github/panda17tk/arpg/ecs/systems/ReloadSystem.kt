@@ -14,6 +14,7 @@ import io.github.panda17tk.arpg.input.InputState
 class ReloadSystem : IteratingSystem(family { all(PlayerTag, Arsenal, Ammo) }) {
     private val input: InputState = world.inject()
     private val config: GameConfig = world.inject()
+    private val boons: io.github.panda17tk.arpg.config.WorkshopBoons = world.inject() // v2.90
 
     override fun onTickEntity(entity: Entity) {
         val arsenal = entity[Arsenal]; val ammo = entity[Ammo]
@@ -38,7 +39,7 @@ class ReloadSystem : IteratingSystem(family { all(PlayerTag, Arsenal, Ammo) }) {
         // v2.37: the equipped gun's grade speeds (or slows) its reload while it's the active weapon.
         val gradeReload = entity.getOrNull(Gear)?.loadout?.ranged
             ?.takeIf { it.weaponType == w.def.id }?.reloadMul ?: 1f
-        val time = (if (w.def.reloadTime > 0f) w.def.reloadTime else config.player.autoReloadDelay) * gradeReload
+        val time = (if (w.def.reloadTime > 0f) w.def.reloadTime else config.player.autoReloadDelay) * gradeReload * boons.reloadMul // v2.90 装填の手癖
         // Auto-reload ONLY when the magazine is shot dry; a manual reload (R / button) is still allowed any time.
         // No quiet-delay auto-reload — stopping fire with rounds left keeps them chambered.
         when {

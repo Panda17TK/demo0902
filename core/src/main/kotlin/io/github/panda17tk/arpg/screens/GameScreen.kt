@@ -268,6 +268,7 @@ class GameScreen(
     private var eventFxT = 0f // v2.86: clock for the event-flavored screen fx
     private val bossBar = io.github.panda17tk.arpg.ui.BossBar() // v2.88
     private var duckLevel = 1f // v2.89: the running ambient duck
+    private var metaBoons = io.github.panda17tk.arpg.config.WorkshopBoons.NONE // v2.90 工房
 
     // Memory tint per planet id (LP v2.30/10c) — rebuilt only when memory can change (transitions/forget).
     private var memoryTones: Map<Long, Int> = emptyMap()
@@ -287,6 +288,8 @@ class GameScreen(
     private var questChip: String? = null
 
     override fun show() {
+        io.github.panda17tk.arpg.save.Workshop.load() // v2.90 工房: the run starts with its boons
+        metaBoons = io.github.panda17tk.arpg.save.Workshop.boons()
         configStore.loadFromDisk()
         uiScale = Gdx.graphics.density.coerceIn(1f, 4f)
         shapes = ShapeRenderer()
@@ -347,11 +350,11 @@ class GameScreen(
             simMode = true
             preSimCarry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
             worldSeed = TRAINING_SEED
-            gw = WorldFactory.create(input, configStore.config, seed = TRAINING_SEED, carry = preSimCarry)
+            gw = WorldFactory.create(input, configStore.config, seed = TRAINING_SEED, carry = preSimCarry, boons = metaBoons)
         } else {
             simMode = false
             worldSeed = session.spaceSeed
-            gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed, carry = preSimCarry)
+            gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed, carry = preSimCarry, boons = metaBoons)
             gw.waveState.num = preSimCarry?.wave ?: 1
             preSimCarry = null
         }
@@ -371,7 +374,7 @@ class GameScreen(
         session.reset() // a fresh run forgets every planet
         runStore.clear() // v2.33: restarting abandons the saved run
         worldSeed = session.spaceSeed
-        gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed)
+        gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed, boons = metaBoons)
         accumulator = 0f
         camInit = false
         choosing = false
@@ -476,7 +479,7 @@ class GameScreen(
     ) {
         val carry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
         worldSeed = seed
-        gw = WorldFactory.create(input, configStore.config, seed, mode, biome, carry, spawn, context, society, weather)
+        gw = WorldFactory.create(input, configStore.config, seed, mode, biome, carry, spawn, context, society, weather, boons = metaBoons)
         gw.waveState.num = carry.wave
         accumulator = 0f; camInit = false; overlay = Overlay.NONE
         choosing = false; offered = false; choices = emptyList(); lastHp = Float.NaN
@@ -974,6 +977,9 @@ class GameScreen(
                         DeathRelic.of(t.x, t.y, m.dust, m.shards, gw.worldState.mode == WorldMode.SPACE)
                     }
                     if (relic != null) relicStore.save(relic) else relicStore.clear()
+                    // v2.90 工房: a fraction of the carried fragments reaches the workshop ledger.
+                    val carried = with(gw.world) { gw.player[Materials].dust }
+                    io.github.panda17tk.arpg.save.Workshop.deposit(io.github.panda17tk.arpg.save.WorkshopCatalog.salvage(carried))
                 }
                 Sfx.play("dead"); Haptics.buzz(140)
             }
@@ -1778,6 +1784,7 @@ class GameScreen(
             weather = if (mode == WorldMode.SURFACE && dto.landedPlanetId != null && biome != null) {
                 Weather.kindFor(dto.landedPlanetId, biome) // v2.75: same sky after a restore
             } else WeatherKind.CLEAR,
+            boons = metaBoons, // v2.90
         )
         gw.waveState.num = dto.wave
         with(gw.world) {
