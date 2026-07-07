@@ -44,6 +44,8 @@ import io.github.panda17tk.arpg.item.ItemDef
 import io.github.panda17tk.arpg.item.ItemKind
 import io.github.panda17tk.arpg.item.Loadout
 import io.github.panda17tk.arpg.item.Market
+import io.github.panda17tk.arpg.item.Trader
+import io.github.panda17tk.arpg.item.TraderGoodKind
 import io.github.panda17tk.arpg.App
 import io.github.panda17tk.arpg.input.Haptics
 import io.github.panda17tk.arpg.input.InputState
@@ -109,6 +111,7 @@ import io.github.panda17tk.arpg.ui.Onboarding
 import io.github.panda17tk.arpg.ui.Overlay
 import io.github.panda17tk.arpg.ui.PauseAction
 import io.github.panda17tk.arpg.ui.PauseFlow
+import io.github.panda17tk.arpg.ui.TraderPanel
 import io.github.panda17tk.arpg.ui.TransitionFade
 import io.github.panda17tk.arpg.upgrade.Upgrade
 import io.github.panda17tk.arpg.upgrade.Upgrades
@@ -254,6 +257,12 @@ class GameScreen(
     private var preSimCarry: PlayerCarry? = null
     // v2.43: stall slots already bought this landing (the stock is per-planet deterministic).
     private val marketSold = mutableSetOf<Int>()
+    // v2.100 行商船: shelf slots bought under this sky, the approach latch (re-arms after pulling
+    // away), and the shop's inline note (bought / not enough dust).
+    private val traderSold = mutableSetOf<Int>()
+    private var traderGreeted = false
+    private var traderNote: String? = null
+    private var traderNoteT = 0f
 
     // Takeoff send-off toast (LP v2.29): one line in the SPACE HUD for a few seconds after leaving.
     private var rewardToast: String? = null
@@ -381,7 +390,7 @@ class GameScreen(
         accumulator = 0f; camInit = false; choosing = false; offered = false; choices = emptyList()
         lastHp = Float.NaN; lastCardId = null; cachedCard = null
         chipsKey = -1; cachedChips = emptyList(); questChipKey = -1; questChip = null
-        marketSold.clear(); pendingJump = false
+        marketSold.clear(); traderSold.clear(); traderGreeted = false; pendingJump = false
         rewardToast = if (simMode) "旧式戦闘シミュレーション起動 — 成果は持ち出せない" else "訓練環境を終了した"
         rewardToastT = TOAST_TIME
         rebuildMemoryTones()
@@ -408,7 +417,7 @@ class GameScreen(
         pendingJump = false
         lastCardId = null; cachedCard = null
         questChipKey = -1; questChip = null
-        marketSold.clear()
+        marketSold.clear(); traderSold.clear(); traderGreeted = false
         // v2.46 遺品回収: the previous death's bundle drifts where you fell (a fresh run rebuilds
         // the same first system, so the spot is real). A surface death washes up near the start.
         relicStore.load()?.let { r ->
@@ -506,7 +515,7 @@ class GameScreen(
         lastCardId = null; cachedCard = null // memory may have changed across the transition → rebuild the scan card
         chipsKey = -1; cachedChips = emptyList()
         questChipKey = -1; questChip = null
-        marketSold.clear()
+        marketSold.clear(); traderSold.clear(); traderGreeted = false
         rebuildMemoryTones()
         syncAmbience() // v2.63: space ↔ surface swap the ambient loop
     }
@@ -738,6 +747,24 @@ class GameScreen(
                     gw.worldState.wreckLogShown.add(i)
                     rewardToast = WreckLog.lineFor(worldSeed, i)
                     rewardToastT = TOAST_TIME
+                    Sfx.play("scan")
+                }
+            }
+        }
+        // v2.100 行商船: drifting up to the vessel opens its stall — once per approach; the latch
+        // re-arms only after pulling clearly away, so the shop never pins the player in place.
+        if (!paused && !simMode && gw.worldState.mode == WorldMode.SPACE && overlay == Overlay.NONE &&
+            !choosing && !gw.gameOver.isOver && endingStage == 0 && !tuningOpen && !fade.blocksInput
+        ) {
+            gw.worldState.trader?.let { tr ->
+                val (tpx, tpy) = with(gw.world) { val t = gw.player[Transform]; t.x to t.y }
+                val d = hypot(tpx - tr.first, tpy - tr.second)
+                if (d > Tuning.TILE * 5f) {
+                    traderGreeted = false
+                } else if (d < Tuning.TILE * 2.5f && !traderGreeted) {
+                    traderGreeted = true
+                    traderNote = null; traderNoteT = 0f
+                    overlay = Overlay.TRADER
                     Sfx.play("scan")
                 }
             }
@@ -1393,6 +1420,7 @@ class GameScreen(
             )
         }
         if (overlay == Overlay.INVENTORY) drawInventory()
+        if (overlay == Overlay.TRADER) drawTraderShop() // v2.100 行商船
         if (overlay == Overlay.PAUSE) Hud.pause(shapes, batch, font, Fonts.title, hudViewport, Modals.pauseButtons(hudW, hudH, pauseHasMemory(), simMode))
         if (overlay == Overlay.HELP) Hud.help(shapes, batch, font, Fonts.title, hudViewport, Modals.helpButtons(hudW, hudH).first(), HELP_LINES)
         if (overlay == Overlay.FORGET) Hud.forget(shapes, batch, font, Fonts.title, hudViewport, Modals.forgetButtons(hudW, hudH))
@@ -1734,6 +1762,7 @@ class GameScreen(
                 else -> {}
             }
             Overlay.INVENTORY -> handleInventoryTap(w, h)
+            Overlay.TRADER -> handleTraderTap(w, h) // v2.100 行商船
             Overlay.NONE -> if (!choosing && !gw.gameOver.isOver) {
                 if (Modals.hitModal(listOf(Modals.pauseButton(w, h)), tapX, tapY) != null) {
                     overlay = Overlay.PAUSE
@@ -2018,6 +2047,80 @@ class GameScreen(
         }
     }
 
+    /** v2.100 行商船: dim + the vessel's shelves (name left, price right) + 所持屑 + [離れる]. */
+    private fun drawTraderShop() {
+        hudViewport.apply()
+        val w = hudViewport.worldWidth; val h = hudViewport.worldHeight
+        val stock = Trader.stockFor(worldSeed)
+        val rows = TraderPanel.rows(w, h, stock.size)
+        val close = TraderPanel.closeButton(w, h)
+        if (traderNoteT > 0f) { traderNoteT -= Gdx.graphics.deltaTime; if (traderNoteT <= 0f) traderNote = null }
+        Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND)
+        shapes.projectionMatrix = hudViewport.camera.combined
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
+        cEventTmp.set(0f, 0f, 0f, 0.78f); shapes.color = cEventTmp
+        shapes.rect(0f, 0f, w, h)
+        (rows + close).forEach { b ->
+            cEventTmp.set(1f, 0.82f, 0.45f, 0.20f); shapes.color = cEventTmp // the warm lamp, not HUD blue
+            shapes.rect(b.x - 1.5f, b.y - 1.5f, b.w + 3f, b.h + 3f)
+            cEventTmp.set(0.12f, 0.10f, 0.08f, 0.95f); shapes.color = cEventTmp
+            shapes.rect(b.x, b.y, b.w, b.h)
+        }
+        shapes.end()
+        batch.projectionMatrix = hudViewport.camera.combined
+        batch.begin()
+        cEventTmp.set(1f, 0.87f, 0.55f, 1f); font.color = cEventTmp
+        bannerGlyph.setText(font, "行商船")
+        font.draw(batch, bannerGlyph, (w - bannerGlyph.width) / 2f, h * 0.80f)
+        font.color = Color.WHITE
+        rows.forEachIndexed { i, row ->
+            val good = stock[i]
+            val text = if (i in traderSold) "─ 売約済 ─" else "${good.label}　【${good.price}屑】"
+            bannerGlyph.setText(font, text)
+            font.draw(batch, bannerGlyph, row.centerX - bannerGlyph.width / 2f, row.centerY + bannerGlyph.height / 2f)
+        }
+        val dust = with(gw.world) { gw.player[Materials].dust }
+        cEventTmp.set(0.62f, 0.68f, 0.80f, 1f); font.color = cEventTmp
+        bannerGlyph.setText(font, traderNote ?: "所持 星屑 $dust　行をタップで購入")
+        font.draw(batch, bannerGlyph, (w - bannerGlyph.width) / 2f, close.y + close.h + 30f)
+        font.color = Color.WHITE
+        bannerGlyph.setText(font, close.label)
+        font.draw(batch, bannerGlyph, close.centerX - bannerGlyph.width / 2f, close.centerY + bannerGlyph.height / 2f)
+        batch.end()
+    }
+
+    /** v2.100 行商船: buy the tapped shelf slot if the dust covers it, or step away. */
+    private fun handleTraderTap(w: Float, h: Float) {
+        if (TraderPanel.closeButton(w, h).contains(tapX, tapY)) { overlay = Overlay.NONE; Sfx.play("scan"); return }
+        val stock = Trader.stockFor(worldSeed)
+        val idx = Modals.hitModal(TraderPanel.rows(w, h, stock.size), tapX, tapY) ?: return
+        if (idx in traderSold) return
+        val good = stock[idx]
+        with(gw.world) {
+            val mats = gw.player[Materials]
+            if (mats.dust < good.price) {
+                traderNote = "星屑が足りない（${good.price} 必要）"; traderNoteT = SAVED_NOTE_TIME
+                Sfx.play("hit")
+                return
+            }
+            mats.dust -= good.price
+            when (good.kind) {
+                TraderGoodKind.MED -> { val hlt = gw.player[Health]; hlt.hp = minOf(hlt.hpMax, hlt.hp + Trader.MED_HEAL) }
+                TraderGoodKind.AMMO -> {
+                    val am = gw.player[Ammo]
+                    am.ammo9 += Trader.AMMO9; am.ammo12 += Trader.AMMO12
+                    am.ammoBeam += Trader.AMMO_BEAM; am.ammoNade += Trader.AMMO_NADE
+                }
+                TraderGoodKind.GEAR -> good.item?.let { gw.player[Gear].backpack.add(it) }
+                TraderGoodKind.SHARD -> mats.shards += 1
+            }
+            traderSold.add(idx)
+            traderNote = "${good.label} を購入した（-${good.price}屑）"; traderNoteT = SAVED_NOTE_TIME
+            Sfx.play("levelup")
+            if (!simMode) tryUnlock(Achievement.TRADER_CLIENT)
+        }
+    }
+
     /** v2.39: flip the touch roles of the ML button and the right stick, and persist the choice. */
     private fun toggleControlSwap() {
         controlSwap = !controlSwap
@@ -2121,7 +2224,7 @@ class GameScreen(
         accumulator = 0f; camInit = false; choosing = false; offered = false; choices = emptyList()
         overlay = Overlay.NONE; lastHp = Float.NaN; lastKills = 0; prevOver = false; newBest = false
         lastCardId = null; cachedCard = null; chipsKey = -1; cachedChips = emptyList()
-        marketSold.clear()
+        marketSold.clear(); traderSold.clear(); traderGreeted = false
         rebuildMemoryTones()
         return true
     }

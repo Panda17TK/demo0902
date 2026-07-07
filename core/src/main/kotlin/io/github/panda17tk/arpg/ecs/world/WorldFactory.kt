@@ -178,6 +178,18 @@ object WorldFactory {
                 snapToFloor(map, wx, wy)
             }
         }
+        // v2.100 行商船: some systems host a friendly trading vessel — nearer than the gate,
+        // stocked deterministically per seed (item/Trader.kt). The screen opens the shop on approach.
+        if (mode != WorldMode.SURFACE) {
+            val tRng = Rng(seed xor 0x7124DE72L)
+            if (tRng.nextFloat() < TRADER_CHANCE) {
+                val ta = tRng.nextFloat() * TAU
+                val td = 700f + tRng.nextFloat() * 1200f
+                val tx = (loaded.playerSpawnX + kotlin.math.cos(ta) * td).coerceIn(Tuning.TILE * 4f, map.width * Tuning.TILE - Tuning.TILE * 4f)
+                val ty = (loaded.playerSpawnY + kotlin.math.sin(ta) * td).coerceIn(Tuning.TILE * 4f, map.height * Tuning.TILE - Tuning.TILE * 4f)
+                worldState.trader = snapToFloor(map, tx, ty)
+            }
+        }
         val waveState = WaveState(
             num = 1,
             phase = "active",
@@ -436,4 +448,5 @@ object WorldFactory {
     private const val DRIFTER_RANGE = 1800f
     private const val DRIFTER_SPEED_MIN = 40f  // opening coast speed; max stays below the 150 ram threshold
     private const val DRIFTER_SPEED_MAX = 140f
+    private const val TRADER_CHANCE = 0.4f     // v2.100: not every sky hosts the vessel
 }

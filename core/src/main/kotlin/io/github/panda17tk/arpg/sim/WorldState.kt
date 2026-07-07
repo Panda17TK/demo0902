@@ -63,6 +63,8 @@ class WorldState(
     var questBaseTime: Float = 0f,
     /** v2.46 難破船: wrecked hulls adrift in the system — guarded loot caches worth boarding. */
     var wrecks: List<Pair<Float, Float>> = emptyList(),
+    /** v2.100 行商船: a friendly trading vessel adrift in SOME systems (null when it isn't here). */
+    var trader: Pair<Float, Float>? = null,
     /** v2.48 惑星サーバー: the surface's memory core (Layer 1) — stand before it and it speaks once. */
     var memoryCore: Pair<Float, Float>? = null,
     var coreLogShown: Boolean = false,
