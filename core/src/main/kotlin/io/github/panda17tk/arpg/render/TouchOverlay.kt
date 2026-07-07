@@ -119,5 +119,6 @@ object TouchOverlay {
         TouchButton.LAND -> landLabel
         TouchButton.INV -> "持物"
         TouchButton.FULL -> "全開"
+        TouchButton.TUNE -> "調整" // v2.98
     }
 }

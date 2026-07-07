@@ -37,6 +37,7 @@ class TouchControls {
     private var prevWeapon = false
     private var prevLand = false
     private var prevInv = false
+    private var prevTune = false // v2.98
     private var prevAiming = false // for manual-fire weapons: detect the frame the aim stick is released
     private var lastAimX = 1f
     private var lastAimY = 0f
@@ -50,15 +51,15 @@ class TouchControls {
 
     /** [swapMeleeFire] (v2.39): the inventory toggle — the right stick swings the melee arm and the
      *  ML button fires the gun (hold to fire; releasing it is the manual-fire edge). */
-    fun poll(input: InputState, viewport: Viewport, blocks: Int, mag: Int, magSize: Int?, canLand: Boolean, hasOverclock: Boolean = false, swapMeleeFire: Boolean = false) {
+    fun poll(input: InputState, viewport: Viewport, blocks: Int, mag: Int, magSize: Int?, canLand: Boolean, hasOverclock: Boolean = false, swapMeleeFire: Boolean = false, tuneMode: Boolean = false) {
         layout.screenW = viewport.worldWidth; layout.screenH = viewport.worldHeight
-        val vis = TouchButtons.visible(blocks, mag, magSize, canLand, hasOverclock)
+        val vis = TouchButtons.visible(blocks, mag, magSize, canLand, hasOverclock, tuneMode)
         visibleButtons = vis
         input.aiming = false
         input.moveMag = 0f
         var stick = false; var aim = false
         var dash = false; var melee = false; var reload = false; var wall = false; var weapon = false; var land = false
-        var inv = false; var full = false
+        var inv = false; var full = false; var tuneBtn = false
 
         for (i in 0 until MAX_POINTERS) {
             if (!Gdx.input.isTouched(i)) continue
@@ -81,6 +82,7 @@ class TouchControls {
                     TouchButton.LAND -> land = true
                     TouchButton.INV -> inv = true
                     TouchButton.FULL -> full = true
+                    TouchButton.TUNE -> tuneBtn = true // v2.98
                     // Never let a tap on the LAND button's spot get stolen by the aim stick (which would lock the
                     // pointer to fire and make landing impossible on touch). Ignore it on the frames it's not landable.
                     else -> if (aimPointer == -1 && !layout.isInStickZone(x, y) && layout.button(x, y) != TouchButton.LAND) {
@@ -134,8 +136,9 @@ class TouchControls {
         if (weapon && !prevWeapon) { input.weaponSlot = weaponIdx; weaponIdx = (weaponIdx + 1) % WEAPON_SLOTS }
         if (land && !prevLand) input.land = true // edge: fire landing once per tap
         if (inv && !prevInv) input.inventory = true // edge: open/close the inventory once per tap (v2.33)
+        if (tuneBtn && !prevTune) input.tune = true // edge: open/close the tuning popup (v2.98)
         if (full) input.fullThrottle = true // held: OC full throttle (v2.33)
-        prevMelee = melee; prevReload = reload; prevWall = wall; prevWeapon = weapon; prevLand = land; prevInv = inv
+        prevMelee = melee; prevReload = reload; prevWall = wall; prevWeapon = weapon; prevLand = land; prevInv = inv; prevTune = tuneBtn
 
         // P3: pressed set drives the highlight; a fresh press edge fires a short haptic tick.
         val pressed = buildSet {
@@ -147,6 +150,7 @@ class TouchControls {
             if (land) add(TouchButton.LAND) // feedback parity: LAND also buzzes + highlights on press
             if (inv) add(TouchButton.INV)
             if (full) add(TouchButton.FULL)
+            if (tuneBtn) add(TouchButton.TUNE)
         }
         if ((pressed - prevPressed).isNotEmpty()) Haptics.buzz(18)
         prevPressed = pressed
