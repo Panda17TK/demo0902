@@ -138,6 +138,7 @@ class SceneRenderer {
         drawControlCore(shapes, gw, animTime) // v2.93: the ending, waiting off the gate's shoulder
         drawWrecks(shapes, gw, animTime)
         drawTrader(shapes, gw, animTime) // v2.100: the friendly vessel, if this sky hosts one
+        drawComet(shapes, gw, animTime)  // v2.110: the comet and its dust-strung tail
         drawMemoryCore(shapes, gw, animTime)
         drawBases(shapes, gw, animTime)
         shapes.end()
@@ -680,6 +681,22 @@ class SceneRenderer {
         tmpC.set(1f, 0.87f, 0.55f, 0.9f); shapes.color = tmpC
         shapes.circle(tx + 18f, ty + 2f + bob, 2.4f, 10)
         shapes.circle(tx - 2f, ty + 12f + bob, 2.0f, 10)
+    }
+
+    /** v2.110 彗星: a bright head, a breathing halo, and a tail fading down its own dust. */
+    private fun drawComet(shapes: ShapeRenderer, gw: GameWorld, animTime: Float) {
+        val (hx, hy) = gw.worldState.comet ?: return
+        val (dx, dy) = gw.worldState.cometDir ?: return
+        val breath = 0.5f + 0.5f * sin(animTime * 1.6f)
+        for (i in 0 until 7) { // the tail — fading beads along the drift
+            val dist = 40f + i * 52f
+            tmpC.set(0.75f, 0.88f, 1f, 0.18f * (1f - i / 7f)); shapes.color = tmpC
+            shapes.circle(hx + dx * dist, hy + dy * dist, 9f - i, 14)
+        }
+        tmpC.set(0.85f, 0.94f, 1f, 0.20f + 0.10f * breath); shapes.color = tmpC
+        shapes.circle(hx, hy, 22f + 3f * breath, 24)
+        tmpC.set(1f, 1f, 1f, 0.95f); shapes.color = tmpC
+        shapes.circle(hx, hy, 5f, 12)
     }
 
     /** Smoke clouds — overlapping puffs of varying white/grey + opacity, fading over life. */

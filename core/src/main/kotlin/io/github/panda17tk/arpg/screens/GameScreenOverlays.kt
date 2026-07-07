@@ -497,7 +497,8 @@ internal fun GameScreen.drawTraderShop() {
         font.color = Color.WHITE
         rows.forEachIndexed { i, row ->
             val good = stock[i]
-            val text = if (i in traderSold) "─ 売約済 ─" else "${good.label}　【${good.price}屑】"
+            val shown = Trader.discounted(good.price, gw.worldState.traderRescued) // v2.110 襲撃の礼
+            val text = if (i in traderSold) "─ 売約済 ─" else "${good.label}　【${shown}屑】"
             bannerGlyph.setText(font, text)
             font.draw(batch, bannerGlyph, row.centerX - bannerGlyph.width / 2f, row.centerY + bannerGlyph.height / 2f)
         }
@@ -518,14 +519,15 @@ internal fun GameScreen.handleTraderTap(w: Float, h: Float) {
         val idx = Modals.hitModal(TraderPanel.rows(w, h, stock.size), tapX, tapY) ?: return
         if (idx in traderSold) return
         val good = stock[idx]
+        val price = Trader.discounted(good.price, gw.worldState.traderRescued) // v2.110 襲撃の礼
         with(gw.world) {
             val mats = gw.player[Materials]
-            if (mats.dust < good.price) {
-                traderNote = "星屑が足りない（${good.price} 必要）"; traderNoteT = SAVED_NOTE_TIME
+            if (mats.dust < price) {
+                traderNote = "星屑が足りない（${price} 必要）"; traderNoteT = SAVED_NOTE_TIME
                 Sfx.play("hit")
                 return
             }
-            mats.dust -= good.price
+            mats.dust -= price
             when (good.kind) {
                 TraderGoodKind.MED -> { val hlt = gw.player[Health]; hlt.hp = minOf(hlt.hpMax, hlt.hp + Trader.MED_HEAL) }
                 TraderGoodKind.AMMO -> {
@@ -537,7 +539,7 @@ internal fun GameScreen.handleTraderTap(w: Float, h: Float) {
                 TraderGoodKind.SHARD -> mats.shards += 1
             }
             traderSold.add(idx)
-            traderNote = "${good.label} を購入した（-${good.price}屑）"; traderNoteT = SAVED_NOTE_TIME
+            traderNote = "${good.label} を購入した（-${price}屑）"; traderNoteT = SAVED_NOTE_TIME
             Sfx.play("levelup")
             if (!simMode) tryUnlock(Achievement.TRADER_CLIENT)
         }

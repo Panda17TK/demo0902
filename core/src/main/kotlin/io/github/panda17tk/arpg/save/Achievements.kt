@@ -46,6 +46,7 @@ enum class Achievement(val title: String, val desc: String) {
     DRIFT_ON("それでも漂う", "最後の選択で、切断して漂流を続けた"),
     VAULT_DELVER("遺構の底へ", "封じられた地下遺構の最奥に立った"), // v2.95
     TRADER_CLIENT("行商の客", "宙を行く行商船で買い物をした"), // v2.100
+    LIFELINE("引き上げた手", "難破船の生存者を救助した"), // v2.110
 }
 
 object Achievements {

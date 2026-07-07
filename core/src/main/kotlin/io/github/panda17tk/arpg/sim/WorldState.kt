@@ -65,6 +65,15 @@ class WorldState(
     var wrecks: List<Pair<Float, Float>> = emptyList(),
     /** v2.100 行商船: a friendly trading vessel adrift in SOME systems (null when it isn't here). */
     var trader: Pair<Float, Float>? = null,
+    /** v2.110 行商船襲撃: 0=まだ / 1=進行中 / 2=決着。守り抜けば the shop discounts 20%. */
+    var traderRaid: Int = 0,
+    var traderRescued: Boolean = false,
+    /** v2.110 生存者: the wreck index sheltering a survivor (-1 = none) + the rescue latch. */
+    var survivorWreck: Int = -1,
+    var survivorRescued: Boolean = false,
+    /** v2.110 彗星: the head + tail direction (SPACE, some skies) — dust beads ride the tail. */
+    var comet: Pair<Float, Float>? = null,
+    var cometDir: Pair<Float, Float>? = null,
     /** v2.48 惑星サーバー: the surface's memory core (Layer 1) — stand before it and it speaks once. */
     var memoryCore: Pair<Float, Float>? = null,
     var coreLogShown: Boolean = false,
