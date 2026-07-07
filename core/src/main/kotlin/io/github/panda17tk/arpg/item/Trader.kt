@@ -39,6 +39,10 @@ object Trader {
     const val AMMO_BEAM = 3
     const val AMMO_NADE = 2
     const val SHARD_PRICE = 150 // 高額 — the shortcut costs what a wave train pays
+
+    /** v2.110 襲撃の礼: a defended vessel discounts every shelf 20% (floor, never below 1). */
+    fun discounted(price: Int, rescued: Boolean): Int =
+        if (rescued) ((price * 4) / 5).coerceAtLeast(1) else price
     const val SHARD_CHANCE = 0.5f
     private const val GEAR_MARKUP = 1.2f // no gratitude discount out here
     private const val SALT = 0x71A_DE72L

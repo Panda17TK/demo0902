@@ -45,6 +45,7 @@ import io.github.panda17tk.arpg.ecs.systems.ReloadSystem
 import io.github.panda17tk.arpg.ecs.systems.RestRegenSystem
 import io.github.panda17tk.arpg.ecs.systems.SmokeSystem
 import io.github.panda17tk.arpg.ecs.systems.SnapshotSystem
+import io.github.panda17tk.arpg.ecs.systems.TraderRaidSystem
 import io.github.panda17tk.arpg.ecs.systems.DesyncSurgeSystem
 import io.github.panda17tk.arpg.ecs.systems.WeaponSwitchSystem
 import io.github.panda17tk.arpg.ecs.systems.WildPredationSystem
@@ -179,6 +180,20 @@ object WorldFactory {
                 snapToFloor(map, wx, wy)
             }
         }
+        // v2.110 彗星: some skies carry a comet — a bright head trailing dust beads worth sweeping.
+        if (mode != WorldMode.SURFACE) {
+            val cRng = Rng(seed xor 0x0C0EE70AL)
+            if (cRng.nextFloat() < COMET_CHANCE) {
+                val ca = cRng.nextFloat() * TAU
+                val cdist = 600f + cRng.nextFloat() * 900f
+                val hx = (loaded.playerSpawnX + kotlin.math.cos(ca) * cdist).coerceIn(Tuning.TILE * 6f, map.width * Tuning.TILE - Tuning.TILE * 6f)
+                val hy = (loaded.playerSpawnY + kotlin.math.sin(ca) * cdist).coerceIn(Tuning.TILE * 6f, map.height * Tuning.TILE - Tuning.TILE * 6f)
+                val head = snapToFloor(map, hx, hy)
+                val ta = cRng.nextFloat() * TAU
+                worldState.comet = head
+                worldState.cometDir = kotlin.math.cos(ta) to kotlin.math.sin(ta)
+            }
+        }
         // v2.100 行商船: some systems host a friendly trading vessel — nearer than the gate,
         // stocked deterministically per seed (item/Trader.kt). The screen opens the shop on approach.
         if (mode != WorldMode.SURFACE) {
@@ -190,6 +205,11 @@ object WorldFactory {
                 val ty = (loaded.playerSpawnY + kotlin.math.sin(ta) * td).coerceIn(Tuning.TILE * 4f, map.height * Tuning.TILE - Tuning.TILE * 4f)
                 worldState.trader = snapToFloor(map, tx, ty)
             }
+        }
+        // v2.110 生存者: one wreck sometimes shelters a survivor — approaching it is the rescue.
+        if (mode != WorldMode.SURFACE && worldState.wrecks.isNotEmpty()) {
+            val sRng = Rng(seed xor 0x5A110B0AL)
+            if (sRng.nextFloat() < SURVIVOR_CHANCE) worldState.survivorWreck = sRng.nextInt(worldState.wrecks.size)
         }
         val waveState = WaveState(
             num = 1,
@@ -246,6 +266,7 @@ object WorldFactory {
                 add(MobActionSystem())
                 add(DesyncSurgeSystem())
                 add(BaseSystem())
+                add(TraderRaidSystem()) // v2.110 行商船襲撃
                 add(PickupSystem())
             }
         }
@@ -336,6 +357,21 @@ object WorldFactory {
             }
         }
 
+        // v2.110 彗星の尾: dust beads strung along the tail — a quiet sweep for careful pilots.
+        if (mode != WorldMode.SURFACE) {
+            val head = worldState.comet
+            val dir = worldState.cometDir
+            if (head != null && dir != null) {
+                val bRng = Rng(seed xor 0x0C0EE70BL)
+                repeat(COMET_BEADS) { i ->
+                    val dist = 60f + i * 46f
+                    val bx = (head.first + dir.first * dist).coerceIn(Tuning.TILE * 2f, map.width * Tuning.TILE - Tuning.TILE * 2f)
+                    val by = (head.second + dir.second * dist).coerceIn(Tuning.TILE * 2f, map.height * Tuning.TILE - Tuning.TILE * 2f)
+                    val (fbx, fby) = snapToFloor(map, bx, by)
+                    Pickups.spawn(world, "dust", 6 + bRng.nextInt(5), fbx, fby)
+                }
+            }
+        }
         // v2.46 難破船: each wreck carries a weapon cache + dust + a med pack, watched by a small
         // drifter picket (drifters — they aggro on approach but never stall the wave train).
         if (mode != WorldMode.SURFACE && worldState.wrecks.isNotEmpty()) {
@@ -461,4 +497,7 @@ object WorldFactory {
     private const val DRIFTER_SPEED_MIN = 40f  // opening coast speed; max stays below the 150 ram threshold
     private const val DRIFTER_SPEED_MAX = 140f
     private const val TRADER_CHANCE = 0.4f     // v2.100: not every sky hosts the vessel
+    private const val SURVIVOR_CHANCE = 0.5f   // v2.110: half the wreck fields shelter a survivor
+    private const val COMET_CHANCE = 0.5f      // v2.110: half the skies carry the comet
+    private const val COMET_BEADS = 8          // dust pickups strung along the tail
 }

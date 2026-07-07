@@ -728,6 +728,21 @@ class GameScreen(
                 }
             }
         }
+        // v2.110 生存者救助: one wreck may shelter a survivor — drawing close IS the rescue.
+        if (!paused && !simMode && gw.worldState.mode == WorldMode.SPACE &&
+            gw.worldState.survivorWreck >= 0 && !gw.worldState.survivorRescued
+        ) {
+            gw.worldState.wrecks.getOrNull(gw.worldState.survivorWreck)?.let { wk ->
+                val (spx2, spy2) = with(gw.world) { val t = gw.player[Transform]; t.x to t.y }
+                if (hypot(spx2 - wk.first, spy2 - wk.second) < Tuning.TILE * 2f) {
+                    gw.worldState.survivorRescued = true
+                    with(gw.world) { gw.player[Materials].dust += 40 }
+                    eventBanner.start("漂流者を救助した — 礼にと星屑40を分けてくれた")
+                    Sfx.play("levelup")
+                    tryUnlock(Achievement.LIFELINE)
+                }
+            }
+        }
         // v2.48 惑星サーバー: standing before the memory core makes it speak — once per landing,
         // into the surface event feed (the same channel the society's memory already uses).
         if (!paused && gw.worldState.mode == WorldMode.SURFACE && (!gw.worldState.coreVisited || !gw.worldState.coreLogShown)) {
