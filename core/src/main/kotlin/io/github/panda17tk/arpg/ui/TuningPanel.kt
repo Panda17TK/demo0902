@@ -12,6 +12,8 @@ object TuningPanel {
     const val PREV = "前へ"
     const val NEXT = "次へ"
     const val CLOSE = "閉じる"
+    const val EXPORT = "書き出し"   // v2.99: the knob table as a file, made for Claude
+    const val RESET_ALL = "全て既定へ" // v2.99: every knob back to 基準
 
     fun pageCount(total: Int): Int = if (total <= 0) 1 else (total + ROWS - 1) / ROWS
 
@@ -23,22 +25,26 @@ object TuningPanel {
         return (0 until ROWS).map { i -> UiButton(x, top - 46f - i * 56f, bw, 46f, "") }
     }
 
-    /** The [−] square hugging a row's left rim. */
-    fun minus(row: UiButton): UiButton = UiButton(row.x + 3f, row.y + 3f, 40f, row.h - 6f, "−")
+    /** v2.99: [≪][−] on the left rim, [＋][≫] on the right — ≪/≫ step ×10. */
+    fun minusBig(row: UiButton): UiButton = UiButton(row.x + 3f, row.y + 3f, 32f, row.h - 6f, "≪")
+    fun minus(row: UiButton): UiButton = UiButton(row.x + 38f, row.y + 3f, 32f, row.h - 6f, "−")
+    fun plus(row: UiButton): UiButton = UiButton(row.x + row.w - 70f, row.y + 3f, 32f, row.h - 6f, "＋")
+    fun plusBig(row: UiButton): UiButton = UiButton(row.x + row.w - 35f, row.y + 3f, 32f, row.h - 6f, "≫")
 
-    /** The [＋] square hugging a row's right rim. */
-    fun plus(row: UiButton): UiButton = UiButton(row.x + row.w - 43f, row.y + 3f, 40f, row.h - 6f, "＋")
-
-    /** [前へ][次へ][閉じる] side by side at the panel's foot. */
+    /** Two footer rows: [前へ][次へ][閉じる] over [書き出し][全て既定へ]. */
     fun footer(w: Float, h: Float): List<UiButton> {
         val bw = min(360f, w * 0.90f)
         val x = (w - bw) / 2f
         val each = (bw - 16f) / 3f
-        val y = h * 0.10f
+        val y1 = h * 0.115f
+        val y2 = y1 - 56f
+        val half = (bw - 8f) / 2f
         return listOf(
-            UiButton(x, y, each, 48f, PREV),
-            UiButton(x + each + 8f, y, each, 48f, NEXT),
-            UiButton(x + 2 * (each + 8f), y, each, 48f, CLOSE),
+            UiButton(x, y1, each, 48f, PREV),
+            UiButton(x + each + 8f, y1, each, 48f, NEXT),
+            UiButton(x + 2 * (each + 8f), y1, each, 48f, CLOSE),
+            UiButton(x, y2, half, 48f, EXPORT),
+            UiButton(x + half + 8f, y2, half, 48f, RESET_ALL),
         )
     }
 }

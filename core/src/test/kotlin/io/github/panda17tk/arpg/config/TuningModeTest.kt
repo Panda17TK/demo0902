@@ -38,7 +38,7 @@ class TuningModeTest {
     @Test fun `the catalog reaches player and weapon knobs and a nudge really lands`() {
         val config = GameConfig()
         val params = TuningCatalog.paramsFor(config)
-        assertTrue(params.size >= 25, "a real catalog (got ${params.size})")
+        assertTrue(params.size >= 60, "v2.99: the catalog covers everything (got ${params.size})")
         val hp = params.first { it.name == "最大HP" }
         val before = config.player.hpMax
         hp.nudge(+1)
@@ -59,9 +59,9 @@ class TuningModeTest {
         val params = TuningCatalog.paramsFor(config)
         val hp = params.first { it.name == "最大HP" }
         repeat(200) { hp.nudge(-1) }
-        assertEquals(10f, hp.get(), 1e-3f, "floors at min")
-        repeat(500) { hp.nudge(+1) }
-        assertTrue(hp.get() <= 999f, "ceils at max")
+        assertEquals(1f, hp.get(), 1e-3f, "floors at min (v2.99: debug-wide bounds)")
+        repeat(2000) { hp.nudge(+1, big = true) }
+        assertTrue(hp.get() <= 99999f, "ceils at max")
     }
 
     @Test fun `the panel pages the catalog seven rows at a time`() {
@@ -71,11 +71,62 @@ class TuningModeTest {
         val rows = TuningPanel.rows(360f, 800f)
         assertEquals(TuningPanel.ROWS, rows.size)
         for (row in rows) {
-            val minus = TuningPanel.minus(row); val plus = TuningPanel.plus(row)
-            assertTrue(minus.x >= row.x && minus.x + minus.w < plus.x, "[−] left of [＋], both inside the row")
-            assertTrue(plus.x + plus.w <= row.x + row.w + 0.01f)
+            val zones = listOf(TuningPanel.minusBig(row), TuningPanel.minus(row), TuningPanel.plus(row), TuningPanel.plusBig(row))
+            for (i in 0 until zones.size - 1) {
+                assertTrue(zones[i].x + zones[i].w <= zones[i + 1].x + 0.01f, "≪ − ＋ ≫ stay in order without overlap")
+            }
+            assertTrue(zones.first().x >= row.x && zones.last().x + zones.last().w <= row.x + row.w + 0.01f)
         }
         val footer = TuningPanel.footer(360f, 800f)
-        assertEquals(listOf(TuningPanel.PREV, TuningPanel.NEXT, TuningPanel.CLOSE), footer.map { it.label })
+        assertEquals(
+            listOf(TuningPanel.PREV, TuningPanel.NEXT, TuningPanel.CLOSE, TuningPanel.EXPORT, TuningPanel.RESET_ALL),
+            footer.map { it.label },
+        )
+    }
+
+    // ── v2.99 第2弾: 基準・×10・一括リセット・ロースター倍率・書き出し ──
+
+    @Test fun `every knob remembers its shipped 基準 and resets to it`() {
+        val config = GameConfig()
+        val params = TuningCatalog.paramsFor(config)
+        for (p in params) assertTrue(!p.changed(), "fresh config sits at 基準: ${p.name}")
+        val hp = params.first { it.name == "最大HP" }
+        assertEquals(100f, hp.def, 1e-3f, "基準 is the shipped value")
+        hp.nudge(+1, big = true) // ×10 step = +100
+        assertEquals(200f, hp.get(), 1e-3f, "≫ rides ten steps")
+        assertTrue(hp.changed())
+        params.forEach { it.reset() }
+        assertEquals(100f, hp.get(), 1e-3f, "全て既定へ returns to 基準")
+        assertTrue(params.none { it.changed() })
+    }
+
+    @Test fun `the roster multipliers scale every enemy and restore cleanly`() {
+        val config = GameConfig()
+        val params = TuningCatalog.paramsFor(config)
+        val hpMul = params.first { it.name == "全敵 HP倍率" }
+        val zombie0 = config.enemies.getValue("zombie").hp
+        val titan0 = config.enemies.getValue("rust_titan").hp
+        hpMul.set(2f)
+        assertEquals(zombie0 * 2f, config.enemies.getValue("zombie").hp, 1e-2f)
+        assertEquals(titan0 * 2f, config.enemies.getValue("rust_titan").hp, 1e-2f)
+        assertEquals(2f, hpMul.get(), 1e-3f, "the factor is derivable from the live table")
+        hpMul.reset()
+        assertEquals(zombie0, config.enemies.getValue("zombie").hp, 1e-2f, "基準 restores the roster")
+        val dmgMul = params.first { it.name == "全敵 攻撃力倍率" }
+        val bite0 = config.enemies.getValue("zombie").attacks.first { it.dmg > 0f }.dmg
+        dmgMul.set(0.5f)
+        assertEquals(bite0 * 0.5f, config.enemies.getValue("zombie").attacks.first { it.dmg > 0f }.dmg, 1e-2f)
+    }
+
+    @Test fun `the export reads like a hand-off to Claude`() {
+        val config = GameConfig()
+        val params = TuningCatalog.paramsFor(config)
+        params.first { it.name == "最大HP" }.set(250f)
+        val text = TuningExport.render("drift 調整パラメータ", params)
+        assertTrue(text.contains("# drift 調整パラメータ"))
+        assertTrue(text.contains("Claude"), "the header says what the file is for")
+        assertTrue(text.contains("* 最大HP = 250 (基準 100)"), "drifted lines carry the * flag\n$text")
+        assertTrue(text.contains("  移動速度 = "), "unchanged lines stay unflagged")
+        assertTrue(text.contains("変更 1 / ${params.size} 項目"))
     }
 }
