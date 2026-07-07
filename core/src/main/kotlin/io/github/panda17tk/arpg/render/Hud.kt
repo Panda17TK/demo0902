@@ -483,6 +483,7 @@ object Hud {
         marketFooter: String? = null,            // v2.43: dust balance or the closed-stall notice
         logLines: List<String> = emptyList(),    // v2.46: 記録 tab (already formatted, top-down)
         layoutEditLabel: String? = null,         // v2.56: EQUIP tab's layout-editor entry strip
+        pois: List<Triple<Int, Int, Color>> = emptyList(), // v2.108 ナビ: MAP tab POI dots (tile x, tile y, colour)
     ) {
         val w = vp.worldWidth; val h = vp.worldHeight
         val panel = InventoryLayout.panel(w, h)
@@ -512,7 +513,7 @@ object Hud {
         editStrip?.let { shapes.color = cBtn; shapes.rect(it.x, it.y, it.w, it.h) }
         marketRows.forEach { r -> shapes.color = cBtn; shapes.rect(r.x, r.y, r.w, r.h) }
         shapes.color = cBtn; shapes.rect(close.x, close.y, close.w, close.h)
-        if (tab == InvTab.MAP && visited != null) drawVisitedMap(shapes, body, visited, playerTx, playerTy)
+        if (tab == InvTab.MAP && visited != null) drawVisitedMap(shapes, body, visited, playerTx, playerTy, pois)
         shapes.end()
         frames(shapes, tabs + slotRows + marketRows + listOfNotNull(save, toggle, editStrip) + listOf(close))
 
@@ -595,7 +596,7 @@ object Hud {
     }
 
     /** MAP tab: visited tiles as tiny rects fitted to the body; the player as a bright dot. */
-    private fun drawVisitedMap(shapes: ShapeRenderer, body: UiButton, visited: VisitedMap, playerTx: Int, playerTy: Int) {
+    private fun drawVisitedMap(shapes: ShapeRenderer, body: UiButton, visited: VisitedMap, playerTx: Int, playerTy: Int, pois: List<Triple<Int, Int, Color>> = emptyList()) {
         if (visited.w <= 0 || visited.h <= 0) return
         val scale = min(body.w / visited.w, body.h / visited.h)
         val ox = body.x + (body.w - visited.w * scale) / 2f
@@ -605,6 +606,11 @@ object Hud {
         shapes.color = cHudInk
         visited.forEachVisited { tx, ty ->
             shapes.rect(ox + tx * scale, oy + (visited.h - 1 - ty) * scale, cell, cell)
+        }
+        // v2.108 ナビ: the landmarks — drawn under the player dot so 自分 always reads on top.
+        for ((tx, ty, c) in pois) {
+            shapes.color = c
+            shapes.rect(ox + tx * scale - cell, oy + (visited.h - 1 - ty) * scale - cell, cell * 3f, cell * 3f)
         }
         shapes.color = cReload
         shapes.rect(ox + playerTx * scale - cell, oy + (visited.h - 1 - playerTy) * scale - cell, cell * 3f, cell * 3f)
