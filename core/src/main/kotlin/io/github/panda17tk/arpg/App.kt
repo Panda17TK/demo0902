@@ -22,6 +22,11 @@ class App : Game() {
         swapTo(GameScreen(startInTraining = true))
     }
 
+    /** v2.102 検証ラン: straight into this week's proving run (fixed sky, fixed loadout). */
+    fun startChallenge() {
+        swapTo(GameScreen(startInChallenge = true))
+    }
+
     /** Back to the front door (the pause menu's タイトルへ). */
     fun showTitle() {
         swapTo(TitleScreen(this))

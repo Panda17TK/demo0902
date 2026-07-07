@@ -13,6 +13,9 @@ object Scores {
     private const val KEY_KILLS = "bestKills"
     private const val KEY_SIM_WAVE = "simBestWave"   // v2.62
     private const val KEY_SIM_KILLS = "simBestKills" // v2.62
+    private const val KEY_CH_WEEK = "chWeek"         // v2.102 検証ラン
+    private const val KEY_CH_WAVE = "chBestWave"
+    private const val KEY_CH_KILLS = "chBestKills"
 
     var bestWave = 0
         private set
@@ -25,6 +28,14 @@ object Scores {
     var simBestKills = 0
         private set
 
+    // v2.102 検証ラン: this week's proving-run ledger — it wipes itself when the sky turns.
+    var chWeek = 0L
+        private set
+    var chBestWave = 0
+        private set
+    var chBestKills = 0
+        private set
+
     fun load() {
         try {
             val p = Gdx.app.getPreferences(PREFS)
@@ -32,7 +43,26 @@ object Scores {
             bestKills = p.getInteger(KEY_KILLS, 0)
             simBestWave = p.getInteger(KEY_SIM_WAVE, 0)
             simBestKills = p.getInteger(KEY_SIM_KILLS, 0)
+            chWeek = p.getLong(KEY_CH_WEEK, 0L)
+            chBestWave = p.getInteger(KEY_CH_WAVE, 0)
+            chBestKills = p.getInteger(KEY_CH_KILLS, 0)
         } catch (_: Throwable) { /* no prefs backend → keep defaults */ }
+    }
+
+    /** v2.102: record a finished 検証ラン; a new week starts its ledger blank first. */
+    fun recordChallenge(week: Long, wave: Int, kills: Int): Boolean {
+        if (week != chWeek) { chWeek = week; chBestWave = 0; chBestKills = 0 }
+        val newBest = wave > chBestWave
+        if (newBest) chBestWave = wave
+        if (kills > chBestKills) chBestKills = kills
+        try {
+            val p = Gdx.app.getPreferences(PREFS)
+            p.putLong(KEY_CH_WEEK, chWeek)
+            p.putInteger(KEY_CH_WAVE, chBestWave)
+            p.putInteger(KEY_CH_KILLS, chBestKills)
+            p.flush()
+        } catch (_: Throwable) { /* persist best-effort */ }
+        return newBest
     }
 
     /** v2.62: record a finished TRAINING run; returns true on a new sim-best wave. */

@@ -17,6 +17,8 @@ object RecordsPanel {
         bestWave: Int, bestKills: Int,
         simWave: Int, simKills: Int,
         clears: Int = 0, // v2.93: completed syncs
+        chWeek: Long = 0L, // v2.102 検証ラン: this week's proving-run ledger
+        chWave: Int = 0, chKills: Int = 0,
         has: (Achievement) -> Boolean,
     ): List<String> = buildList {
         // v2.84: plain section headers — the ── flourishes were noise (isHeader colours them).
@@ -27,6 +29,8 @@ object RecordsPanel {
         )
         add("訓練記録（旧式）")
         add(if (simWave > 0) "ウェーブ $simWave　撃破 $simKills" else "未実施")
+        add("検証ラン（今週の宙域）")
+        add(if (chWave > 0) "W$chWeek　ウェーブ $chWave　撃破 $chKills" else "未実施")
         if (clears > 0) add("同期完了 ${clears}回 — 網は眠り、また編み直された") // v2.93
         val unlocked = Achievement.entries.count(has)
         add("実績 $unlocked/${Achievement.entries.size}")
@@ -40,7 +44,7 @@ object RecordsPanel {
 
     /** v2.84: which lines are section headers (drawn muted by the title screen). */
     fun isHeader(line: String): Boolean =
-        line == "到達記録" || line == "訓練記録（旧式）" || line.startsWith("実績 ")
+        line == "到達記録" || line == "訓練記録（旧式）" || line == "検証ラン（今週の宙域）" || line.startsWith("実績 ")
 
     /** The two actions at the panel's foot: replay the boot diagnostic, and close. */
     fun buttons(w: Float, h: Float): List<UiButton> {

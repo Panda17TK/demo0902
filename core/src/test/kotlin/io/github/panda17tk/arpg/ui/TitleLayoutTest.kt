@@ -11,8 +11,8 @@ class TitleLayoutTest {
     @Test fun `a saved run adds つづきから on top`() {
         val with = TitleLayout.buttons(360f, 780f, hasSave = true)
         val without = TitleLayout.buttons(360f, 780f, hasSave = false)
-        assertEquals(listOf("つづきから", "はじめから", "旧式戦闘訓練"), with.map { it.label })
-        assertEquals(listOf("はじめから", "旧式戦闘訓練"), without.map { it.label })
+        assertEquals(listOf("つづきから", "はじめから", "旧式戦闘訓練", "検証ラン"), with.map { it.label })
+        assertEquals(listOf("はじめから", "旧式戦闘訓練", "検証ラン"), without.map { it.label })
     }
 
     @Test fun `buttons stay on screen and never overlap`() {
