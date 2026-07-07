@@ -24,6 +24,7 @@ import io.github.panda17tk.arpg.ecs.components.WaveState
 import io.github.panda17tk.arpg.ecs.components.WeaponRuntime
 import io.github.panda17tk.arpg.ecs.systems.AISystem
 import io.github.panda17tk.arpg.ecs.systems.BaseSystem
+import io.github.panda17tk.arpg.ecs.systems.BoomerangSystem
 import io.github.panda17tk.arpg.ecs.systems.BuildSystem
 import io.github.panda17tk.arpg.ecs.systems.EBulletSystem
 import io.github.panda17tk.arpg.ecs.systems.EcologyEventSystem
@@ -234,6 +235,7 @@ object WorldFactory {
                 add(FireSystem(mobGrid))
                 add(ReloadSystem())
                 add(ProjectileSystem(mobGrid))
+                add(BoomerangSystem(mobGrid)) // v2.101 帰還刃: out, turn, and home
                 add(MeteorSystem()) // v2.87 流星群: telegraphed falls during METEOR waves
                 add(EBulletSystem())
                 add(SmokeSystem())

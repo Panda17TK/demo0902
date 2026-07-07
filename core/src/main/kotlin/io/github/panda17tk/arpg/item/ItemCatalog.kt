@@ -57,6 +57,11 @@ object ItemCatalog {
         ItemDef("gun_shotgun_slug", "スラッグショットガン", ItemKind.RANGED_WEAPON, desc = "種類:ショットガン　集弾スラッグ 威力+50% 弾速+40%", weaponType = "shotgun", spreadMul = 0.15f, gunMul = 1.5f, bulletSpeedMul = 1.4f),
         ItemDef("gun_smg_seeker", "誘導SMG", ItemKind.RANGED_WEAPON, desc = "種類:SMG　弾が敵を追尾する 威力-10%", weaponType = "smg", homing = 2.5f, gunMul = 0.9f),
         ItemDef("gun_rifle_rail", "レールライフル", ItemKind.RANGED_WEAPON, desc = "種類:ライフル　弾速2倍 威力+60% ブロック破壊1.5倍", weaponType = "rifle", bulletSpeedMul = 2f, gunMul = 1.6f, reloadMul = 1.2f, wallDmgMul = 1.5f),
+        // v2.101 新武器種: レールガンと帰還刃 — 装備で武器種そのものが増える
+        ItemDef("gun_railgun", "レールガン", ItemKind.RANGED_WEAPON, desc = "種類:レールガン　置き撃ち貫通・壁を無視して一直線", weaponType = "railgun"),
+        ItemDef("gun_railgun_2", "長銃身レールガン", ItemKind.RANGED_WEAPON, desc = "種類:レールガン　威力+30% 装填-15%", weaponType = "railgun", gunMul = 1.3f, reloadMul = 0.85f),
+        ItemDef("gun_blade", "帰還刃", ItemKind.RANGED_WEAPON, desc = "種類:帰還刃　往路と復路で斬る　弾薬無限", weaponType = "blade"),
+        ItemDef("gun_blade_2", "重帰還刃", ItemKind.RANGED_WEAPON, desc = "種類:帰還刃　威力+40% 投擲は重め", weaponType = "blade", gunMul = 1.4f, fireRateMul = 1.3f),
         // --- 近距離武器 (melee) ---
         ItemDef("melee_knife", "コンバットナイフ", ItemKind.MELEE_WEAPON, desc = "素早い標準ナイフ"),
         ItemDef("melee_blade", "プラズマブレード", ItemKind.MELEE_WEAPON, desc = "近接ダメージ +30%", meleeDmgMul = 1.3f),

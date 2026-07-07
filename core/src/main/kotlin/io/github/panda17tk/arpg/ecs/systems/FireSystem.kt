@@ -12,6 +12,7 @@ import io.github.panda17tk.arpg.config.GameConfig
 import io.github.panda17tk.arpg.ecs.components.Ammo
 import io.github.panda17tk.arpg.ecs.components.Arsenal
 import io.github.panda17tk.arpg.ecs.components.Body
+import io.github.panda17tk.arpg.ecs.components.Boomerang
 import io.github.panda17tk.arpg.ecs.components.Bullet
 import io.github.panda17tk.arpg.ecs.components.Cooldowns
 import io.github.panda17tk.arpg.ecs.components.Facing
@@ -42,6 +43,7 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
     IteratingSystem(family { all(PlayerTag, Transform, Facing, Arsenal, Ammo, Cooldowns, Mods) }) {
 
     private val input: InputState = world.inject()
+    private val bladeFamily = world.family { all(Boomerang) } // v2.101: is the blade in flight?
     private val map: TileMap = world.inject()
     private val rng: Rng = world.inject()
     private val config: GameConfig = world.inject()
@@ -58,9 +60,10 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
         val w = arsenal.current; val def = w.def
         // v2.39 beam charge: while the beam is drawn and being aimed (right stick / K held), the
         // emitter charges 0..1; the release shot gets thicker + harder the longer it charged.
-        if (def.id == "beam") {
+        if (def.id == "beam" || def.id == "railgun") { // v2.101: the railgun charges the same way
             if ((input.aiming || input.fire) && cd.shoot <= 0f && w.reloadT <= 0f) {
-                cd.beamCharge = (cd.beamCharge + deltaTime / BEAM_CHARGE_TIME).coerceAtMost(1f)
+                val chargeTime = if (def.id == "railgun") RAIL_CHARGE_TIME else BEAM_CHARGE_TIME
+                cd.beamCharge = (cd.beamCharge + deltaTime / chargeTime).coerceAtMost(1f)
             }
         } else if (cd.beamCharge > 0f) cd.beamCharge = 0f // switching away drops the charge
         // Manual-fire weapons (beam/grenade) shoot on the release edge; everything else fires while held.
@@ -79,7 +82,7 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
         val aim = atan2(f.y, f.x)
         val dirX = cos(aim); val dirY = sin(aim)
         // v2.85: every shot kicks the camera back along the barrel — weight by weapon class.
-        val kick = when (def.id) { "shotgun" -> 5f; "beam" -> 4f; "grenade" -> 3f; "mg" -> 1.2f; else -> 2f }
+        val kick = when (def.id) { "shotgun" -> 5f; "beam" -> 4f; "railgun" -> 7f; "grenade" -> 3f; "mg" -> 1.2f; else -> 2f }
 
         when (def.id) {
             "beam" -> {
@@ -145,6 +148,46 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
                     fx.addShake(0.16f, 6f); fx.spawnSparks(bx, by, 12, BEAM_SPARK)
                 }
             }
+            "railgun" -> { // v2.101 置き撃ち: the slug ignores every wall and pierces the whole line
+                if (w.mag <= 0) return
+                input.fireReleaseT = 0f // the buffered release is consumed by this shot (v2.42)
+                w.mag--; cd.shoot = def.fireRate * mods.fireMul * gradeFireRate
+                fx.addKick(-dirX * kick, -dirY * kick)
+                // A settled aim pays: half power snapped, full power after RAIL_CHARGE_TIME of aiming.
+                val charge = cd.beamCharge
+                cd.beamCharge = 0f
+                val dealt = def.dmg * mods.gunMul * gearGun * (0.5f + 0.5f * charge)
+                val railHalfW = RAIL_W + charge * 1.5f
+                fx.spawnBeam(t.x, t.y, t.x + dirX * RAIL_RANGE, t.y + dirY * RAIL_RANGE, railHalfW)
+                fx.addShake(0.14f, 5f)
+                mobGrid.forNearby(t.x, t.y, RAIL_RANGE + 32f) { mobEntity ->
+                    val mobT = with(world) { mobEntity[Transform] }
+                    val mobB = with(world) { mobEntity[Body] }
+                    val rx = mobT.x - t.x; val ry = mobT.y - t.y
+                    val s = rx * dirX + ry * dirY
+                    val mobHalf = (mobB.halfW + mobB.halfH) * 0.5f
+                    if (s < -mobHalf || s > RAIL_RANGE + mobHalf) return@forNearby
+                    val perp = abs(rx * dirY - ry * dirX)
+                    if (perp > mobHalf + railHalfW) return@forNearby
+                    val mobH = with(world) { mobEntity[Health] }
+                    val mobV = with(world) { mobEntity[Velocity] }
+                    val mobA = with(world) { mobEntity[MobAction] }
+                    val mobDodge = with(world) { mobEntity[Mob].def.dodge }
+                    // The slug shoves everything it passes through hard along the rail.
+                    if (MobDamage.hurt(mobH, mobV, mobA, mobDodge, dealt, dirX, dirY, 320f, rng.nextFloat())) {
+                        fx.spawnPop(mobT.x, mobT.y - mobB.halfH - 6f, dealt.toInt(), popRail)
+                    }
+                }
+            }
+            "blade" -> { // v2.101 帰還刃: one blade, out and back — no throw while it's in flight
+                if (bladeFamily.numEntities > 0) return
+                cd.shoot = def.fireRate * mods.fireMul * gradeFireRate
+                fx.addKick(-dirX * kick, -dirY * kick)
+                world.entity {
+                    it += Transform(x = t.x + dirX * Tuning.MUZZLE_OFFSET, y = t.y + dirY * Tuning.MUZZLE_OFFSET)
+                    it += Boomerang(dirX * BLADE_SPEED, dirY * BLADE_SPEED, def.dmg * mods.gunMul * gearGun, BoomerangSystem.OUT_TIME)
+                }
+            }
             "grenade" -> {
                 if (w.mag <= 0) return
                 input.fireReleaseT = 0f // the buffered release is consumed by this shot (v2.42)
@@ -185,5 +228,11 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
         private const val BEAM_BLAST_TILES = 2f // radius-2-tile impact crater
         private const val BEAM_BLAST_DMG = 64f  // splash damage at the blast centre (0 at the rim)
         private val BEAM_SPARK = Color.valueOf("9fe8ff") // pale-cyan beam-impact sparks
+        // v2.101 レールガン: longer than the beam, thin, and utterly indifferent to cover.
+        private const val RAIL_RANGE = 1600f
+        private const val RAIL_CHARGE_TIME = 1.0f // seconds of settled aim for full power
+        private const val RAIL_W = 2.2f           // slug corridor half-width at snap fire
+        private val popRail = Color.valueOf("ffe9b8") // rail numbers, hot amber-white
+        private const val BLADE_SPEED = 520f // v2.101 帰還刃: the opening throw's pace
     }
 }
