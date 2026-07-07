@@ -202,6 +202,7 @@ internal fun GameScreen.drawHud(paused: Boolean, sta: Float, staMax: Float, over
         }
         if (overlay == Overlay.INVENTORY) drawInventory()
         if (overlay == Overlay.TRADER) drawTraderShop() // v2.100 行商船
+        if (overlay == Overlay.TUNING) drawTuning() // v2.111: the knob popup rides the register too
         if (overlay == Overlay.PAUSE) Hud.pause(shapes, batch, font, Fonts.title, hudViewport, Modals.pauseButtons(hudW, hudH, pauseHasMemory(), simMode))
         if (overlay == Overlay.HELP) Hud.help(shapes, batch, font, Fonts.title, hudViewport, Modals.helpButtons(hudW, hudH).first(), HELP_LINES)
         if (overlay == Overlay.FORGET) Hud.forget(shapes, batch, font, Fonts.title, hudViewport, Modals.forgetButtons(hudW, hudH))
@@ -471,7 +472,7 @@ internal fun GameScreen.navPois(): List<Triple<Pair<Float, Float>, com.badlogic.
 /** v2.108 ナビ: off-screen landmarks sit as small labeled dots on the screen edge. */
 internal fun GameScreen.drawNavMarkers() {
     if (overlay != Overlay.NONE || choosing || gw.gameOver.isOver || layoutEditing ||
-        endingStage > 0 || tuningOpen
+        endingStage > 0
     ) return
     val pois = navPois()
     if (pois.isEmpty()) return

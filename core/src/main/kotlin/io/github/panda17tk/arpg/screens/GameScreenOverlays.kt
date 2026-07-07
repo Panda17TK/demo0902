@@ -129,7 +129,6 @@ import kotlin.math.pow
 
 /** v2.98 調整モード: dim + the page's knob rows ([−] value [＋]) + [前へ][次へ][閉じる]. */
 internal fun GameScreen.drawTuning() {
-        if (!tuningOpen) return
         hudViewport.apply()
         val w = hudViewport.worldWidth; val h = hudViewport.worldHeight
         val rows = io.github.panda17tk.arpg.ui.TuningPanel.rows(w, h)
@@ -207,7 +206,7 @@ internal fun GameScreen.handleTuningTaps() {
         when (Modals.hitModal(footer, tapX, tapY)) {
             0 -> { tunePage = (tunePage - 1 + pages) % pages; Sfx.play("scan"); return }
             1 -> { tunePage = (tunePage + 1) % pages; Sfx.play("scan"); return }
-            2 -> { tuningOpen = false; Sfx.play("scan"); return }
+            2 -> { overlay = Overlay.NONE; Sfx.play("scan"); return }
             3 -> { exportTuning(); return } // v2.99 書き出し
             4 -> { tuneParams.forEach { it.reset() }; Sfx.play("levelup"); return } // v2.99 全て既定へ
         }
@@ -362,6 +361,7 @@ internal fun GameScreen.handlePauseTaps() {
             }
             Overlay.INVENTORY -> handleInventoryTap(w, h)
             Overlay.TRADER -> handleTraderTap(w, h) // v2.100 行商船
+            Overlay.TUNING -> handleTuningTaps() // v2.111: routed like every other overlay
             Overlay.NONE -> if (!choosing && !gw.gameOver.isOver) {
                 if (Modals.hitModal(listOf(Modals.pauseButton(w, h)), tapX, tapY) != null) {
                     overlay = Overlay.PAUSE

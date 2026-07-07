@@ -15,6 +15,16 @@ import org.junit.jupiter.api.Test
 class TuningModeTest {
     @AfterEach fun reset() { TuneMode.active = false }
 
+    @Test fun `tuning is a real overlay now — it pauses like pause and ESC walks it back to play`() {
+        // v2.111: the popup rides the Overlay register (like 持物), so every overlay-aware guard
+        // (gameplay touch, HUD chips, tap routing) excludes it without its own flag.
+        assertTrue(io.github.panda17tk.arpg.ui.Overlay.entries.any { it.name == "TUNING" })
+        assertEquals(
+            io.github.panda17tk.arpg.ui.Overlay.NONE,
+            io.github.panda17tk.arpg.ui.PauseFlow.toggle(io.github.panda17tk.arpg.ui.Overlay.TUNING),
+        )
+    }
+
     @Test fun `only 2938 opens the door`() {
         assertFalse(TuneMode.tryUnlock("1234"))
         assertFalse(TuneMode.active)
