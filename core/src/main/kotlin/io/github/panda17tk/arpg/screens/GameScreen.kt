@@ -122,27 +122,27 @@ import kotlin.math.sin
 import kotlin.math.pow
 
 /** Half-extent of the toroidal box the drifting debris wraps within (matches WorldFactory's seed range). */
-private const val DRIFT_RANGE = 1400f
-private const val REMEMBERED_TIME = 5f // seconds the HUD greets a returning player on a remembered planet
-private const val TOAST_TIME = 3f      // seconds the takeoff send-off toast rides the space HUD (LP v2.29)
-private const val INV_TIME_SCALE = 0.01f // v2.33: the world crawls at this speed behind the inventory
-private const val PLANET_TAP_PAD = 48f   // v2.38: extra world-px around a planet that still counts as tapping it
+internal const val DRIFT_RANGE = 1400f
+internal const val REMEMBERED_TIME = 5f // seconds the HUD greets a returning player on a remembered planet
+internal const val TOAST_TIME = 3f      // seconds the takeoff send-off toast rides the space HUD (LP v2.29)
+internal const val INV_TIME_SCALE = 0.01f // v2.33: the world crawls at this speed behind the inventory
+internal const val PLANET_TAP_PAD = 48f   // v2.38: extra world-px around a planet that still counts as tapping it
 // v2.44/v2.52: base gate-shard cost; a well-restored network (SyncRestoration) asks one less.
-private const val GATE_TAP_R = 96f       // v2.44: world-px radius that counts as tapping the jump gate
-private const val TRAINING_SEED = 4242L   // v2.53: the simulation always rebuilds the same arena
-private const val HINT_TOP = 138f          // v2.54: hint panels start below the top HUD band
-private const val BOSSBAR_RANGE = 680f     // v2.88: a heavy inside this range owns the boss bar
-private const val SETTINGS_PREFS = "drift-settings" // v2.39: device-level settings (not run state)
-private const val SETTINGS_SWAP = "controlSwap"
-private const val SETTINGS_ONBOARD = "onboardDone" // v2.47: the first-run walkthrough ran once
-private const val SETTINGS_LAYOUT = "buttonLayout" // v2.56: the layout editor's saved tweaks
-private const val SETTINGS_SOUND = "soundOn"       // v2.59: title-screen toggles
-private const val SETTINGS_TUTORIAL = "tutorialDone" // v2.60: the boot diagnostic ran (or was skipped)
-private const val SETTINGS_HAPTICS = "hapticsOn"
-private const val SETTINGS_LEFTY = "leftHanded"    // v2.65: mirror the touch layout
-private const val SETTINGS_HINTS = "controlHintsOn" // v2.66: how-to guidance (landing, onboarding)
-private const val SETTINGS_LORE = "loreHintsOn"     // v2.66: the world speaking (core logs, wrecks)
-private const val SAVED_NOTE_TIME = 2f // seconds the 「セーブした」 flash stays on the SAVE tab
+internal const val GATE_TAP_R = 96f       // v2.44: world-px radius that counts as tapping the jump gate
+internal const val TRAINING_SEED = 4242L   // v2.53: the simulation always rebuilds the same arena
+internal const val HINT_TOP = 138f          // v2.54: hint panels start below the top HUD band
+internal const val BOSSBAR_RANGE = 680f     // v2.88: a heavy inside this range owns the boss bar
+internal const val SETTINGS_PREFS = "drift-settings" // v2.39: device-level settings (not run state)
+internal const val SETTINGS_SWAP = "controlSwap"
+internal const val SETTINGS_ONBOARD = "onboardDone" // v2.47: the first-run walkthrough ran once
+internal const val SETTINGS_LAYOUT = "buttonLayout" // v2.56: the layout editor's saved tweaks
+internal const val SETTINGS_SOUND = "soundOn"       // v2.59: title-screen toggles
+internal const val SETTINGS_TUTORIAL = "tutorialDone" // v2.60: the boot diagnostic ran (or was skipped)
+internal const val SETTINGS_HAPTICS = "hapticsOn"
+internal const val SETTINGS_LEFTY = "leftHanded"    // v2.65: mirror the touch layout
+internal const val SETTINGS_HINTS = "controlHintsOn" // v2.66: how-to guidance (landing, onboarding)
+internal const val SETTINGS_LORE = "loreHintsOn"     // v2.66: the world speaking (core logs, wrecks)
+internal const val SAVED_NOTE_TIME = 2f // seconds the 「セーブした」 flash stays on the SAVE tab
 
 /**
  * Fixed-timestep simulation + render interpolation, porting the legacy main.js loop.
@@ -151,59 +151,59 @@ private const val SAVED_NOTE_TIME = 2f // seconds the 「セーブした」 flas
  * (screen space); this class owns run state, input routing, the sim loop and the camera.
  */
 class GameScreen(
-    private val startFresh: Boolean = false, // v2.58 タイトル「はじめから」: abandon the saved run
-    private val startInTraining: Boolean = false, // v2.58 タイトル「旧式戦闘訓練」
-    private val startInChallenge: Boolean = false, // v2.102 タイトル「検証ラン」: 今週の宙域
-    private val slot: Int = 0, // v2.103 セーブスロット: which journey this screen plays
+    internal val startFresh: Boolean = false, // v2.58 タイトル「はじめから」: abandon the saved run
+    internal val startInTraining: Boolean = false, // v2.58 タイトル「旧式戦闘訓練」
+    internal val startInChallenge: Boolean = false, // v2.102 タイトル「検証ラン」: 今週の宙域
+    internal val slot: Int = 0, // v2.103 セーブスロット: which journey this screen plays
 ) : ScreenAdapter() {
-    private val input = InputState()
-    private val configStore = ConfigStore()
+    internal val input = InputState()
+    internal val configStore = ConfigStore()
     // Built in show() (not the constructor) so any future libGDX resource access
     // inside the ECS world happens after Gdx.app is available on Android.
-    private lateinit var gw: GameWorld
+    internal lateinit var gw: GameWorld
 
-    private lateinit var shapes: ShapeRenderer
-    private lateinit var batch: SpriteBatch
-    private lateinit var font: BitmapFont
-    private lateinit var camera: OrthographicCamera
-    private lateinit var worldViewport: ExtendViewport
-    private lateinit var hudViewport: ScreenViewport
-    private val scene = SceneRenderer()
+    internal lateinit var shapes: ShapeRenderer
+    internal lateinit var batch: SpriteBatch
+    internal lateinit var font: BitmapFont
+    internal lateinit var camera: OrthographicCamera
+    internal lateinit var worldViewport: ExtendViewport
+    internal lateinit var hudViewport: ScreenViewport
+    internal val scene = SceneRenderer()
 
-    private var accumulator = 0f
-    private var camX = Tuning.VIEW_W / 2f
-    private var camY = Tuning.VIEW_H / 2f
-    private var camInit = false
+    internal var accumulator = 0f
+    internal var camX = Tuning.VIEW_W / 2f
+    internal var camY = Tuning.VIEW_H / 2f
+    internal var camInit = false
 
     // Phase 6b: between-wave upgrade selection (modal — sim freezes until a card is picked).
-    private val upgradeRng = Rng(System.nanoTime())
-    private var choosing = false
-    private var offered = false
-    private var choices: List<Upgrade> = emptyList()
+    internal val upgradeRng = Rng(System.nanoTime())
+    internal var choosing = false
+    internal var offered = false
+    internal var choices: List<Upgrade> = emptyList()
 
     // Phase 7: screen-shake trigger — compare HP frame-to-frame to detect the player taking damage.
-    private var lastHp = Float.NaN
-    private var lastKills = 0
-    private val ambHeat = CombatHeat() // v2.67 状況反応: combat drives the pulse layer
-    private var weatherT = 0f // v2.74 天候: cosmetic time, never sim time
-    private var prevOver = false
-    private var newBest = false
+    internal var lastHp = Float.NaN
+    internal var lastKills = 0
+    internal val ambHeat = CombatHeat() // v2.67 状況反応: combat drives the pulse layer
+    internal var weatherT = 0f // v2.74 天候: cosmetic time, never sim time
+    internal var prevOver = false
+    internal var newBest = false
 
     // Phase 8: on-screen controls (Android only) + audio service.
-    private val touch = TouchControls()
-    private var touchEnabled = false
+    internal val touch = TouchControls()
+    internal var touchEnabled = false
 
     // P1: blocking overlay (pause / help) + the per-frame HUD tap, unprojected into dp space.
-    private var overlay = Overlay.NONE
-    private var tapped = false
-    private var tapX = 0f
-    private var tapY = 0f
-    private var rawTapX = 0f // raw screen coords, re-unprojected into world space for planet taps (v2.38)
-    private var rawTapY = 0f
-    private val tmpTap = Vector3()
+    internal var overlay = Overlay.NONE
+    internal var tapped = false
+    internal var tapX = 0f
+    internal var tapY = 0f
+    internal var rawTapX = 0f // raw screen coords, re-unprojected into world space for planet taps (v2.38)
+    internal var rawTapY = 0f
+    internal val tmpTap = Vector3()
 
     // Static help text shown on the pause → 操作説明 overlay (keyboard + touch bindings).
-    private val HELP_LINES = listOf(
+    internal val HELP_LINES = listOf(
         "移動：左スティック / WASD",
         "エイム＆射撃：右スティック / 矢印 + K",
         "ダッシュ：ボタン / Shift",
@@ -216,106 +216,106 @@ class GameScreen(
     )
 
     // Visual port: animation clock + run timer.
-    private var animTime = 0f
-    private var runTime = 0f
-    private val glyphLayout = GlyphLayout()
-    private var uiScale = 1f
+    internal var animTime = 0f
+    internal var runTime = 0f
+    internal val glyphLayout = GlyphLayout()
+    internal var uiScale = 1f
 
     // Living Planets run state (R1): seeds + per-planet memory live in the pure RunSession; this class
     // only executes the transitions it plans. rememberedT is a draw-side timer, so it stays here.
-    private val session = RunSession(store = PreferencesMemoryStore(slot)) // v2.103: per-slot universe
-    private var rememberedT = 0f // seconds left to show the return-visit greeting in the HUD
+    internal val session = RunSession(store = PreferencesMemoryStore(slot)) // v2.103: per-slot universe
+    internal var rememberedT = 0f // seconds left to show the return-visit greeting in the HUD
 
     // Inventory overlay (v2.33): tab state + the run-save backend + a brief note flash (セーブした /
     // a consumable's effect). readingLore (v2.34) is the readable currently open on the ITEMS tab.
-    private val runStore = PreferencesRunSaveStore(slot) // v2.103: per-slot run save
+    internal val runStore = PreferencesRunSaveStore(slot) // v2.103: per-slot run save
     // v2.46 遺品回収: what the last death left floating in the void (half the dust, every shard).
-    private val relicStore = PreferencesRelicStore(slot) // v2.103: each journey's own relic
-    private var invTab = InvTab.EQUIP
-    private var invNote: String? = null
-    private var invNoteT = 0f
-    private var readingLore: ItemDef? = null
-    private var worldSeed = 1L // the seed the CURRENT world was built with (goes into the run save)
+    internal val relicStore = PreferencesRelicStore(slot) // v2.103: each journey's own relic
+    internal var invTab = InvTab.EQUIP
+    internal var invNote: String? = null
+    internal var invNoteT = 0f
+    internal var readingLore: ItemDef? = null
+    internal var worldSeed = 1L // the seed the CURRENT world was built with (goes into the run save)
     // v2.39: swap the touch roles — melee on the right stick, gun on the ML button (persisted).
-    private var controlSwap = false
+    internal var controlSwap = false
     // v2.47: the very first run walks the basics once; completion persists across launches.
-    private var onboardDone = true
-    private var controlHints = true // v2.66 操作ヒント: how-to guidance on/off
-    private var loreHints = true    // v2.66 世界観ヒント: the world's asides on/off
+    internal var onboardDone = true
+    internal var controlHints = true // v2.66 操作ヒント: how-to guidance on/off
+    internal var loreHints = true    // v2.66 世界観ヒント: the world's asides on/off
     // v2.60 チュートリアル: the keeper-boot diagnostic (layer 1). Null once done or skipped.
-    private var tutorial: TutorialController? = null
-    private var tutPrevPx = Float.NaN
-    private var tutPrevPy = Float.NaN
-    private var tutPrevKills = 0
-    private var tutPrevDust = -1
+    internal var tutorial: TutorialController? = null
+    internal var tutPrevPx = Float.NaN
+    internal var tutPrevPy = Float.NaN
+    internal var tutPrevKills = 0
+    internal var tutPrevDust = -1
 
     // v2.56 ボタン配置エディタ: drag to move, toolbar to resize; saved as screen fractions.
-    private var layoutEditing = false
-    private var editTarget: TouchButton? = null
-    private var layoutDragging = false
+    internal var layoutEditing = false
+    internal var editTarget: TouchButton? = null
+    internal var layoutDragging = false
 
     // v2.53 旧式戦闘訓練: the walled-off wave simulation. Entering snapshots the real run's
     // player (gear/materials/wave); exiting restores it — training gains stay in the training.
-    private var simMode = false
-    private var preSimCarry: PlayerCarry? = null
+    internal var simMode = false
+    internal var preSimCarry: PlayerCarry? = null
     // v2.102 検証ラン: this week's proving run — simMode's walls (no landings, no real records,
     // no achievements) plus a fixed weekly seed and the standard-issue loadout.
-    private var challengeMode = false
-    private var challengeWeek = 0L
+    internal var challengeMode = false
+    internal var challengeWeek = 0L
     // v2.43: stall slots already bought this landing (the stock is per-planet deterministic).
-    private val marketSold = mutableSetOf<Int>()
+    internal val marketSold = mutableSetOf<Int>()
     // v2.100 行商船: shelf slots bought under this sky, the approach latch (re-arms after pulling
     // away), and the shop's inline note (bought / not enough dust).
-    private val traderSold = mutableSetOf<Int>()
-    private var traderGreeted = false
-    private var traderNote: String? = null
-    private var traderNoteT = 0f
+    internal val traderSold = mutableSetOf<Int>()
+    internal var traderGreeted = false
+    internal var traderNote: String? = null
+    internal var traderNoteT = 0f
 
     // Takeoff send-off toast (LP v2.29): one line in the SPACE HUD for a few seconds after leaving.
-    private var rewardToast: String? = null
-    private var rewardToastT = 0f
+    internal var rewardToast: String? = null
+    internal var rewardToastT = 0f
 
     // v2.44: the fade that is currently running ends in a system jump, not a landing/takeoff.
-    private var pendingJump = false
-    private var fadeZoomDir = 0f // v2.85: landing dives in (-), takeoff/jump pulls back (+)
-    private val eventBanner = io.github.panda17tk.arpg.ui.EventBanner() // v2.86 開幕バナー
-    private val bannerGlyph = com.badlogic.gdx.graphics.g2d.GlyphLayout()
-    private val cEventTmp = Color()
-    private val cQuestGold = Color.valueOf("ffd980") // v2.87: the star's answer, dust gold
-    private val cQuestPale = Color.valueOf("fff2c8")
-    private var eventFxT = 0f // v2.86: clock for the event-flavored screen fx
-    private val bossBar = io.github.panda17tk.arpg.ui.BossBar() // v2.88
-    private var duckLevel = 1f // v2.89: the running ambient duck
-    private var metaBoons = io.github.panda17tk.arpg.config.WorkshopBoons.NONE // v2.90 工房
-    private var shakeOn = true    // v2.96: motion comfort — gates shake + recoil kick
-    private var runDifficulty = io.github.panda17tk.arpg.sim.Difficulty.NORMAL // v2.97
+    internal var pendingJump = false
+    internal var fadeZoomDir = 0f // v2.85: landing dives in (-), takeoff/jump pulls back (+)
+    internal val eventBanner = io.github.panda17tk.arpg.ui.EventBanner() // v2.86 開幕バナー
+    internal val bannerGlyph = com.badlogic.gdx.graphics.g2d.GlyphLayout()
+    internal val cEventTmp = Color()
+    internal val cQuestGold = Color.valueOf("ffd980") // v2.87: the star's answer, dust gold
+    internal val cQuestPale = Color.valueOf("fff2c8")
+    internal var eventFxT = 0f // v2.86: clock for the event-flavored screen fx
+    internal val bossBar = io.github.panda17tk.arpg.ui.BossBar() // v2.88
+    internal var duckLevel = 1f // v2.89: the running ambient duck
+    internal var metaBoons = io.github.panda17tk.arpg.config.WorkshopBoons.NONE // v2.90 工房
+    internal var shakeOn = true    // v2.96: motion comfort — gates shake + recoil kick
+    internal var runDifficulty = io.github.panda17tk.arpg.sim.Difficulty.NORMAL // v2.97
     // v2.98 調整モード: the popup's state (open flag, current page, the live knob list).
-    private var tuningOpen = false
-    private var tunePage = 0
-    private var tuneParams: List<io.github.panda17tk.arpg.config.TuneParam> = emptyList()
-    private var softFlash = false // v2.96: photosensitivity — dims the white-outs
-    private var prevWaveNum = 0 // v2.92: to notice a wave ending (流星群を生き延びた)
-    private var prevWaveEvent = WaveEvent.NONE
+    internal var tuningOpen = false
+    internal var tunePage = 0
+    internal var tuneParams: List<io.github.panda17tk.arpg.config.TuneParam> = emptyList()
+    internal var softFlash = false // v2.96: photosensitivity — dims the white-outs
+    internal var prevWaveNum = 0 // v2.92: to notice a wave ending (流星群を生き延びた)
+    internal var prevWaveEvent = WaveEvent.NONE
     // v2.93 エンディング: 0=off, 1..pages=dialogue, pages+1=choice, pages+2=epilogue.
-    private var endingStage = 0
-    private var endingSeenThisWorld = false // 「切断」した空では核はもう問わない
+    internal var endingStage = 0
+    internal var endingSeenThisWorld = false // 「切断」した空では核はもう問わない
 
     // Memory tint per planet id (LP v2.30/10c) — rebuilt only when memory can change (transitions/forget).
-    private var memoryTones: Map<Long, Int> = emptyMap()
+    internal var memoryTones: Map<Long, Int> = emptyMap()
 
     // Landing/takeoff fade (10b): OUT → swap the world behind black → IN. Gameplay input pauses meanwhile.
-    private val fade = TransitionFade()
+    internal val fade = TransitionFade()
 
     // Pre-landing scan card (LP v2.23), rebuilt only when the latched candidate's id changes (FR-1.6).
-    private var lastCardId: Long? = null
-    private var cachedCard: PlanetCardInfo? = null
+    internal var lastCardId: Long? = null
+    internal var cachedCard: PlanetCardInfo? = null
 
     // Surface goal chips (LP v2.26), rebuilt only when their inputs change (§14.2 — no per-frame strings).
-    private var chipsKey = -1
-    private var cachedChips: List<String> = emptyList()
+    internal var chipsKey = -1
+    internal var cachedChips: List<String> = emptyList()
     // v2.45 星の依頼: the quest chip cache (progress-keyed, same no-per-frame-strings policy).
-    private var questChipKey = -1
-    private var questChip: String? = null
+    internal var questChipKey = -1
+    internal var questChip: String? = null
 
     override fun show() {
         io.github.panda17tk.arpg.save.Workshop.load() // v2.90 工房: the run starts with its boons
@@ -371,7 +371,7 @@ class GameScreen(
     }
 
     /** v2.63 生成オーディオ: hum the track this scene wants (space / biome / training sim). */
-    private fun syncAmbience() {
+    internal fun syncAmbience() {
         Ambience.play(AmbienceScore.trackFor(gw.worldState.mode, gw.worldState.biome, simMode))
         // v2.76 天候アンビエント: the surface brings its sky's sound; everywhere else is silent.
         Ambience.playWeather(
@@ -382,7 +382,7 @@ class GameScreen(
 
     /** v2.53: enter/exit the old-style combat simulation. The universe's memory, the saved run
      *  and the real player snapshot are all untouched — a simulation leaves no trace but skill. */
-    private fun toggleTraining() {
+    internal fun toggleTraining() {
         if (!simMode) {
             simMode = true
             preSimCarry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
@@ -409,7 +409,7 @@ class GameScreen(
     /** v2.102 検証ラン: enter (or retry) this week's proving run — fixed sky, standard-issue
      *  loadout, no boons, NORMAL. The real run's snapshot is taken once and kept across retries,
      *  so leaving the challenge always restores exactly what was left behind. */
-    private fun enterChallenge() {
+    internal fun enterChallenge() {
         if (!challengeMode) preSimCarry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
         simMode = true; challengeMode = true
         challengeWeek = Challenge.weekOf(System.currentTimeMillis())
@@ -431,7 +431,7 @@ class GameScreen(
     }
 
     /** Build (or rebuild) the run and reset per-run screen state (Phase 7 restart). */
-    private fun newRun() {
+    internal fun newRun() {
         simMode = false; preSimCarry = null // v2.53: a real restart always leaves the simulation
         challengeMode = false // v2.102
         session.reset() // a fresh run forgets every planet
@@ -469,14 +469,14 @@ class GameScreen(
     }
 
     /** LP v2.30/10c: per-planet memory tints, recomputed only when the memory can have changed. */
-    private fun rebuildMemoryTones() {
+    internal fun rebuildMemoryTones() {
         memoryTones = session.memory.memories
             .mapValues { (_, s) -> ReturnVisitEffects.memoryTone(s) }
             .filterValues { it != 0 }
     }
 
     /** Whether a landing/takeoff would actually happen right now (used to gate the fade, 10b). */
-    private fun canTransitionNow(): Boolean = if (simMode) {
+    internal fun canTransitionNow(): Boolean = if (simMode) {
         false // v2.53: the simulation has no planets worth the name — no landings
     } else if (gw.worldState.mode == WorldMode.SPACE) {
         gw.worldState.landingCandidate != null
@@ -485,7 +485,7 @@ class GameScreen(
     }
 
     /** Land on the hovered planet (SPACE) or take off from the escape pad (SURFACE), carrying run state across. */
-    private fun handleLanding() {
+    internal fun handleLanding() {
         val ws = gw.worldState
         if (ws.mode == WorldMode.SPACE) {
             val cand = ws.landingCandidate ?: return
@@ -535,7 +535,7 @@ class GameScreen(
         }
     }
 
-    private fun transitionWorld(
+    internal fun transitionWorld(
         mode: WorldMode, biome: PlanetBiome?, seed: Long, spawn: Pair<Float, Float>?,
         context: PlanetContext? = null, society: PlanetSocietyState? = null,
         weather: WeatherKind = WeatherKind.CLEAR,
@@ -554,88 +554,9 @@ class GameScreen(
         syncAmbience() // v2.63: space ↔ surface swap the ambient loop
     }
 
-    /** v2.74 天候: purely cosmetic surface weather — deterministic per planet, pure in time. */
-    private fun drawWeather(delta: Float) {
-        if (simMode || gw.worldState.mode != WorldMode.SURFACE) return
-        val weatherKind = gw.worldState.weather // v2.75: the factory's single source of truth
-        if (weatherKind == WeatherKind.CLEAR) return
-        weatherT += delta
-        val p = Weather.paramsFor(weatherKind)
-        hudViewport.apply()
-        shapes.projectionMatrix = hudViewport.camera.combined
-        val w = hudViewport.worldWidth; val h = hudViewport.worldHeight
-        Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND)
-        shapes.begin(ShapeRenderer.ShapeType.Filled)
-        when (weatherKind) { // a faint wash so the whole scene reads the climate
-            WeatherKind.RAIN -> shapes.setColor(0.10f, 0.15f, 0.30f, 0.06f)
-            WeatherKind.SNOW -> shapes.setColor(0.85f, 0.90f, 1f, 0.045f)
-            WeatherKind.ASH -> shapes.setColor(0.25f, 0.18f, 0.12f, 0.06f)
-            WeatherKind.DUSTWIND -> shapes.setColor(0.50f, 0.42f, 0.25f, 0.05f)
-            WeatherKind.THUNDER -> shapes.setColor(0.06f, 0.09f, 0.22f, 0.09f) // v2.77: a darker storm
-            WeatherKind.FOG -> shapes.setColor(0.60f, 0.62f, 0.66f, 0.10f)
-            WeatherKind.AURORA -> shapes.setColor(0.05f, 0.12f, 0.16f, 0.05f)
-            WeatherKind.CLEAR -> {}
-        }
-        shapes.rect(0f, 0f, w, h)
-        when (weatherKind) {
-            WeatherKind.RAIN -> shapes.setColor(0.60f, 0.75f, 0.95f, 0.35f)
-            WeatherKind.SNOW -> shapes.setColor(0.95f, 0.97f, 1f, 0.50f)
-            WeatherKind.ASH -> shapes.setColor(0.55f, 0.50f, 0.48f, 0.40f)
-            WeatherKind.DUSTWIND -> shapes.setColor(0.75f, 0.68f, 0.50f, 0.30f)
-            WeatherKind.THUNDER -> shapes.setColor(0.65f, 0.78f, 0.98f, 0.40f)
-            else -> {}
-        }
-        for (i in 0 until p.count) {
-            val (fx, fy) = Weather.pos(i, weatherT, p)
-            val x = fx * w + Weather.sway(i, weatherT, p)
-            val y = fy * h
-            if (p.streak) { // a short trail along the motion of the last ~60ms
-                shapes.rectLine(x, y, x - p.driftPerSec * w * 0.06f, y + p.fallPerSec * h * 0.06f, p.size)
-            } else {
-                shapes.circle(x, y, p.size, 6)
-            }
-        }
-        when (weatherKind) { // v2.77: the skies that are shapes, not particles
-            WeatherKind.THUNDER -> { // the strike lights the whole field for a blink
-                val flash = Weather.lightningAt(weatherT)
-                if (flash > 0f) {
-                    shapes.setColor(0.85f, 0.90f, 1f, flash * 0.18f)
-                    shapes.rect(0f, 0f, w, h)
-                }
-            }
-            WeatherKind.FOG -> { // slow grey banks sliding across, layered for depth
-                shapes.setColor(0.70f, 0.72f, 0.76f, 0.06f)
-                for (i in 0 until 4) {
-                    val fx = (i * 0.618034f + weatherT * 0.008f * (1f + i * 0.3f)) % 1.3f - 0.15f
-                    val fy = 0.15f + (i * 0.7548777f) % 0.7f
-                    val r = w * (0.30f + 0.10f * (i % 3))
-                    shapes.circle(fx * w, fy * h, r, 40)
-                    shapes.circle(fx * w + r * 0.6f, fy * h - r * 0.2f, r * 0.75f, 36)
-                }
-            }
-            WeatherKind.AURORA -> { // three slow ribbons high above, breathing in colour
-                for (band in 0 until 3) {
-                    when (band) {
-                        0 -> shapes.setColor(0.25f, 0.85f, 0.55f, 0.055f)
-                        1 -> shapes.setColor(0.30f, 0.70f, 0.85f, 0.045f)
-                        else -> shapes.setColor(0.60f, 0.45f, 0.85f, 0.035f)
-                    }
-                    val baseY = h * (0.86f - band * 0.06f)
-                    var x = 0f
-                    while (x < w) {
-                        val yy = baseY + kotlin.math.sin(x / w * 6.28f + weatherT * (0.25f + band * 0.1f) + band * 2f) * h * 0.025f
-                        shapes.circle(x, yy, h * 0.035f, 10)
-                        x += h * 0.03f
-                    }
-                }
-            }
-            else -> {}
-        }
-        shapes.end()
-    }
 
     /** True when the player is standing on the surface escape pad (the return point). */
-    private fun playerOnEscapePad(): Boolean {
+    internal fun playerOnEscapePad(): Boolean {
         val pad = gw.worldState.escapePad ?: return false
         val (ppx, ppy) = with(gw.world) { val t = gw.player[Transform]; t.x to t.y }
         return hypot(ppx - pad.first, ppy - pad.second) < Tuning.TILE * 1.5f
@@ -932,392 +853,23 @@ class GameScreen(
         drawTuning()       // v2.98: the knob popup, over everything
     }
 
-    /** v2.98 調整モード: dim + the page's knob rows ([−] value [＋]) + [前へ][次へ][閉じる]. */
-    private fun drawTuning() {
-        if (!tuningOpen) return
-        hudViewport.apply()
-        val w = hudViewport.worldWidth; val h = hudViewport.worldHeight
-        val rows = io.github.panda17tk.arpg.ui.TuningPanel.rows(w, h)
-        val footer = io.github.panda17tk.arpg.ui.TuningPanel.footer(w, h)
-        val pageStart = tunePage * io.github.panda17tk.arpg.ui.TuningPanel.ROWS
-        Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND)
-        shapes.projectionMatrix = hudViewport.camera.combined
-        shapes.begin(ShapeRenderer.ShapeType.Filled)
-        cEventTmp.set(0f, 0f, 0f, 0.78f); shapes.color = cEventTmp
-        shapes.rect(0f, 0f, w, h)
-        rows.forEachIndexed { i, row ->
-            if (pageStart + i >= tuneParams.size) return@forEachIndexed
-            cEventTmp.set(0.55f, 0.75f, 1f, 0.22f); shapes.color = cEventTmp
-            shapes.rect(row.x - 1.5f, row.y - 1.5f, row.w + 3f, row.h + 3f)
-            cEventTmp.set(0.09f, 0.12f, 0.18f, 0.95f); shapes.color = cEventTmp
-            shapes.rect(row.x, row.y, row.w, row.h)
-            for (btn in listOf(
-                io.github.panda17tk.arpg.ui.TuningPanel.minusBig(row), io.github.panda17tk.arpg.ui.TuningPanel.minus(row),
-                io.github.panda17tk.arpg.ui.TuningPanel.plus(row), io.github.panda17tk.arpg.ui.TuningPanel.plusBig(row),
-            )) {
-                cEventTmp.set(0.16f, 0.22f, 0.32f, 0.95f); shapes.color = cEventTmp
-                shapes.rect(btn.x, btn.y, btn.w, btn.h)
-            }
-        }
-        footer.forEach { b ->
-            cEventTmp.set(0.55f, 0.75f, 1f, 0.22f); shapes.color = cEventTmp
-            shapes.rect(b.x - 1.5f, b.y - 1.5f, b.w + 3f, b.h + 3f)
-            cEventTmp.set(0.09f, 0.12f, 0.18f, 0.95f); shapes.color = cEventTmp
-            shapes.rect(b.x, b.y, b.w, b.h)
-        }
-        shapes.end()
-        batch.projectionMatrix = hudViewport.camera.combined
-        batch.begin()
-        cEventTmp.set(0.62f, 0.68f, 0.80f, 1f); font.color = cEventTmp
-        bannerGlyph.setText(font, "調整モード　${tunePage + 1}/${io.github.panda17tk.arpg.ui.TuningPanel.pageCount(tuneParams.size)}")
-        font.draw(batch, bannerGlyph, (w - bannerGlyph.width) / 2f, h * 0.90f)
-        font.color = Color.WHITE
-        rows.forEachIndexed { i, row ->
-            val param = tuneParams.getOrNull(pageStart + i) ?: return@forEachIndexed
-            val bx = font.data.scaleX; val by = font.data.scaleY
-            // v2.99: the shipped 基準 rides beside the live value; drifted rows glow warm.
-            val text = "${param.name}　${param.display()}／基準${param.displayDef()}"
-            if (param.changed()) { cEventTmp.set(1f, 0.85f, 0.55f, 1f); font.color = cEventTmp }
-            bannerGlyph.setText(font, text)
-            val maxW = row.w - 150f
-            if (bannerGlyph.width > maxW) {
-                val k = maxW / bannerGlyph.width
-                font.data.setScale(bx * k, by * k)
-                bannerGlyph.setText(font, text)
-            }
-            font.draw(batch, bannerGlyph, row.centerX - bannerGlyph.width / 2f, row.centerY + bannerGlyph.height / 2f)
-            font.data.setScale(bx, by)
-            font.color = Color.WHITE
-            for (btn in listOf(
-                io.github.panda17tk.arpg.ui.TuningPanel.minusBig(row), io.github.panda17tk.arpg.ui.TuningPanel.minus(row),
-                io.github.panda17tk.arpg.ui.TuningPanel.plus(row), io.github.panda17tk.arpg.ui.TuningPanel.plusBig(row),
-            )) {
-                bannerGlyph.setText(font, btn.label)
-                font.draw(batch, bannerGlyph, btn.centerX - bannerGlyph.width / 2f, btn.centerY + bannerGlyph.height / 2f)
-            }
-        }
-        footer.forEach { b ->
-            bannerGlyph.setText(font, b.label)
-            font.draw(batch, bannerGlyph, b.centerX - bannerGlyph.width / 2f, b.centerY + bannerGlyph.height / 2f)
-        }
-        batch.end()
-    }
 
-    /** v2.98: taps drive the knobs — [−]/[＋] nudge (clamped), the footer pages and closes. */
-    private fun handleTuningTaps() {
-        if (!tapped) return
-        val w = hudViewport.worldWidth; val h = hudViewport.worldHeight
-        val footer = io.github.panda17tk.arpg.ui.TuningPanel.footer(w, h)
-        val pages = io.github.panda17tk.arpg.ui.TuningPanel.pageCount(tuneParams.size)
-        when (Modals.hitModal(footer, tapX, tapY)) {
-            0 -> { tunePage = (tunePage - 1 + pages) % pages; Sfx.play("scan"); return }
-            1 -> { tunePage = (tunePage + 1) % pages; Sfx.play("scan"); return }
-            2 -> { tuningOpen = false; Sfx.play("scan"); return }
-            3 -> { exportTuning(); return } // v2.99 書き出し
-            4 -> { tuneParams.forEach { it.reset() }; Sfx.play("levelup"); return } // v2.99 全て既定へ
-        }
-        val rows = io.github.panda17tk.arpg.ui.TuningPanel.rows(w, h)
-        val pageStart = tunePage * io.github.panda17tk.arpg.ui.TuningPanel.ROWS
-        rows.forEachIndexed { i, row ->
-            val param = tuneParams.getOrNull(pageStart + i) ?: return@forEachIndexed
-            when {
-                io.github.panda17tk.arpg.ui.TuningPanel.minusBig(row).contains(tapX, tapY) -> { param.nudge(-1, big = true); Sfx.play("shot") }
-                io.github.panda17tk.arpg.ui.TuningPanel.minus(row).contains(tapX, tapY) -> { param.nudge(-1); Sfx.play("shot") }
-                io.github.panda17tk.arpg.ui.TuningPanel.plus(row).contains(tapX, tapY) -> { param.nudge(+1); Sfx.play("shot") }
-                io.github.panda17tk.arpg.ui.TuningPanel.plusBig(row).contains(tapX, tapY) -> { param.nudge(+1, big = true); Sfx.play("shot") }
-            }
-        }
-    }
 
-    /** v2.99 書き出し: the knob table as plain text — external storage first, app-local fallback. */
-    private fun exportTuning() {
-        val text = io.github.panda17tk.arpg.config.TuningExport.render("drift 調整パラメータ", tuneParams)
-        val written = try {
-            val fh = Gdx.files.external("drift-tuning.txt")
-            fh.writeString(text, false)
-            fh.file().absolutePath
-        } catch (_: Throwable) {
-            try {
-                val fh = Gdx.files.local("drift-tuning.txt")
-                fh.writeString(text, false)
-                fh.file().absolutePath
-            } catch (_: Throwable) { null }
-        }
-        eventBanner.start(if (written != null) "書き出した → $written" else "書き出しに失敗した")
-        Sfx.play(if (written != null) "levelup" else "hit")
-    }
 
-    /** v2.93 エンディング: dim + the dialogue pages / choice / epilogue, glass style. */
-    private fun drawEnding() {
-        if (endingStage <= 0) return
-        hudViewport.apply()
-        val w = hudViewport.worldWidth; val h = hudViewport.worldHeight
-        val pages = io.github.panda17tk.arpg.sim.Endgame.PAGES
-        Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND)
-        shapes.projectionMatrix = hudViewport.camera.combined
-        shapes.begin(ShapeRenderer.ShapeType.Filled)
-        cEventTmp.set(0f, 0f, 0f, 0.78f); shapes.color = cEventTmp
-        shapes.rect(0f, 0f, w, h)
-        if (endingStage == pages.size + 1) { // the choice carries its two glass buttons
-            Modals.endingButtons(w, h).forEach { b ->
-                cEventTmp.set(0.55f, 0.75f, 1f, 0.22f); shapes.color = cEventTmp
-                shapes.rect(b.x - 1.5f, b.y - 1.5f, b.w + 3f, b.h + 3f)
-                cEventTmp.set(0.09f, 0.12f, 0.18f, 0.95f); shapes.color = cEventTmp
-                shapes.rect(b.x, b.y, b.w, b.h)
-            }
-        }
-        shapes.end()
-        batch.projectionMatrix = hudViewport.camera.combined
-        batch.begin()
-        val lines = when {
-            endingStage <= pages.size -> pages[endingStage - 1]
-            endingStage == pages.size + 1 -> pages.last() // the question stays on screen behind the choice
-            else -> io.github.panda17tk.arpg.sim.Endgame.EPILOGUE
-        }
-        var y = h * (if (endingStage == pages.size + 1) 0.80f else 0.62f)
-        cEventTmp.set(0.90f, 0.93f, 1f, 1f); font.color = cEventTmp
-        for (line in lines) {
-            bannerGlyph.setText(font, line)
-            font.draw(batch, bannerGlyph, (w - bannerGlyph.width) / 2f, y)
-            y -= 30f
-        }
-        cEventTmp.set(0.62f, 0.68f, 0.80f, 1f); font.color = cEventTmp
-        val hint = when {
-            endingStage <= pages.size -> "タップで続ける"
-            endingStage == pages.size + 1 -> ""
-            else -> "タップで記録を閉じる"
-        }
-        if (hint.isNotEmpty()) {
-            bannerGlyph.setText(font, hint)
-            font.draw(batch, bannerGlyph, (w - bannerGlyph.width) / 2f, h * 0.16f)
-        }
-        if (endingStage == pages.size + 1) {
-            font.color = Color.WHITE
-            Modals.endingButtons(w, h).forEach { b ->
-                bannerGlyph.setText(font, b.label)
-                font.draw(batch, bannerGlyph, b.centerX - bannerGlyph.width / 2f, b.centerY + bannerGlyph.height / 2f)
-            }
-        }
-        font.color = Color.WHITE
-        batch.end()
-    }
 
-    /** v2.93: taps drive the final dialogue — pages, the choice, then the closing of the record. */
-    private fun handleEndingTaps() {
-        if (!tapped) return
-        val pages = io.github.panda17tk.arpg.sim.Endgame.PAGES
-        when {
-            endingStage in 1..pages.size -> { endingStage++; Sfx.play("scan") }
-            endingStage == pages.size + 1 -> {
-                val hit = Modals.hitModal(Modals.endingButtons(hudViewport.worldWidth, hudViewport.worldHeight), tapX, tapY)
-                if (hit == 0) { // 眠りにつく — the record closes
-                    tryUnlock(Achievement.FINAL_SYNC)
-                    io.github.panda17tk.arpg.save.Endings.recordClear()
-                    endingStage = pages.size + 2
-                    Sfx.play("levelup")
-                } else if (hit == 1) { // 漂流を続ける — the sky lets go
-                    tryUnlock(Achievement.DRIFT_ON)
-                    endingStage = 0
-                    endingSeenThisWorld = true
-                    gw.worldState.controlCore = null
-                    eventBanner.start(io.github.panda17tk.arpg.sim.Endgame.DRIFT_LINE)
-                    Sfx.play("scan")
-                }
-            }
-            else -> { // the epilogue closes to the title; the finished run is consumed
-                runStore.clear()
-                (Gdx.app.applicationListener as? App)?.showTitle()
-            }
-        }
-    }
 
-    /** v2.88: scan for the nearest-priority heavy (boss > bounty > midboss) within earshot. */
-    private fun updateBossBar(delta: Float, ppx: Float, ppy: Float) {
-        var bestName: String? = null; var bestFrac = 1f; var bestRank = -1
-        with(gw.world) {
-            gw.world.family { all(Mob, Health, Transform) }.forEach { e ->
-                val m = e[Mob]
-                if (m.def.lifeKind == io.github.panda17tk.arpg.config.LifeKind.WILDLIFE) return@forEach
-                val rank = when {
-                    m.tier == "boss" -> 3
-                    m.bountyDust > 0 -> 2
-                    m.tier == "midboss" -> 1
-                    else -> -1
-                }
-                if (rank <= bestRank) return@forEach
-                val mt = e[Transform]
-                if (hypot(mt.x - ppx, mt.y - ppy) > BOSSBAR_RANGE) return@forEach
-                val mh = e[Health]
-                bestRank = rank
-                bestName = m.bountyName.ifEmpty { m.def.name }
-                bestFrac = if (mh.hpMax > 0f) mh.hp / mh.hpMax else 1f
-            }
-        }
-        bossBar.update(bestName != null, bestName, bestFrac, delta)
-    }
 
-    /** v2.88 ボスHPバー: name over a slim bar, top-center under the status band. */
-    private fun drawBossBar() {
-        if (!bossBar.visible) return
-        hudViewport.apply()
-        val w = hudViewport.worldWidth; val h = hudViewport.worldHeight
-        val a = bossBar.k
-        val bw = minOf(280f, w * 0.7f); val bh = 7f
-        val x = (w - bw) / 2f
-        val y = h - 132f - (1f - a) * 10f
-        Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND)
-        shapes.projectionMatrix = hudViewport.camera.combined
-        shapes.begin(ShapeRenderer.ShapeType.Filled)
-        cEventTmp.set(0f, 0f, 0f, 0.55f * a); shapes.color = cEventTmp
-        shapes.rect(x - 4f, y - 4f, bw + 8f, bh + 8f)
-        cEventTmp.set(0.28f, 0.06f, 0.08f, 0.9f * a); shapes.color = cEventTmp
-        shapes.rect(x, y, bw, bh)
-        cEventTmp.set(0.95f, 0.30f, 0.28f, 0.95f * a); shapes.color = cEventTmp
-        shapes.rect(x, y, bw * bossBar.frac.coerceIn(0f, 1f), bh)
-        shapes.end()
-        batch.projectionMatrix = hudViewport.camera.combined
-        batch.begin()
-        cEventTmp.set(1f, 0.92f, 0.9f, a); font.color = cEventTmp
-        bannerGlyph.setText(font, bossBar.name)
-        font.draw(batch, bannerGlyph, (w - bannerGlyph.width) / 2f, y + bh + 6f + bannerGlyph.height)
-        font.color = Color.WHITE
-        batch.end()
-    }
 
-    /** v2.92 連撃チップ: 「連撃 ×N」 riding mid-low screen while the chain window lives. */
-    private fun drawComboChip() {
-        val fxc = gw.fx
-        if (fxc.comboT <= 0f || fxc.comboStep < 2) return
-        hudViewport.apply()
-        val w = hudViewport.worldWidth; val h = hudViewport.worldHeight
-        val a = (fxc.comboT / 0.3f).coerceIn(0f, 1f)
-        batch.projectionMatrix = hudViewport.camera.combined
-        batch.begin()
-        val bx = font.data.scaleX; val by = font.data.scaleY
-        val grow = 1f + 0.06f * (fxc.comboStep - 1)
-        font.data.setScale(bx * grow, by * grow)
-        when { // alloc-free tinting, tier by rhythm
-            fxc.comboStep >= io.github.panda17tk.arpg.combat.MeleeCombo.MAX_STEP -> cEventTmp.set(1f, 0.91f, 0.29f, a)
-            fxc.comboStep >= 3 -> cEventTmp.set(1f, 0.82f, 0.48f, a)
-            else -> cEventTmp.set(0.81f, 0.89f, 1f, a)
-        }
-        font.color = cEventTmp
-        bannerGlyph.setText(font, "連撃 ×${fxc.comboStep}")
-        font.draw(batch, bannerGlyph, (w - bannerGlyph.width) / 2f, h * 0.40f)
-        font.color = Color.WHITE
-        font.data.setScale(bx, by)
-        batch.end()
-    }
 
-    /** v2.88 撃破の儀式: a whole-screen white-out easing away after the killing blow. */
-    private fun drawKillFlash() {
-        val a = gw.fx.flashAlpha() * (if (softFlash) 0.35f else 1f) // v2.96 光過敏に配慮
-        if (a <= 0f) return
-        hudViewport.apply()
-        Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND)
-        shapes.projectionMatrix = hudViewport.camera.combined
-        shapes.begin(ShapeRenderer.ShapeType.Filled)
-        cEventTmp.set(1f, 0.98f, 0.92f, 0.8f * a * a); shapes.color = cEventTmp
-        shapes.rect(0f, 0f, hudViewport.worldWidth, hudViewport.worldHeight)
-        shapes.end()
-    }
 
-    /** v2.86 イベントの見える化: each space wave event owns a screen-space look —
-     *  大群 pulses the rim dark red, 磁気嵐 skates noise streaks, 清掃 sweeps a scanline. */
-    private fun drawEventFx(delta: Float) {
-        if (gw.worldState.mode != WorldMode.SPACE) return
-        val ev = gw.waveState.event
-        if (ev == WaveEvent.NONE || ev == WaveEvent.BOUNTY) return
-        eventFxT += delta
-        hudViewport.apply()
-        Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND)
-        shapes.projectionMatrix = hudViewport.camera.combined
-        shapes.begin(ShapeRenderer.ShapeType.Filled)
-        val w = hudViewport.worldWidth; val h = hudViewport.worldHeight
-        when (ev) {
-            WaveEvent.HORDE -> { // the rim of the sky breathes dark red
-                val a = 0.10f + 0.06f * sin(eventFxT * 2.6f)
-                cEventTmp.set(0.55f, 0.08f, 0.06f, a); shapes.color = cEventTmp
-                val band = h * 0.10f
-                shapes.rect(0f, 0f, w, band); shapes.rect(0f, h - band, w, band)
-                shapes.rect(0f, 0f, w * 0.06f, h); shapes.rect(w - w * 0.06f, 0f, w * 0.06f, h)
-            }
-            WaveEvent.STORM -> { // magnetic noise: brief streaks skating across the view
-                for (i in 0 until 12) {
-                    val ph = (eventFxT * (0.9f + (i % 5) * 0.13f) + i * 0.37f) % 1f
-                    val sx = ((i * 0.083f + ph * 0.61f) % 1f) * w
-                    val sy = ((i * 0.29f + ph * 0.83f) % 1f) * h
-                    cEventTmp.set(0.6f, 0.8f, 1f, 0.16f * (1f - ph)); shapes.color = cEventTmp
-                    shapes.rect(sx, sy, 46f * (1f - ph * 0.5f), 1.5f)
-                }
-            }
-            WaveEvent.PURGE -> { // the custodians' scanline sweeps the hall, top to bottom
-                val ph = (eventFxT % 2.8f) / 2.8f
-                val sy = h * (1f - ph)
-                cEventTmp.set(0.45f, 0.95f, 1f, 0.10f); shapes.color = cEventTmp
-                shapes.rect(0f, sy - 14f, w, 14f)
-                cEventTmp.set(0.65f, 1f, 1f, 0.32f); shapes.color = cEventTmp
-                shapes.rect(0f, sy, w, 2f)
-            }
-            else -> {}
-        }
-        shapes.end()
-    }
 
-    /** v2.86 開幕バナー: a scrim band across the upper-middle carrying the moment line. */
-    private fun drawEventBanner() {
-        if (!eventBanner.active) return
-        val a = eventBanner.alpha()
-        if (a <= 0f) return
-        hudViewport.apply()
-        val w = hudViewport.worldWidth; val h = hudViewport.worldHeight
-        val bandH = 52f
-        val y = h * 0.64f
-        Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND)
-        shapes.projectionMatrix = hudViewport.camera.combined
-        shapes.begin(ShapeRenderer.ShapeType.Filled)
-        cEventTmp.set(0f, 0f, 0f, 0.55f * a); shapes.color = cEventTmp
-        shapes.rect(0f, y, w, bandH)
-        cEventTmp.set(1f, 0.62f, 0.30f, 0.85f * a); shapes.color = cEventTmp
-        shapes.rect(0f, y + bandH, w, 1.5f); shapes.rect(0f, y - 1.5f, w, 1.5f)
-        shapes.end()
-        batch.projectionMatrix = hudViewport.camera.combined
-        batch.begin()
-        val bx = font.data.scaleX; val by = font.data.scaleY
-        font.data.setScale(bx * 1.25f, by * 1.25f)
-        bannerGlyph.setText(font, eventBanner.text)
-        if (bannerGlyph.width > w - 32f) {
-            val k = (w - 32f) / bannerGlyph.width
-            font.data.setScale(bx * 1.25f * k, by * 1.25f * k)
-            bannerGlyph.setText(font, eventBanner.text)
-        }
-        cEventTmp.set(1f, 0.94f, 0.85f, a); font.color = cEventTmp
-        font.draw(batch, bannerGlyph, (w - bannerGlyph.width) / 2f + eventBanner.slide(), y + bandH / 2f + bannerGlyph.height / 2f)
-        font.color = Color.WHITE
-        font.data.setScale(bx, by)
-        batch.end()
-    }
 
-    /** Gameplay touch (twin-stick / fire) runs only when no modal blocks it (spec §5.2). */
-    private fun pollGameplayTouch(paused: Boolean) {
-        // Pass the player context so the action buttons can show/hide by relevance (P3). The LAND button
-        // appears only when landing is possible: near a planet in space, or standing on the escape pad.
-        if (touchEnabled && !paused && !choosing && !gw.gameOver.isOver) {
-            val tw = with(gw.world) { gw.player[Arsenal] }.current
-            val tBlocks = with(gw.world) { gw.player[Materials].blocks }
-            val ws = gw.worldState
-            val canLand = (ws.mode == WorldMode.SPACE && ws.landingCandidate != null) ||
-                (ws.mode == WorldMode.SURFACE && playerOnEscapePad())
-            val hasOverclock = with(gw.world) { gw.player[Gear].loadout.hasOverclockThruster }
-            touch.poll(input, hudViewport, tBlocks, tw.mag, tw.def.magSize, canLand, hasOverclock, controlSwap, io.github.panda17tk.arpg.save.TuneMode.active)
-        }
-    }
 
     /**
      * Step the fixed-timestep sim, or freeze it for game over / pause / the upgrade modal.
      * Returns false when a game-over restart rebuilt the run (the frame should not be drawn).
      */
-    private fun advanceSim(delta: Float, paused: Boolean): Boolean {
+    internal fun advanceSim(delta: Float, paused: Boolean): Boolean {
         if (gw.gameOver.isOver) {
             accumulator = 0f
             if (!prevOver) {
@@ -1392,257 +944,13 @@ class GameScreen(
         return true
     }
 
-    /** HUD (screen space) — P2 live HUD delegated to render/Hud (geometry from ui/HudLayout). */
-    private fun drawHud(paused: Boolean, sta: Float, staMax: Float, overheat: Boolean) {
-        hudViewport.apply()
-        val hudW = hudViewport.worldWidth; val hudH = hudViewport.worldHeight
-        val blocks = with(gw.world) { gw.player[Materials].blocks }
-        val dust = with(gw.world) { gw.player[Materials].dust }
-        val ammo = with(gw.world) { gw.player[Ammo] }
-        val hp = with(gw.world) { gw.player[Health].hp }
-        val hpMax = with(gw.world) { gw.player[Health].hpMax }
-        val foes = gw.world.family { all(Mob) }.numEntities
-        val wpn = with(gw.world) { gw.player[Arsenal] }.current
-        val reloadFrac = if (wpn.reloadT > 0f && wpn.def.reloadTime > 0f) (wpn.reloadT / wpn.def.reloadTime).coerceIn(0f, 1f) else 0f
-        val reserveStr = if (wpn.def.infiniteAmmo) "無限" else "${ammo.get(wpn.def.ammoType)}"
-        Hud.liveHud(
-            shapes, batch, font, Fonts.title, hudViewport,
-            gw.waveState.num, foes,
-            hp, hpMax, sta, staMax, overheat,
-            wpn.def.name, wpn.mag, wpn.def.magSize, reloadFrac, reserveStr,
-            runTime, gw.gameOver.kills, blocks, dust,
-            simMode = simMode,
-        )
-        val tut = tutorial
-        if (tut != null && !tut.done) drawTutorial(hudW, hudH) else drawObjectiveHint(paused, hudW, hudH)
-        if (tut == null) drawOnboarding(paused, hudW) // v2.60: the diagnostic supersedes onboarding
-        // Surface event feed (LP v2.24): drawn whenever on a surface; aging freezes with the sim while paused.
-        if (gw.worldState.mode == WorldMode.SURFACE) Hud.eventFeed(batch, font, hudViewport, gw.worldState.recentEvents)
 
-        if (layoutEditing) { // v2.56: the editor shows EVERY button, a halo on the selection, and its toolbar
-            val landLabel = if (gw.worldState.mode == WorldMode.SURFACE) "発進" else "着陸"
-            TouchOverlay.draw(shapes, batch, font, hudViewport, touch, landLabel, controlSwap, showAll = true, editTarget = editTarget)
-            Hud.buttonRow(shapes, batch, font, hudViewport, Modals.layoutEditButtons(hudW, hudH))
-            Hud.hintPanel(
-                shapes, batch, font, hudViewport,
-                listOf("ボタン配置", "ドラッグで移動 — 完了で保存"),
-                hudH - HINT_TOP,
-            )
-        } else if (touchEnabled && overlay == Overlay.NONE && !choosing && !gw.gameOver.isOver) {
-            val landLabel = if (gw.worldState.mode == WorldMode.SURFACE) "発進" else "着陸"
-            TouchOverlay.draw(shapes, batch, font, hudViewport, touch, landLabel, controlSwap)
-        }
-        if (overlay == Overlay.NONE && !choosing && !gw.gameOver.isOver && !layoutEditing) Hud.pauseButton(shapes, hudViewport, Modals.pauseButton(hudW, hudH))
-        if (choosing) {
-            val cfg = configStore.config.upgrades
-            Hud.upgradeCards(
-                shapes, batch, font, hudViewport, gw.waveState.num,
-                Modals.upgradeCards(hudW, hudH, choices.size),
-                choices.map { it.name }, choices.map { Upgrades.desc(it, cfg) },
-            )
-        }
-        if (gw.gameOver.isOver) {
-            val bestText = when {
-                challengeMode && newBest -> "検証記録更新！  ${Challenge.codeFor(challengeWeek)} ウェーブ ${Scores.chBestWave}" // v2.102
-                challengeMode -> "検証記録  ${Challenge.codeFor(challengeWeek)} ウェーブ ${Scores.chBestWave}  撃破 ${Scores.chBestKills}"
-                simMode && newBest -> "訓練記録更新！  ウェーブ ${Scores.simBestWave}" // v2.62
-                simMode -> "訓練記録  ウェーブ ${Scores.simBestWave}  撃破 ${Scores.simBestKills}"
-                newBest -> "自己ベスト更新！  汚染深度 ${Scores.bestWave}"
-                else -> "ベスト  汚染深度 ${Scores.bestWave}  撃破 ${Scores.bestKills}"
-            }
-            val mins = (runTime / 60f).toInt(); val secs = (runTime % 60f).toInt()
-            Hud.gameOver(
-                shapes, batch, font, Fonts.title, hudViewport,
-                gw.waveState.num, gw.gameOver.kills, bestText, Modals.gameOverButtons(hudW, hudH),
-                summary = listOf( // v2.59: the run's obituary
-                    "第${session.spaceSeed}星系　星間同期復旧 ${syncPercent()}%",
-                    "呼び名 『${Epithet.of(session.memory.memories.values)}』　航行時間 %d:%02d".format(mins, secs),
-                ),
-            )
-        }
-        if (overlay == Overlay.INVENTORY) drawInventory()
-        if (overlay == Overlay.TRADER) drawTraderShop() // v2.100 行商船
-        if (overlay == Overlay.PAUSE) Hud.pause(shapes, batch, font, Fonts.title, hudViewport, Modals.pauseButtons(hudW, hudH, pauseHasMemory(), simMode))
-        if (overlay == Overlay.HELP) Hud.help(shapes, batch, font, Fonts.title, hudViewport, Modals.helpButtons(hudW, hudH).first(), HELP_LINES)
-        if (overlay == Overlay.FORGET) Hud.forget(shapes, batch, font, Fonts.title, hudViewport, Modals.forgetButtons(hudW, hudH))
-        if (overlay == Overlay.MEMORY) {
-            val ws = gw.worldState
-            val soc = ws.society
-            var elites = 0
-            with(gw.world) { gw.world.family { all(Mob) }.forEach { if (it[Mob].def.tier != "normal") elites++ } }
-            val goals = ws.biome?.let { SurfaceGoals.allChips(it, ws.context ?: PlanetContext.NEUTRAL, soc, elites) } ?: emptyList()
-            Hud.memory(
-                shapes, batch, font, Fonts.title, hudViewport,
-                PlanetLexicon.traitLine(ws.context ?: PlanetContext.NEUTRAL),
-                SocietyMemorySummary.factLines(soc), SocietyMemorySummary.gauges(soc),
-                Modals.helpButtons(hudW, hudH).first(), goals,
-            )
-        }
-        Hud.fade(shapes, hudViewport, fade.alpha) // landing/takeoff scrim covers everything (10b)
-    }
 
-    /** v2.47 オンボーディング: the first run's four timed hints, low on the screen, then never again. */
-    private fun drawOnboarding(paused: Boolean, hudW: Float) {
-        if (!controlHints) return // v2.66 操作ヒント OFF — the walkthrough stays quiet
-        if (onboardDone || paused || choosing || gw.gameOver.isOver || overlay != Overlay.NONE) return
-        val line = Onboarding.lineFor(runTime, touchEnabled)
-        if (line == null) {
-            if (runTime >= Onboarding.END) {
-                onboardDone = true
-                try {
-                    val p = Gdx.app.getPreferences(SETTINGS_PREFS)
-                    p.putBoolean(SETTINGS_ONBOARD, true)
-                    p.flush()
-                } catch (_: Throwable) { /* persist best-effort */ }
-            }
-            return
-        }
-        Hud.hintPanel(shapes, batch, font, hudViewport, listOf(line), 236f)
-    }
 
-    /** Living Planets: surface exploration objective, or the pre-landing scan card in space (HUD space). */
-    private fun drawObjectiveHint(paused: Boolean, hudW: Float, hudH: Float) {
-        val ws = gw.worldState
-        // SPACE: a latched landing candidate shows the scan card instead of the old one-line hint (LP v2.23).
-        if (ws.mode == WorldMode.SPACE) {
-            // v2.54: every space hint (toast / sim banner / idle guidance) lives on ONE glass
-            // panel BELOW the top HUD band — no more text colliding with the bars and badges.
-            val busy = paused || choosing || gw.gameOver.isOver
-            val toast = if (rewardToastT > 0f && !busy) rewardToast else null
-            if (simMode) { // v2.53: the simulation is combat only — say so, plainly
-                if (!busy) {
-                    Hud.hintPanel(
-                        shapes, batch, font, hudViewport,
-                        listOfNotNull(toast, "訓練環境 — 模擬戦闘のみ（ポーズから終了）"), hudH - HINT_TOP,
-                    )
-                }
-                return
-            }
-            val cand = ws.landingCandidate ?: run {
-                lastCardId = null; cachedCard = null
-                // v2.38/39: even with no planet latched, space tells you HOW landing works AND
-                // points at the nearest planet with a live distance — no more searching blind.
-                if (!busy) {
-                    // v2.66 操作ヒント OFF drops the how-to line; the nav/gate compasses stay.
-                    val idle = if (!controlHints) null
-                    else if (touchEnabled) "惑星に近づくとカードが出る　惑星をタップで着陸" else "惑星に近づいて [L] で着陸"
-                    val (ppx, ppy) = with(gw.world) { val t = gw.player[Transform]; t.x to t.y }
-                    val nearest = gw.planets.minByOrNull { hypot(it.cx - ppx, it.cy - ppy) }
-                    val nav = nearest?.let {
-                        val dx = it.cx - ppx; val dy = it.cy - ppy
-                        val dist = (hypot(dx, dy) - it.radius).coerceAtLeast(0f).toInt()
-                        // World is y-down: dy<0 = up on screen. Pick the dominant cardinal arrow.
-                        val arrow = if (kotlin.math.abs(dx) >= kotlin.math.abs(dy)) {
-                            if (dx >= 0f) "→" else "←"
-                        } else {
-                            if (dy >= 0f) "↓" else "↑"
-                        }
-                        "最寄りの惑星 $arrow $dist"
-                    }
-                    // v2.44: the gate line — shard progress while collecting, a live compass once ready.
-                    val shards = with(gw.world) { gw.player[Materials].shards }
-                    val gateLine = ws.gate?.let { g ->
-                        if (shards < gateNeed()) {
-                            "ゲート鍵 $shards/${gateNeed()}（強敵が落とす）"
-                        } else {
-                            val dx = g.first - ppx; val dy = g.second - ppy
-                            val dist = hypot(dx, dy).toInt()
-                            val arrow = if (kotlin.math.abs(dx) >= kotlin.math.abs(dy)) {
-                                if (dx >= 0f) "→" else "←"
-                            } else {
-                                if (dy >= 0f) "↓" else "↑"
-                            }
-                            "ジャンプゲート $arrow $dist　接近して跳躍"
-                        }
-                    }
-                    Hud.hintPanel(
-                        shapes, batch, font, hudViewport,
-                        listOfNotNull(toast, idle, nav, gateLine), hudH - HINT_TOP,
-                    )
-                }
-                return
-            }
-            if (busy) return
-            if (cand.id != lastCardId) { // rebuild only when the candidate changes (FR-1.6)
-                cachedCard = PlanetScan.cardFor(cand, session.memory.knows(cand.id), session.memory.recall(cand.id))
-                lastCardId = cand.id
-                Sfx.play("scan") // 10a: a fresh scan pings once per newly latched planet
-            }
-            cachedCard?.let {
-                val hint = when { // v2.34/38: planet or card = the landing button (v2.66: mutable)
-                    !controlHints -> ""
-                    touchEnabled -> "惑星かこのカードをタップで着陸"
-                    else -> "[L] 着陸"
-                }
-                Hud.planetScanCard(shapes, batch, font, Fonts.title, hudViewport, it, hint)
-                // v2.54: a live toast slots under the card instead of over the HUD.
-                if (toast != null) {
-                    Hud.hintPanel(shapes, batch, font, hudViewport, listOf(toast), HudLayout.planetCard(hudW, hudH, it.lines.size).y - 8f)
-                }
-            }
-            return
-        }
-        var elites = 0
-        with(gw.world) {
-            gw.world.family { all(Mob) }.forEach { if (it[Mob].def.tier != "normal") elites++ }
-        }
-        val biome = ws.biome
-        val onPad = playerOnEscapePad()
-        val hint = when {
-            onPad -> "[L] 脱出パッドから離陸して宇宙へ"
-            biome != null -> SurfaceObjective.hudLine(biome, elites, ws.society, ws.context ?: PlanetContext.NEUTRAL, ws.rememberedPlanet)
-            else -> "[L] 離陸して宇宙へ"
-        }
-        // Goal chips (LP v2.26) right under the main objective line, rebuilt only when inputs change.
-        // v2.45: the planet's standing request (星の依頼) rides the same chip row with live progress.
-        val chips = (if (biome != null) surfaceChips(biome, ws, elites) else emptyList()) +
-            listOfNotNull(questChip(ws))
-        if (!paused && !choosing) {
-            val lines = listOf(hint) + (if (chips.isEmpty()) emptyList() else listOf(chips.joinToString("　　")))
-            Hud.hintPanel(shapes, batch, font, hudViewport, lines, hudH - HINT_TOP)
-        }
-    }
 
-    /** v2.45/68 星の依頼: this visit's progress toward a request of [kind]. */
-    private fun questProgress(kind: QuestKind, ws: WorldState): Int = when (kind) {
-        // v2.72 連鎖: each stage counts from the snapshot taken when the previous one settled.
-        QuestKind.ELITES -> ws.questElites - ws.questBaseElites
-        QuestKind.KILLS -> ws.questKills - ws.questBaseKills
-        QuestKind.DUST -> ws.questDust - ws.questBaseDust
-        QuestKind.CORE -> if (ws.coreVisited) 1 else 0
-        QuestKind.PROTECT -> ws.questPredators - ws.questBasePredators // v2.69
-        QuestKind.OBSERVE -> (ws.questTime - ws.questBaseTime).toInt() // v2.69: whole seconds
-    }
 
-    /** v2.45/72 星の依頼: the chip shows the CURRENT link of the chain, or the satisfied star. */
-    private fun questChip(ws: WorldState): String? {
-        val pid = session.landedPlanetId ?: return null
-        val b = ws.biome ?: return null
-        if (ws.questStage >= PlanetQuest.CHAIN) return "依頼 完了 — この星は満ちている"
-        val q = PlanetQuest.questFor(pid, b, ws.questStage)
-        val prog = questProgress(q.kind, ws)
-        val key = prog.coerceAtMost(q.target) + ws.questStage * 1000
-        if (key != questChipKey) {
-            questChip = "依頼${ws.questStage + 1}/${PlanetQuest.CHAIN}　${q.line}　$prog/${q.target}"
-            questChipKey = key
-        }
-        return questChip
-    }
 
-    /** The cached surface goal chips (max 2); rebuilt only when the deciding inputs change (§14.2). */
-    private fun surfaceChips(biome: PlanetBiome, ws: WorldState, elites: Int): List<String> {
-        val s = ws.society
-        fun b(v: Boolean) = if (v) 1 else 0
-        val key = (elites shl 5) or (b(s.relicClaimed) shl 4) or (b(s.childKilled) shl 3) or
-            (b(s.childHarmed) shl 2) or (b(s.apexKilled) shl 1) or b(s.leaderDefeated)
-        if (key != chipsKey) {
-            cachedChips = SurfaceGoals.chipsFor(biome, ws.context ?: PlanetContext.NEUTRAL, s, elites)
-            chipsKey = key
-        }
-        return cachedChips
-    }
-
-    private fun trackPlayerHitShake() {
+    internal fun trackPlayerHitShake() {
         val hp = with(gw.world) { gw.player[Health].hp }
         if (!lastHp.isNaN() && hp < lastHp - 0.01f) {
             gw.fx.addShake(0.18f, 6f); Sfx.play("hit"); Haptics.buzz(25)
@@ -1658,7 +966,7 @@ class GameScreen(
      * Phase 6b: when a wave is cleared the sim enters "intermission"; we freeze it and offer
      * 3 random upgrade cards. Number keys 1/2/3 pick one, apply it permanently, then resume.
      */
-    private fun updateUpgradeFlow(delta: Float) {
+    internal fun updateUpgradeFlow(delta: Float) {
         if (choosing) {
             accumulator = 0f // keep the sim frozen while the player chooses
             val sel = when {
@@ -1681,7 +989,7 @@ class GameScreen(
         }
     }
 
-    private fun applyUpgrade(u: Upgrade) {
+    internal fun applyUpgrade(u: Upgrade) {
         val cfg = configStore.config.upgrades
         with(gw.world) {
             Upgrades.apply(u.id, cfg, gw.player[Mods], gw.player[Health], gw.player[Ammo], gw.player[Materials])
@@ -1689,48 +997,24 @@ class GameScreen(
         Sfx.play("levelup")
     }
 
-    /** Capture this frame's HUD tap (a desktop mouse click counts too), unprojected into dp space. */
-    private fun pollTap() {
-        tapped = Gdx.input.justTouched()
-        if (tapped) {
-            rawTapX = Gdx.input.x.toFloat(); rawTapY = Gdx.input.y.toFloat() // kept for world-space hits (v2.38)
-            tmpTap.set(rawTapX, rawTapY, 0f)
-            hudViewport.unproject(tmpTap)
-            tapX = tmpTap.x; tapY = tmpTap.y
-        }
-    }
 
-    /** v2.38: did this frame's tap land on the landing candidate planet itself (world space)? */
-    private fun tapHitsCandidatePlanet(): Boolean {
-        val cand = gw.worldState.landingCandidate ?: return false
-        tmpTap.set(rawTapX, rawTapY, 0f)
-        worldViewport.unproject(tmpTap)
-        return hypot(tmpTap.x - cand.cx, tmpTap.y - cand.cy) < cand.radius + PLANET_TAP_PAD
-    }
 
-    /** v2.44: did this frame's tap land on the jump gate itself (world space)? */
-    private fun tapHitsGate(): Boolean {
-        val g = gw.worldState.gate ?: return false
-        tmpTap.set(rawTapX, rawTapY, 0f)
-        worldViewport.unproject(tmpTap)
-        return hypot(tmpTap.x - g.first, tmpTap.y - g.second) < GATE_TAP_R
-    }
 
     /** v2.44: the player is close enough to the gate ring to enter it. */
-    private fun nearGate(): Boolean {
+    internal fun nearGate(): Boolean {
         val g = gw.worldState.gate ?: return false
         val (ppx, ppy) = with(gw.world) { val t = gw.player[Transform]; t.x to t.y }
         return hypot(ppx - g.first, ppy - g.second) < Tuning.TILE * 4f
     }
 
     /** v2.52 同期復旧度: derived progression — systems jumped + planets known + planets trusting. */
-    private fun syncPercent(): Int = SyncRestoration.percent(session.spaceSeed.toInt(), session.memory.memories.values)
+    internal fun syncPercent(): Int = SyncRestoration.percent(session.spaceSeed.toInt(), session.memory.memories.values)
 
     /** How many shards THIS jump costs (a 60%+ restored network recognizes the keeper). */
-    private fun gateNeed(): Int = SyncRestoration.gateShardsNeeded(syncPercent())
+    internal fun gateNeed(): Int = SyncRestoration.gateShardsNeeded(syncPercent())
 
     /** v2.44: a jump is possible right now — in space, at the gate, holding enough gate shards. */
-    private fun canJumpNow(): Boolean = !simMode && gw.worldState.mode == WorldMode.SPACE && nearGate() &&
+    internal fun canJumpNow(): Boolean = !simMode && gw.worldState.mode == WorldMode.SPACE && nearGate() &&
         with(gw.world) { gw.player[Materials].shards } >= gateNeed()
 
     /**
@@ -1738,7 +1022,7 @@ class GameScreen(
      * A fresh spaceSeed regenerates planets/enemies/the gate; the player keeps everything they
      * carry (PlayerCarry hauls gear, materials and wave across, so difficulty keeps climbing).
      */
-    private fun performJump() {
+    internal fun performJump() {
         pendingJump = false
         with(gw.world) {
             val m = gw.player[Materials]
@@ -1766,162 +1050,16 @@ class GameScreen(
     }
 
     /** Whether the pause carries the 4th 「この星の記憶」 entry (surface only — LP v2.25). */
-    private fun pauseHasMemory(): Boolean = gw.worldState.mode == WorldMode.SURFACE
+    internal fun pauseHasMemory(): Boolean = gw.worldState.mode == WorldMode.SURFACE
 
-    /** Route a tap to the pause/help/memory overlays, or open pause from the in-play ⏸ button (spec §5.2). */
-    private fun handlePauseTaps() {
-        if (!tapped) return
-        val w = hudViewport.worldWidth; val h = hudViewport.worldHeight
-        when (overlay) {
-            Overlay.PAUSE -> {
-                val hasMemory = pauseHasMemory()
-                when (PauseFlow.action(Modals.hitModal(Modals.pauseButtons(w, h, hasMemory, simMode), tapX, tapY) ?: -1, hasMemory)) {
-                    PauseAction.RESUME -> overlay = Overlay.NONE
-                    PauseAction.RESTART -> { if (challengeMode) enterChallenge() else newRun(); overlay = Overlay.NONE }
-                    PauseAction.HELP -> overlay = Overlay.HELP
-                    PauseAction.MEMORY -> overlay = Overlay.MEMORY
-                    PauseAction.SIM -> { toggleTraining(); overlay = Overlay.NONE } // v2.53
-                    PauseAction.TITLE -> { // v2.58: auto-save the real run, then the front door
-                        if (!simMode && !gw.gameOver.isOver) saveRun()
-                        (Gdx.app.applicationListener as? App)?.showTitle()
-                        return
-                    }
-                    PauseAction.FORGET -> overlay = Overlay.FORGET
-                    null -> {}
-                }
-            }
-            Overlay.HELP -> if (Modals.hitModal(Modals.helpButtons(w, h), tapX, tapY) != null) overlay = Overlay.PAUSE
-            Overlay.MEMORY -> if (Modals.hitModal(Modals.helpButtons(w, h), tapX, tapY) != null) overlay = Overlay.PAUSE
-            Overlay.FORGET -> when (Modals.hitModal(Modals.forgetButtons(w, h), tapX, tapY)) {
-                0 -> { // confirmed: every star forgets you (memory + disk)
-                    session.forgetUniverse()
-                    lastCardId = null; cachedCard = null // the scan card must re-read the blank memory
-                    rebuildMemoryTones()
-                    overlay = Overlay.PAUSE
-                }
-                1 -> overlay = Overlay.PAUSE
-                else -> {}
-            }
-            Overlay.INVENTORY -> handleInventoryTap(w, h)
-            Overlay.TRADER -> handleTraderTap(w, h) // v2.100 行商船
-            Overlay.NONE -> if (!choosing && !gw.gameOver.isOver) {
-                if (Modals.hitModal(listOf(Modals.pauseButton(w, h)), tapX, tapY) != null) {
-                    overlay = Overlay.PAUSE
-                } else if (touchEnabled && !fade.blocksInput && canJumpNow() && tapHitsGate()) {
-                    // v2.44: the gate itself is the jump button — same pattern as planet-tap landing.
-                    fade.start(); pendingJump = true
-                    Sfx.play("takeoff")
-                } else if (touchEnabled && !fade.blocksInput && gw.worldState.mode == WorldMode.SPACE &&
-                    canTransitionNow() && (
-                        cachedCard?.let { HudLayout.planetCard(w, h, it.lines.size).contains(tapX, tapY) } == true ||
-                            tapHitsCandidatePlanet() // v2.38: the planet ITSELF is the biggest landing button of all
-                        )
-                ) {
-                    // v2.34: on touch, tapping the scan card lands — the card is a big, obvious target where
-                    // the player is already looking, so landing no longer depends on reaching the LAND button.
-                    fade.start()
-                    Sfx.play("land")
-                }
-            }
-        }
-    }
 
-    /** Route a tap inside the inventory overlay (v2.33): tabs, slot cycling, item use/read, save, close. */
-    private fun handleInventoryTap(w: Float, h: Float) {
-        Modals.hitModal(InventoryLayout.tabs(w, h), tapX, tapY)?.let {
-            invTab = InvTab.entries[it]; readingLore = null; return
-        }
-        if (InventoryLayout.closeButton(w, h).contains(tapX, tapY)) { overlay = Overlay.NONE; readingLore = null; return }
-        when (invTab) {
-            InvTab.EQUIP -> {
-                // v2.56: the layout-editor strip sits just above the control toggle.
-                if (InventoryLayout.layoutEditToggle(w, h).contains(tapX, tapY)) {
-                    layoutEditing = true; editTarget = null; overlay = Overlay.NONE; readingLore = null
-                    return
-                }
-                if (InventoryLayout.controlToggle(w, h).contains(tapX, tapY)) { toggleControlSwap(); return }
-                val row = Modals.hitModal(InventoryLayout.slotRows(w, h), tapX, tapY) ?: return
-                GearOps.cycleSlot(gw.world, gw.player, InventoryLayout.SLOT_ORDER[row])
-            }
-            InvTab.ITEMS -> handleItemsTap(w, h)
-            InvTab.MARKET -> handleMarketTap(w, h)
-            InvTab.SAVE -> if (InventoryLayout.saveButton(w, h).contains(tapX, tapY)) {
-                if (simMode) { invNote = "訓練環境ではセーブできない"; invNoteT = SAVED_NOTE_TIME } else saveRun()
-            }
-            InvTab.MAP -> {}
-            InvTab.LOG -> {} // v2.46: the logbook is read-only
-        }
-    }
 
-    /** ITEMS tab tap (v2.34): reading → back; a consumable row → use one; a lore row → open it. */
-    private fun handleItemsTap(w: Float, h: Float) {
-        if (readingLore != null) { readingLore = null; return } // any tap closes the reading view
-        val gear = with(gw.world) { gw.player[Gear] }
-        val groups = ItemCatalog.grouped(gear.backpack)
-        val idx = Modals.hitModal(InventoryLayout.itemRows(w, h, groups.size), tapX, tapY) ?: return
-        val item = groups[idx].first
-        when (item.kind) {
-            ItemKind.CONSUMABLE -> {
-                val note = ItemUse.use(gw.world, gw.player, item) ?: return // wasted use → keep the item
-                val at = gear.backpack.indexOfFirst { it.id == item.id }
-                if (at >= 0) gear.backpack.removeAt(at)
-                invNote = note; invNoteT = SAVED_NOTE_TIME
-            }
-            ItemKind.LORE -> readingLore = item
-            // v2.47 合成: tapping a stacked weapon row (×2以上) hones two copies into one "+1".
-            // Other equipment swaps in from the EQUIP tab's slots, not from the list.
-            ItemKind.RANGED_WEAPON, ItemKind.MELEE_WEAPON -> {
-                if (groups[idx].second >= 2 && GearCraft.craftable(item)) {
-                    repeat(2) {
-                        val at = gear.backpack.indexOfFirst { it.id == item.id }
-                        if (at >= 0) gear.backpack.removeAt(at)
-                    }
-                    val up = GearCraft.honed(item)
-                    gear.backpack.add(up)
-                    tryUnlock(Achievement.FIRST_HONE) // v2.62
-                    if (GearCraft.level(up.id) >= GearCraft.MAX_LEVEL) tryUnlock(Achievement.HONED_MAX) // v2.68
-                    invNote = "合成: ${item.name} ×2 → ${up.name}"; invNoteT = SAVED_NOTE_TIME
-                    Sfx.play("levelup")
-                }
-            }
-            ItemKind.THRUSTER, ItemKind.ARMOR, ItemKind.ACCESSORY -> {}
-        }
-    }
 
     /** The inventory overlay's view model → Hud.inventory (v2.33). */
-    /** v2.60 起動診断: the current prompt panel (+ boot choice / the always-there skip). */
-    private fun drawTutorial(hudW: Float, hudH: Float) {
-        val t = tutorial ?: return
-        if (choosing || gw.gameOver.isOver || overlay != Overlay.NONE || layoutEditing) return
-        Hud.hintPanel(shapes, batch, font, hudViewport, t.prompt(touchEnabled), hudH - HINT_TOP)
-        if (t.step == TutorialStep.BOOT_PROMPT) {
-            Hud.buttonRow(shapes, batch, font, hudViewport, Modals.tutorialBootButtons(hudW, hudH))
-        } else {
-            Hud.buttonRow(shapes, batch, font, hudViewport, listOf(Modals.tutorialSkipButton(hudW, hudH)))
-        }
-    }
 
-    /** v2.60: diagnostic taps — boot choice or the skip button. True = the tap was consumed. */
-    private fun handleTutorialTaps(): Boolean {
-        val t = tutorial ?: return false
-        if (!tapped || overlay != Overlay.NONE || choosing || gw.gameOver.isOver) return false
-        val w = hudViewport.worldWidth; val h = hudViewport.worldHeight
-        if (t.step == TutorialStep.BOOT_PROMPT) {
-            when (Modals.hitModal(Modals.tutorialBootButtons(w, h), tapX, tapY)) {
-                0 -> t.begin()
-                1 -> { t.skip(); finishTutorial() }
-            }
-            return true // the boot prompt owns every tap while it is up
-        }
-        if (Modals.tutorialSkipButton(w, h).contains(tapX, tapY)) {
-            t.skip(); finishTutorial()
-            return true
-        }
-        return false
-    }
 
     /** v2.62 実績: unlock + one-line toast the first time only. */
-    private fun tryUnlock(a: Achievement) {
+    internal fun tryUnlock(a: Achievement) {
         if (Achievements.unlock(a)) {
             rewardToast = "実績解除『${a.title}』 — ${a.desc}"
             rewardToastT = TOAST_TIME
@@ -1930,7 +1068,7 @@ class GameScreen(
     }
 
     /** v2.60: same ending either way — the reward never depends on finishing vs skipping. */
-    private fun finishTutorial() {
+    internal fun finishTutorial() {
         val t = tutorial ?: return
         with(gw.world) { gw.player[Materials].dust += TutorialController.REWARD_DUST }
         rewardToast = t.completionToast()
@@ -1946,236 +1084,19 @@ class GameScreen(
         Sfx.play("levelup")
     }
 
-    /** v2.56 ボタン配置エディタ: drag any button to move it; the toolbar resizes/resets/saves. */
-    private fun handleLayoutEdit() {
-        val w = hudViewport.worldWidth; val h = hudViewport.worldHeight
-        val toolbar = Modals.layoutEditButtons(w, h)
-        if (tapped) {
-            when (Modals.hitModal(toolbar, tapX, tapY)) {
-                0 -> editTarget?.let { nudgeScale(it, +0.1f) }
-                1 -> editTarget?.let { nudgeScale(it, -0.1f) }
-                2 -> { touch.layout.tweaks = emptyMap(); editTarget = null; saveLayoutTweaks() }
-                3 -> { saveLayoutTweaks(); layoutEditing = false; layoutDragging = false; return }
-                else -> {}
-            }
-        }
-        if (Gdx.input.isTouched(0)) {
-            tmpTap.set(Gdx.input.getX(0).toFloat(), Gdx.input.getY(0).toFloat(), 0f)
-            hudViewport.unproject(tmpTap)
-            val x = tmpTap.x; val y = tmpTap.y
-            if (!layoutDragging && Modals.hitModal(toolbar, x, y) == null) {
-                val l = touch.layout
-                val hit = l.all().firstOrNull { hypot(x - l.centerX(it), y - l.centerY(it)) <= l.radiusOf(it) + 8f }
-                if (hit != null) { layoutDragging = true; editTarget = hit }
-            }
-            if (layoutDragging) editTarget?.let { b ->
-                val cur = touch.layout.tweaks[b]
-                setTweak(b, x / w, y / h, cur?.scale ?: 1f)
-            }
-        } else {
-            layoutDragging = false
-        }
-    }
 
-    private fun nudgeScale(b: TouchButton, d: Float) {
-        val cur = touch.layout.tweaks[b]
-        val fx = cur?.fx ?: (touch.layout.centerX(b) / hudViewport.worldWidth)
-        val fy = cur?.fy ?: (touch.layout.centerY(b) / hudViewport.worldHeight)
-        setTweak(b, fx, fy, (cur?.scale ?: 1f) + d)
-    }
 
-    private fun setTweak(b: TouchButton, fx: Float, fy: Float, scale: Float) {
-        touch.layout.tweaks = touch.layout.tweaks + (b to LayoutTweaks.sanitize(ButtonTweak(fx, fy, scale)))
-    }
 
-    private fun saveLayoutTweaks() {
-        try {
-            val prefs = Gdx.app.getPreferences(SETTINGS_PREFS)
-            prefs.putString(SETTINGS_LAYOUT, LayoutTweaks.toJson(touch.layout.tweaks))
-            prefs.flush()
-        } catch (_: Throwable) { /* persist best-effort */ }
-    }
 
-    private fun drawInventory() {
-        val gear = with(gw.world) { gw.player[Gear] }
-        val slotTexts = InventoryLayout.SLOT_ORDER.mapIndexed { i, slot ->
-            "${InventoryLayout.SLOT_LABELS[i]}：${gear.loadout.get(slot)?.name ?: "（なし）"}"
-        }
-        // The backpack, grouped so duplicates read as ×N; a marker tells apart what a tap does (v2.34).
-        val itemLines = ItemCatalog.grouped(gear.backpack).map { (d, n) ->
-            val count = if (n > 1) "　×$n" else ""
-            // v2.47 合成: a stacked, still-honable weapon advertises the merge its tap performs.
-            val craft = if (n >= 2 && GearCraft.craftable(d)) "【合成可】" else ""
-            when (d.kind) {
-                ItemKind.CONSUMABLE -> "【使】${d.name}$count　─　${d.desc}"
-                ItemKind.LORE -> "【読】『${d.name}』$count　─　${d.desc}"
-                else -> if (d.desc.isEmpty()) "$craft${d.name}$count" else "$craft${d.name}$count　─　${d.desc}"
-            }
-        }
-        val (ptx, pty) = with(gw.world) {
-            val t = gw.player[Transform]
-            floor(t.x / Tuning.TILE).toInt() to floor(t.y / Tuning.TILE).toInt()
-        }
-        val (marketLines, marketFooter) = marketView()
-        Hud.inventory(
-            shapes, batch, font, Fonts.title, hudViewport, invTab,
-            slotTexts, itemLines, gw.visited, ptx, pty,
-            if (invNoteT > 0f) invNote else null,
-            loreTitle = readingLore?.name, loreLines = readingLore?.lore?.split("\n") ?: emptyList(),
-            controlLabel = "操作: " + (if (controlSwap) "銃=ボタン / 近接=右スティック" else "近接=ボタン / 銃=右スティック") + "　(タップで入替)",
-            marketLines = marketLines, marketFooter = marketFooter,
-            logLines = if (invTab == InvTab.LOG) logbookLines() else emptyList(),
-            layoutEditLabel = "ボタン配置を編集", // v2.56
-        )
-    }
 
-    /** v2.46 航海日誌: the run's present tense + all-time bests + what each visited star remembers. */
-    private fun logbookLines(): List<String> {
-        val (dust, shards) = with(gw.world) {
-            val m = gw.player[Materials]; m.dust to m.shards
-        }
-        val planetLines = session.memory.memories.entries.take(10).map { (id, s) ->
-            val facts = SocietyMemorySummary.factLines(s)
-            "星$id　" + (facts.firstOrNull()?.first ?: "記憶は薄い")
-        }
-        return Logbook.lines(
-            session.spaceSeed.toInt(), gw.waveState.num, gw.gameOver.kills, dust, shards,
-            Scores.bestWave, Scores.bestKills, planetLines,
-            epithet = Epithet.of(session.memory.memories.values),
-            stability = DesyncGauge.stability(gw.waveState.num),
-            syncPercent = syncPercent(),
-        ) + Achievements.logLines() // v2.62: the service record closes the book
-    }
 
-    /** v2.43 市: rows + footer for the MARKET tab. A hostile world's stalls are simply shut. */
-    private fun marketView(): Pair<List<String>, String> {
-        val ws = gw.worldState
-        val planetId = session.landedPlanetId
-        if (ws.mode != WorldMode.SURFACE || planetId == null) {
-            return emptyList<String>() to "市は惑星の地表でのみ開かれる"
-        }
-        if (!Market.isOpen(ws.society.hostility)) {
-            return emptyList<String>() to "この星はあなたと取引しない"
-        }
-        val dust = with(gw.world) { gw.player[Materials].dust }
-        val lines = Market.stockFor(planetId).mapIndexed { i, item ->
-            if (i in marketSold) "─ 売約済 ─"
-            else "${'$'}{item.name}　【${'$'}{Market.priceFor(item, ws.society.mercy)}屑】"
-        }
-        return lines to "所持 星屑 ${'$'}dust　行をタップで購入"
-    }
 
-    /** v2.43: buy the tapped stall slot if it's still there and the dust covers it. */
-    private fun handleMarketTap(w: Float, h: Float) {
-        val ws = gw.worldState
-        val planetId = session.landedPlanetId ?: return
-        if (ws.mode != WorldMode.SURFACE || !Market.isOpen(ws.society.hostility)) return
-        val stock = Market.stockFor(planetId)
-        val idx = Modals.hitModal(InventoryLayout.marketRows(w, h, stock.size), tapX, tapY) ?: return
-        if (idx in marketSold) return
-        val item = stock[idx]
-        val price = Market.priceFor(item, ws.society.mercy)
-        with(gw.world) {
-            val mats = gw.player[Materials]
-            if (mats.dust < price) {
-                invNote = "星屑が足りない（${'$'}price 必要）"; invNoteT = SAVED_NOTE_TIME
-                return
-            }
-            mats.dust -= price
-            gw.player[Gear].backpack.add(item)
-            marketSold.add(idx)
-            invNote = "${'$'}{item.name} を購入した（-${'$'}price屑）"; invNoteT = SAVED_NOTE_TIME
-        }
-    }
 
-    /** v2.100 行商船: dim + the vessel's shelves (name left, price right) + 所持屑 + [離れる]. */
-    private fun drawTraderShop() {
-        hudViewport.apply()
-        val w = hudViewport.worldWidth; val h = hudViewport.worldHeight
-        val stock = Trader.stockFor(worldSeed)
-        val rows = TraderPanel.rows(w, h, stock.size)
-        val close = TraderPanel.closeButton(w, h)
-        if (traderNoteT > 0f) { traderNoteT -= Gdx.graphics.deltaTime; if (traderNoteT <= 0f) traderNote = null }
-        Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND)
-        shapes.projectionMatrix = hudViewport.camera.combined
-        shapes.begin(ShapeRenderer.ShapeType.Filled)
-        cEventTmp.set(0f, 0f, 0f, 0.78f); shapes.color = cEventTmp
-        shapes.rect(0f, 0f, w, h)
-        (rows + close).forEach { b ->
-            cEventTmp.set(1f, 0.82f, 0.45f, 0.20f); shapes.color = cEventTmp // the warm lamp, not HUD blue
-            shapes.rect(b.x - 1.5f, b.y - 1.5f, b.w + 3f, b.h + 3f)
-            cEventTmp.set(0.12f, 0.10f, 0.08f, 0.95f); shapes.color = cEventTmp
-            shapes.rect(b.x, b.y, b.w, b.h)
-        }
-        shapes.end()
-        batch.projectionMatrix = hudViewport.camera.combined
-        batch.begin()
-        cEventTmp.set(1f, 0.87f, 0.55f, 1f); font.color = cEventTmp
-        bannerGlyph.setText(font, "行商船")
-        font.draw(batch, bannerGlyph, (w - bannerGlyph.width) / 2f, h * 0.80f)
-        font.color = Color.WHITE
-        rows.forEachIndexed { i, row ->
-            val good = stock[i]
-            val text = if (i in traderSold) "─ 売約済 ─" else "${good.label}　【${good.price}屑】"
-            bannerGlyph.setText(font, text)
-            font.draw(batch, bannerGlyph, row.centerX - bannerGlyph.width / 2f, row.centerY + bannerGlyph.height / 2f)
-        }
-        val dust = with(gw.world) { gw.player[Materials].dust }
-        cEventTmp.set(0.62f, 0.68f, 0.80f, 1f); font.color = cEventTmp
-        bannerGlyph.setText(font, traderNote ?: "所持 星屑 $dust　行をタップで購入")
-        font.draw(batch, bannerGlyph, (w - bannerGlyph.width) / 2f, close.y + close.h + 30f)
-        font.color = Color.WHITE
-        bannerGlyph.setText(font, close.label)
-        font.draw(batch, bannerGlyph, close.centerX - bannerGlyph.width / 2f, close.centerY + bannerGlyph.height / 2f)
-        batch.end()
-    }
 
-    /** v2.100 行商船: buy the tapped shelf slot if the dust covers it, or step away. */
-    private fun handleTraderTap(w: Float, h: Float) {
-        if (TraderPanel.closeButton(w, h).contains(tapX, tapY)) { overlay = Overlay.NONE; Sfx.play("scan"); return }
-        val stock = Trader.stockFor(worldSeed)
-        val idx = Modals.hitModal(TraderPanel.rows(w, h, stock.size), tapX, tapY) ?: return
-        if (idx in traderSold) return
-        val good = stock[idx]
-        with(gw.world) {
-            val mats = gw.player[Materials]
-            if (mats.dust < good.price) {
-                traderNote = "星屑が足りない（${good.price} 必要）"; traderNoteT = SAVED_NOTE_TIME
-                Sfx.play("hit")
-                return
-            }
-            mats.dust -= good.price
-            when (good.kind) {
-                TraderGoodKind.MED -> { val hlt = gw.player[Health]; hlt.hp = minOf(hlt.hpMax, hlt.hp + Trader.MED_HEAL) }
-                TraderGoodKind.AMMO -> {
-                    val am = gw.player[Ammo]
-                    am.ammo9 += Trader.AMMO9; am.ammo12 += Trader.AMMO12
-                    am.ammoBeam += Trader.AMMO_BEAM; am.ammoNade += Trader.AMMO_NADE
-                }
-                TraderGoodKind.GEAR -> good.item?.let { gw.player[Gear].backpack.add(it) }
-                TraderGoodKind.SHARD -> mats.shards += 1
-            }
-            traderSold.add(idx)
-            traderNote = "${good.label} を購入した（-${good.price}屑）"; traderNoteT = SAVED_NOTE_TIME
-            Sfx.play("levelup")
-            if (!simMode) tryUnlock(Achievement.TRADER_CLIENT)
-        }
-    }
 
-    /** v2.39: flip the touch roles of the ML button and the right stick, and persist the choice. */
-    private fun toggleControlSwap() {
-        controlSwap = !controlSwap
-        try {
-            val p = Gdx.app.getPreferences(SETTINGS_PREFS)
-            p.putBoolean(SETTINGS_SWAP, controlSwap)
-            p.flush()
-        } catch (_: Throwable) { /* persist best-effort */ }
-        invNote = if (controlSwap) "入替: 銃=ボタン / 近接=右スティック" else "入替: 近接=ボタン / 銃=右スティック"
-        invNoteT = SAVED_NOTE_TIME
-    }
 
     /** v2.33 SAVE tab: snapshot the run (world identity + player state + gear) and persist it. */
-    private fun saveRun() {
+    internal fun saveRun() {
         val ws = gw.worldState
         val dto = with(gw.world) {
             val t = gw.player[Transform]; val hlt = gw.player[Health]; val sta = gw.player[Stamina]
@@ -2212,7 +1133,7 @@ class GameScreen(
      * from its saved seed (enemy positions reset — the save keeps the player, gear and progress).
      * Returns false when there is no usable save, in which case the caller starts a fresh run.
      */
-    private fun tryRestoreRun(): Boolean {
+    internal fun tryRestoreRun(): Boolean {
         val dto = runStore.load() ?: return false
         val mode = WorldMode.entries.firstOrNull { it.name == dto.mode } ?: return false
         val biome = dto.biome?.let { b -> PlanetBiome.entries.firstOrNull { it.name == b } }
@@ -2270,7 +1191,7 @@ class GameScreen(
         return true
     }
 
-    private fun step(delta: Float) {
+    internal fun step(delta: Float) {
         // v2.85: hitstop freezes the accumulator feed, slow-mo starves it — the sim itself
         // still runs whole FIXED_DT steps, so determinism is untouched.
         val dt = minOf(Constants.MAX_DT, delta) * gw.fx.simTimeScale()
@@ -2285,7 +1206,7 @@ class GameScreen(
         if (steps >= Constants.MAX_STEPS) accumulator = 0f
     }
 
-    private fun updateCamera(delta: Float, px: Float, py: Float, fx: Float, fy: Float) {
+    internal fun updateCamera(delta: Float, px: Float, py: Float, fx: Float, fy: Float) {
         val tgX = px + fx * Tuning.CAM_LOOK_AHEAD
         val tgY = py + fy * Tuning.CAM_LOOK_AHEAD
         if (!camInit) { camX = tgX; camY = tgY; camInit = true }
