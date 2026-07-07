@@ -138,7 +138,7 @@ internal fun GameScreen.pollGameplayTouch(paused: Boolean) {
             val canLand = (ws.mode == WorldMode.SPACE && ws.landingCandidate != null) ||
                 (ws.mode == WorldMode.SURFACE && playerOnEscapePad())
             val hasOverclock = with(gw.world) { gw.player[Gear].loadout.hasOverclockThruster }
-            touch.poll(input, hudViewport, tBlocks, tw.mag, tw.def.magSize, canLand, hasOverclock, controlSwap, io.github.panda17tk.arpg.save.TuneMode.active)
+            touch.poll(input, hudViewport, tBlocks, tw.mag, tw.def.magSize, canLand, hasOverclock, controlSwap, io.github.panda17tk.arpg.save.TuneMode.active && !challengeMode) // v2.106 公正化
         }
     }
 

@@ -61,9 +61,13 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
         // v2.39 beam charge: while the beam is drawn and being aimed (right stick / K held), the
         // emitter charges 0..1; the release shot gets thicker + harder the longer it charged.
         if (def.id == "beam" || def.id == "railgun") { // v2.101: the railgun charges the same way
+            if (cd.chargeId != def.id) { cd.beamCharge = 0f; cd.chargeId = def.id } // v2.106: no cross-carry
             if ((input.aiming || input.fire) && cd.shoot <= 0f && w.reloadT <= 0f) {
                 val chargeTime = if (def.id == "railgun") RAIL_CHARGE_TIME else BEAM_CHARGE_TIME
+                val before = cd.beamCharge
                 cd.beamCharge = (cd.beamCharge + deltaTime / chargeTime).coerceAtMost(1f)
+                // v2.106: the settled aim announces itself — once per charge cycle.
+                if (before < 1f && cd.beamCharge >= 1f) fx.requestSfx("rail_ready", if (def.id == "railgun") 1f else 1.2f, 0.7f)
             }
         } else if (cd.beamCharge > 0f) cd.beamCharge = 0f // switching away drops the charge
         // Manual-fire weapons (beam/grenade) shoot on the release edge; everything else fires while held.
@@ -97,6 +101,7 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
                 // pierce corridor widens with it. (The beam always pierces every mob on the ray.)
                 val charge = cd.beamCharge
                 cd.beamCharge = 0f
+                fx.requestSfx("beam", 1f + charge * 0.2f) // v2.106
                 val chargeDmg = 1f + charge * BEAM_CHARGE_DMG
                 val beamHalfW = BEAM_W_MIN + charge * (BEAM_W_MAX - BEAM_W_MIN)
                 val hit = BeamRay.cast(map, t.x, t.y, dirX, dirY, BEAM_RANGE)
@@ -156,6 +161,7 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
                 // A settled aim pays: half power snapped, full power after RAIL_CHARGE_TIME of aiming.
                 val charge = cd.beamCharge
                 cd.beamCharge = 0f
+                fx.requestSfx("rail", 1f + charge * 0.25f) // v2.106: the thunk hardens with the charge
                 val dealt = def.dmg * mods.gunMul * gearGun * (0.5f + 0.5f * charge)
                 val railHalfW = RAIL_W + charge * 1.5f
                 fx.spawnBeam(t.x, t.y, t.x + dirX * RAIL_RANGE, t.y + dirY * RAIL_RANGE, railHalfW)
@@ -181,6 +187,7 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
             }
             "blade" -> { // v2.101 帰還刃: one blade, out and back — no throw while it's in flight
                 if (bladeFamily.numEntities > 0) return
+                fx.requestSfx("blade_throw") // v2.106
                 cd.shoot = def.fireRate * mods.fireMul * gradeFireRate
                 fx.addKick(-dirX * kick, -dirY * kick)
                 world.entity {
@@ -192,6 +199,7 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
                 if (w.mag <= 0) return
                 input.fireReleaseT = 0f // the buffered release is consumed by this shot (v2.42)
                 w.mag--; cd.shoot = def.fireRate * mods.fireMul * gradeFireRate
+                fx.requestSfx("shot", 0.6f, 0.8f) // v2.106: the launcher's low cough
                 fx.addKick(-dirX * kick, -dirY * kick)
                 world.entity {
                     it += Transform(x = t.x + dirX * Tuning.MUZZLE_OFFSET, y = t.y + dirY * Tuning.MUZZLE_OFFSET)
@@ -201,6 +209,9 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
             else -> {
                 if (w.mag <= 0) return
                 w.mag--; cd.shoot = def.fireRate * mods.fireMul * gradeFireRate
+                // v2.106: one voice, five accents — the weapon class is audible without looking.
+                val shotPitch = when (def.id) { "shotgun" -> 0.62f; "rifle" -> 0.82f; "smg" -> 1.3f; "mg" -> 1.12f; else -> 1f }
+                fx.requestSfx("shot", shotPitch, 0.7f)
                 fx.addKick(-dirX * kick, -dirY * kick)
                 // v2.40 variants: the equipped gun shapes the ballistics — spread, muzzle velocity, homing.
                 val spread = def.spread * (gradeItem?.spreadMul ?: 1f)
