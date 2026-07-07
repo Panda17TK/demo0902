@@ -16,6 +16,14 @@ class Mods(
     var ammoMul: Float = 1f,
     var healOnKill: Float = 0f,
     var wallHp: Float = 70f,
+    // v2.107 強化カード拡充: the new dials (all neutral by default; saved with the run)
+    var reloadMul: Float = 1f,      // 装填の手際 — multiplies every reload duration
+    var blastMul: Float = 1f,       // 爆風拡大 — grenade + beam-impact blast radius
+    var regenAdd: Float = 0f,       // 自己修復 — added to the rest-mend rate (hp/s)
+    var dashCostMul: Float = 1f,    // 縮地の呼吸 — multiplies dash/blink stamina costs
+    var bulletSpeedMul: Float = 1f, // 弾速強化 — multiplies muzzle velocity
+    var armorMul: Float = 1f,       // 装甲圧延 — multiplies damage TAKEN (smaller = tougher)
+    var pickupRange: Float = 0f,    // 回収の手 — px added to the pickup radius
 ) : Component<Mods> {
     override fun type() = Mods
     companion object : ComponentType<Mods>()

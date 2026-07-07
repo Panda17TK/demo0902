@@ -38,7 +38,7 @@ class PickupSystem : IteratingSystem(family { all(Pickup, Transform) }) {
                 val pt = p[Transform]
                 // v2.35: a worn magnet (or the timed field magnet) widens the collection reach ×3.
                 val magnet = p[Buff].magnetT > 0f || p.getOrNull(Gear)?.loadout?.has(ItemTrait.MAGNET) == true
-                val pickR = if (magnet) PICK_R * MAGNET_MUL else PICK_R
+                val pickR = (if (magnet) PICK_R * MAGNET_MUL else PICK_R) + p[Mods].pickupRange // v2.107 回収の手
                 if (abs(pt.x - t.x) < pickR && abs(pt.y - t.y) < pickR) {
                     when (pk.kind) {
                         "blocks" -> p[Materials].blocks += pk.amount

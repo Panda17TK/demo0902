@@ -996,7 +996,7 @@ class GameScreen(
     internal fun applyUpgrade(u: Upgrade) {
         val cfg = configStore.config.upgrades
         with(gw.world) {
-            Upgrades.apply(u.id, cfg, gw.player[Mods], gw.player[Health], gw.player[Ammo], gw.player[Materials])
+            Upgrades.apply(u.id, cfg, gw.player[Mods], gw.player[Health], gw.player[Ammo], gw.player[Materials], gw.player[Stamina]) // v2.107
         }
         Sfx.play("levelup")
     }
@@ -1121,6 +1121,9 @@ class GameScreen(
                 mags = ars.weapons.map { it.mag },
                 gunMul = mods.gunMul, fireMul = mods.fireMul, meleeMul = mods.meleeMul, moveMul = mods.moveMul,
                 ammoMul = mods.ammoMul, healOnKill = mods.healOnKill, wallHp = mods.wallHp,
+                reloadMul = mods.reloadMul, blastMul2 = mods.blastMul, regenAdd = mods.regenAdd, // v2.107
+                dashCostMul = mods.dashCostMul, bulletSpeedMul = mods.bulletSpeedMul,
+                armorMul = mods.armorMul, pickupRange = mods.pickupRange,
                 loadout = EquipSlot.entries.mapNotNull { s -> gear.loadout.get(s)?.let { s.name to it.id } }.toMap(),
                 backpack = gear.backpack.map { it.id },
                 curWeapon = ars.curW,
@@ -1176,6 +1179,9 @@ class GameScreen(
             val mods = gw.player[Mods]
             mods.gunMul = dto.gunMul; mods.fireMul = dto.fireMul; mods.meleeMul = dto.meleeMul; mods.moveMul = dto.moveMul
             mods.ammoMul = dto.ammoMul; mods.healOnKill = dto.healOnKill; mods.wallHp = dto.wallHp
+            mods.reloadMul = dto.reloadMul; mods.blastMul = dto.blastMul2; mods.regenAdd = dto.regenAdd // v2.107
+            mods.dashCostMul = dto.dashCostMul; mods.bulletSpeedMul = dto.bulletSpeedMul
+            mods.armorMul = dto.armorMul; mods.pickupRange = dto.pickupRange
             val ars = gw.player[Arsenal]
             dto.mags.forEachIndexed { i, m -> if (i < ars.weapons.size) ars.weapons[i].mag = m }
             ars.curW = dto.curWeapon.coerceIn(0, ars.weapons.size - 1)

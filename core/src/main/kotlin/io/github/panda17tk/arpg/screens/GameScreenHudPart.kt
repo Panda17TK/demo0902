@@ -173,7 +173,12 @@ internal fun GameScreen.drawHud(paused: Boolean, sta: Float, staMax: Float, over
             Hud.upgradeCards(
                 shapes, batch, font, hudViewport, gw.waveState.num,
                 Modals.upgradeCards(hudW, hudH, choices.size),
-                choices.map { it.name }, choices.map { Upgrades.desc(it, cfg) },
+                choices.map { it.name },
+                choices.map { u -> // v2.107: the card shows YOUR numbers, before and after
+                    with(gw.world) {
+                        Upgrades.desc(u, cfg) + "　" + Upgrades.preview(u, cfg, gw.player[Mods], gw.player[Health], gw.player[Stamina])
+                    }
+                },
             )
         }
         if (gw.gameOver.isOver) {

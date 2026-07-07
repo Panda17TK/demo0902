@@ -112,7 +112,7 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
                 val b1 = Collision.moveAndCollide(map, t.x, t.y, b.halfW, b.halfH, bdx * blinkDist, 0f)
                 val b2 = Collision.moveAndCollide(map, b1.x, b1.y, b.halfW, b.halfH, 0f, bdy * blinkDist)
                 t.x = b2.x; t.y = b2.y
-                if (!staInf) s.value = (s.value - BLINK_COST).coerceAtLeast(0f)
+                if (!staInf) s.value = (s.value - BLINK_COST * mods.dashCostMul).coerceAtLeast(0f) // v2.107
                 cds.blink = BLINK_CD
                 blinked = true
             }
@@ -210,6 +210,7 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
             }
             // Full throttle: its own burn (twice the dash rate — スタミナ消費2倍) + doubled dash costs.
             if (ft) drain = drain * FullThrottle.DRAIN_MUL + BUTTON_DASH_DRAIN * FullThrottle.DRAIN_MUL
+            drain *= mods.dashCostMul // v2.107 縮地の呼吸
             s.value = if (drain > 0f) (s.value - drain * dt).coerceAtLeast(0f)
             else (s.value + config.player.staRegen * loadout.staRegenMul * dt).coerceAtMost(s.max)
             if (s.value <= 0.05f) s.overheat = true            // fully drained → overheat (no stamina actions)

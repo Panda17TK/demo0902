@@ -180,7 +180,7 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         players.forEach { e ->
             playerRef.t = e[Transform]; playerRef.h = e[Health]; playerRef.v = e[Velocity]
             playerRef.x = e[Transform].x; playerRef.y = e[Transform].y
-            playerRef.dmgMul = (e.getOrNull(Gear)?.loadout?.damageTakenMul ?: 1f) * difficulty.dmgTakenMul // v2.97
+            playerRef.dmgMul = (e.getOrNull(Gear)?.loadout?.damageTakenMul ?: 1f) * difficulty.dmgTakenMul * (e.getOrNull(io.github.panda17tk.arpg.ecs.components.Mods)?.armorMul ?: 1f) // v2.97; v2.107 装甲圧延
         }
         return playerRef
     }

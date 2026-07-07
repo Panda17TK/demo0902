@@ -32,6 +32,10 @@ data class RunSaveDto(
     val mags: List<Int> = emptyList(),
     val gunMul: Float = 1f, val fireMul: Float = 1f, val meleeMul: Float = 1f, val moveMul: Float = 1f,
     val ammoMul: Float = 1f, val healOnKill: Float = 0f, val wallHp: Float = 0f,
+    // v2.107 強化カード拡充 (append-only; old saves read the neutral defaults)
+    val reloadMul: Float = 1f, val blastMul2: Float = 1f, val regenAdd: Float = 0f,
+    val dashCostMul: Float = 1f, val bulletSpeedMul: Float = 1f,
+    val armorMul: Float = 1f, val pickupRange: Float = 0f,
     // Gear (v2.33): slot name → item id; backpack as ids
     val loadout: Map<String, String> = emptyMap(),
     val backpack: List<String> = emptyList(),

@@ -22,4 +22,13 @@ data class UpgradesConfig(
     val ammoRefill12: Int = 8,
     val ammoRefillBeam: Int = 2,
     val ammoRefillNade: Int = 1,
+    // v2.107 強化カード拡充: the eight new cards' magnitudes
+    val reloadFastMul: Float = 0.8f,   // 装填の手際 (multiplicative — smaller is faster)
+    val staminaAdd: Float = 25f,       // 推進拡張 (additive, refills the gained portion)
+    val blastUpMul: Float = 1.25f,     // 爆風拡大
+    val regenAddUp: Float = 0.5f,      // 自己修復 (+hp/s while resting)
+    val dashEffMul: Float = 0.8f,      // 縮地の呼吸 (multiplicative cost cut)
+    val bulletSpeedUpMul: Float = 1.2f, // 弾速強化
+    val armorUpMul: Float = 0.9f,      // 装甲圧延 (damage-taken multiplier)
+    val magnetAdd: Float = 24f,        // 回収の手 (px)
 )

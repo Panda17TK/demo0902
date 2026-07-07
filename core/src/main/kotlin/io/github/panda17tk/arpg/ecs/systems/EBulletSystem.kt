@@ -40,7 +40,7 @@ class EBulletSystem : IteratingSystem(family { all(EBullet, Transform) }) {
         var pDmgMul = 1f // v2.33: armor — scales enemy-bullet damage to the player
         players.forEach { e ->
             pt = e[Transform]; ph = e[Health]; pv = e[Velocity]; pb = e[Body]; pdash = e[PlayerTag].dashing
-            pDmgMul = (e.getOrNull(Gear)?.loadout?.damageTakenMul ?: 1f) * difficulty.dmgTakenMul // v2.97
+            pDmgMul = (e.getOrNull(Gear)?.loadout?.damageTakenMul ?: 1f) * difficulty.dmgTakenMul * (e.getOrNull(io.github.panda17tk.arpg.ecs.components.Mods)?.armorMul ?: 1f) // v2.97; v2.107
         }
 
         if (b.homing > 0f && pt != null) {
