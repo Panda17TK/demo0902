@@ -10,6 +10,7 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import io.github.panda17tk.arpg.map.DecorKind
 import io.github.panda17tk.arpg.ecs.components.Bullet
+import io.github.panda17tk.arpg.ecs.components.Boomerang
 import io.github.panda17tk.arpg.ecs.components.EBullet
 import io.github.panda17tk.arpg.ecs.components.Facing
 import io.github.panda17tk.arpg.ecs.components.Grenade
@@ -60,6 +61,8 @@ class SceneRenderer {
     private val cBulletCore = Color.valueOf("eaf4ff")
     private val cEbGlow = Color(1f, 0.55f, 0.55f, 0.5f)
     private val cEbCore = Color.valueOf("ffd0d0")
+    private val cBladeGlow = Color(0.6f, 0.95f, 0.75f, 0.28f) // v2.101 帰還刃
+    private val cBladeCore = Color.valueOf("cfe8d8")
     private val cEbMine = Color.valueOf("ff6b6b")
     private val cGren = Color.valueOf("5b6b3a")
     private val cFuseOn = Color.valueOf("ff5a3a")
@@ -408,6 +411,15 @@ class SceneRenderer {
                 val r = if (eb.mine) 6f else 4f
                 shapes.color = cEbGlow; shapes.circle(et.x, et.y, r, 10)
                 shapes.color = if (eb.mine) cEbMine else cEbCore; shapes.circle(et.x, et.y, 2f, 6)
+            }
+            // v2.101 帰還刃: a spinning cross of blades with a faint jade halo.
+            gw.world.family { all(Boomerang, Transform) }.forEach { e ->
+                val kt = e[Transform]; val k = e[Boomerang]
+                shapes.color = cBladeGlow; shapes.circle(kt.x, kt.y, 9f, 12)
+                val a1 = k.spin; val a2 = k.spin + (Math.PI / 2.0).toFloat()
+                shapes.color = cBladeCore
+                Draw.orientedRect(shapes, kt.x, kt.y, cos(a1), sin(a1), -11f, 22f, 2.2f)
+                Draw.orientedRect(shapes, kt.x, kt.y, cos(a2), sin(a2), -11f, 22f, 2.2f)
             }
         }
     }
