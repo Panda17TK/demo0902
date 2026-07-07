@@ -27,16 +27,18 @@ class InMemoryMemoryStore : MemoryStore {
  * Gdx Preferences backend — one JSON string under [KEY] (a few KB for a whole star system).
  * Fully defensive like Scores: no backend or corrupt JSON never throws; it just reads as empty.
  */
-class PreferencesMemoryStore : MemoryStore {
+class PreferencesMemoryStore(slot: Int = 0) : MemoryStore { // v2.103: one universe per slot
+    private val key = SaveSlots.keyFor(KEY, slot)
+
     override fun load(): Pair<Long, PlanetMemoryBook>? = try {
-        val text = Gdx.app.getPreferences(PREFS).getString(KEY, "")
+        val text = Gdx.app.getPreferences(PREFS).getString(key, "")
         if (text.isNullOrEmpty()) null else PlanetMemoryCodec.fromJson(text)
     } catch (_: Throwable) { null }
 
     override fun save(spaceSeed: Long, book: PlanetMemoryBook) {
         try {
             val p = Gdx.app.getPreferences(PREFS)
-            p.putString(KEY, PlanetMemoryCodec.toJson(book, spaceSeed))
+            p.putString(key, PlanetMemoryCodec.toJson(book, spaceSeed))
             p.flush()
         } catch (_: Throwable) { /* persist best-effort */ }
     }
@@ -44,7 +46,7 @@ class PreferencesMemoryStore : MemoryStore {
     override fun clear() {
         try {
             val p = Gdx.app.getPreferences(PREFS)
-            p.remove(KEY)
+            p.remove(key)
             p.flush()
         } catch (_: Throwable) { /* best-effort */ }
     }

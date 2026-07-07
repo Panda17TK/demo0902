@@ -154,6 +154,7 @@ class GameScreen(
     private val startFresh: Boolean = false, // v2.58 タイトル「はじめから」: abandon the saved run
     private val startInTraining: Boolean = false, // v2.58 タイトル「旧式戦闘訓練」
     private val startInChallenge: Boolean = false, // v2.102 タイトル「検証ラン」: 今週の宙域
+    private val slot: Int = 0, // v2.103 セーブスロット: which journey this screen plays
 ) : ScreenAdapter() {
     private val input = InputState()
     private val configStore = ConfigStore()
@@ -222,14 +223,14 @@ class GameScreen(
 
     // Living Planets run state (R1): seeds + per-planet memory live in the pure RunSession; this class
     // only executes the transitions it plans. rememberedT is a draw-side timer, so it stays here.
-    private val session = RunSession(store = PreferencesMemoryStore())
+    private val session = RunSession(store = PreferencesMemoryStore(slot)) // v2.103: per-slot universe
     private var rememberedT = 0f // seconds left to show the return-visit greeting in the HUD
 
     // Inventory overlay (v2.33): tab state + the run-save backend + a brief note flash (セーブした /
     // a consumable's effect). readingLore (v2.34) is the readable currently open on the ITEMS tab.
-    private val runStore = PreferencesRunSaveStore()
+    private val runStore = PreferencesRunSaveStore(slot) // v2.103: per-slot run save
     // v2.46 遺品回収: what the last death left floating in the void (half the dust, every shard).
-    private val relicStore = PreferencesRelicStore()
+    private val relicStore = PreferencesRelicStore(slot) // v2.103: each journey's own relic
     private var invTab = InvTab.EQUIP
     private var invNote: String? = null
     private var invNoteT = 0f
