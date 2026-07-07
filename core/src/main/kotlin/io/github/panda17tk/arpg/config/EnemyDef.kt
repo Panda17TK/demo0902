@@ -7,8 +7,8 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class AttackSpec(
     val type: String,
-    val cd: Float = 1f,
-    val dmg: Float = 0f,
+    var cd: Float = 1f,  // v2.99: tunable live (roster knob)
+    var dmg: Float = 0f, // v2.99: tunable live (roster knob)
     val range: Float = 0f,
     val arc: Float = 360f,
     val speed: Float = 0f,
@@ -37,8 +37,8 @@ data class EnemyDef(
     val name: String,
     val tier: String = "normal",
     val color: String = "#b24a4a",
-    val hp: Float,
-    val speed: Float,
+    var hp: Float,    // v2.99: tunable live (roster knob)
+    var speed: Float, // v2.99: tunable live (roster knob)
     val w: Float = 22f,
     val h: Float = 22f,
     val seeRange: Float = 240f,

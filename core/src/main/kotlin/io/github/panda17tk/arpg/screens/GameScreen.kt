@@ -890,7 +890,10 @@ class GameScreen(
             shapes.rect(row.x - 1.5f, row.y - 1.5f, row.w + 3f, row.h + 3f)
             cEventTmp.set(0.09f, 0.12f, 0.18f, 0.95f); shapes.color = cEventTmp
             shapes.rect(row.x, row.y, row.w, row.h)
-            for (btn in listOf(io.github.panda17tk.arpg.ui.TuningPanel.minus(row), io.github.panda17tk.arpg.ui.TuningPanel.plus(row))) {
+            for (btn in listOf(
+                io.github.panda17tk.arpg.ui.TuningPanel.minusBig(row), io.github.panda17tk.arpg.ui.TuningPanel.minus(row),
+                io.github.panda17tk.arpg.ui.TuningPanel.plus(row), io.github.panda17tk.arpg.ui.TuningPanel.plusBig(row),
+            )) {
                 cEventTmp.set(0.16f, 0.22f, 0.32f, 0.95f); shapes.color = cEventTmp
                 shapes.rect(btn.x, btn.y, btn.w, btn.h)
             }
@@ -911,16 +914,23 @@ class GameScreen(
         rows.forEachIndexed { i, row ->
             val param = tuneParams.getOrNull(pageStart + i) ?: return@forEachIndexed
             val bx = font.data.scaleX; val by = font.data.scaleY
-            bannerGlyph.setText(font, "${param.name}　${param.display()}")
-            val maxW = row.w - 100f
+            // v2.99: the shipped 基準 rides beside the live value; drifted rows glow warm.
+            val text = "${param.name}　${param.display()}／基準${param.displayDef()}"
+            if (param.changed()) { cEventTmp.set(1f, 0.85f, 0.55f, 1f); font.color = cEventTmp }
+            bannerGlyph.setText(font, text)
+            val maxW = row.w - 150f
             if (bannerGlyph.width > maxW) {
                 val k = maxW / bannerGlyph.width
                 font.data.setScale(bx * k, by * k)
-                bannerGlyph.setText(font, "${param.name}　${param.display()}")
+                bannerGlyph.setText(font, text)
             }
             font.draw(batch, bannerGlyph, row.centerX - bannerGlyph.width / 2f, row.centerY + bannerGlyph.height / 2f)
             font.data.setScale(bx, by)
-            for (btn in listOf(io.github.panda17tk.arpg.ui.TuningPanel.minus(row), io.github.panda17tk.arpg.ui.TuningPanel.plus(row))) {
+            font.color = Color.WHITE
+            for (btn in listOf(
+                io.github.panda17tk.arpg.ui.TuningPanel.minusBig(row), io.github.panda17tk.arpg.ui.TuningPanel.minus(row),
+                io.github.panda17tk.arpg.ui.TuningPanel.plus(row), io.github.panda17tk.arpg.ui.TuningPanel.plusBig(row),
+            )) {
                 bannerGlyph.setText(font, btn.label)
                 font.draw(batch, bannerGlyph, btn.centerX - bannerGlyph.width / 2f, btn.centerY + bannerGlyph.height / 2f)
             }
@@ -942,14 +952,38 @@ class GameScreen(
             0 -> { tunePage = (tunePage - 1 + pages) % pages; Sfx.play("scan"); return }
             1 -> { tunePage = (tunePage + 1) % pages; Sfx.play("scan"); return }
             2 -> { tuningOpen = false; Sfx.play("scan"); return }
+            3 -> { exportTuning(); return } // v2.99 書き出し
+            4 -> { tuneParams.forEach { it.reset() }; Sfx.play("levelup"); return } // v2.99 全て既定へ
         }
         val rows = io.github.panda17tk.arpg.ui.TuningPanel.rows(w, h)
         val pageStart = tunePage * io.github.panda17tk.arpg.ui.TuningPanel.ROWS
         rows.forEachIndexed { i, row ->
             val param = tuneParams.getOrNull(pageStart + i) ?: return@forEachIndexed
-            if (io.github.panda17tk.arpg.ui.TuningPanel.minus(row).contains(tapX, tapY)) { param.nudge(-1); Sfx.play("shot") }
-            else if (io.github.panda17tk.arpg.ui.TuningPanel.plus(row).contains(tapX, tapY)) { param.nudge(+1); Sfx.play("shot") }
+            when {
+                io.github.panda17tk.arpg.ui.TuningPanel.minusBig(row).contains(tapX, tapY) -> { param.nudge(-1, big = true); Sfx.play("shot") }
+                io.github.panda17tk.arpg.ui.TuningPanel.minus(row).contains(tapX, tapY) -> { param.nudge(-1); Sfx.play("shot") }
+                io.github.panda17tk.arpg.ui.TuningPanel.plus(row).contains(tapX, tapY) -> { param.nudge(+1); Sfx.play("shot") }
+                io.github.panda17tk.arpg.ui.TuningPanel.plusBig(row).contains(tapX, tapY) -> { param.nudge(+1, big = true); Sfx.play("shot") }
+            }
         }
+    }
+
+    /** v2.99 書き出し: the knob table as plain text — external storage first, app-local fallback. */
+    private fun exportTuning() {
+        val text = io.github.panda17tk.arpg.config.TuningExport.render("drift 調整パラメータ", tuneParams)
+        val written = try {
+            val fh = Gdx.files.external("drift-tuning.txt")
+            fh.writeString(text, false)
+            fh.file().absolutePath
+        } catch (_: Throwable) {
+            try {
+                val fh = Gdx.files.local("drift-tuning.txt")
+                fh.writeString(text, false)
+                fh.file().absolutePath
+            } catch (_: Throwable) { null }
+        }
+        eventBanner.start(if (written != null) "書き出した → $written" else "書き出しに失敗した")
+        Sfx.play(if (written != null) "levelup" else "hit")
     }
 
     /** v2.93 エンディング: dim + the dialogue pages / choice / epilogue, glass style. */
