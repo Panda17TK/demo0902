@@ -403,15 +403,25 @@ object WorldFactory {
             worldState.spawnTweaks = tweaks
             // v2.95 地下遺構: the sealed chamber holds a keeper and its hoard.
             vaultPos?.let { (vxp, vyp) ->
+                val form = io.github.panda17tk.arpg.map.SurfaceVault.formFor(seed) // v2.109 深掘り
                 val gKey = config.enemies.entries.firstOrNull { it.value.tier == "midboss" && it.value.biome == biome }?.key
                 val gDef = config.enemies[gKey] ?: config.enemies["brute"]
                 if (gDef != null) {
-                    val g = MobFactory.spawn(world, gDef, vxp, vyp - Tuning.TILE, tribe = tribes.tribeOf(vxp, vyp))
+                    // 二重輪 (form 1): the heart is walled — the keeper waits at the exact centre.
+                    val gy = if (form == 1) vyp else vyp - Tuning.TILE
+                    val g = MobFactory.spawn(world, gDef, vxp, gy, tribe = tribes.tribeOf(vxp, vyp))
                     with(world) { g[Mob].level = 6 } // the vault's keeper outranks the field
+                    if (form == 2) { // 大房: two mouths, two watchers
+                        val g2 = MobFactory.spawn(world, gDef, vxp, vyp + Tuning.TILE, tribe = tribes.tribeOf(vxp, vyp))
+                        with(world) { g2[Mob].level = 5 }
+                    }
                 }
-                Pickups.spawn(world, "dust", 80, vxp, vyp + 8f)
+                Pickups.spawn(world, "dust", if (form == 2) 140 else 80, vxp, vyp + 8f) // 大房 pays for its second watcher
                 Pickups.spawn(world, "med", 40, vxp - 14f, vyp)
                 Pickups.spawn(world, "mat_" + biome.name.lowercase(), 1, vxp + 14f, vyp)
+                if (form == 2) { // ...and a weapon cache, like the wrecks carry
+                    Pickups.spawn(world, "item:" + ItemCatalog.gunFor(Rng(seed xor 0x7A03CAFEL).nextInt(1000)).id, 1, vxp, vyp - 8f)
+                }
             }
         }
 

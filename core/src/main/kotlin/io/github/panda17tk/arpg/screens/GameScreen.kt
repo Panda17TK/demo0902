@@ -757,7 +757,8 @@ class GameScreen(
             if (pid != null && qb != null && ws.questStage < PlanetQuest.CHAIN && !ws.society.childKilled) {
                 val q = PlanetQuest.questFor(pid, qb, ws.questStage)
                 if (questProgress(q.kind, ws) >= q.target) {
-                    with(gw.world) { gw.player[Materials].dust += q.rewardDust }
+                    val pay = io.github.panda17tk.arpg.planet.WeatherQuest.rewardFor(q, ws.weather) // v2.109 天候×依頼
+                    with(gw.world) { gw.player[Materials].dust += pay }
                     ws.questStage++
                     ws.questBaseKills = ws.questKills; ws.questBaseElites = ws.questElites
                     ws.questBaseDust = ws.questDust; ws.questBasePredators = ws.questPredators
@@ -765,8 +766,8 @@ class GameScreen(
                     questChipKey = -1 // the chip rebuilds for the next request
                     ws.recentEvents.add(
                         PlanetEvent(
-                            if (ws.questStage < PlanetQuest.CHAIN) "依頼を果たした +${q.rewardDust}屑 — 次の頼みが届いた"
-                            else "依頼を果たした +${q.rewardDust}屑 — この星の頼みはすべて済んだ",
+                            if (ws.questStage < PlanetQuest.CHAIN) "依頼を果たした +${pay}屑 — 次の頼みが届いた"
+                            else "依頼を果たした +${pay}屑 — この星の頼みはすべて済んだ",
                             EventKind.MERCY,
                         ),
                     )
