@@ -134,6 +134,7 @@ class SceneRenderer {
         drawGate(shapes, gw, animTime)
         drawControlCore(shapes, gw, animTime) // v2.93: the ending, waiting off the gate's shoulder
         drawWrecks(shapes, gw, animTime)
+        drawTrader(shapes, gw, animTime) // v2.100: the friendly vessel, if this sky hosts one
         drawMemoryCore(shapes, gw, animTime)
         drawBases(shapes, gw, animTime)
         shapes.end()
@@ -646,6 +647,27 @@ class SceneRenderer {
             shapes.color = cWreckLight
             shapes.circle(wx + 10f, wy - 4f, 2.6f + 1.4f * blink, 10)
         }
+    }
+
+    /** v2.100 行商船: an intact hull with warm cabin lamps — unmistakably NOT a wreck. */
+    private fun drawTrader(shapes: ShapeRenderer, gw: GameWorld, animTime: Float) {
+        val (tx, ty) = gw.worldState.trader ?: return
+        val bob = sin(animTime * 0.8f) * 2.5f // a gentle ride on the void's swell
+        // hull: one whole body and a raised cabin, sitting level (wrecks lie tilted and torn)
+        shapes.color = cWreckHull
+        shapes.rect(tx - 30f, ty - 8f + bob, 60f, 16f)
+        shapes.color = cWreckDark
+        shapes.rect(tx - 12f, ty + 8f + bob, 26f, 10f)
+        // the awning stripe over the stall side — the merchant's sign, warm against the grey
+        tmpC.set(0.92f, 0.62f, 0.28f, 0.9f); shapes.color = tmpC
+        shapes.rect(tx - 30f, ty + 8f + bob, 16f, 4f)
+        // cabin lamps breathe warm and slow — a lit window, not a distress blink
+        val glow = 0.55f + 0.45f * ((sin(animTime * 1.1f) + 1f) / 2f)
+        tmpC.set(1f, 0.82f, 0.45f, 0.16f + 0.10f * glow); shapes.color = tmpC
+        shapes.circle(tx, ty + bob, 34f + 4f * glow, 24)
+        tmpC.set(1f, 0.87f, 0.55f, 0.9f); shapes.color = tmpC
+        shapes.circle(tx + 18f, ty + 2f + bob, 2.4f, 10)
+        shapes.circle(tx - 2f, ty + 12f + bob, 2.0f, 10)
     }
 
     /** Smoke clouds — overlapping puffs of varying white/grey + opacity, fading over life. */
