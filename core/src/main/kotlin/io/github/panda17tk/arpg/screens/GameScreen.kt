@@ -849,6 +849,7 @@ class GameScreen(
         drawEventFx(delta) // v2.86: the wave event colors the whole sky, not just a line
         drawKillFlash()    // v2.88: the white-out that crowns a boss kill
         drawHud(paused, sta, staMax, overheat)
+        drawNavMarkers() // v2.108: the sky's landmarks, pinned to the screen edge
         updateBossBar(delta, px, py)
         drawBossBar()      // v2.88: the heavy's name and health, top-center
         drawComboChip()    // v2.92: the melee rhythm while its window is alive

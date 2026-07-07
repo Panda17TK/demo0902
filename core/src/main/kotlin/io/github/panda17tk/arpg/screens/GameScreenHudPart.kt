@@ -443,8 +443,76 @@ internal fun GameScreen.drawInventory() {
             marketLines = marketLines, marketFooter = marketFooter,
             logLines = if (invTab == InvTab.LOG) logbookLines() else emptyList(),
             layoutEditLabel = "ボタン配置を編集", // v2.56
+            pois = navPois().map { (pos, c, _) -> // v2.108: the same landmarks the edge markers point at
+                Triple(floor(pos.first / Tuning.TILE).toInt(), floor(pos.second / Tuning.TILE).toInt(), c)
+            },
         )
     }
+
+/** v2.108 ナビ: this sky's landmarks — position, colour, and a one-glyph label. */
+internal fun GameScreen.navPois(): List<Triple<Pair<Float, Float>, com.badlogic.gdx.graphics.Color, String>> {
+    val ws = gw.worldState
+    return buildList {
+        if (ws.mode == WorldMode.SPACE) {
+            ws.gate?.let { add(Triple(it, cNavGate, "門")) }
+            ws.controlCore?.let { add(Triple(it, cNavCore, "核")) }
+            ws.trader?.let { add(Triple(it, cNavTrader, "商")) }
+            ws.wrecks.forEach { add(Triple(it, cNavWreck, "船")) }
+        } else {
+            ws.escapePad?.let { add(Triple(it, cNavPad, "発")) }
+            ws.memoryCore?.let { add(Triple(it, cNavMemory, "核")) }
+            if (!ws.vaultEntered) ws.vault?.let { add(Triple(it, cNavVault, "遺")) }
+        }
+    }
+}
+
+/** v2.108 ナビ: off-screen landmarks sit as small labeled dots on the screen edge. */
+internal fun GameScreen.drawNavMarkers() {
+    if (overlay != Overlay.NONE || choosing || gw.gameOver.isOver || layoutEditing ||
+        endingStage > 0 || tuningOpen
+    ) return
+    val pois = navPois()
+    if (pois.isEmpty()) return
+    hudViewport.apply()
+    val hw = hudViewport.worldWidth; val hh = hudViewport.worldHeight
+    val vw = worldViewport.worldWidth; val vh = worldViewport.worldHeight
+    val marks = pois.mapNotNull { (pos, c, label) ->
+        io.github.panda17tk.arpg.ui.EdgeMarkers.place(pos.first - camX, pos.second - camY, vw, vh, hw, hh, NAV_MARGIN)
+            ?.let { Triple(it, c, label) }
+    }
+    if (marks.isEmpty()) return
+    Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND)
+    shapes.projectionMatrix = hudViewport.camera.combined
+    shapes.begin(ShapeRenderer.ShapeType.Filled)
+    for ((m, c, _) in marks) {
+        cEventTmp.set(0.05f, 0.07f, 0.11f, 0.72f); shapes.color = cEventTmp
+        shapes.rect(m.first - 11f, m.second - 11f, 11f, 11f, 22f, 22f, 1f, 1f, 45f) // the plate
+        shapes.color = c
+        shapes.rect(m.first - 8f, m.second - 8f, 8f, 8f, 16f, 16f, 1f, 1f, 45f) // the diamond
+    }
+    shapes.end()
+    batch.projectionMatrix = hudViewport.camera.combined
+    batch.begin()
+    val bx = font.data.scaleX; val by = font.data.scaleY
+    font.data.setScale(bx * 0.8f, by * 0.8f)
+    font.color = com.badlogic.gdx.graphics.Color.BLACK
+    for ((m, _, label) in marks) {
+        bannerGlyph.setText(font, label)
+        font.draw(batch, bannerGlyph, m.first - bannerGlyph.width / 2f, m.second + bannerGlyph.height / 2f)
+    }
+    font.color = com.badlogic.gdx.graphics.Color.WHITE
+    font.data.setScale(bx, by)
+    batch.end()
+}
+
+private const val NAV_MARGIN = 30f // the markers' inset from the screen edge
+private val cNavGate = com.badlogic.gdx.graphics.Color.valueOf("59ccff")   // the gate's cyan
+private val cNavCore = com.badlogic.gdx.graphics.Color.valueOf("ffe9b8")   // 管制核 — pale gold
+private val cNavTrader = com.badlogic.gdx.graphics.Color.valueOf("ffb347") // the merchant's lamp
+private val cNavWreck = com.badlogic.gdx.graphics.Color.valueOf("b0a89e")  // hull grey
+private val cNavPad = com.badlogic.gdx.graphics.Color.valueOf("7fe08f")    // the way home
+private val cNavMemory = com.badlogic.gdx.graphics.Color.valueOf("8fd0ff") // the archive's light
+private val cNavVault = com.badlogic.gdx.graphics.Color.valueOf("c9a0ff")  // the sealed deep
 
 /** v2.46 航海日誌: the run's present tense + all-time bests + what each visited star remembers. */
 internal fun GameScreen.logbookLines(): List<String> {
