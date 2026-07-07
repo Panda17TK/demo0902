@@ -194,6 +194,17 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             shapes.circle(rec.x + rec.w - 4f, rec.y + rec.h - 2f, 9f, 16)
         }
         shapes.end()
+        // v2.104 周回の印: one thin gold ring per completed sync, worn around the logo's halo.
+        val clearRings = minOf(io.github.panda17tk.arpg.save.Endings.clears, 5)
+        if (clearRings > 0) {
+            shapes.begin(ShapeRenderer.ShapeType.Line)
+            for (k in 0 until clearRings) {
+                cTwinkle.set(1f, 0.84f, 0.45f, 0.42f - 0.05f * k)
+                shapes.color = cTwinkle
+                shapes.circle(w / 2f, h * 0.72f, minDim * (0.235f + 0.020f * k), 64)
+            }
+            shapes.end()
+        }
 
         batch.projectionMatrix = viewport.camera.combined
         batch.begin()
@@ -359,7 +370,12 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
                 val item = WorkshopCatalog.byId(b.label) ?: return@forEach
                 val r = Workshop.rank(item.id)
                 val pips = "●".repeat(r) + "○".repeat(item.maxRank - r)
-                val price = if (r >= item.maxRank) "習得済" else "${WorkshopCatalog.cost(item, r)}片"
+                val cap = WorkshopCatalog.rankCap(item, io.github.panda17tk.arpg.save.Endings.clears) // v2.104
+                val price = when {
+                    r >= item.maxRank -> "習得済"
+                    r >= cap -> "同期完了で解放"
+                    else -> "${WorkshopCatalog.cost(item, r)}片"
+                }
                 drawFitted(font, "${item.title}　$pips　$price", b.centerX, b.centerY + 22f, b.w - 24f)
                 font.color = cSub
                 drawFitted(font, item.desc, b.centerX, b.centerY - 2f, b.w - 24f, scale = 0.85f)

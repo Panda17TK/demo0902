@@ -17,9 +17,15 @@ object WorkshopCatalog {
         WorkshopItem("hands", "装填の手癖", "リロード 5%短縮 / 段", baseCost = 80, maxRank = 3),
         WorkshopItem("breath", "推進の呼吸", "スタミナ +15 / 段", baseCost = 90, maxRank = 2),
         WorkshopItem("eye", "拾集の目", "資材ドロップ +5% / 段", baseCost = 120, maxRank = 2),
+        // v2.104 周回の印: the sixth craft — one rank unlocks per completed sync (Endings.clears).
+        WorkshopItem("core", "管制核の欠片", "全ステータス +2% / 段", baseCost = 250, maxRank = 3),
     )
 
     fun byId(id: String): WorkshopItem? = ITEMS.firstOrNull { it.id == id }
+
+    /** v2.104: how many ranks of [item] the account may hold — the core craft is paced by clears. */
+    fun rankCap(item: WorkshopItem, clears: Int): Int =
+        if (item.id == "core") minOf(item.maxRank, clears.coerceAtLeast(0)) else item.maxRank
 
     /** The next rank's price doubles each time: 60 → 120 → 240. */
     fun cost(item: WorkshopItem, ownedRank: Int): Int = item.baseCost * (1 shl ownedRank.coerceIn(0, item.maxRank))
@@ -31,6 +37,7 @@ object WorkshopCatalog {
         reloadMul = 0.95f.pow(ranks["hands"] ?: 0),
         stamina = 15f * (ranks["breath"] ?: 0),
         loot = 0.05f * (ranks["eye"] ?: 0),
+        allMul = 1f + 0.02f * (ranks["core"] ?: 0), // v2.104 周回の印
     )
 
     /** The tithe the workshop recovers from a fallen run's carried fragments. */
