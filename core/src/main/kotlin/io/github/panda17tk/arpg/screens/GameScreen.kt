@@ -273,6 +273,10 @@ class GameScreen(
     private var metaBoons = io.github.panda17tk.arpg.config.WorkshopBoons.NONE // v2.90 工房
     private var shakeOn = true    // v2.96: motion comfort — gates shake + recoil kick
     private var runDifficulty = io.github.panda17tk.arpg.sim.Difficulty.NORMAL // v2.97
+    // v2.98 調整モード: the popup's state (open flag, current page, the live knob list).
+    private var tuningOpen = false
+    private var tunePage = 0
+    private var tuneParams: List<io.github.panda17tk.arpg.config.TuneParam> = emptyList()
     private var softFlash = false // v2.96: photosensitivity — dims the white-outs
     private var prevWaveNum = 0 // v2.92: to notice a wave ending (流星群を生き延びた)
     private var prevWaveEvent = WaveEvent.NONE
@@ -598,13 +602,14 @@ class GameScreen(
         KeyboardInput.poll(input)
         pollTap()
         if ((Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE) || Gdx.input.isKeyJustPressed(Input.Keys.P)) &&
-            !choosing && !gw.gameOver.isOver && !layoutEditing && endingStage == 0) overlay = PauseFlow.toggle(overlay)
+            !choosing && !gw.gameOver.isOver && !layoutEditing && endingStage == 0 && !tuningOpen) overlay = PauseFlow.toggle(overlay)
         if (layoutEditing) handleLayoutEdit() // v2.56: the editor swallows all input while open
-        if (endingStage > 0) handleEndingTaps() // v2.93: the final dialogue owns every tap
+        if (tuningOpen) handleTuningTaps() // v2.98: the tuning popup owns every tap
+        else if (endingStage > 0) handleEndingTaps() // v2.93: the final dialogue owns every tap
         else if (!layoutEditing && !handleTutorialTaps()) handlePauseTaps() // v2.60: diagnostic taps first
 
         pollGameplayTouch(
-            overlay != Overlay.NONE || fade.blocksInput || layoutEditing || endingStage > 0 ||
+            overlay != Overlay.NONE || fade.blocksInput || layoutEditing || endingStage > 0 || tuningOpen ||
                 tutorial?.step == TutorialStep.BOOT_PROMPT,
         )
         // v2.33: the I key / INV button toggles the inventory. Unlike pause it does not freeze the
@@ -615,8 +620,19 @@ class GameScreen(
             overlay = if (overlay == Overlay.INVENTORY) Overlay.NONE else Overlay.INVENTORY
             readingLore = null
         }
+        // v2.98 調整モード: the 調整 button (left of 持物) opens the knob popup.
+        if (input.tune && io.github.panda17tk.arpg.save.TuneMode.active && !choosing && !gw.gameOver.isOver &&
+            !layoutEditing && endingStage == 0 && overlay == Overlay.NONE
+        ) {
+            tuningOpen = !tuningOpen
+            if (tuningOpen) {
+                tuneParams = io.github.panda17tk.arpg.config.TuningCatalog.paramsFor(configStore.config)
+                tunePage = 0
+            }
+            Sfx.play("scan")
+        }
         val paused = (overlay != Overlay.NONE && overlay != Overlay.INVENTORY) || layoutEditing ||
-            endingStage > 0 || // v2.93: the final dialogue holds the world still
+            endingStage > 0 || tuningOpen || // v2.93/98: dialogue and tuning hold the world still
             tutorial?.step == TutorialStep.BOOT_PROMPT // sim-freezing overlays (+ the boot prompt)
         val simDelta = delta * if (overlay == Overlay.INVENTORY) INV_TIME_SCALE else 1f
         if (invNoteT > 0f) invNoteT -= delta
@@ -852,6 +868,88 @@ class GameScreen(
         drawComboChip()    // v2.92: the melee rhythm while its window is alive
         drawEventBanner() // v2.86: the opening band rides over the HUD
         drawEnding()       // v2.93: the final dialogue, over everything
+        drawTuning()       // v2.98: the knob popup, over everything
+    }
+
+    /** v2.98 調整モード: dim + the page's knob rows ([−] value [＋]) + [前へ][次へ][閉じる]. */
+    private fun drawTuning() {
+        if (!tuningOpen) return
+        hudViewport.apply()
+        val w = hudViewport.worldWidth; val h = hudViewport.worldHeight
+        val rows = io.github.panda17tk.arpg.ui.TuningPanel.rows(w, h)
+        val footer = io.github.panda17tk.arpg.ui.TuningPanel.footer(w, h)
+        val pageStart = tunePage * io.github.panda17tk.arpg.ui.TuningPanel.ROWS
+        Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND)
+        shapes.projectionMatrix = hudViewport.camera.combined
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
+        cEventTmp.set(0f, 0f, 0f, 0.78f); shapes.color = cEventTmp
+        shapes.rect(0f, 0f, w, h)
+        rows.forEachIndexed { i, row ->
+            if (pageStart + i >= tuneParams.size) return@forEachIndexed
+            cEventTmp.set(0.55f, 0.75f, 1f, 0.22f); shapes.color = cEventTmp
+            shapes.rect(row.x - 1.5f, row.y - 1.5f, row.w + 3f, row.h + 3f)
+            cEventTmp.set(0.09f, 0.12f, 0.18f, 0.95f); shapes.color = cEventTmp
+            shapes.rect(row.x, row.y, row.w, row.h)
+            for (btn in listOf(io.github.panda17tk.arpg.ui.TuningPanel.minus(row), io.github.panda17tk.arpg.ui.TuningPanel.plus(row))) {
+                cEventTmp.set(0.16f, 0.22f, 0.32f, 0.95f); shapes.color = cEventTmp
+                shapes.rect(btn.x, btn.y, btn.w, btn.h)
+            }
+        }
+        footer.forEach { b ->
+            cEventTmp.set(0.55f, 0.75f, 1f, 0.22f); shapes.color = cEventTmp
+            shapes.rect(b.x - 1.5f, b.y - 1.5f, b.w + 3f, b.h + 3f)
+            cEventTmp.set(0.09f, 0.12f, 0.18f, 0.95f); shapes.color = cEventTmp
+            shapes.rect(b.x, b.y, b.w, b.h)
+        }
+        shapes.end()
+        batch.projectionMatrix = hudViewport.camera.combined
+        batch.begin()
+        cEventTmp.set(0.62f, 0.68f, 0.80f, 1f); font.color = cEventTmp
+        bannerGlyph.setText(font, "調整モード　${tunePage + 1}/${io.github.panda17tk.arpg.ui.TuningPanel.pageCount(tuneParams.size)}")
+        font.draw(batch, bannerGlyph, (w - bannerGlyph.width) / 2f, h * 0.90f)
+        font.color = Color.WHITE
+        rows.forEachIndexed { i, row ->
+            val param = tuneParams.getOrNull(pageStart + i) ?: return@forEachIndexed
+            val bx = font.data.scaleX; val by = font.data.scaleY
+            bannerGlyph.setText(font, "${param.name}　${param.display()}")
+            val maxW = row.w - 100f
+            if (bannerGlyph.width > maxW) {
+                val k = maxW / bannerGlyph.width
+                font.data.setScale(bx * k, by * k)
+                bannerGlyph.setText(font, "${param.name}　${param.display()}")
+            }
+            font.draw(batch, bannerGlyph, row.centerX - bannerGlyph.width / 2f, row.centerY + bannerGlyph.height / 2f)
+            font.data.setScale(bx, by)
+            for (btn in listOf(io.github.panda17tk.arpg.ui.TuningPanel.minus(row), io.github.panda17tk.arpg.ui.TuningPanel.plus(row))) {
+                bannerGlyph.setText(font, btn.label)
+                font.draw(batch, bannerGlyph, btn.centerX - bannerGlyph.width / 2f, btn.centerY + bannerGlyph.height / 2f)
+            }
+        }
+        footer.forEach { b ->
+            bannerGlyph.setText(font, b.label)
+            font.draw(batch, bannerGlyph, b.centerX - bannerGlyph.width / 2f, b.centerY + bannerGlyph.height / 2f)
+        }
+        batch.end()
+    }
+
+    /** v2.98: taps drive the knobs — [−]/[＋] nudge (clamped), the footer pages and closes. */
+    private fun handleTuningTaps() {
+        if (!tapped) return
+        val w = hudViewport.worldWidth; val h = hudViewport.worldHeight
+        val footer = io.github.panda17tk.arpg.ui.TuningPanel.footer(w, h)
+        val pages = io.github.panda17tk.arpg.ui.TuningPanel.pageCount(tuneParams.size)
+        when (Modals.hitModal(footer, tapX, tapY)) {
+            0 -> { tunePage = (tunePage - 1 + pages) % pages; Sfx.play("scan"); return }
+            1 -> { tunePage = (tunePage + 1) % pages; Sfx.play("scan"); return }
+            2 -> { tuningOpen = false; Sfx.play("scan"); return }
+        }
+        val rows = io.github.panda17tk.arpg.ui.TuningPanel.rows(w, h)
+        val pageStart = tunePage * io.github.panda17tk.arpg.ui.TuningPanel.ROWS
+        rows.forEachIndexed { i, row ->
+            val param = tuneParams.getOrNull(pageStart + i) ?: return@forEachIndexed
+            if (io.github.panda17tk.arpg.ui.TuningPanel.minus(row).contains(tapX, tapY)) { param.nudge(-1); Sfx.play("shot") }
+            else if (io.github.panda17tk.arpg.ui.TuningPanel.plus(row).contains(tapX, tapY)) { param.nudge(+1); Sfx.play("shot") }
+        }
     }
 
     /** v2.93 エンディング: dim + the dialogue pages / choice / epilogue, glass style. */
@@ -1116,7 +1214,7 @@ class GameScreen(
             val canLand = (ws.mode == WorldMode.SPACE && ws.landingCandidate != null) ||
                 (ws.mode == WorldMode.SURFACE && playerOnEscapePad())
             val hasOverclock = with(gw.world) { gw.player[Gear].loadout.hasOverclockThruster }
-            touch.poll(input, hudViewport, tBlocks, tw.mag, tw.def.magSize, canLand, hasOverclock, controlSwap)
+            touch.poll(input, hudViewport, tBlocks, tw.mag, tw.def.magSize, canLand, hasOverclock, controlSwap, io.github.panda17tk.arpg.save.TuneMode.active)
         }
     }
 

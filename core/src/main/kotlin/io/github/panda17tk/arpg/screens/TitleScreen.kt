@@ -53,6 +53,8 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
     private var softFlash = false   // v2.96 閃光をやわらげる
     private var volume = 1f         // v2.96 音量 (0/0.25/0.5/0.75/1)
     private var difficulty = io.github.panda17tk.arpg.sim.Difficulty.NORMAL // v2.97
+    private var showTunePad = false // v2.98 調整モード: the passcode pad
+    private var tuneCode = ""       // v2.98: the digits typed so far (masked on screen)
 
     // A deterministic drifting star field: fraction positions + parallax speed per star.
     private data class Star(val fx: Float, val fy: Float, val size: Float, val speed: Float)
@@ -174,7 +176,8 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         val set = TitleLayout.settingsButton(w, h)
         val wsh = TitleLayout.workshopButton(w, h) // v2.90
         val dif = TitleLayout.difficultyButton(w, h, difficulty.label) // v2.97
-        (buttons + rec + set + wsh + dif).forEach { b ->
+        val tun = TitleLayout.tuneButton(w, h, if (io.github.panda17tk.arpg.save.TuneMode.active) "調整◉" else "調整") // v2.98
+        (buttons + rec + set + wsh + dif + tun).forEach { b ->
             shapes.color = Color(0.55f, 0.75f, 1f, 0.22f)
             shapes.rect(b.x - 1.5f, b.y - 1.5f, b.w + 3f, b.h + 3f)
             shapes.color = Color(0.05f, 0.07f, 0.11f, 0.85f)
@@ -202,7 +205,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         // v2.84: one quiet line, auto-fitted — the tagline used to run off both screen edges.
         drawFitted(font, "慣性で漂う宇宙と、あなたを覚えている星々。", w / 2f, h * 0.62f, w - 48f)
         font.color = Color.WHITE
-        (buttons + rec + set + wsh + dif).forEach { b ->
+        (buttons + rec + set + wsh + dif + tun).forEach { b ->
             glyph.setText(font, b.label)
             font.draw(batch, glyph, b.centerX - glyph.width / 2f, b.centerY + glyph.height / 2f)
         }
@@ -222,7 +225,8 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         if (showRecords) drawRecords(w, h) // v2.64: the service record sits over everything
         if (showSettings) drawSettings(w, h) // v2.66: so does the settings panel
         if (showWorkshop) drawWorkshop(w, h) // v2.90: and the workshop
-        handleInput(buttons, rec, set, wsh, dif)
+        if (showTunePad) drawTunePad(w, h)   // v2.98: the passcode pad over everything
+        handleInput(buttons, rec, set, wsh, dif, tun)
     }
 
     /** v2.66 設定: dim + glass panel + the five toggles (状態つき) + 閉じる. */
@@ -262,6 +266,31 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
                 drawFitted(font, SettingsPanel.hintFor(b.label), b.centerX, b.centerY - 2f, b.w - 24f, scale = 0.85f)
                 font.color = Color.WHITE
             }
+        }
+        batch.end()
+    }
+
+    /** v2.98 調整モード: dim + the masked code + a 3x4 passcode pad. */
+    private fun drawTunePad(w: Float, h: Float) {
+        val btns = io.github.panda17tk.arpg.ui.TunePad.buttons(w, h)
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
+        shapes.color = Color(0f, 0f, 0f, 0.78f); shapes.rect(0f, 0f, w, h)
+        btns.forEach { b ->
+            shapes.color = Color(0.55f, 0.75f, 1f, 0.22f)
+            shapes.rect(b.x - 1.5f, b.y - 1.5f, b.w + 3f, b.h + 3f)
+            shapes.color = Color(0.09f, 0.12f, 0.18f, 0.95f)
+            shapes.rect(b.x, b.y, b.w, b.h)
+        }
+        shapes.end()
+        batch.begin()
+        val font = Fonts.ui
+        font.color = cSub
+        drawFitted(font, "調整モード — パスコード", w / 2f, h * 0.74f, w - 48f)
+        font.color = Color.WHITE
+        drawFitted(font, if (tuneCode.isEmpty()) "----" else "●".repeat(tuneCode.length), w / 2f, h * 0.68f, w - 48f)
+        btns.forEach { b ->
+            glyph.setText(font, b.label)
+            font.draw(batch, glyph, b.centerX - glyph.width / 2f, b.centerY + glyph.height / 2f)
         }
         batch.end()
     }
@@ -384,7 +413,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         font.data.setScale(sx, sy)
     }
 
-    private fun handleInput(buttons: List<UiButton>, rec: UiButton, set: UiButton, wsh: UiButton, dif: UiButton) {
+    private fun handleInput(buttons: List<UiButton>, rec: UiButton, set: UiButton, wsh: UiButton, dif: UiButton, tun: UiButton) {
         if (Gdx.input.justTouched()) {
             tmp.set(Gdx.input.x.toFloat(), Gdx.input.y.toFloat(), 0f)
             viewport.unproject(tmp)
@@ -403,6 +432,25 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
                         Sfx.play("scan")
                     }
                     RecordsPanel.CLOSE_LABEL -> showRecords = false
+                }
+                return
+            }
+            if (showTunePad) { // v2.98: the pad owns every tap; tapping past it closes it
+                val hit = io.github.panda17tk.arpg.ui.TunePad.buttons(viewport.worldWidth, viewport.worldHeight)
+                    .firstOrNull { it.contains(tmp.x, tmp.y) }
+                if (hit == null) { showTunePad = false; tuneCode = ""; return }
+                when (hit.label) {
+                    io.github.panda17tk.arpg.ui.TunePad.ERASE -> tuneCode = tuneCode.dropLast(1)
+                    io.github.panda17tk.arpg.ui.TunePad.ENTER -> {
+                        if (io.github.panda17tk.arpg.save.TuneMode.tryUnlock(tuneCode)) {
+                            showTunePad = false; tuneCode = ""
+                            Sfx.play("levelup")
+                        } else {
+                            tuneCode = ""
+                            Sfx.play("hit")
+                        }
+                    }
+                    else -> if (tuneCode.length < 8) tuneCode += hit.label
                 }
                 return
             }
@@ -470,6 +518,17 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
                 Sfx.play("scan")
                 return
             }
+            if (tun.contains(tmp.x, tmp.y)) { // v2.98 調整: active toggles off, else the pad opens
+                if (io.github.panda17tk.arpg.save.TuneMode.active) {
+                    io.github.panda17tk.arpg.save.TuneMode.active = false
+                    Sfx.play("scan")
+                } else {
+                    showTunePad = true
+                    tuneCode = ""
+                    Sfx.play("scan")
+                }
+                return
+            }
             val hit = buttons.firstOrNull { it.contains(tmp.x, tmp.y) } ?: return
             when (hit.label) {
                 "つづきから" -> app.startRun(fresh = false)
@@ -478,7 +537,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             }
             return
         }
-        if (showRecords || showSettings || showWorkshop) return // v2.64/66/90: keys don't start a run under an overlay
+        if (showRecords || showSettings || showWorkshop || showTunePad) return // v2.64/66/90/98: keys don't start a run under an overlay
         if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ENTER) ||
             Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.SPACE)
         ) {

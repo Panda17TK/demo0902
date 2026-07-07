@@ -32,4 +32,7 @@ object TitleLayout {
 
     /** v2.97 難易度: the run-mode chip under 工房 — taps cycle 安定運転/標準/過負荷. */
     fun difficultyButton(w: Float, h: Float, label: String): UiButton = UiButton(12f, h - 148f, 92f, 40f, label)
+
+    /** v2.98 調整: the passcode door, bottom-left — quiet until you know it's there. */
+    fun tuneButton(w: Float, h: Float, label: String): UiButton = UiButton(12f, 12f, 92f, 40f, label)
 }

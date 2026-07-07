@@ -3,7 +3,7 @@ package io.github.panda17tk.arpg.input
 import kotlin.math.cos
 import kotlin.math.sin
 
-enum class TouchButton { FIRE, MELEE, DASH, RELOAD, WALL, WEAPON, LAND, INV, FULL }
+enum class TouchButton { FIRE, MELEE, DASH, RELOAD, WALL, WEAPON, LAND, INV, FULL, TUNE }
 
 /**
  * Pure geometry + hit-testing for the on-screen touch controls (no libGDX deps → unit-testable).
@@ -51,6 +51,7 @@ class TouchLayout(var screenW: Float = 0f, var screenH: Float = 0f) {
     private val order = listOf(
         TouchButton.DASH, TouchButton.MELEE, TouchButton.WEAPON, TouchButton.RELOAD,
         TouchButton.WALL, TouchButton.FULL, TouchButton.INV, TouchButton.LAND,
+        TouchButton.TUNE, // v2.98 調整: docked left of 持物 (visible only in tune mode)
     )
 
     fun all(): List<TouchButton> = order
@@ -70,6 +71,7 @@ class TouchLayout(var screenW: Float = 0f, var screenH: Float = 0f) {
         TouchButton.FULL -> 0.905f
         TouchButton.WALL -> 0.890f
         TouchButton.INV -> 0.905f
+        TouchButton.TUNE -> 0.735f // v2.98: the 持物 button's left-hand neighbour
         TouchButton.LAND, TouchButton.FIRE -> 0.600f
     }
 
@@ -81,6 +83,7 @@ class TouchLayout(var screenW: Float = 0f, var screenH: Float = 0f) {
         TouchButton.FULL -> 0.370f
         TouchButton.WALL -> 0.545f
         TouchButton.INV -> 0.710f
+        TouchButton.TUNE -> 0.775f // v2.98: 持物's upper-left neighbour (clear of 着陸's big disc)
         TouchButton.LAND, TouchButton.FIRE -> 0.630f
     }
 
@@ -94,6 +97,7 @@ class TouchLayout(var screenW: Float = 0f, var screenH: Float = 0f) {
             TouchButton.FULL -> arcX(157.5f, orbit2)  // outer arc
             TouchButton.WALL -> arcX(112.5f, orbit2)
             TouchButton.INV -> screenW - pad - buttonRadius // top-right dock
+            TouchButton.TUNE -> screenW - pad - 3f * buttonRadius - 8f // v2.98: 持物's left neighbour
             TouchButton.LAND -> screenW * 0.62f // contextual: big target where the eye already is
             TouchButton.FIRE -> screenW * 0.62f // legacy id (fire lives on the aim stick)
         }
@@ -109,6 +113,7 @@ class TouchLayout(var screenW: Float = 0f, var screenH: Float = 0f) {
             TouchButton.FULL -> arcY(157.5f, orbit2)
             TouchButton.WALL -> arcY(112.5f, orbit2)
             TouchButton.INV -> screenH - 130f - buttonRadius - 10f // just under the top HUD band
+            TouchButton.TUNE -> screenH - 130f - buttonRadius - 10f // v2.98: same shelf
             TouchButton.LAND -> screenH * 0.82f
             TouchButton.FIRE -> screenH * 0.18f
         }

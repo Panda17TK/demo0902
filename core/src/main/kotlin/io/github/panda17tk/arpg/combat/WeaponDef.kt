@@ -7,13 +7,13 @@ import kotlinx.serialization.Serializable
 data class WeaponDef(
     val id: String,
     val name: String,
-    val dmg: Float,
-    val fireRate: Float,
-    val magSize: Int?,
-    val spread: Float,
-    val pellets: Int,
+    var dmg: Float, // v2.98: tunable live
+    var fireRate: Float, // v2.98: tunable live
+    var magSize: Int?, // v2.98: tunable live
+    var spread: Float, // v2.98: tunable live
+    var pellets: Int, // v2.98: tunable live
     val ammoType: String,
-    val reloadTime: Float = 0f, // seconds for an auto reload (manual is faster); 0 = none (beam)
+    var reloadTime: Float = 0f, // v2.98: tunable live — // seconds for an auto reload (manual is faster); 0 = none (beam)
     val infiniteAmmo: Boolean = false, // reload refills the mag without ever depleting reserve
     val manualFire: Boolean = false, // tap-to-aim, release-to-fire (deliberate, aimed weapons) instead of hold-to-fire
 )
