@@ -65,6 +65,7 @@ import io.github.panda17tk.arpg.render.SceneRenderer
 import io.github.panda17tk.arpg.render.TouchOverlay
 import io.github.panda17tk.arpg.save.Achievement
 import io.github.panda17tk.arpg.save.Achievements
+import io.github.panda17tk.arpg.save.Challenge
 import io.github.panda17tk.arpg.save.DeathRelic
 import io.github.panda17tk.arpg.save.PlanetMemoryCodec
 import io.github.panda17tk.arpg.save.PreferencesMemoryStore
@@ -152,6 +153,7 @@ private const val SAVED_NOTE_TIME = 2f // seconds the 「セーブした」 flas
 class GameScreen(
     private val startFresh: Boolean = false, // v2.58 タイトル「はじめから」: abandon the saved run
     private val startInTraining: Boolean = false, // v2.58 タイトル「旧式戦闘訓練」
+    private val startInChallenge: Boolean = false, // v2.102 タイトル「検証ラン」: 今週の宙域
 ) : ScreenAdapter() {
     private val input = InputState()
     private val configStore = ConfigStore()
@@ -255,6 +257,10 @@ class GameScreen(
     // player (gear/materials/wave); exiting restores it — training gains stay in the training.
     private var simMode = false
     private var preSimCarry: PlayerCarry? = null
+    // v2.102 検証ラン: this week's proving run — simMode's walls (no landings, no real records,
+    // no achievements) plus a fixed weekly seed and the standard-issue loadout.
+    private var challengeMode = false
+    private var challengeWeek = 0L
     // v2.43: stall slots already bought this landing (the stock is per-planet deterministic).
     private val marketSold = mutableSetOf<Int>()
     // v2.100 行商船: shelf slots bought under this sky, the approach latch (re-arms after pulling
@@ -355,6 +361,7 @@ class GameScreen(
         if (startFresh) runStore.clear() // v2.58: タイトルの「はじめから」は前のランを置いていく
         if (startFresh || !tryRestoreRun()) newRun() // v2.33: a saved run resumes where it left off
         if (startInTraining && !simMode) toggleTraining() // v2.58: straight into the simulation
+        if (startInChallenge && !challengeMode) enterChallenge() // v2.102: 今週の宙域へ直行
         // v2.60: the boot diagnostic runs once per install (never inside the training sim).
         val tutDone = try { Gdx.app.getPreferences(SETTINGS_PREFS).getBoolean(SETTINGS_TUTORIAL, false) } catch (_: Throwable) { true }
         if (!tutDone && !simMode) tutorial = TutorialController()
@@ -382,6 +389,7 @@ class GameScreen(
             gw = WorldFactory.create(input, configStore.config, seed = TRAINING_SEED, carry = preSimCarry, boons = metaBoons, difficulty = runDifficulty)
         } else {
             simMode = false
+            challengeMode = false // v2.102: leaving the walled-off world ends the proving run too
             worldSeed = session.spaceSeed
             gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed, carry = preSimCarry, boons = metaBoons, trait = SystemTraits.traitFor(session.spaceSeed), difficulty = runDifficulty)
             gw.waveState.num = preSimCarry?.wave ?: 1
@@ -397,9 +405,34 @@ class GameScreen(
         syncAmbience() // v2.63: the sim has its own hum
     }
 
+    /** v2.102 検証ラン: enter (or retry) this week's proving run — fixed sky, standard-issue
+     *  loadout, no boons, NORMAL. The real run's snapshot is taken once and kept across retries,
+     *  so leaving the challenge always restores exactly what was left behind. */
+    private fun enterChallenge() {
+        if (!challengeMode) preSimCarry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
+        simMode = true; challengeMode = true
+        challengeWeek = Challenge.weekOf(System.currentTimeMillis())
+        worldSeed = Challenge.seedFor(challengeWeek)
+        gw = WorldFactory.create(
+            input, configStore.config, seed = worldSeed,
+            trait = SystemTraits.traitFor(worldSeed),
+            difficulty = io.github.panda17tk.arpg.sim.Difficulty.NORMAL,
+        )
+        accumulator = 0f; camInit = false; choosing = false; offered = false; choices = emptyList()
+        overlay = Overlay.NONE; lastHp = Float.NaN; prevOver = false; newBest = false
+        lastCardId = null; cachedCard = null
+        chipsKey = -1; cachedChips = emptyList(); questChipKey = -1; questChip = null
+        marketSold.clear(); traderSold.clear(); traderGreeted = false; pendingJump = false
+        rewardToast = "検証ラン ${Challenge.codeFor(challengeWeek)} — 全員同じ宙域・同じ装備。成果は持ち出せない"
+        rewardToastT = TOAST_TIME
+        rebuildMemoryTones()
+        syncAmbience()
+    }
+
     /** Build (or rebuild) the run and reset per-run screen state (Phase 7 restart). */
     private fun newRun() {
         simMode = false; preSimCarry = null // v2.53: a real restart always leaves the simulation
+        challengeMode = false // v2.102
         session.reset() // a fresh run forgets every planet
         runStore.clear() // v2.33: restarting abandons the saved run
         worldSeed = session.spaceSeed
@@ -1289,10 +1322,11 @@ class GameScreen(
             if (!prevOver) {
                 // v2.53: a death inside the simulation is a simulated death — no REAL records.
                 // v2.62: but the training hall keeps its own scoreboard.
-                newBest = if (!simMode) {
-                    Scores.record(gw.waveState.num, gw.gameOver.kills)
-                } else {
-                    Scores.recordSim(gw.waveState.num, gw.gameOver.kills)
+                // v2.102: and the proving run keeps a third, wiped when the week's sky turns.
+                newBest = when {
+                    challengeMode -> Scores.recordChallenge(challengeWeek, gw.waveState.num, gw.gameOver.kills)
+                    simMode -> Scores.recordSim(gw.waveState.num, gw.gameOver.kills)
+                    else -> Scores.record(gw.waveState.num, gw.gameOver.kills)
                 }
                 session.persist() // LP v2.28: a death checkpoints the universe's memory too
                 if (!simMode) runStore.clear() // v2.33: death consumes the saved run (roguelite)
@@ -1313,7 +1347,11 @@ class GameScreen(
             val goHit = if (tapped) {
                 Modals.hitModal(Modals.gameOverButtons(hudViewport.worldWidth, hudViewport.worldHeight), tapX, tapY)
             } else null
-            if (Gdx.input.isKeyJustPressed(Input.Keys.R) || goHit == 0) { newRun(); return false }
+            // v2.102: a challenge retry rebuilds the SAME weekly sky; everything else starts over.
+            if (Gdx.input.isKeyJustPressed(Input.Keys.R) || goHit == 0) {
+                if (challengeMode) enterChallenge() else newRun()
+                return false
+            }
             if (goHit == 1) { (Gdx.app.applicationListener as? App)?.showTitle(); return false } // v2.59
         } else if (paused) {
             accumulator = 0f // freeze the sim while paused; skip stepping & the upgrade flow
@@ -1404,6 +1442,8 @@ class GameScreen(
         }
         if (gw.gameOver.isOver) {
             val bestText = when {
+                challengeMode && newBest -> "検証記録更新！  ${Challenge.codeFor(challengeWeek)} ウェーブ ${Scores.chBestWave}" // v2.102
+                challengeMode -> "検証記録  ${Challenge.codeFor(challengeWeek)} ウェーブ ${Scores.chBestWave}  撃破 ${Scores.chBestKills}"
                 simMode && newBest -> "訓練記録更新！  ウェーブ ${Scores.simBestWave}" // v2.62
                 simMode -> "訓練記録  ウェーブ ${Scores.simBestWave}  撃破 ${Scores.simBestKills}"
                 newBest -> "自己ベスト更新！  汚染深度 ${Scores.bestWave}"
@@ -1736,7 +1776,7 @@ class GameScreen(
                 val hasMemory = pauseHasMemory()
                 when (PauseFlow.action(Modals.hitModal(Modals.pauseButtons(w, h, hasMemory, simMode), tapX, tapY) ?: -1, hasMemory)) {
                     PauseAction.RESUME -> overlay = Overlay.NONE
-                    PauseAction.RESTART -> { newRun(); overlay = Overlay.NONE }
+                    PauseAction.RESTART -> { if (challengeMode) enterChallenge() else newRun(); overlay = Overlay.NONE }
                     PauseAction.HELP -> overlay = Overlay.HELP
                     PauseAction.MEMORY -> overlay = Overlay.MEMORY
                     PauseAction.SIM -> { toggleTraining(); overlay = Overlay.NONE } // v2.53

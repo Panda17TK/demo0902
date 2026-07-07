@@ -367,6 +367,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         val lines = RecordsPanel.lines(
             Scores.bestWave, Scores.bestKills, Scores.simBestWave, Scores.simBestKills,
             clears = io.github.panda17tk.arpg.save.Endings.clears, // v2.93
+            chWeek = Scores.chWeek, chWave = Scores.chBestWave, chKills = Scores.chBestKills, // v2.102
         ) { Achievements.has(it) }
         val btns = RecordsPanel.buttons(w, h)
         val px = 14f; val pw = w - 28f; val pTop = h * 0.90f; val pBot = h * 0.11f
@@ -534,6 +535,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
                 "つづきから" -> app.startRun(fresh = false)
                 "はじめから" -> app.startRun(fresh = true)
                 "旧式戦闘訓練" -> app.startTraining()
+                "検証ラン" -> app.startChallenge() // v2.102 今週の宙域
             }
             return
         }

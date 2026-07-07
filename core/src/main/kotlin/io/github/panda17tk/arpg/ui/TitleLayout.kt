@@ -13,6 +13,7 @@ object TitleLayout {
             if (hasSave) add("つづきから")
             add("はじめから")
             add("旧式戦闘訓練")
+            add("検証ラン") // v2.102: 今週の宙域 — same seed, same loadout, all week
         }
         val bw = min(320f, w * 0.72f)
         val top = h * 0.46f
