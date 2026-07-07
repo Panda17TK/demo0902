@@ -12,9 +12,9 @@ class App : Game() {
         setScreen(TitleScreen(this))
     }
 
-    /** Enter the game — continuing the saved run, or abandoning it for a fresh one. */
-    fun startRun(fresh: Boolean) {
-        swapTo(GameScreen(startFresh = fresh))
+    /** Enter the game — continuing the slot's saved run, or abandoning it for a fresh one. */
+    fun startRun(fresh: Boolean, slot: Int = 0) {
+        swapTo(GameScreen(startFresh = fresh, slot = slot))
     }
 
     /** Enter the game straight into the old-style combat simulation (v2.53). */

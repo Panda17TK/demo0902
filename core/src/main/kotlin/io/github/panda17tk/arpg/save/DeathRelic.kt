@@ -44,16 +44,18 @@ class InMemoryRelicStore : RelicStore {
     override fun clear() { stored = null }
 }
 
-class PreferencesRelicStore : RelicStore {
+class PreferencesRelicStore(slot: Int = 0) : RelicStore { // v2.103: each journey's own relic
+    private val key = SaveSlots.keyFor(KEY, slot)
+
     override fun load(): RelicDto? = try {
-        val text = com.badlogic.gdx.Gdx.app.getPreferences(PREFS).getString(KEY, "")
+        val text = com.badlogic.gdx.Gdx.app.getPreferences(PREFS).getString(key, "")
         if (text.isNullOrEmpty()) null else DeathRelic.fromJson(text)
     } catch (_: Throwable) { null }
 
     override fun save(dto: RelicDto) {
         try {
             val p = com.badlogic.gdx.Gdx.app.getPreferences(PREFS)
-            p.putString(KEY, DeathRelic.toJson(dto))
+            p.putString(key, DeathRelic.toJson(dto))
             p.flush()
         } catch (_: Throwable) { /* persist best-effort */ }
     }
@@ -61,7 +63,7 @@ class PreferencesRelicStore : RelicStore {
     override fun clear() {
         try {
             val p = com.badlogic.gdx.Gdx.app.getPreferences(PREFS)
-            p.remove(KEY)
+            p.remove(key)
             p.flush()
         } catch (_: Throwable) { /* best-effort */ }
     }

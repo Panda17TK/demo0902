@@ -27,6 +27,8 @@ import io.github.panda17tk.arpg.ui.SettingsPanel
 import io.github.panda17tk.arpg.ui.WorkshopPanel
 import io.github.panda17tk.arpg.ui.TitleFx
 import io.github.panda17tk.arpg.ui.TitleLayout
+import io.github.panda17tk.arpg.save.SaveSlots
+import io.github.panda17tk.arpg.ui.SlotPanel
 import io.github.panda17tk.arpg.ui.UiButton
 
 /**
@@ -53,6 +55,8 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
     private var softFlash = false   // v2.96 閃光をやわらげる
     private var volume = 1f         // v2.96 音量 (0/0.25/0.5/0.75/1)
     private var difficulty = io.github.panda17tk.arpg.sim.Difficulty.NORMAL // v2.97
+    private var showSlots = false  // v2.103 セーブスロット: the journey picker
+    private var slotsFresh = false // v2.103: picker opened from はじめから (any slot starts fresh)
     private var showTunePad = false // v2.98 調整モード: the passcode pad
     private var tuneCode = ""       // v2.98: the digits typed so far (masked on screen)
 
@@ -80,7 +84,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         viewport = ScreenViewport()
         viewport.setUnitsPerPixel(1f / uiScale)
         viewport.update(Gdx.graphics.width, Gdx.graphics.height, true)
-        hasSave = try { PreferencesRunSaveStore().load() != null } catch (_: Throwable) { false }
+        hasSave = SaveSlots.hasAny() // v2.103: any journey lights つづきから
         Scores.load() // v2.62: the training scoreboard shows on the front door
         Achievements.load() // v2.64 記録: the service record reads from here
         Workshop.load() // v2.90 工房: the ledger and its ranks
@@ -226,7 +230,37 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         if (showSettings) drawSettings(w, h) // v2.66: so does the settings panel
         if (showWorkshop) drawWorkshop(w, h) // v2.90: and the workshop
         if (showTunePad) drawTunePad(w, h)   // v2.98: the passcode pad over everything
+        if (showSlots) drawSlots(w, h)       // v2.103: the journey picker over everything
         handleInput(buttons, rec, set, wsh, dif, tun)
+    }
+
+    /** v2.103 セーブスロット: dim + three journey plates (occupied shows its summary) + 閉じる. */
+    private fun drawSlots(w: Float, h: Float) {
+        val rows = SlotPanel.rows(w, h)
+        val close = SlotPanel.closeButton(w, h)
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
+        shapes.color = Color(0f, 0f, 0f, 0.72f); shapes.rect(0f, 0f, w, h)
+        (rows + close).forEach { b ->
+            shapes.color = Color(0.55f, 0.75f, 1f, 0.22f)
+            shapes.rect(b.x - 1.5f, b.y - 1.5f, b.w + 3f, b.h + 3f)
+            shapes.color = Color(0.05f, 0.07f, 0.11f, 0.94f)
+            shapes.rect(b.x, b.y, b.w, b.h)
+        }
+        shapes.end()
+        batch.begin()
+        val font = Fonts.ui
+        font.color = cSub
+        drawFitted(font, if (slotsFresh) "どの枠ではじめるか（上書きされる）" else "どの旅をつづけるか", w / 2f, h * 0.72f, w - 48f)
+        font.color = Color.WHITE
+        rows.forEachIndexed { i, r ->
+            val summary = SaveSlots.summary(i)
+            if (summary == null && !slotsFresh) font.color = cSub // nothing to continue — muted
+            drawFitted(font, "スロット${i + 1}　${summary ?: "空き"}", r.centerX, r.centerY + 8f, r.w - 24f)
+            font.color = Color.WHITE
+        }
+        glyph.setText(font, close.label)
+        font.draw(batch, glyph, close.centerX - glyph.width / 2f, close.centerY + glyph.height / 2f)
+        batch.end()
     }
 
     /** v2.66 設定: dim + glass panel + the five toggles (状態つき) + 閉じる. */
@@ -418,6 +452,21 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         if (Gdx.input.justTouched()) {
             tmp.set(Gdx.input.x.toFloat(), Gdx.input.y.toFloat(), 0f)
             viewport.unproject(tmp)
+            if (showSlots) { // v2.103: the slot picker owns every tap while open
+                val pw = viewport.worldWidth; val ph = viewport.worldHeight
+                if (SlotPanel.closeButton(pw, ph).contains(tmp.x, tmp.y)) { showSlots = false; return }
+                val idx = SlotPanel.rows(pw, ph).indexOfFirst { it.contains(tmp.x, tmp.y) }
+                if (idx >= 0) {
+                    val occupied = SaveSlots.summary(idx) != null
+                    if (slotsFresh || occupied) {
+                        Sfx.play("scan")
+                        app.startRun(fresh = slotsFresh, slot = idx)
+                    } else {
+                        Sfx.play("hit") // an empty slot holds no journey to continue
+                    }
+                }
+                return
+            }
             if (showRecords) { // v2.64: the overlay swallows every tap while open
                 val hit = RecordsPanel.buttons(viewport.worldWidth, viewport.worldHeight)
                     .firstOrNull { it.contains(tmp.x, tmp.y) } ?: return
@@ -532,18 +581,18 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             }
             val hit = buttons.firstOrNull { it.contains(tmp.x, tmp.y) } ?: return
             when (hit.label) {
-                "つづきから" -> app.startRun(fresh = false)
-                "はじめから" -> app.startRun(fresh = true)
+                "つづきから" -> { showSlots = true; slotsFresh = false; Sfx.play("scan") } // v2.103
+                "はじめから" -> { showSlots = true; slotsFresh = true; Sfx.play("scan") } // v2.103
                 "旧式戦闘訓練" -> app.startTraining()
                 "検証ラン" -> app.startChallenge() // v2.102 今週の宙域
             }
             return
         }
-        if (showRecords || showSettings || showWorkshop || showTunePad) return // v2.64/66/90/98: keys don't start a run under an overlay
+        if (showRecords || showSettings || showWorkshop || showTunePad || showSlots) return // v2.64/66/90/98: keys don't start a run under an overlay
         if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ENTER) ||
             Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.SPACE)
         ) {
-            app.startRun(fresh = false) // continue if a save exists; otherwise a fresh run anyway
+            app.startRun(fresh = false, slot = SaveSlots.firstUsed() ?: 0) // v2.103: the first journey
         }
     }
 

@@ -76,17 +76,19 @@ class InMemoryRunSaveStore : RunSaveStore {
     override fun clear() { stored = null }
 }
 
-/** Gdx Preferences backend — one JSON string under [KEY]. Fully defensive: never throws. */
-class PreferencesRunSaveStore : RunSaveStore {
+/** Gdx Preferences backend — one JSON string per slot (v2.103; slot 0 keeps the legacy key). */
+class PreferencesRunSaveStore(slot: Int = 0) : RunSaveStore {
+    private val key = SaveSlots.keyFor(KEY, slot)
+
     override fun load(): RunSaveDto? = try {
-        val text = com.badlogic.gdx.Gdx.app.getPreferences(PREFS).getString(KEY, "")
+        val text = com.badlogic.gdx.Gdx.app.getPreferences(PREFS).getString(key, "")
         if (text.isNullOrEmpty()) null else RunSaveCodec.fromJson(text)
     } catch (_: Throwable) { null }
 
     override fun save(dto: RunSaveDto) {
         try {
             val p = com.badlogic.gdx.Gdx.app.getPreferences(PREFS)
-            p.putString(KEY, RunSaveCodec.toJson(dto))
+            p.putString(key, RunSaveCodec.toJson(dto))
             p.flush()
         } catch (_: Throwable) { /* persist best-effort */ }
     }
@@ -94,7 +96,7 @@ class PreferencesRunSaveStore : RunSaveStore {
     override fun clear() {
         try {
             val p = com.badlogic.gdx.Gdx.app.getPreferences(PREFS)
-            p.remove(KEY)
+            p.remove(key)
             p.flush()
         } catch (_: Throwable) { /* best-effort */ }
     }
