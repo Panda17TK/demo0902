@@ -290,7 +290,6 @@ class GameScreen(
     internal var shakeOn = true    // v2.96: motion comfort — gates shake + recoil kick
     internal var runDifficulty = io.github.panda17tk.arpg.sim.Difficulty.NORMAL // v2.97
     // v2.98 調整モード: the popup's state (open flag, current page, the live knob list).
-    internal var tuningOpen = false
     internal var tunePage = 0
     internal var tuneParams: List<io.github.panda17tk.arpg.config.TuneParam> = emptyList()
     internal var softFlash = false // v2.96: photosensitivity — dims the white-outs
@@ -415,7 +414,7 @@ class GameScreen(
         // v2.106 公正化: the proving run starts from the shipped numbers — session knobs all reset,
         // and the tuning popup (if open) closes; the tune door itself stays shut while inside.
         io.github.panda17tk.arpg.config.TuningCatalog.paramsFor(configStore.config).forEach { it.reset() }
-        tuningOpen = false
+        if (overlay == Overlay.TUNING) overlay = Overlay.NONE
         challengeWeek = Challenge.weekOf(System.currentTimeMillis())
         worldSeed = Challenge.seedFor(challengeWeek)
         gw = WorldFactory.create(
@@ -570,14 +569,13 @@ class GameScreen(
         KeyboardInput.poll(input)
         pollTap()
         if ((Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE) || Gdx.input.isKeyJustPressed(Input.Keys.P)) &&
-            !choosing && !gw.gameOver.isOver && !layoutEditing && endingStage == 0 && !tuningOpen) overlay = PauseFlow.toggle(overlay)
+            !choosing && !gw.gameOver.isOver && !layoutEditing && endingStage == 0) overlay = PauseFlow.toggle(overlay)
         if (layoutEditing) handleLayoutEdit() // v2.56: the editor swallows all input while open
-        if (tuningOpen) handleTuningTaps() // v2.98: the tuning popup owns every tap
-        else if (endingStage > 0) handleEndingTaps() // v2.93: the final dialogue owns every tap
+        if (endingStage > 0) handleEndingTaps() // v2.93: the final dialogue owns every tap
         else if (!layoutEditing && !handleTutorialTaps()) handlePauseTaps() // v2.60: diagnostic taps first
 
         pollGameplayTouch(
-            overlay != Overlay.NONE || fade.blocksInput || layoutEditing || endingStage > 0 || tuningOpen ||
+            overlay != Overlay.NONE || fade.blocksInput || layoutEditing || endingStage > 0 ||
                 tutorial?.step == TutorialStep.BOOT_PROMPT,
         )
         // v2.33: the I key / INV button toggles the inventory. Unlike pause it does not freeze the
@@ -589,18 +587,20 @@ class GameScreen(
             readingLore = null
         }
         // v2.98 調整モード: the 調整 button (left of 持物) opens the knob popup.
+        // v2.111: tuning rides the Overlay register (like 持物) — the popup owns the screen,
+        // and every overlay-aware guard (touch buttons, HUD chips, taps) excludes it for free.
         if (input.tune && io.github.panda17tk.arpg.save.TuneMode.active && !challengeMode && !choosing && !gw.gameOver.isOver &&
-            !layoutEditing && endingStage == 0 && overlay == Overlay.NONE
+            !layoutEditing && endingStage == 0 && (overlay == Overlay.NONE || overlay == Overlay.TUNING)
         ) { // v2.106 公正化: the proving run takes no knobs
-            tuningOpen = !tuningOpen
-            if (tuningOpen) {
+            overlay = if (overlay == Overlay.TUNING) Overlay.NONE else Overlay.TUNING
+            if (overlay == Overlay.TUNING) {
                 tuneParams = io.github.panda17tk.arpg.config.TuningCatalog.paramsFor(configStore.config)
                 tunePage = 0
             }
             Sfx.play("scan")
         }
         val paused = (overlay != Overlay.NONE && overlay != Overlay.INVENTORY) || layoutEditing ||
-            endingStage > 0 || tuningOpen || // v2.93/98: dialogue and tuning hold the world still
+            endingStage > 0 || // v2.93: the final dialogue holds the world still (TUNING pauses as an overlay)
             tutorial?.step == TutorialStep.BOOT_PROMPT // sim-freezing overlays (+ the boot prompt)
         val simDelta = delta * if (overlay == Overlay.INVENTORY) INV_TIME_SCALE else 1f
         if (invNoteT > 0f) invNoteT -= delta
@@ -713,7 +713,7 @@ class GameScreen(
         // v2.100 行商船: drifting up to the vessel opens its stall — once per approach; the latch
         // re-arms only after pulling clearly away, so the shop never pins the player in place.
         if (!paused && !simMode && gw.worldState.mode == WorldMode.SPACE && overlay == Overlay.NONE &&
-            !choosing && !gw.gameOver.isOver && endingStage == 0 && !tuningOpen && !fade.blocksInput
+            !choosing && !gw.gameOver.isOver && endingStage == 0 && !fade.blocksInput
         ) {
             gw.worldState.trader?.let { tr ->
                 val (tpx, tpy) = with(gw.world) { val t = gw.player[Transform]; t.x to t.y }
@@ -871,7 +871,6 @@ class GameScreen(
         drawComboChip()    // v2.92: the melee rhythm while its window is alive
         drawEventBanner() // v2.86: the opening band rides over the HUD
         drawEnding()       // v2.93: the final dialogue, over everything
-        drawTuning()       // v2.98: the knob popup, over everything
     }
 
 
