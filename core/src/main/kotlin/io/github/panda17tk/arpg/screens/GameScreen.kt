@@ -412,6 +412,10 @@ class GameScreen(
     internal fun enterChallenge() {
         if (!challengeMode) preSimCarry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
         simMode = true; challengeMode = true
+        // v2.106 公正化: the proving run starts from the shipped numbers — session knobs all reset,
+        // and the tuning popup (if open) closes; the tune door itself stays shut while inside.
+        io.github.panda17tk.arpg.config.TuningCatalog.paramsFor(configStore.config).forEach { it.reset() }
+        tuningOpen = false
         challengeWeek = Challenge.weekOf(System.currentTimeMillis())
         worldSeed = Challenge.seedFor(challengeWeek)
         gw = WorldFactory.create(
@@ -585,9 +589,9 @@ class GameScreen(
             readingLore = null
         }
         // v2.98 調整モード: the 調整 button (left of 持物) opens the knob popup.
-        if (input.tune && io.github.panda17tk.arpg.save.TuneMode.active && !choosing && !gw.gameOver.isOver &&
+        if (input.tune && io.github.panda17tk.arpg.save.TuneMode.active && !challengeMode && !choosing && !gw.gameOver.isOver &&
             !layoutEditing && endingStage == 0 && overlay == Overlay.NONE
-        ) {
+        ) { // v2.106 公正化: the proving run takes no knobs
             tuningOpen = !tuningOpen
             if (tuningOpen) {
                 tuneParams = io.github.panda17tk.arpg.config.TuningCatalog.paramsFor(configStore.config)
@@ -926,7 +930,7 @@ class GameScreen(
         Ambience.setLayers(maxOf(ambHeat.value, pulseFloor), shimmerLevel)
         gw.fx.update(delta)
         // v2.89: sim systems queue their sounds through Fx; the screen is the only speaker.
-        for (req in gw.fx.drainSfx()) Sfx.play(req.name, req.pitch)
+        for (req in gw.fx.drainSfx()) Sfx.play(req.name, req.pitch, Sfx.BASE * req.vol)
         // v2.89 オーディオダック: held time pulls the ambient bed down; release eases it back.
         duckLevel = io.github.panda17tk.arpg.audio.AudioDuck.step(
             duckLevel,

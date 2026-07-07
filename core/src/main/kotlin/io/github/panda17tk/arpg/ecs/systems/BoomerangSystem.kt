@@ -60,6 +60,7 @@ class BoomerangSystem(private val mobGrid: SpatialGrid<Entity>) :
                 if (hitWall) { // step back out of the wall so the turn is visible, then spark
                     t.x -= b.vx * deltaTime; t.y -= b.vy * deltaTime
                     fx.spawnChips(t.x, t.y, 4, chipColor)
+                    fx.requestSfx("hit", 1.5f, 0.5f) // v2.106: the clang of the early turn
                 }
                 b.returning = true
                 b.hit.clear() // the homeward leg cuts everyone afresh
@@ -67,7 +68,7 @@ class BoomerangSystem(private val mobGrid: SpatialGrid<Entity>) :
         } else {
             val dx = px - t.x; val dy = py - t.y
             val d = hypot(dx, dy)
-            if (d < CATCH_DIST) { world -= entity; return } // back in hand
+            if (d < CATCH_DIST) { fx.requestSfx("blade_catch"); world -= entity; return } // back in hand (v2.106)
             val nx = if (d > 0f) dx / d else 1f; val ny = if (d > 0f) dy / d else 0f
             t.x += nx * RETURN_SPEED * deltaTime; t.y += ny * RETURN_SPEED * deltaTime
         }

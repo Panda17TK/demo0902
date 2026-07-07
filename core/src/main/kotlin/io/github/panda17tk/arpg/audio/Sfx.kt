@@ -13,7 +13,8 @@ import kotlin.math.sin
  */
 object Sfx {
     private val sounds = HashMap<String, Sound>()
-    private const val VOLUME = 0.4f
+    const val BASE = 0.4f // v2.106: the one-shot base gain (public so the sim's queue can scale it)
+    private const val VOLUME = BASE
     private const val RATE = 22050
 
     fun init() {
@@ -33,6 +34,14 @@ object Sfx {
         gen("meteor", freq = 900f, ms = 900, noise = 0.35f, freq2 = 160f) // the falling whistle
         gen("boss_down", freq = 150f, ms = 620, noise = 0.4f, freq2 = 55f) // the heavy's last breath
         gen("phase", freq = 170f, ms = 320, noise = 0.5f, freq2 = 330f)   // the rage rising
+        // v2.106 音の第3弾: the guns find their voices — "shot" gets per-weapon pitch, and the
+        // newcomers, the pickups and the settled rail aim each get a small synthesized cue.
+        gen("beam", freq = 320f, ms = 220, noise = 0.12f, freq2 = 1400f)       // the emitter's rising lance
+        gen("rail", freq = 90f, ms = 260, noise = 0.30f, freq2 = 30f)          // a deep magnetic thunk
+        gen("rail_ready", freq = 1240f, ms = 90, noise = 0f)                   // 置き撃ちが据わった合図
+        gen("blade_throw", freq = 340f, ms = 160, noise = 0.55f, freq2 = 900f) // the spinning whoosh
+        gen("blade_catch", freq = 760f, ms = 70, noise = 0.2f)                 // back in the hand
+        gen("pickup", freq = 1050f, ms = 60, noise = 0f)                       // a small, dry blip
     }
 
     /** v2.59 設定: master switch (persisted by the title screen's toggle). */

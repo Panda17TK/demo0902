@@ -15,6 +15,7 @@ import io.github.panda17tk.arpg.ecs.components.Smoke
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.item.ItemCatalog
 import io.github.panda17tk.arpg.item.ItemTrait
+import io.github.panda17tk.arpg.ecs.components.Fx
 import io.github.panda17tk.arpg.math.Rng
 import io.github.panda17tk.arpg.sim.Consequence
 import io.github.panda17tk.arpg.sim.PlanetContext
@@ -24,6 +25,7 @@ import kotlin.math.abs
 /** Auto-collects pickups when the player walks near; despawns stale ones. Planet materials grant small boons. */
 class PickupSystem : IteratingSystem(family { all(Pickup, Transform) }) {
     private val rng: Rng = world.inject()
+    private val fx: Fx = world.inject() // v2.106: pickups answer with a small queued voice
     private val worldState: WorldState = world.inject()
     private val players by lazy { world.family { all(PlayerTag, Transform, Health, Ammo, Materials, Buff, Mods) } }
 
@@ -60,6 +62,13 @@ class PickupSystem : IteratingSystem(family { all(Pickup, Transform) }) {
                         } else {
                             val a = p[Ammo]; a.set(pk.kind, a.get(pk.kind) + pk.amount)
                         }
+                    }
+                    // v2.106 音の第3弾: what was taken is audible without looking down.
+                    when {
+                        pk.kind == "shard" -> fx.requestSfx("levelup", 1.25f, 0.8f) // the key shard stands out
+                        pk.kind == "med" -> fx.requestSfx("pickup", 0.8f, 0.8f)
+                        pk.kind.startsWith(ITEM_PREFIX) -> fx.requestSfx("pickup", 0.65f, 0.8f)
+                        else -> fx.requestSfx("pickup", 1f, 0.5f)
                     }
                     world -= entity
                     return@forEach

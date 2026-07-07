@@ -35,7 +35,7 @@ class Fx(private val rng: Rng = Rng(0x5DEECE66DL)) {
     class Corpse(val x: Float, val y: Float, val w: Float, val h: Float, val color: Color, val big: Boolean, var t: Float = 0f, val life: Float)
     class Burst(val x: Float, val y: Float, val color: Color, val big: Boolean, var delay: Float)
     class Ring(val x: Float, val y: Float, var t: Float = 0f, val life: Float = 1.1f, val maxR: Float = 72f)
-    class SfxReq(val name: String, val pitch: Float)
+    class SfxReq(val name: String, val pitch: Float, val vol: Float = 1f) // vol = multiplier on the base gain
     class Pillar(val x: Float, val y: Float, var t: Float = 0f, val life: Float = 1.2f)
 
     var shakeT = 0f
@@ -80,8 +80,8 @@ class Fx(private val rng: Rng = Rng(0x5DEECE66DL)) {
     fun showCombo(step: Int, window: Float) { comboStep = step; comboT = window }
 
     /** v2.89: queue a sound from sim-side code (the screen drains and plays; capped, never grows). */
-    fun requestSfx(name: String, pitch: Float = 1f) {
-        if (sfxQueue.size < SFX_QUEUE_CAP) sfxQueue.add(SfxReq(name, pitch))
+    fun requestSfx(name: String, pitch: Float = 1f, vol: Float = 1f) {
+        if (sfxQueue.size < SFX_QUEUE_CAP) sfxQueue.add(SfxReq(name, pitch, vol))
     }
 
     /** Drain this frame's sound requests (returns them; the queue empties). */
