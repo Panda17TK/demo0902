@@ -363,7 +363,9 @@ internal fun GameScreen.questChip(ws: WorldState): String? {
         val prog = questProgress(q.kind, ws)
         val key = prog.coerceAtMost(q.target) + ws.questStage * 1000
         if (key != questChipKey) {
-            questChip = "依頼${ws.questStage + 1}/${PlanetQuest.CHAIN}　${q.line}　$prog/${q.target}"
+            val pay = io.github.panda17tk.arpg.planet.WeatherQuest.rewardFor(q, ws.weather) // v2.109
+            val bonus = if (pay > q.rewardDust) "　※この空なら${pay}屑" else ""
+            questChip = "依頼${ws.questStage + 1}/${PlanetQuest.CHAIN}　${q.line}$bonus　$prog/${q.target}"
             questChipKey = key
         }
         return questChip

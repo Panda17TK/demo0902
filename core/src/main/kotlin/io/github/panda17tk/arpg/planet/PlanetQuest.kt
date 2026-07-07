@@ -7,6 +7,32 @@ import io.github.panda17tk.arpg.sim.WeatherKind
 /** What a planet asks of its visitor (v2.45 星の依頼; v2.68 DUST/CORE; v2.69 PROTECT/OBSERVE). */
 enum class QuestKind { ELITES, KILLS, DUST, CORE, PROTECT, OBSERVE }
 
+/**
+ * v2.109 天候×依頼: the sky sets the pay. Harder-in-this-weather work earns a quiet premium —
+ * observing through thunder, guarding in the rain, hunting through fog. Pure; the quest chip
+ * and the settlement read the same table.
+ */
+object WeatherQuest {
+    fun mul(kind: QuestKind, weather: io.github.panda17tk.arpg.sim.WeatherKind): Float = when (weather) {
+        io.github.panda17tk.arpg.sim.WeatherKind.THUNDER -> when (kind) {
+            QuestKind.OBSERVE -> 1.5f; QuestKind.PROTECT -> 1.25f; else -> 1f
+        }
+        io.github.panda17tk.arpg.sim.WeatherKind.FOG -> when (kind) {
+            QuestKind.KILLS, QuestKind.ELITES -> 1.25f; else -> 1f
+        }
+        io.github.panda17tk.arpg.sim.WeatherKind.RAIN -> if (kind == QuestKind.PROTECT) 1.25f else 1f
+        io.github.panda17tk.arpg.sim.WeatherKind.SNOW -> if (kind == QuestKind.DUST) 1.25f else 1f
+        io.github.panda17tk.arpg.sim.WeatherKind.ASH -> if (kind == QuestKind.KILLS) 1.25f else 1f
+        io.github.panda17tk.arpg.sim.WeatherKind.AURORA -> when (kind) {
+            QuestKind.OBSERVE, QuestKind.CORE -> 1.25f; else -> 1f
+        }
+        else -> 1f
+    }
+
+    fun rewardFor(q: QuestDef, weather: io.github.panda17tk.arpg.sim.WeatherKind): Int =
+        (q.rewardDust * mul(q.kind, weather)).toInt()
+}
+
 /** One planet's standing request: kind + target count + the dust it pays on takeoff. */
 data class QuestDef(val kind: QuestKind, val target: Int, val rewardDust: Int) {
     val line: String
