@@ -37,7 +37,7 @@ object Workshop {
     fun buy(id: String): Boolean {
         val item = WorkshopCatalog.byId(id) ?: return false
         val r = rank(id)
-        if (r >= item.maxRank) return false
+        if (r >= WorkshopCatalog.rankCap(item, Endings.clears)) return false // v2.104: 周回の印 paces itself
         val c = WorkshopCatalog.cost(item, r)
         if (bank < c) return false
         bank -= c

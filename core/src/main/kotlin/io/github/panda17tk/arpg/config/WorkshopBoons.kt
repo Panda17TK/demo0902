@@ -11,6 +11,7 @@ data class WorkshopBoons(
     val reloadMul: Float = 1f,   // multiplies every reload's duration (smaller = faster)
     val stamina: Float = 0f,     // added to max stamina
     val loot: Float = 0f,        // added to the bonus-material drop chance
+    val allMul: Float = 1f,      // v2.104 周回の印: scales HP/stamina/damage/speed at run start
 ) {
     companion object {
         val NONE = WorkshopBoons()

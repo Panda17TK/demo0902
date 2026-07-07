@@ -254,15 +254,15 @@ object WorldFactory {
             it += Transform(x = spawnX, y = spawnY)
             it += PlayerTag()
             it += Facing()
-            it += Stamina(config.player.staMax + boons.stamina, config.player.staMax + boons.stamina) // v2.90
+            it += Stamina((config.player.staMax + boons.stamina) * boons.allMul, (config.player.staMax + boons.stamina) * boons.allMul) // v2.90; v2.104 周回の印
             it += Body(Tuning.PLAYER_HALF, Tuning.PLAYER_HALF)
             it += Materials()
-            it += Mods()
+            it += Mods(gunMul = boons.allMul, meleeMul = boons.allMul, moveMul = boons.allMul) // v2.104 周回の印
             it += Buff()
             it += Arsenal(config.weapons.map { d -> WeaponRuntime(d, d.magSize ?: 0) })
             it += Ammo()
             it += Cooldowns()
-            it += Health(config.player.hpMax + boons.hull, config.player.hpMax + boons.hull) // v2.90
+            it += Health((config.player.hpMax + boons.hull) * boons.allMul, (config.player.hpMax + boons.hull) * boons.allMul) // v2.90; v2.104 周回の印
             it += Velocity()
             it += Gear(ItemCatalog.starterLoadout(), ItemCatalog.starterBackpack()) // v2.33 装備+持物
         }

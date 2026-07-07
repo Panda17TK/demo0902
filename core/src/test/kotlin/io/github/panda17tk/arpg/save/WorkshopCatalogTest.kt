@@ -6,8 +6,8 @@ import org.junit.jupiter.api.Test
 
 /** v2.90 保守員の工房: the catalog's arithmetic — costs, ranks, boons, salvage. */
 class WorkshopCatalogTest {
-    @Test fun `the catalog is five distinct crafts`() {
-        assertEquals(5, WorkshopCatalog.ITEMS.size)
+    @Test fun `the catalog is six distinct crafts`() {
+        assertEquals(6, WorkshopCatalog.ITEMS.size) // v2.104: +管制核の欠片
         assertEquals(WorkshopCatalog.ITEMS.size, WorkshopCatalog.ITEMS.map { it.id }.distinct().size)
         for (item in WorkshopCatalog.ITEMS) assertTrue(item.maxRank in 1..4 && item.baseCost > 0)
     }

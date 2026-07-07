@@ -15,7 +15,7 @@ object WorkshopPanel {
         val x = (w - bw) / 2f
         val top = h * 0.88f - 84f // the head above holds 工房 + the fragment bank line
         val rows = WorkshopCatalog.ITEMS.mapIndexed { i, item ->
-            UiButton(x, top - 56f - i * 68f, bw, 56f, item.id)
+            UiButton(x, top - 50f - i * 58f, bw, 50f, item.id) // v2.104: six crafts fit a small screen
         }
         return rows + UiButton(x, h * 0.13f, bw, 48f, CLOSE_LABEL)
     }
