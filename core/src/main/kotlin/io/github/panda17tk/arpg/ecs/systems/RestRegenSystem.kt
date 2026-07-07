@@ -32,7 +32,8 @@ class RestRegenSystem : IteratingSystem(family { all(PlayerTag, Health, Velocity
         val resting = speedSq < SPEED_EPS * SPEED_EPS &&
             !input.fire && !input.melee && !input.dash && sinceHurt >= REST_DELAY
         if (resting && h.hp < h.hpMax) {
-            acc += deltaTime * (1f + boons.regenPerSec) * difficulty.regenMul // v2.90 学習 / v2.97 安定運転
+            val modsRegen = entity.getOrNull(io.github.panda17tk.arpg.ecs.components.Mods)?.regenAdd ?: 0f // v2.107 自己修復
+            acc += deltaTime * (1f + boons.regenPerSec + modsRegen) * difficulty.regenMul // v2.90 学習 / v2.97 安定運転
             while (acc >= 1f) { acc -= 1f; h.hp = (h.hp + 1f).coerceAtMost(h.hpMax) }
         } else if (!resting) {
             acc = 0f // moving/fighting breaks the breath — the next point starts over

@@ -134,7 +134,7 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
                     val bx = (hit.wallTileX + 0.5f) * Tuning.TILE; val by = (hit.wallTileY + 0.5f) * Tuning.TILE
                     // v2.37/40: high-output beams crater wider — and a charged shot's impact blast
                     // grows with the ray (up to 2× radius and damage at full charge).
-                    val r = Tuning.TILE * BEAM_BLAST_TILES * gradeBlast * (1f + charge)
+                    val r = Tuning.TILE * BEAM_BLAST_TILES * gradeBlast * mods.blastMul * (1f + charge) // v2.107
                     val broke = Explosion.blastWalls(map, bx, by, r)
                     mobGrid.forNearby(bx, by, r + 24f) { mobEntity ->
                         val mobT = with(world) { mobEntity[Transform] }
@@ -203,7 +203,7 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
                 fx.addKick(-dirX * kick, -dirY * kick)
                 world.entity {
                     it += Transform(x = t.x + dirX * Tuning.MUZZLE_OFFSET, y = t.y + dirY * Tuning.MUZZLE_OFFSET)
-                    it += Grenade(dirX * config.player.grenadeSpeed, dirY * config.player.grenadeSpeed, config.player.grenadeFuse, blastMul = gradeBlast)
+                    it += Grenade(dirX * config.player.grenadeSpeed, dirY * config.player.grenadeSpeed, config.player.grenadeFuse, blastMul = gradeBlast * mods.blastMul) // v2.107 爆風拡大
                 }
             }
             else -> {
@@ -215,7 +215,7 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
                 fx.addKick(-dirX * kick, -dirY * kick)
                 // v2.40 variants: the equipped gun shapes the ballistics — spread, muzzle velocity, homing.
                 val spread = def.spread * (gradeItem?.spreadMul ?: 1f)
-                val bulletSpeed = config.player.bulletSpeed * (gradeItem?.bulletSpeedMul ?: 1f)
+                val bulletSpeed = config.player.bulletSpeed * (gradeItem?.bulletSpeedMul ?: 1f) * mods.bulletSpeedMul // v2.107
                 val homing = gradeItem?.homing ?: 0f
                 val angles = Firing.bulletAngles(aim, spread, def.pellets, rng)
                 for (a in angles) {
