@@ -28,19 +28,23 @@ class EventFeedSystemTest {
     }
 
     @Test fun `a repeated per-tick emitter fires the feed only once`() {
-        val gw = surfaceWorld()
-        gw.world.update(dt)
+        // v2.126: bigger surfaces let the live ecology feed organic lines early, so this test
+        // compares against an identically-advanced control world — only the emitter's effect shows.
+        val gw = surfaceWorld(); val control = surfaceWorld()
+        gw.world.update(dt); control.world.update(dt)
         repeat(30) { // this emitter is called every tick while the condition holds
             gw.worldState.society.onWildPredatorThreatenedChild()
-            gw.world.update(dt)
+            gw.world.update(dt); control.world.update(dt)
         }
-        assertTrue(gw.worldState.recentEvents.isEmpty(), "the per-tick threat flag has no feed line")
-        // A boolean deed reported repeatedly stays a single edge (flag set directly to isolate from gauges).
-        gw.worldState.society.childHarmed = true
-        gw.world.update(dt)
-        gw.worldState.society.childHarmed = true // still up: no new edge
-        gw.world.update(dt)
-        assertEquals(1, gw.worldState.recentEvents.size)
+        assertEquals(control.worldState.recentEvents.size, gw.worldState.recentEvents.size,
+            "the per-tick threat flag has no feed line")
+        // A boolean deed reported repeatedly stays a single edge. leaderDefeated is used here
+        // because the threat gauge above can organically latch the child-harm edge in gw.
+        gw.worldState.society.leaderDefeated = true
+        gw.world.update(dt); control.world.update(dt)
+        gw.worldState.society.leaderDefeated = true // still up: no new edge
+        gw.world.update(dt); control.world.update(dt)
+        assertEquals(control.worldState.recentEvents.size + 1, gw.worldState.recentEvents.size)
     }
 
     @Test fun `lines expire after their lifetime`() {
