@@ -653,21 +653,22 @@ object Hud {
     }
 
     private fun centerText(batch: SpriteBatch, font: BitmapFont, s: String, screenW: Float, y: Float) {
-        glyph.setText(font, s)
+        glyph.setText(font, io.github.panda17tk.arpg.i18n.Lang.tr(s)) // v2.115
         font.draw(batch, glyph, (screenW - glyph.width) / 2f, y)
     }
 
     private fun centerLabel(batch: SpriteBatch, font: BitmapFont, s: String, cx: Float, cy: Float) {
-        glyph.setText(font, s)
+        glyph.setText(font, io.github.panda17tk.arpg.i18n.Lang.tr(s)) // v2.115
         font.draw(batch, glyph, cx - glyph.width / 2f, cy + glyph.height / 2f)
     }
 
     /** v2.57: centered label that auto-shrinks to [maxW] — tabs/strips can't smear together. */
     private fun fitCenterLabel(batch: SpriteBatch, font: BitmapFont, s: String, cx: Float, cy: Float, maxW: Float) {
+        val t = io.github.panda17tk.arpg.i18n.Lang.tr(s) // v2.115
         val bx = font.data.scaleX; val by = font.data.scaleY
-        glyph.setText(font, s)
+        glyph.setText(font, t)
         val fit = min(1f, maxW / glyph.width.coerceAtLeast(1f))
-        if (fit < 1f) { font.data.setScale(bx * fit, by * fit); glyph.setText(font, s) }
+        if (fit < 1f) { font.data.setScale(bx * fit, by * fit); glyph.setText(font, t) }
         font.draw(batch, glyph, cx - glyph.width / 2f, cy + glyph.height / 2f)
         if (fit < 1f) font.data.setScale(bx, by)
     }
