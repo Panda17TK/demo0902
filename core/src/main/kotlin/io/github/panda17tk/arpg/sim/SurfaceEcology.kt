@@ -233,6 +233,27 @@ object SurfaceEcology {
             val d = Tuning.TILE * (3f + rng.nextFloat()) // 3–4 tiles off the pad
             out.add(EcologyPlacement(guardianKey(biome), clampX(spawnX + cos(a) * d), clampY(spawnY + sin(a) * d)))
         }
+
+        // v2.133 適所の生態: creatures whose life centres on a structure gather at it — the nest's
+        // mother and young by the nest, the grave's mimic by the grave, the ruins' crawlers among the
+        // ruins. Angles derive from the placement index (golden-angle spiral), never from [rng], so
+        // every layout decided above stays byte-stable.
+        fun anchor(keys: Set<String>, homes: List<Facility>) {
+            if (homes.isEmpty()) return
+            var i = 0
+            for (j in out.indices) {
+                val p = out[j]
+                if (p.key !in keys) continue
+                val f = homes[i % homes.size]
+                val a = GOLDEN_ANGLE * i
+                val d = f.radius * (0.45f + 0.06f * (i % 7))
+                out[j] = p.copy(x = clampX(f.x + cos(a) * d), y = clampY(f.y + sin(a) * d))
+                i++
+            }
+        }
+        anchor(NEST_KIN, fac.filter { it.kind == FacilityKind.NEST })
+        anchor(GRAVE_KIN, fac.filter { it.kind == FacilityKind.GRAVE })
+        anchor(RUIN_KIN, fac.filter { it.kind == FacilityKind.RUIN })
         return Society(out, fac)
     }
 
@@ -269,6 +290,14 @@ object SurfaceEcology {
         "river_otter", "thorn_tortoise", "ashwing", "snow_owl", "rime_elk", "sky_grazer",
         "crypt_beetle", "dust_skipper", // v2.82
     )
+    // v2.133 適所の生態 — who belongs where. WATERSIDE is read by WorldFactory (it owns the map
+    // and the water bodies); the *_KIN sets are consumed by the anchoring pass above.
+    val WATERSIDE = setOf("river_otter", "thorn_tortoise", "sleeping_calf") // otters and tortoises by the banks, calves asleep on the frozen pond
+    private val NEST_KIN = setOf("nest_mother", "forest_hatchling", "crater_hatchling")
+    private val GRAVE_KIN = setOf("grave_mimic")
+    private val RUIN_KIN = setOf("ruin_parasite", "crypt_beetle")
+    private const val GOLDEN_ANGLE = 2.399963f // TAU / φ² — spreads anchored kin evenly around their home
+
     private fun removePrey(out: MutableList<EcologyPlacement>, n: Int) {
         var removed = 0; val it = out.iterator()
         while (it.hasNext() && removed < n) { if (it.next().key in PREY) { it.remove(); removed++ } }
