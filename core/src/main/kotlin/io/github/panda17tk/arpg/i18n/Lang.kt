@@ -10,7 +10,19 @@ object Lang {
     /** Set by the screens from the settings pref; the sim never reads this. */
     var en = false
 
-    fun tr(s: String): String = if (!en) s else TABLE[s] ?: s
+    fun tr(s: String): String {
+        if (!en) return s
+        TABLE[s]?.let { return it }
+        if (s.none { it.code >= 0x2E80 }) return s // nothing CJK to translate
+        cache[s]?.let { return it }
+        var out = s
+        for ((ja, e) in SUB) if (ja in out) out = out.replace(ja, e)
+        if (cache.size >= 256) cache.clear() // v2.121: tiny memo — draw funnels repeat the same lines
+        cache[s] = out
+        return out
+    }
+
+    private val cache = HashMap<String, String>()
 
     private val TABLE: Map<String, String> = mapOf(
         // タイトル
@@ -94,4 +106,89 @@ object Lang {
         "戻す" to "Undo",
         "次へ" to "Next",
     )
+
+    /** v2.121 英語化第2弾: substring tokens for COMPOSED lines (HUD strip, notes, records).
+     *  Applied longest-first so short tokens never bite into longer ones. Names come from the
+     *  live catalogs, so a new weapon/card/achievement only needs its English name added here. */
+    private val SUB: List<Pair<String, String>> = buildList {
+        // HUD / records tokens
+        add("まだ記録がない — 星々はこれからあなたを知る" to "No record yet - the stars have yet to know you")
+        add("保守員は倒れた — 記録は星に残る" to "The keeper has fallen - the stars keep the record")
+        add("旅の記録 — 星々はあなたを覚えている" to "The voyage - the stars remember you")
+        add("最深 同期汚染 " to "Deepest desync ")
+        add("ウェーブ(旧式) " to "Wave (legacy) ")
+        add("残プロセス " to "processes ")
+        add("宙域安定 " to "stability ")
+        add("同期汚染 " to "Desync ")
+        add("総撃破 " to "total kills ")
+        add("ウェーブ " to "Wave ")
+        add("撃破 " to "kills ")
+        add("時間 " to "Time ")
+        add("資材 " to "mats ")
+        add("所持 星屑 " to "Dust held ")
+        add("星屑 " to "dust ")
+        add("装填中" to "Reloading")
+        add("予備 " to "Reserve ")
+        add("過熱!" to "Overheat!")
+        add("同期完了 " to "Syncs completed ")
+        add("回 — 網は眠り、また編み直された" to " - the net slept, and was rewoven")
+        add("実績解除" to "Unlocked ")
+        add("実績 " to "Achievements ")
+        // 記録 / スロット / 検証ラン
+        add("スロット" to "Slot ")
+        add("空き" to "empty")
+        for (d in 1..7) add("残り${d}日" to "${d}d left")
+        add("全員同じ宙域・同じ装備。" to "Same sky, same loadout for everyone. ")
+        add("検証ラン " to "Proving Run ")
+        // 行商船
+        add("行商船 — 買い取り " to "Trader - buyback ")
+        add("行商船" to "Trader")
+        add("売れる持物がない" to "Nothing to sell")
+        add("─ 売約済 ─" to "- sold -")
+        add("行をタップで売却" to "tap a row to sell")
+        add("行をタップで購入" to "tap a row to buy")
+        add(" を売った（+" to " sold (+")
+        add(" を購入した（-" to " bought (-")
+        add(" を棚から戻した（-" to " returned (-")
+        add("屑が足りない — 戻せない" to "Not enough dust to take it back")
+        add("屑）" to " dust)")
+        add("屑】" to " dust]")
+        add("【+" to " [+")
+        add("【" to " [")
+        add("討伐図鑑 " to "Bestiary ")
+        // weapon names (from the live catalog — ids are stable)
+        val weaponEn = mapOf(
+            "pistol" to "Pistol", "shotgun" to "Shotgun", "mg" to "Machine Gun",
+            "beam" to "Beam", "grenade" to "Grenade", "smg" to "SMG",
+            "rifle" to "Rifle", "railgun" to "Railgun", "blade" to "Return Blade",
+        )
+        io.github.panda17tk.arpg.combat.Weapons.ALL.forEach { w -> weaponEn[w.id]?.let { add(w.name to it) } }
+        // upgrade card names
+        val cardEn = mapOf(
+            "gun_dmg" to "Firepower", "fire_rate" to "Rapid Fire", "melee" to "Melee Art",
+            "max_hp" to "Sturdy Frame", "speed" to "Swift Step", "ammo" to "Ammo Cache",
+            "lifesteal" to "Lifesteal", "engineer" to "Fieldworks", "reload_fast" to "Deft Reload",
+            "stamina_up" to "Thruster Extension", "blast_up" to "Wider Blast", "regen_up" to "Self-Repair",
+            "dash_eff" to "Light Dash", "bullet_speed" to "Muzzle Velocity", "armor_up" to "Rolled Armor",
+            "magnet_up" to "Gathering Hand",
+        )
+        io.github.panda17tk.arpg.upgrade.Upgrades.ALL.forEach { u -> cardEn[u.id]?.let { add(u.name to it) } }
+        // achievement titles (they appear inside 『…』 in toasts and the record)
+        val achEn = mapOf(
+            "FIRST_LANDING" to "First Landing", "FIRST_JUMP" to "First Jump", "STAR_RETURNER" to "Star Returner",
+            "KING_SLAYER" to "Kingslayer", "FIRST_HONE" to "First Honing", "SYNC_50" to "Signs of Recovery",
+            "BOUNTY_HUNTER" to "Bounty Hunter", "DEEP_SURGE" to "Deep Surge", "QUEST_PATRON" to "Trusted Hand",
+            "RELIC_KEEPER" to "Relic Keeper", "SYNC_90" to "Almost Reconnected", "HONED_MAX" to "Fully Honed",
+            "GUARDIAN" to "Guardian", "OBSERVER" to "Observer", "SYSTEM_3" to "Third System",
+            "DUST_RICH" to "Dust Collector", "QUIET_VISIT" to "Quiet Visit", "BEAST_HUNTER" to "Beast Hunter",
+            "CHAIN_PATRON" to "Regular Caller", "STORM_WATCHER" to "Storm Record", "AURORA_GAZER" to "Under the Aurora",
+            "METEOR_SURVIVOR" to "Through the Meteors", "ROGUE_SLAYER" to "Rogue Slayer", "RAGE_BREAKER" to "Rage Breaker",
+            "GRAND_RITUAL" to "Ritual Witness", "COMBO_MASTER" to "Five-Beat Breath", "WORKSHOP_PATRON" to "Workshop Patron",
+            "WORKSHOP_MASTER" to "Workshop Regular", "TRAIT_ARRIVAL" to "Tempered Skies", "GATE_READY" to "Keys in Hand",
+            "FINAL_SYNC" to "The Last Keeper", "DRIFT_ON" to "Still Drifting", "VAULT_DELVER" to "Vault Delver",
+            "TRADER_CLIENT" to "Trader's Client", "LIFELINE" to "Lifeline", "TRADE_LEDGER" to "Star Ledger",
+            "BESTIARY_50" to "A Thicker Book", "BESTIARY_FULL" to "Complete Record",
+        )
+        io.github.panda17tk.arpg.save.Achievement.entries.forEach { a -> achEn[a.name]?.let { add(a.title to it) } }
+    }.sortedByDescending { it.first.length }
 }
