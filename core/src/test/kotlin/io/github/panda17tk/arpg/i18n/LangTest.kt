@@ -46,8 +46,32 @@ class LangTest {
         }
     }
 
-    @Test fun `dynamic lines pass through unchanged even in English`() {
+    @Test fun `composed lines translate token by token`() {
+        // v2.121 第2弾: the HUD strip, slot lines, and sale notes are built at runtime —
+        // the substring table carries them, longest token first.
         Lang.en = true
-        assertEquals("同期汚染 4　残プロセス 3", Lang.tr("同期汚染 4　残プロセス 3"))
+        assertEquals("Desync 4　processes 3　stability 62%", Lang.tr("同期汚染 4　残プロセス 3　宙域安定 62%"))
+        assertEquals("Slot 1　empty", Lang.tr("スロット1　empty").let { Lang.tr("スロット1　空き") })
+        assertEquals("Achievements 3/38", Lang.tr("実績 3/38"))
+        // the full-width space (U+3000) is layout, not language — it may stay
+        assertTrue(Lang.tr("W2947　ウェーブ 9　撃破 77　残り3日").none { it.code >= 0x2E80 && it != '　' })
+    }
+
+    @Test fun `every weapon, card, and achievement wears an English name`() {
+        Lang.en = true
+        for (w in io.github.panda17tk.arpg.combat.Weapons.ALL) {
+            assertTrue(Lang.tr(w.name) != w.name, "no English for weapon 「${w.name}」")
+        }
+        for (u in io.github.panda17tk.arpg.upgrade.Upgrades.ALL) {
+            assertTrue(Lang.tr(u.name) != u.name, "no English for card 「${u.name}」")
+        }
+        for (a in io.github.panda17tk.arpg.save.Achievement.entries) {
+            assertTrue(Lang.tr(a.title) != a.title, "no English for achievement 「${a.title}」")
+        }
+    }
+
+    @Test fun `lines outside every dictionary still pass through`() {
+        Lang.en = true
+        assertEquals("qqq 123", Lang.tr("qqq 123"))
     }
 }
