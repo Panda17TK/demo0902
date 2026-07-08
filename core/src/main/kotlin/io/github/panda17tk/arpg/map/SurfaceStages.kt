@@ -16,14 +16,16 @@ object SurfaceStages {
     /** Per-biome terrain shape: arena size, obstacle density (smaller divisor = denser) and blob radius. */
     private data class Shape(val w: Int, val h: Int, val densityDiv: Int, val maxBlob: Int)
 
+    // v2.126 惑星の拡張: every surface grew ~1.5× per side (density divisors unchanged, so the
+    // obstacle DENSITY per area stays — there is simply more planet to cross and to roam).
     private fun shapeOf(biome: PlanetBiome?): Shape = when (biome) {
-        PlanetBiome.NATURE -> Shape(72, 46, 30, 1) // lush: plenty of cover
-        PlanetBiome.MAGMA -> Shape(72, 46, 26, 2) // jagged volcanic rock, lots of it
-        PlanetBiome.ICE -> Shape(72, 46, 34, 1) // open snowfields
-        PlanetBiome.GAS -> Shape(80, 50, 64, 1) // wide and open, few obstacles
-        PlanetBiome.DEAD -> Shape(72, 46, 38, 2) // barren rock
-        PlanetBiome.LONELY -> Shape(48, 32, 70, 1) // small and sparse
-        null -> Shape(72, 46, 35, 1) // neutral fallback
+        PlanetBiome.NATURE -> Shape(108, 70, 30, 1) // lush: plenty of cover
+        PlanetBiome.MAGMA -> Shape(108, 70, 26, 2) // jagged volcanic rock, lots of it
+        PlanetBiome.ICE -> Shape(108, 70, 34, 1) // open snowfields
+        PlanetBiome.GAS -> Shape(120, 76, 64, 1) // wide and open, few obstacles
+        PlanetBiome.DEAD -> Shape(108, 70, 38, 2) // barren rock
+        PlanetBiome.LONELY -> Shape(72, 48, 70, 1) // small and sparse — still the modest one
+        null -> Shape(108, 70, 35, 1) // neutral fallback
     }
 
     fun forBiome(biome: PlanetBiome?, seed: Long): StageDef {

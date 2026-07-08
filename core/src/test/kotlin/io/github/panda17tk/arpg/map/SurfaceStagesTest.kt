@@ -32,6 +32,12 @@ class SurfaceStagesTest {
         }
     }
 
+    @Test fun `surfaces grew — a standard planet spans at least 100x64 tiles`() {
+        // v2.126 惑星の拡張
+        val s = SurfaceStages.forBiome(PlanetBiome.NATURE, 7L)
+        assertTrue(s.rows.size >= 64 && s.rows.first().length >= 100, "got ${s.rows.first().length}x${s.rows.size}")
+    }
+
     @Test fun `a lonely planet makes a smaller arena than a gas planet`() {
         val lonely = SurfaceStages.forBiome(PlanetBiome.LONELY, 3L)
         val gas = SurfaceStages.forBiome(PlanetBiome.GAS, 3L)
