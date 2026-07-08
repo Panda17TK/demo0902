@@ -99,6 +99,8 @@ object Lang {
         "討伐図鑑を見る" to "View Bestiary",
         "記録へ戻る" to "Back to Records",
         "引き継ぎ" to "Transfer",
+        "勤続記録" to "Service Record",
+        "これから — 最初の出撃を待っている" to "Not yet - awaiting the first sortie",
         "書き出す（コピー）" to "Export (copy)",
         "取り込む（貼り付け）" to "Import (paste)",
         "書き出せなかった" to "Could not export",
@@ -141,6 +143,8 @@ object Lang {
         add("予備 " to "Reserve ")
         add("過熱!" to "Overheat!")
         add("同期完了 " to "Syncs completed ")
+        add("累計 " to "Total ")
+        add("出撃 " to "sorties ")
         add("回 — 網は眠り、また編み直された" to " - the net slept, and was rewoven")
         add("実績解除" to "Unlocked ")
         add("実績 " to "Achievements ")
