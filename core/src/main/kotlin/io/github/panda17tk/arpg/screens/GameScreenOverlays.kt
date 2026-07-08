@@ -471,19 +471,26 @@ internal fun GameScreen.handleMarketTap(w: Float, h: Float) {
     }
 
 /** v2.100 行商船: dim + the vessel's shelves (name left, price right) + 所持屑 + [離れる]. */
+/** v2.114 買い取り: the backpack's sellable items, with their original indices kept for removal. */
+internal fun GameScreen.sellables(): List<Pair<Int, io.github.panda17tk.arpg.item.ItemDef>> =
+    with(gw.world) { gw.player[Gear].backpack.withIndex().filter { Trader.sellable(it.value) }.map { it.index to it.value } }
+
 internal fun GameScreen.drawTraderShop() {
         hudViewport.apply()
         val w = hudViewport.worldWidth; val h = hudViewport.worldHeight
         val stock = Trader.stockFor(worldSeed)
-        val rows = TraderPanel.rows(w, h, stock.size)
-        val close = TraderPanel.closeButton(w, h)
+        val selling = traderSelling // v2.114: which face of the stall
+        val goods = sellables()
+        val pageItems = if (selling) goods.drop(sellPage * TraderPanel.SELL_ROWS).take(TraderPanel.SELL_ROWS) else emptyList()
+        val rows = if (selling) TraderPanel.sellRows(w, h, pageItems.size) else TraderPanel.rows(w, h, stock.size)
+        val footer = if (selling) TraderPanel.sellFooter(w, h) else TraderPanel.shelfFooter(w, h)
         if (traderNoteT > 0f) { traderNoteT -= Gdx.graphics.deltaTime; if (traderNoteT <= 0f) traderNote = null }
         Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND)
         shapes.projectionMatrix = hudViewport.camera.combined
         shapes.begin(ShapeRenderer.ShapeType.Filled)
         cEventTmp.set(0f, 0f, 0f, 0.78f); shapes.color = cEventTmp
         shapes.rect(0f, 0f, w, h)
-        (rows + close).forEach { b ->
+        (rows + footer).forEach { b ->
             cEventTmp.set(1f, 0.82f, 0.45f, 0.20f); shapes.color = cEventTmp // the warm lamp, not HUD blue
             shapes.rect(b.x - 1.5f, b.y - 1.5f, b.w + 3f, b.h + 3f)
             cEventTmp.set(0.12f, 0.10f, 0.08f, 0.95f); shapes.color = cEventTmp
@@ -493,29 +500,69 @@ internal fun GameScreen.drawTraderShop() {
         batch.projectionMatrix = hudViewport.camera.combined
         batch.begin()
         cEventTmp.set(1f, 0.87f, 0.55f, 1f); font.color = cEventTmp
-        bannerGlyph.setText(font, "行商船")
+        bannerGlyph.setText(font, if (selling) "行商船 — 買い取り ${sellPage + 1}/${TraderPanel.sellPages(goods.size)}" else "行商船")
         font.draw(batch, bannerGlyph, (w - bannerGlyph.width) / 2f, h * 0.80f)
         font.color = Color.WHITE
-        rows.forEachIndexed { i, row ->
-            val good = stock[i]
-            val shown = Trader.discounted(good.price, gw.worldState.traderRescued) // v2.110 襲撃の礼
-            val text = if (i in traderSold) "─ 売約済 ─" else "${good.label}　【${shown}屑】"
-            bannerGlyph.setText(font, text)
-            font.draw(batch, bannerGlyph, row.centerX - bannerGlyph.width / 2f, row.centerY + bannerGlyph.height / 2f)
+        if (selling) { // v2.114: what the keeper carries, priced for buyback
+            rows.forEachIndexed { i, row ->
+                val (_, item) = pageItems[i]
+                bannerGlyph.setText(font, "${item.name}　【+${Trader.sellPrice(item)}屑】")
+                font.draw(batch, bannerGlyph, row.centerX - bannerGlyph.width / 2f, row.centerY + bannerGlyph.height / 2f)
+            }
+            if (pageItems.isEmpty()) {
+                cEventTmp.set(0.62f, 0.68f, 0.80f, 1f); font.color = cEventTmp
+                bannerGlyph.setText(font, "売れる持物がない")
+                font.draw(batch, bannerGlyph, (w - bannerGlyph.width) / 2f, h * 0.55f)
+                font.color = Color.WHITE
+            }
+        } else {
+            rows.forEachIndexed { i, row ->
+                val good = stock[i]
+                val shown = Trader.discounted(good.price, gw.worldState.traderRescued) // v2.110 襲撃の礼
+                val text = if (i in traderSold) "─ 売約済 ─" else "${good.label}　【${shown}屑】"
+                bannerGlyph.setText(font, text)
+                font.draw(batch, bannerGlyph, row.centerX - bannerGlyph.width / 2f, row.centerY + bannerGlyph.height / 2f)
+            }
         }
         val dust = with(gw.world) { gw.player[Materials].dust }
         cEventTmp.set(0.62f, 0.68f, 0.80f, 1f); font.color = cEventTmp
-        bannerGlyph.setText(font, traderNote ?: "所持 星屑 $dust　行をタップで購入")
-        font.draw(batch, bannerGlyph, (w - bannerGlyph.width) / 2f, close.y + close.h + 30f)
+        bannerGlyph.setText(font, traderNote ?: (if (selling) "所持 星屑 $dust　行をタップで売却" else "所持 星屑 $dust　行をタップで購入"))
+        font.draw(batch, bannerGlyph, (w - bannerGlyph.width) / 2f, footer.first().y + footer.first().h + 30f)
         font.color = Color.WHITE
-        bannerGlyph.setText(font, close.label)
-        font.draw(batch, bannerGlyph, close.centerX - bannerGlyph.width / 2f, close.centerY + bannerGlyph.height / 2f)
+        footer.forEach { b ->
+            bannerGlyph.setText(font, b.label)
+            font.draw(batch, bannerGlyph, b.centerX - bannerGlyph.width / 2f, b.centerY + bannerGlyph.height / 2f)
+        }
         batch.end()
     }
 
-/** v2.100 行商船: buy the tapped shelf slot if the dust covers it, or step away. */
+/** v2.100 行商船: buy the tapped shelf slot if the dust covers it — or flip to buyback, or step away. */
 internal fun GameScreen.handleTraderTap(w: Float, h: Float) {
-        if (TraderPanel.closeButton(w, h).contains(tapX, tapY)) { overlay = Overlay.NONE; Sfx.play("scan"); return }
+        if (traderSelling) { // v2.114 買い取り
+            val goods = sellables()
+            when (Modals.hitModal(TraderPanel.sellFooter(w, h), tapX, tapY)) {
+                0 -> { val p = TraderPanel.sellPages(goods.size); sellPage = (sellPage - 1 + p) % p; Sfx.play("scan"); return }
+                1 -> { val p = TraderPanel.sellPages(goods.size); sellPage = (sellPage + 1) % p; Sfx.play("scan"); return }
+                2 -> { traderSelling = false; Sfx.play("scan"); return }
+            }
+            val pageItems = goods.drop(sellPage * TraderPanel.SELL_ROWS).take(TraderPanel.SELL_ROWS)
+            val ri = Modals.hitModal(TraderPanel.sellRows(w, h, pageItems.size), tapX, tapY) ?: return
+            val (backpackIdx, item) = pageItems[ri]
+            val pay = Trader.sellPrice(item)
+            with(gw.world) {
+                val pack = gw.player[Gear].backpack
+                if (backpackIdx < pack.size && pack[backpackIdx] === item) pack.removeAt(backpackIdx) else pack.remove(item)
+                gw.player[Materials].dust += pay
+            }
+            sellPage = sellPage.coerceAtMost(TraderPanel.sellPages(sellables().size) - 1).coerceAtLeast(0)
+            traderNote = "${item.name} を売った（+${pay}屑）"; traderNoteT = SAVED_NOTE_TIME
+            Sfx.play("pickup", 0.9f)
+            return
+        }
+        when (Modals.hitModal(TraderPanel.shelfFooter(w, h), tapX, tapY)) {
+            0 -> { traderSelling = true; sellPage = 0; Sfx.play("scan"); return } // v2.114 売る
+            1 -> { overlay = Overlay.NONE; Sfx.play("scan"); return }
+        }
         val stock = Trader.stockFor(worldSeed)
         val idx = Modals.hitModal(TraderPanel.rows(w, h, stock.size), tapX, tapY) ?: return
         if (idx in traderSold) return

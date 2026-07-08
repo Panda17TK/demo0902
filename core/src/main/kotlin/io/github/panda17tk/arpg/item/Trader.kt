@@ -43,6 +43,12 @@ object Trader {
     /** v2.110 襲撃の礼: a defended vessel discounts every shelf 20% (floor, never below 1). */
     fun discounted(price: Int, rescued: Boolean): Int =
         if (rescued) ((price * 4) / 5).coerceAtLeast(1) else price
+
+    /** v2.114 買い取り: the vessel buys gear at half the market's clear-sky price (LORE never sells —
+     *  stories are found, not traded). Always at least 1屑, so nothing is worthless. */
+    fun sellPrice(item: ItemDef): Int = (Market.priceFor(item, 0f) / 2).coerceAtLeast(1)
+
+    fun sellable(item: ItemDef): Boolean = item.kind != ItemKind.LORE
     const val SHARD_CHANCE = 0.5f
     private const val GEAR_MARKUP = 1.2f // no gratitude discount out here
     private const val SALT = 0x71A_DE72L

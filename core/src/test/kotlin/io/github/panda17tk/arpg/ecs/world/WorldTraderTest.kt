@@ -51,6 +51,31 @@ class WorldTraderTest {
         assertTrue(withShard in 1..39, "got $withShard/40 shard shelves")
     }
 
+    @Test fun `buyback halves the market price, floors at 1, and never trades stories`() {
+        // v2.114 買い取り
+        val gear = io.github.panda17tk.arpg.item.ItemCatalog.ALL.first { it.kind != io.github.panda17tk.arpg.item.ItemKind.LORE }
+        assertEquals(io.github.panda17tk.arpg.item.Market.priceFor(gear, 0f) / 2, Trader.sellPrice(gear))
+        assertTrue(Trader.sellPrice(gear) >= 1)
+        val lore = io.github.panda17tk.arpg.item.ItemCatalog.ALL.first { it.kind == io.github.panda17tk.arpg.item.ItemKind.LORE }
+        assertTrue(!Trader.sellable(lore), "stories are found, not traded")
+        assertTrue(Trader.sellable(gear))
+    }
+
+    @Test fun `the buyback page's plates and footer stay on screen without overlap`() {
+        for ((w, h) in listOf(320f to 640f, 360f to 800f, 420f to 900f)) {
+            val rows = io.github.panda17tk.arpg.ui.TraderPanel.sellRows(w, h, 6)
+            val footer = io.github.panda17tk.arpg.ui.TraderPanel.sellFooter(w, h)
+            val shelf = io.github.panda17tk.arpg.ui.TraderPanel.shelfFooter(w, h)
+            for (b in rows + footer + shelf) {
+                assertTrue(b.x >= 0f && b.y >= 0f && b.x + b.w <= w && b.y + b.h <= h, "off screen: $b at $w x $h")
+            }
+            assertTrue(footer.last().y + footer.last().h < rows.last().y, "the footer sits clear below the plates")
+            assertTrue(shelf[0].x + shelf[0].w <= shelf[1].x, "[売る][離れる] never overlap")
+        }
+        assertEquals(1, io.github.panda17tk.arpg.ui.TraderPanel.sellPages(0))
+        assertEquals(2, io.github.panda17tk.arpg.ui.TraderPanel.sellPages(7))
+    }
+
     @Test fun `the shop panel stacks its plates above the leave button`() {
         val rows = TraderPanel.rows(360f, 800f, 4)
         assertEquals(4, rows.size)
