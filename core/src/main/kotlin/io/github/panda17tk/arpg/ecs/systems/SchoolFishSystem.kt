@@ -139,9 +139,9 @@ class SchoolFishSystem : IteratingSystem(family { all(Mob, Transform, Velocity, 
         if (hl > 0.0001f) { hx /= hl; hy /= hl } else { hx = 1f; hy = 0f }
         f.x = hx; f.y = hy
         val r1 = Collision.moveAndCollide(map, t.x, t.y, b.halfW, b.halfH, hx * m.speed * dt + (v.vx + v.driftX) * dt, 0f)
-        if (r1.hitX) v.driftX = 0f
+        if (r1.hitX) { v.driftX = 0f; f.x = -f.x } // v2.136: bounce the heading off the rock, not pin against it
         val r2 = Collision.moveAndCollide(map, r1.x, r1.y, b.halfW, b.halfH, 0f, hy * m.speed * dt + (v.vy + v.driftY) * dt)
-        if (r2.hitY) v.driftY = 0f
+        if (r2.hitY) { v.driftY = 0f; f.y = -f.y }
         t.x = r2.x; t.y = r2.y
     }
 
