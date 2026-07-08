@@ -12,6 +12,7 @@ object RecordsPanel {
     const val REPLAY_LABEL = "起動診断をもう一度"
     const val CLOSE_LABEL = "閉じる"
     const val BESTIARY_LABEL = "討伐図鑑を見る" // v2.113
+    const val BESTIARY_ROWS = 11 // v2.120: rows per bestiary page (six kinds to a row)
     const val BACK_LABEL = "記録へ戻る"
 
     /** The panel body, top-down. [has] answers whether an achievement is unlocked. */
@@ -48,15 +49,24 @@ object RecordsPanel {
 
     /** v2.113 討伐図鑑: the second page — every enemy kind, named once it has fallen to you.
      *  [count] answers kills for a kind id; unmet kinds stay a quiet ？？？. Four to a row. */
-    fun bestiaryLines(count: (String) -> Int): List<String> {
+    fun bestiaryLines(count: (String) -> Int, page: Int = 0): List<String> {
         val kinds = io.github.panda17tk.arpg.config.GameConfig().enemies.entries.sortedBy { it.key }
         val known = kinds.count { count(it.key) > 0 }
+        val rows = kinds.map { (id, def) -> if (count(id) > 0) "${def.name}×${count(id)}" else "？？？" }
+            .chunked(6) // six to a row; v2.120 pages the rows so the glyphs stay readable
+            .map { it.joinToString("　") }
+        val pages = bestiaryPages(kinds.size)
+        val p = page.coerceIn(0, pages - 1)
         return buildList {
-            add("討伐図鑑 $known/${kinds.size}")
-            kinds.map { (id, def) -> if (count(id) > 0) "${def.name}×${count(id)}" else "？？？" }
-                .chunked(6) // 124 kinds — six to a row keeps the page inside a phone screen
-                .forEach { add(it.joinToString("　")) }
+            add("討伐図鑑 $known/${kinds.size}（${p + 1}/$pages）")
+            addAll(rows.drop(p * BESTIARY_ROWS).take(BESTIARY_ROWS))
         }
+    }
+
+    /** v2.120: how many pages the book spans for [kindCount] kinds. */
+    fun bestiaryPages(kindCount: Int): Int {
+        val rows = (kindCount + 5) / 6
+        return if (rows <= 0) 1 else (rows + BESTIARY_ROWS - 1) / BESTIARY_ROWS
     }
 
     /** v2.84: which lines are section headers (drawn muted by the title screen). */
@@ -68,10 +78,15 @@ object RecordsPanel {
     fun buttons(w: Float, h: Float, bestiary: Boolean = false): List<UiButton> {
         val bw = min(300f, w * 0.66f)
         val x = (w - bw) / 2f
-        return if (bestiary) listOf(
-            UiButton(x, h * 0.13f + 54f, bw, 44f, BACK_LABEL),
-            UiButton(x, h * 0.13f, bw, 44f, CLOSE_LABEL),
-        ) else listOf(
+        return if (bestiary) { // v2.120: the pager pair rides above the exits
+            val half = (bw - 8f) / 2f
+            listOf(
+                UiButton(x, h * 0.13f + 108f, half, 44f, "前へ"),
+                UiButton(x + half + 8f, h * 0.13f + 108f, half, 44f, "次へ"),
+                UiButton(x, h * 0.13f + 54f, bw, 44f, BACK_LABEL),
+                UiButton(x, h * 0.13f, bw, 44f, CLOSE_LABEL),
+            )
+        } else listOf(
             UiButton(x, h * 0.13f + 108f, bw, 44f, BESTIARY_LABEL), // v2.113
             UiButton(x, h * 0.13f + 54f, bw, 44f, REPLAY_LABEL),
             UiButton(x, h * 0.13f, bw, 44f, CLOSE_LABEL),
