@@ -96,6 +96,17 @@ class Fx(private val rng: Rng = Rng(0x5DEECE66DL)) {
     var flashT = 0f
         private set
 
+    // v2.128 捕食: an occasional snap the player makes toward a swallowed pickup (cosmetic).
+    var chompT = 0f
+    var chompDx = 1f
+    var chompDy = 0f
+
+    fun requestChomp(dx: Float, dy: Float) {
+        chompT = CHOMP_TIME
+        val l = kotlin.math.sqrt(dx * dx + dy * dy).coerceAtLeast(0.0001f)
+        chompDx = dx / l; chompDy = dy / l
+    }
+
     fun flash() { flashT = FLASH_LIFE }
 
     /** 0..1 white overlay strength this frame (eased quadratically at draw time). */
@@ -201,6 +212,7 @@ class Fx(private val rng: Rng = Rng(0x5DEECE66DL)) {
         if (hitstopT > 0f) hitstopT = (hitstopT - dt).coerceAtLeast(0f)
         else if (slowmoT > 0f) slowmoT = (slowmoT - dt).coerceAtLeast(0f)
         if (flashT > 0f) flashT = (flashT - dt).coerceAtLeast(0f)
+        if (chompT > 0f) chompT = (chompT - dt).coerceAtLeast(0f) // v2.128
         if (comboT > 0f) { comboT -= dt; if (comboT <= 0f) { comboT = 0f; comboStep = 0 } }
         val kickDecay = 0.000006f.pow(dt) // ~gone in a tenth of a second
         kickX *= kickDecay; kickY *= kickDecay
@@ -238,6 +250,7 @@ class Fx(private val rng: Rng = Rng(0x5DEECE66DL)) {
         const val FLASH_LIFE = 0.45f // v2.88: how long the boss-kill white-out takes to clear
         private const val SFX_QUEUE_CAP = 16 // v2.89: one frame's worth of asks, never a backlog
         private const val PARTICLE_CAP = 700 // v2.92: the show never outruns a low-end phone
+        const val CHOMP_TIME = 0.30f // v2.128 捕食: how long the snap lasts
         private const val HALF_PI = (Math.PI / 2.0).toFloat()
         private val GOLD = Color(1f, 0.85f, 0.42f, 1f)
     }

@@ -70,6 +70,9 @@ class PickupSystem : IteratingSystem(family { all(Pickup, Transform) }) {
                         pk.kind.startsWith(ITEM_PREFIX) -> fx.requestSfx("pickup", 0.65f, 0.8f)
                         else -> fx.requestSfx("pickup", 1f, 0.5f)
                     }
+                    // v2.128 捕食: now and then the keeper snaps at the morsel. Position-hashed —
+                    // the sim's rng stream stays untouched, and the motion is pure cosmetics (fx bridge).
+                    if (((t.x.toInt() * 31 + t.y.toInt() * 17) and 3) == 0) fx.requestChomp(t.x - pt.x, t.y - pt.y)
                     world -= entity
                     return@forEach
                 }
@@ -98,7 +101,7 @@ class PickupSystem : IteratingSystem(family { all(Pickup, Transform) }) {
 
     companion object {
         private const val LIFE = 14f
-        private const val PICK_R = 18f
+        private const val PICK_R = 36f // v2.128 回収範囲2倍 (was 18)
         private const val MAGNET_MUL = 3f // v2.35: the magnet trait/buff triples the collection reach
         private const val ITEM_PREFIX = "item:" // v2.33: equipment pickups carry their catalog id
         private const val NATURE_HP = 8f      // nature core: a little more max HP (and a top-up)
