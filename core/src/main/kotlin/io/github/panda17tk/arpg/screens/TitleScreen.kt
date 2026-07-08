@@ -46,6 +46,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
     private var hasSave = false
     private var showRecords = false // v2.64 記録: the service-record overlay
     private var recordsBestiary = false // v2.113 図鑑: the record's second page
+    private var recordsBestiaryPage = 0 // v2.120: which spread of the book is open
     private var diagQueued = false  // v2.64: 起動診断をもう一度 was pressed this visit
     private var showSettings = false // v2.66 設定: the settings-panel overlay
     private var showWorkshop = false // v2.90 工房: the workshop overlay
@@ -426,7 +427,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
     /** v2.64 記録: dim + glass panel + the record lines + [起動診断をもう一度][閉じる]. */
     private fun drawRecords(w: Float, h: Float) {
         val lines = if (recordsBestiary) { // v2.113 図鑑: the record's second page
-            RecordsPanel.bestiaryLines { io.github.panda17tk.arpg.save.Bestiary.count(it) }
+            RecordsPanel.bestiaryLines({ io.github.panda17tk.arpg.save.Bestiary.count(it) }, recordsBestiaryPage)
         } else RecordsPanel.lines(
             Scores.bestWave, Scores.bestKills, Scores.simBestWave, Scores.simBestKills,
             clears = io.github.panda17tk.arpg.save.Endings.clears, // v2.93
@@ -503,8 +504,14 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
                 val hit = RecordsPanel.buttons(viewport.worldWidth, viewport.worldHeight, recordsBestiary)
                     .firstOrNull { it.contains(tmp.x, tmp.y) } ?: return
                 when (hit.label) {
-                    RecordsPanel.BESTIARY_LABEL -> { recordsBestiary = true; Sfx.play("scan") } // v2.113
-                    RecordsPanel.BACK_LABEL -> { recordsBestiary = false; Sfx.play("scan") }
+                    RecordsPanel.BESTIARY_LABEL -> { recordsBestiary = true; recordsBestiaryPage = 0; Sfx.play("scan") } // v2.113
+                    RecordsPanel.BACK_LABEL -> { recordsBestiary = false; recordsBestiaryPage = 0; Sfx.play("scan") }
+                    "前へ", "次へ" -> if (recordsBestiary) { // v2.120: leaf through the book
+                        val pages = RecordsPanel.bestiaryPages(io.github.panda17tk.arpg.config.GameConfig().enemies.size)
+                        val step = if (hit.label == "次へ") 1 else pages - 1
+                        recordsBestiaryPage = (recordsBestiaryPage + step) % pages
+                        Sfx.play("scan")
+                    }
                     RecordsPanel.REPLAY_LABEL -> {
                         diagQueued = true
                         try {
@@ -515,7 +522,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
                         } catch (_: Throwable) { /* best-effort */ }
                         Sfx.play("scan")
                     }
-                    RecordsPanel.CLOSE_LABEL -> { showRecords = false; recordsBestiary = false }
+                    RecordsPanel.CLOSE_LABEL -> { showRecords = false; recordsBestiary = false; recordsBestiaryPage = 0 }
                 }
                 return
             }
