@@ -53,6 +53,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
     private var loreOn = true       // v2.66 世界観ヒント (applied by the game screen on entry)
     private var shakeOn = true      // v2.96 画面の揺れ
     private var softFlash = false   // v2.96 閃光をやわらげる
+    private var assistOn = true     // v2.112 エイム補助 (applied by the game screen on entry)
     private var volume = 1f         // v2.96 音量 (0/0.25/0.5/0.75/1)
     private var difficulty = io.github.panda17tk.arpg.sim.Difficulty.NORMAL // v2.97
     private var showSlots = false  // v2.103 セーブスロット: the journey picker
@@ -98,6 +99,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             loreOn = sp.getBoolean("loreHintsOn", true)     // v2.66
             shakeOn = sp.getBoolean("shakeOn", true)        // v2.96
             softFlash = sp.getBoolean("softFlash", false)   // v2.96
+            assistOn = sp.getBoolean("aimAssist", true)     // v2.112
             volume = sp.getFloat("masterVolume", 1f).coerceIn(0f, 1f) // v2.96
             difficulty = io.github.panda17tk.arpg.sim.Difficulty.byName(sp.getString("difficulty", "NORMAL")) // v2.97
         } catch (_: Throwable) { /* defaults stay on */ }
@@ -396,6 +398,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             sp.putBoolean("loreHintsOn", loreOn)
             sp.putBoolean("shakeOn", shakeOn)      // v2.96
             sp.putBoolean("softFlash", softFlash)  // v2.96
+            sp.putBoolean("aimAssist", assistOn)   // v2.112
             sp.putFloat("masterVolume", volume)    // v2.96
             sp.putString("difficulty", difficulty.name) // v2.97
             sp.flush()
@@ -409,6 +412,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         SettingsPanel.CONTROL_HINTS -> hintsOn
         SettingsPanel.SHAKE -> shakeOn      // v2.96
         SettingsPanel.SOFT_FLASH -> softFlash // v2.96
+        SettingsPanel.AIM_ASSIST -> assistOn   // v2.112
         else -> loreOn
     }
 
@@ -559,6 +563,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
                     }
                     SettingsPanel.SHAKE -> { shakeOn = !shakeOn; persistSettings() }      // v2.96
                     SettingsPanel.SOFT_FLASH -> { softFlash = !softFlash; persistSettings() } // v2.96
+                    SettingsPanel.AIM_ASSIST -> { assistOn = !assistOn; persistSettings() } // v2.112
                 }
                 return
             }

@@ -373,3 +373,28 @@ internal fun GameScreen.drawEventBanner() {
         font.data.setScale(bx, by)
         batch.end()
     }
+
+
+/** v2.112 低HP警告: under 30% hull the screen's rim breathes red — quiet, and softer still
+ *  with 閃光をやわらげる on. Purely cosmetic; hidden behind overlays and the ending. */
+internal fun GameScreen.drawLowHpPulse(delta: Float) {
+    if (overlay != Overlay.NONE || choosing || gw.gameOver.isOver || endingStage > 0) return
+    val (hp, hpMax) = with(gw.world) { val h = gw.player[Health]; h.hp to h.hpMax }
+    if (hpMax <= 0f || hp / hpMax >= 0.30f) { lowHpT = 0f; return }
+    lowHpT += delta
+    val breath = 0.5f + 0.5f * kotlin.math.sin(lowHpT * 3.2f)
+    val a = (0.10f + 0.10f * breath) * (1f - (hp / hpMax) / 0.30f + 0.4f).coerceAtMost(1f) *
+        (if (softFlash) 0.5f else 1f)
+    hudViewport.apply()
+    val w = hudViewport.worldWidth; val h2 = hudViewport.worldHeight
+    val edge = 26f
+    Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND)
+    shapes.projectionMatrix = hudViewport.camera.combined
+    shapes.begin(ShapeRenderer.ShapeType.Filled)
+    cEventTmp.set(0.85f, 0.12f, 0.10f, a); shapes.color = cEventTmp
+    shapes.rect(0f, 0f, w, edge)
+    shapes.rect(0f, h2 - edge, w, edge)
+    shapes.rect(0f, edge, edge, h2 - edge * 2f)
+    shapes.rect(w - edge, edge, edge, h2 - edge * 2f)
+    shapes.end()
+}

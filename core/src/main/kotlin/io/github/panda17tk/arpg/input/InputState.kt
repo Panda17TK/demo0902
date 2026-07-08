@@ -23,6 +23,9 @@ class InputState {
         get() = fireReleaseT > 0f
         set(value) { fireReleaseT = if (value) FIRE_BUFFER else 0f }
     var melee = false          // edge (J)
+    // v2.112 エイム補助: set by the screen from settings. Input IS the nondeterministic boundary,
+    // so the sim reading this flag keeps the determinism contract intact.
+    var aimAssist = true
     var reload = false         // edge (R)
     var land = false           // edge: land on / take off from a planet (L key or the touch LAND button)
     var weaponSlot = -1        // 0..4 on the frame 1-5 is pressed, else -1
