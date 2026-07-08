@@ -47,6 +47,8 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
     private var showRecords = false // v2.64 記録: the service-record overlay
     private var recordsBestiary = false // v2.113 図鑑: the record's second page
     private var recordsBestiaryPage = 0 // v2.120: which spread of the book is open
+    private var recordsHandover = false // v2.122 引き継ぎ: the record's transfer page
+    private var handoverNote: String? = null // v2.122: the last export/import outcome
     private var diagQueued = false  // v2.64: 起動診断をもう一度 was pressed this visit
     private var showSettings = false // v2.66 設定: the settings-panel overlay
     private var showWorkshop = false // v2.90 工房: the workshop overlay
@@ -94,7 +96,15 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         Workshop.load() // v2.90 工房: the ledger and its ranks
         io.github.panda17tk.arpg.save.Endings.load() // v2.93: the completed syncs
         io.github.panda17tk.arpg.save.Bestiary.load() // v2.113 図鑑
-        try { // v2.59 設定: restore the sound / haptics switches
+        loadSettings() // v2.122: shared with the transfer page's import
+        Ambience.setMaster(volume)
+        Ambience.setEnabled(Sfx.enabled) // v2.63: the サウンド toggle gates the ambient loop too
+        Ambience.play(AmbientTrack.TITLE)
+    }
+
+    /** v2.59 設定 / v2.122 引き継ぎ: read every device setting into this screen's state. */
+    private fun loadSettings() {
+        try {
             val sp = Gdx.app.getPreferences("drift-settings")
             Sfx.enabled = sp.getBoolean("soundOn", true)
             Haptics.enabled = sp.getBoolean("hapticsOn", true)
@@ -110,9 +120,6 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         } catch (_: Throwable) { /* defaults stay on */ }
         io.github.panda17tk.arpg.i18n.Lang.en = langEn // v2.115: the dictionary follows the pref
         Sfx.volume = volume
-        Ambience.setMaster(volume)
-        Ambience.setEnabled(Sfx.enabled) // v2.63: the サウンド toggle gates the ambient loop too
-        Ambience.play(AmbientTrack.TITLE)
     }
 
     override fun resize(width: Int, height: Int) {
@@ -426,7 +433,9 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
 
     /** v2.64 記録: dim + glass panel + the record lines + [起動診断をもう一度][閉じる]. */
     private fun drawRecords(w: Float, h: Float) {
-        val lines = if (recordsBestiary) { // v2.113 図鑑: the record's second page
+        val lines = if (recordsHandover) { // v2.122 引き継ぎ
+            RecordsPanel.handoverLines() + listOfNotNull(handoverNote)
+        } else if (recordsBestiary) { // v2.113 図鑑: the record's second page
             RecordsPanel.bestiaryLines({ io.github.panda17tk.arpg.save.Bestiary.count(it) }, recordsBestiaryPage)
         } else RecordsPanel.lines(
             Scores.bestWave, Scores.bestKills, Scores.simBestWave, Scores.simBestKills,
@@ -434,7 +443,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             chWeek = Scores.chWeek, chWave = Scores.chBestWave, chKills = Scores.chBestKills, // v2.102
             chDaysLeft = io.github.panda17tk.arpg.save.Challenge.daysLeft(System.currentTimeMillis()), // v2.119
         ) { Achievements.has(it) }
-        val btns = RecordsPanel.buttons(w, h, recordsBestiary)
+        val btns = if (recordsHandover) RecordsPanel.handoverButtons(w, h) else RecordsPanel.buttons(w, h, recordsBestiary)
         val px = 14f; val pw = w - 28f; val pTop = h * 0.90f; val pBot = h * 0.11f
         shapes.begin(ShapeRenderer.ShapeType.Filled)
         shapes.color = Color(0f, 0f, 0f, 0.72f); shapes.rect(0f, 0f, w, h)
@@ -501,11 +510,30 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
                 return
             }
             if (showRecords) { // v2.64: the overlay swallows every tap while open
-                val hit = RecordsPanel.buttons(viewport.worldWidth, viewport.worldHeight, recordsBestiary)
+                val hit = (if (recordsHandover) RecordsPanel.handoverButtons(viewport.worldWidth, viewport.worldHeight)
+                    else RecordsPanel.buttons(viewport.worldWidth, viewport.worldHeight, recordsBestiary))
                     .firstOrNull { it.contains(tmp.x, tmp.y) } ?: return
                 when (hit.label) {
                     RecordsPanel.BESTIARY_LABEL -> { recordsBestiary = true; recordsBestiaryPage = 0; Sfx.play("scan") } // v2.113
-                    RecordsPanel.BACK_LABEL -> { recordsBestiary = false; recordsBestiaryPage = 0; Sfx.play("scan") }
+                    RecordsPanel.BACK_LABEL -> { recordsBestiary = false; recordsBestiaryPage = 0; recordsHandover = false; Sfx.play("scan") }
+                    RecordsPanel.HANDOVER_LABEL -> { recordsHandover = true; handoverNote = null; Sfx.play("scan") } // v2.122
+                    RecordsPanel.EXPORT_LABEL -> { // v2.122: the account → one block of text
+                        val text = io.github.panda17tk.arpg.save.Handover.export()
+                        handoverNote = if (text != null) {
+                            try { Gdx.app.clipboard.contents = text } catch (_: Throwable) { }
+                            "クリップボードへ書き出した（${text.length}文字）"
+                        } else "書き出せなかった"
+                        Sfx.play("scan")
+                    }
+                    RecordsPanel.IMPORT_LABEL -> { // v2.122: one block of text → the account
+                        val text = try { Gdx.app.clipboard.contents ?: "" } catch (_: Throwable) { "" }
+                        handoverNote = if (io.github.panda17tk.arpg.save.Handover.import(text)) {
+                            loadSettings() // the imported settings take effect here too
+                            hasSave = SaveSlots.hasAny()
+                            "取り込んだ — 記録と設定に反映した"
+                        } else "取り込めなかった — クリップボードに引き継ぎ文がない"
+                        Sfx.play(if (handoverNote!!.startsWith("取り込んだ")) "levelup" else "hit")
+                    }
                     "前へ", "次へ" -> if (recordsBestiary) { // v2.120: leaf through the book
                         val pages = RecordsPanel.bestiaryPages(io.github.panda17tk.arpg.config.GameConfig().enemies.size)
                         val step = if (hit.label == "次へ") 1 else pages - 1
@@ -522,7 +550,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
                         } catch (_: Throwable) { /* best-effort */ }
                         Sfx.play("scan")
                     }
-                    RecordsPanel.CLOSE_LABEL -> { showRecords = false; recordsBestiary = false; recordsBestiaryPage = 0 }
+                    RecordsPanel.CLOSE_LABEL -> { showRecords = false; recordsBestiary = false; recordsBestiaryPage = 0; recordsHandover = false }
                 }
                 return
             }

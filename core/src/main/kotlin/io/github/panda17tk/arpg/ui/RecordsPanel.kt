@@ -14,6 +14,9 @@ object RecordsPanel {
     const val BESTIARY_LABEL = "討伐図鑑を見る" // v2.113
     const val BESTIARY_ROWS = 11 // v2.120: rows per bestiary page (six kinds to a row)
     const val BACK_LABEL = "記録へ戻る"
+    const val HANDOVER_LABEL = "引き継ぎ" // v2.122: the account moves as one block of text
+    const val EXPORT_LABEL = "書き出す（コピー）"
+    const val IMPORT_LABEL = "取り込む（貼り付け）"
 
     /** The panel body, top-down. [has] answers whether an achievement is unlocked. */
     fun lines(
@@ -72,7 +75,7 @@ object RecordsPanel {
     /** v2.84: which lines are section headers (drawn muted by the title screen). */
     fun isHeader(line: String): Boolean =
         line == "到達記録" || line == "訓練記録（旧式）" || line == "検証ラン（今週の宙域）" ||
-            line.startsWith("実績 ") || line.startsWith("討伐図鑑 ")
+            line.startsWith("実績 ") || line.startsWith("討伐図鑑 ") || line == "引き継ぎ"
 
     /** The actions at the panel's foot. Page 1 (記録): 図鑑/診断/閉じる. Page 2 (図鑑): 戻る/閉じる. */
     fun buttons(w: Float, h: Float, bestiary: Boolean = false): List<UiButton> {
@@ -87,8 +90,29 @@ object RecordsPanel {
                 UiButton(x, h * 0.13f, bw, 44f, CLOSE_LABEL),
             )
         } else listOf(
+            UiButton(x, h * 0.13f + 162f, bw, 44f, HANDOVER_LABEL), // v2.122
             UiButton(x, h * 0.13f + 108f, bw, 44f, BESTIARY_LABEL), // v2.113
             UiButton(x, h * 0.13f + 54f, bw, 44f, REPLAY_LABEL),
+            UiButton(x, h * 0.13f, bw, 44f, CLOSE_LABEL),
+        )
+    }
+
+    /** v2.122 引き継ぎ: the page's calm explanation (first line is its header). */
+    fun handoverLines(): List<String> = listOf(
+        "引き継ぎ",
+        "書き出すと、すべての記録と設定がひとつの引き継ぎ文になり",
+        "クリップボードへ入る（メモ帳などに貼って持ち運べる）",
+        "新しい端末で同じ文をコピーしてから取り込むと、記録がこの形に戻る",
+        "取り込みは今の記録を上書きする——先に書き出しておくと安全",
+    )
+
+    fun handoverButtons(w: Float, h: Float): List<UiButton> {
+        val bw = min(300f, w * 0.66f)
+        val x = (w - bw) / 2f
+        return listOf(
+            UiButton(x, h * 0.13f + 162f, bw, 44f, EXPORT_LABEL),
+            UiButton(x, h * 0.13f + 108f, bw, 44f, IMPORT_LABEL),
+            UiButton(x, h * 0.13f + 54f, bw, 44f, BACK_LABEL),
             UiButton(x, h * 0.13f, bw, 44f, CLOSE_LABEL),
         )
     }
