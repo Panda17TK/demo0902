@@ -36,7 +36,7 @@ class RecordsPanelTest {
     @Test fun `the footer actions fit on screen and never overlap, on both pages`() {
         for ((w, h) in listOf(320f to 640f, 360f to 780f, 420f to 900f)) {
             val bs = RecordsPanel.buttons(w, h)
-            assertEquals(listOf(RecordsPanel.BESTIARY_LABEL, RecordsPanel.REPLAY_LABEL, RecordsPanel.CLOSE_LABEL), bs.map { it.label }) // v2.113
+            assertEquals(listOf(RecordsPanel.HANDOVER_LABEL, RecordsPanel.BESTIARY_LABEL, RecordsPanel.REPLAY_LABEL, RecordsPanel.CLOSE_LABEL), bs.map { it.label }) // v2.113/v2.122
             val page2 = RecordsPanel.buttons(w, h, bestiary = true)
             assertEquals(listOf("前へ", "次へ", RecordsPanel.BACK_LABEL, RecordsPanel.CLOSE_LABEL), page2.map { it.label }) // v2.120
             for (b in bs + page2) assertTrue(b.x >= 0f && b.y >= 0f && b.x + b.w <= w && b.y + b.h <= h, "off screen: $b")
