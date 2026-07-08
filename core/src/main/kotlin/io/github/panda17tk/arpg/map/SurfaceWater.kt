@@ -104,4 +104,42 @@ object SurfaceWater {
 
     /** Wading only in liquid water — a frozen pond is just ground that glitters. */
     fun wadingAt(w: WaterBodies, x: Float, y: Float): Boolean = !w.frozen && inWater(w, x, y)
+
+    /**
+     * v2.133 適所の生態: the nearest point at the water's edge — just OUTSIDE the body, so a
+     * creature placed there stands on the bank, not in the wade. Null when the world is dry.
+     */
+    fun nearestShore(w: WaterBodies, x: Float, y: Float): Pair<Float, Float>? {
+        var best: Pair<Float, Float>? = null
+        var bestD = Float.MAX_VALUE
+        for (l in w.lakes) {
+            var dx = x - l.cx; var dy = y - l.cy
+            if (dx == 0f && dy == 0f) dx = 1f // dead centre — pick an arbitrary ray east
+            // walk the ray to the ellipse edge, then a step beyond it onto the bank
+            val n = hypot(dx / l.rx, dy / l.ry)
+            val sx = l.cx + dx / n * SHORE_STEP
+            val sy = l.cy + dy / n * SHORE_STEP
+            val d = hypot(sx - x, sy - y)
+            if (d < bestD) { bestD = d; best = sx to sy }
+        }
+        for (rv in w.rivers) {
+            for (i in rv.points.indices) {
+                val (px, py) = rv.points[i]
+                // step perpendicular to the LOCAL flow — a radial step from one sample point can
+                // land back inside the channel's width further along the bend
+                val (ax, ay) = rv.points[maxOf(0, i - 1)]
+                val (bx, by) = rv.points[minOf(rv.points.size - 1, i + 1)]
+                val fl = hypot(bx - ax, by - ay).coerceAtLeast(1e-3f)
+                var nx = -(by - ay) / fl; var ny = (bx - ax) / fl // the left bank's normal
+                if (nx * (x - px) + ny * (y - py) < 0f) { nx = -nx; ny = -ny } // take the caller's side
+                val sx = px + nx * (rv.width / 2f) * SHORE_STEP
+                val sy = py + ny * (rv.width / 2f) * SHORE_STEP
+                val d = hypot(sx - x, sy - y)
+                if (d < bestD) { bestD = d; best = sx to sy }
+            }
+        }
+        return best
+    }
+
+    private const val SHORE_STEP = 1.12f // a shore point sits this fraction past the water's edge
 }

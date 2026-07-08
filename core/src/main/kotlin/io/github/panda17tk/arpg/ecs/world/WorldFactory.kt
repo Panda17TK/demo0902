@@ -455,9 +455,21 @@ object WorldFactory {
             val tweaks = ReturnVisitEffects.spawnTweaks(worldState.society.toPressure(ctx))
             worldState.weather = weather // v2.75: one truth for ecology, rendering and (later) sound
             val ecology = SurfaceEcology.populate(biome, loaded.playerSpawnX, loaded.playerSpawnY, worldW, worldH, ecoRng, ctx, tweaks, weather)
+            // v2.79 水域 / v2.133 適所の生態: the landing's lakes and rivers are generated FIRST so
+            // placement can read the banks — otters move to the shore, land animals step out of the wade.
+            worldState.water = SurfaceWater.generate(biome, seed, worldW, worldH)
             for (p in ecology.placements) {
                 val def = config.enemies[p.key] ?: continue
-                val (fx, fy) = snapToFloor(map, p.x, p.y)
+                // v2.133 適所の生態: a waterside creature is drawn to the nearest bank (if the world has water).
+                val (wx2, wy2) = if (p.key in SurfaceEcology.WATERSIDE) {
+                    SurfaceWater.nearestShore(worldState.water, p.x, p.y) ?: (p.x to p.y)
+                } else p.x to p.y
+                var (fx, fy) = snapToFloor(map, wx2, wy2)
+                // ...and a land creature never begins its day standing in open water.
+                if (p.key !in SurfaceEcology.WATERSIDE && SurfaceWater.wadingAt(worldState.water, fx, fy)) {
+                    val (dx2, dy2) = snapToDry(map, worldState.water, fx, fy)
+                    fx = dx2; fy = dy2
+                }
                 val e = MobFactory.spawn(
                     world, def, fx, fy, tribe = tribes.tribeOf(fx, fy),
                     dashes = def.tier == "normal" && dashRng.nextFloat() < 0.5f,
@@ -472,8 +484,6 @@ object WorldFactory {
                 }
             }
             worldState.facilities = ecology.facilities
-            // v2.79 水域: the landing's lakes and rivers (world-space bodies, no collision).
-            worldState.water = SurfaceWater.generate(biome, seed, worldW, worldH)
             // v2.78 装飾: scatter the biome's furniture, then drop anything buried in a wall
             // or standing in open water (a tree in a lake reads wrong).
             worldState.decor = SurfaceDecor.scatter(biome, seed, worldW, worldH).filter { d ->
@@ -517,6 +527,22 @@ object WorldFactory {
             it.worldState = worldState
             it.visited = VisitedMap(map.width, map.height)
         }
+    }
+
+    /** v2.133 適所の生態: like [snapToFloor], but the tile must also be out of open water. */
+    private fun snapToDry(map: TileMap, water: io.github.panda17tk.arpg.map.WaterBodies, x: Float, y: Float): Pair<Float, Float> {
+        val tx = floor(x / Tuning.TILE).toInt(); val ty = floor(y / Tuning.TILE).toInt()
+        for (r in 0..14) {
+            for (dx in -r..r) for (dy in -r..r) {
+                if (kotlin.math.abs(dx) != r && kotlin.math.abs(dy) != r) continue
+                val nx = tx + dx; val ny = ty + dy
+                val cxp = (nx + 0.5f) * Tuning.TILE; val cyp = (ny + 0.5f) * Tuning.TILE
+                if (nx in 1 until map.width - 1 && ny in 1 until map.height - 1 &&
+                    !map.solidAt(nx, ny) && !SurfaceWater.wadingAt(water, cxp, cyp)
+                ) return cxp to cyp
+            }
+        }
+        return x to y // a drowned world keeps the wet spot rather than losing the creature
     }
 
     /** Nudge a desired spot to the centre of the nearest free floor tile (spiral out) so nothing spawns inside a wall. */
