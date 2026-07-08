@@ -17,10 +17,11 @@ object SettingsPanel {
     const val SHAKE = "画面の揺れ"      // v2.96: motion comfort — shake & recoil kick
     const val SOFT_FLASH = "閃光をやわらげる" // v2.96: photosensitivity — the white-outs dim
     const val AIM_ASSIST = "エイム補助"       // v2.112: bullets lean gently toward nearby foes
+    const val LANGUAGE = "English表示"        // v2.115: main labels rendered in English
     const val CLOSE_LABEL = "閉じる"
 
     /** Toggle rows in display order — index-stable for the screen's state mapping. */
-    val TOGGLES = listOf(SOUND, VOLUME, HAPTICS, LEFTY, CONTROL_HINTS, LORE_HINTS, SHAKE, SOFT_FLASH, AIM_ASSIST)
+    val TOGGLES = listOf(SOUND, VOLUME, HAPTICS, LEFTY, CONTROL_HINTS, LORE_HINTS, SHAKE, SOFT_FLASH, AIM_ASSIST, LANGUAGE)
 
     /** One-line whispers under each toggle name (drawn smaller by the screen). */
     fun hintFor(label: String): String = when (label) {
@@ -33,6 +34,7 @@ object SettingsPanel {
         SHAKE -> "画面シェイクと反動 (酔い対策はOFF)"
         SOFT_FLASH -> "撃破の白フラッシュを弱める"
         AIM_ASSIST -> "射撃が近くの敵へわずかに寄る"
+        LANGUAGE -> "主要ラベルを英語で表示"
         else -> ""
     }
 

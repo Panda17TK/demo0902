@@ -191,7 +191,7 @@ internal fun GameScreen.drawTuning() {
             }
         }
         footer.forEach { b ->
-            bannerGlyph.setText(font, b.label)
+            bannerGlyph.setText(font, io.github.panda17tk.arpg.i18n.Lang.tr(b.label)) // v2.115
             font.draw(batch, bannerGlyph, b.centerX - bannerGlyph.width / 2f, b.centerY + bannerGlyph.height / 2f)
         }
         batch.end()
@@ -288,7 +288,7 @@ internal fun GameScreen.drawEnding() {
         if (endingStage == pages.size + 1) {
             font.color = Color.WHITE
             Modals.endingButtons(w, h).forEach { b ->
-                bannerGlyph.setText(font, b.label)
+                bannerGlyph.setText(font, io.github.panda17tk.arpg.i18n.Lang.tr(b.label)) // v2.115
                 font.draw(batch, bannerGlyph, b.centerX - bannerGlyph.width / 2f, b.centerY + bannerGlyph.height / 2f)
             }
         }
@@ -530,7 +530,7 @@ internal fun GameScreen.drawTraderShop() {
         font.draw(batch, bannerGlyph, (w - bannerGlyph.width) / 2f, footer.first().y + footer.first().h + 30f)
         font.color = Color.WHITE
         footer.forEach { b ->
-            bannerGlyph.setText(font, b.label)
+            bannerGlyph.setText(font, io.github.panda17tk.arpg.i18n.Lang.tr(b.label)) // v2.115
             font.draw(batch, bannerGlyph, b.centerX - bannerGlyph.width / 2f, b.centerY + bannerGlyph.height / 2f)
         }
         batch.end()

@@ -361,6 +361,7 @@ class GameScreen(
             controlHints = sp.getBoolean(SETTINGS_HINTS, true)
             loreHints = sp.getBoolean(SETTINGS_LORE, true)
             input.aimAssist = sp.getBoolean("aimAssist", true) // v2.112 エイム補助
+            io.github.panda17tk.arpg.i18n.Lang.en = sp.getBoolean("langEn", false) // v2.115 English表示
         } catch (_: Throwable) { /* defaults stay on */ }
         if (startFresh) runStore.clear() // v2.58: タイトルの「はじめから」は前のランを置いていく
         if (startFresh || !tryRestoreRun()) newRun() // v2.33: a saved run resumes where it left off

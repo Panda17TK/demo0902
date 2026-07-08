@@ -55,6 +55,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
     private var shakeOn = true      // v2.96 画面の揺れ
     private var softFlash = false   // v2.96 閃光をやわらげる
     private var assistOn = true     // v2.112 エイム補助 (applied by the game screen on entry)
+    private var langEn = false      // v2.115 English表示 (presentation only — Lang.tr at draw time)
     private var volume = 1f         // v2.96 音量 (0/0.25/0.5/0.75/1)
     private var difficulty = io.github.panda17tk.arpg.sim.Difficulty.NORMAL // v2.97
     private var showSlots = false  // v2.103 セーブスロット: the journey picker
@@ -102,9 +103,11 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             shakeOn = sp.getBoolean("shakeOn", true)        // v2.96
             softFlash = sp.getBoolean("softFlash", false)   // v2.96
             assistOn = sp.getBoolean("aimAssist", true)     // v2.112
+            langEn = sp.getBoolean("langEn", false)         // v2.115
             volume = sp.getFloat("masterVolume", 1f).coerceIn(0f, 1f) // v2.96
             difficulty = io.github.panda17tk.arpg.sim.Difficulty.byName(sp.getString("difficulty", "NORMAL")) // v2.97
         } catch (_: Throwable) { /* defaults stay on */ }
+        io.github.panda17tk.arpg.i18n.Lang.en = langEn // v2.115: the dictionary follows the pref
         Sfx.volume = volume
         Ambience.setMaster(volume)
         Ambience.setEnabled(Sfx.enabled) // v2.63: the サウンド toggle gates the ambient loop too
@@ -225,7 +228,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         drawFitted(font, "慣性で漂う宇宙と、あなたを覚えている星々。", w / 2f, h * 0.62f, w - 48f)
         font.color = Color.WHITE
         (buttons + rec + set + wsh + dif + tun).forEach { b ->
-            glyph.setText(font, b.label)
+            glyph.setText(font, io.github.panda17tk.arpg.i18n.Lang.tr(b.label))
             font.draw(batch, glyph, b.centerX - glyph.width / 2f, b.centerY + glyph.height / 2f)
         }
         if (unseen > 0) { // v2.73: the count sits inside the badge
@@ -273,7 +276,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             drawFitted(font, "スロット${i + 1}　${summary ?: "空き"}", r.centerX, r.centerY + 8f, r.w - 24f)
             font.color = Color.WHITE
         }
-        glyph.setText(font, close.label)
+        glyph.setText(font, io.github.panda17tk.arpg.i18n.Lang.tr(close.label))
         font.draw(batch, glyph, close.centerX - glyph.width / 2f, close.centerY + glyph.height / 2f)
         batch.end()
     }
@@ -304,8 +307,8 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         btns.forEach { b ->
             val text = when (b.label) {
                 SettingsPanel.CLOSE_LABEL -> b.label
-                SettingsPanel.VOLUME -> "音量: ${(volume * 100).toInt()}%" // v2.96: a cycle, not a toggle
-                else -> "${b.label}: ${if (toggleState(b.label)) "ON" else "OFF"}"
+                SettingsPanel.VOLUME -> "${io.github.panda17tk.arpg.i18n.Lang.tr(SettingsPanel.VOLUME)}: ${(volume * 100).toInt()}%" // v2.96: a cycle, not a toggle
+                else -> "${io.github.panda17tk.arpg.i18n.Lang.tr(b.label)}: ${if (toggleState(b.label)) "ON" else "OFF"}"
             }
             if (b.label == SettingsPanel.CLOSE_LABEL) {
                 drawFitted(font, text, b.centerX, b.centerY + 9f, b.w - 24f)
@@ -401,6 +404,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             sp.putBoolean("shakeOn", shakeOn)      // v2.96
             sp.putBoolean("softFlash", softFlash)  // v2.96
             sp.putBoolean("aimAssist", assistOn)   // v2.112
+            sp.putBoolean("langEn", langEn)        // v2.115
             sp.putFloat("masterVolume", volume)    // v2.96
             sp.putString("difficulty", difficulty.name) // v2.97
             sp.flush()
@@ -415,6 +419,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         SettingsPanel.SHAKE -> shakeOn      // v2.96
         SettingsPanel.SOFT_FLASH -> softFlash // v2.96
         SettingsPanel.AIM_ASSIST -> assistOn   // v2.112
+        SettingsPanel.LANGUAGE -> langEn       // v2.115
         else -> loreOn
     }
 
@@ -461,13 +466,14 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
     /** Centered text that shrinks to fit [maxW] — the title screen's copy of Hud.fitText.
      *  v2.84: [scale] pre-shrinks (for the quiet secondary lines) before the fit kicks in. */
     private fun drawFitted(font: com.badlogic.gdx.graphics.g2d.BitmapFont, text: String, cx: Float, y: Float, maxW: Float, scale: Float = 1f) {
+        val shown = io.github.panda17tk.arpg.i18n.Lang.tr(text) // v2.115: the title's labels translate at the funnel
         val sx = font.data.scaleX; val sy = font.data.scaleY
         if (scale != 1f) font.data.setScale(sx * scale, sy * scale)
-        glyph.setText(font, text)
+        glyph.setText(font, shown)
         if (glyph.width > maxW) {
             val k = (maxW / glyph.width).coerceAtLeast(0.55f)
             font.data.setScale(sx * scale * k, sy * scale * k)
-            glyph.setText(font, text)
+            glyph.setText(font, shown)
         }
         font.draw(batch, glyph, cx - glyph.width / 2f, y)
         font.data.setScale(sx, sy)
@@ -571,6 +577,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
                     SettingsPanel.SHAKE -> { shakeOn = !shakeOn; persistSettings() }      // v2.96
                     SettingsPanel.SOFT_FLASH -> { softFlash = !softFlash; persistSettings() } // v2.96
                     SettingsPanel.AIM_ASSIST -> { assistOn = !assistOn; persistSettings() } // v2.112
+                    SettingsPanel.LANGUAGE -> { langEn = !langEn; io.github.panda17tk.arpg.i18n.Lang.en = langEn; persistSettings() } // v2.115
                 }
                 return
             }
