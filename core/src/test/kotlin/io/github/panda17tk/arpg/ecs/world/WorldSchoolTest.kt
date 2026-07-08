@@ -16,12 +16,15 @@ import kotlin.math.hypot
 class WorldSchoolTest {
     private val dt = 1f / 60f
 
+    /** The tiny boid school proper — the whale's pilot-fish retinue (v2.135) swims its own test. */
+    private fun isTinySchool(id: String) = id == "star_sardine" || id == "void_aji"
+
     /** Find a seed whose sky hosts the tiny boid school. */
     private fun fishSky(): GameWorld {
         for (seed in 1L..12L) {
             val gw = WorldFactory.create(InputState(), seed = seed)
             var n = 0
-            with(gw.world) { gw.world.family { all(Mob) }.forEach { if (it[Mob].def.wildRole == WildRole.SCHOOL) n++ } }
+            with(gw.world) { gw.world.family { all(Mob) }.forEach { if (isTinySchool(it[Mob].def.id)) n++ } }
             if (n >= 80) return gw
         }
         error("no fish sky in seeds 1..12")
@@ -30,7 +33,7 @@ class WorldSchoolTest {
     @Test fun `the tiny school runs near a hundred fish`() {
         val gw = fishSky()
         var school = 0
-        with(gw.world) { gw.world.family { all(Mob) }.forEach { if (it[Mob].def.wildRole == WildRole.SCHOOL) school++ } }
+        with(gw.world) { gw.world.family { all(Mob) }.forEach { if (isTinySchool(it[Mob].def.id)) school++ } }
         assertTrue(school in 80..140, "a school near a hundred strong (got $school)")
     }
 
@@ -41,7 +44,7 @@ class WorldSchoolTest {
         val hx = ArrayList<Float>(); val hy = ArrayList<Float>()
         with(gw.world) {
             gw.world.family { all(Mob) }.forEach { e ->
-                if (e[Mob].def.wildRole != WildRole.SCHOOL) return@forEach
+                if (!isTinySchool(e[Mob].def.id)) return@forEach
                 val t = e[Transform]; xs.add(t.x); ys.add(t.y)
                 val f = e[io.github.panda17tk.arpg.ecs.components.Facing]; hx.add(f.x); hy.add(f.y)
             }
@@ -70,7 +73,7 @@ class WorldSchoolTest {
         val defs = GameConfig().enemies
         val fishForms = defs.filterValues { it.lifeKind == LifeKind.WILDLIFE }
             .count { (id, d) -> io.github.panda17tk.arpg.render.CreatureLook.of(id, d.wildRole).form == io.github.panda17tk.arpg.render.CreatureLook.Form.FISH }
-        assertEquals(35, fishForms, "3 (v2.130) + 32 (v2.131)")
+        assertEquals(38, fishForms, "3 (v2.130) + 32 (v2.131) + 3 (v2.135)")
         assertTrue(io.github.panda17tk.arpg.sim.Predation.canPredate(defs.getValue("void_shark"), defs.getValue("star_sardine")),
             "a shark hunts the sardine school")
     }
