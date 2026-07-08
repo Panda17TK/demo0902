@@ -97,6 +97,7 @@ object Lang {
         // 記録
         "起動診断をもう一度" to "Replay Boot Diagnostic",
         "討伐図鑑を見る" to "View Bestiary",
+        "実績を見る" to "View Achievements",
         "記録へ戻る" to "Back to Records",
         "引き継ぎ" to "Transfer",
         "勤続記録" to "Service Record",

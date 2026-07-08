@@ -13,6 +13,8 @@ object RecordsPanel {
     const val CLOSE_LABEL = "閉じる"
     const val BESTIARY_LABEL = "討伐図鑑を見る" // v2.113
     const val BESTIARY_ROWS = 11 // v2.120: rows per bestiary page (six kinds to a row)
+    const val ACHIEVEMENTS_LABEL = "実績を見る" // v2.124: the titles moved to their own spread
+    const val ACH_ROWS = 11 // v2.124: achievement rows per spread (two titles to a row)
     const val BACK_LABEL = "記録へ戻る"
     const val HANDOVER_LABEL = "引き継ぎ" // v2.122: the account moves as one block of text
     const val EXPORT_LABEL = "書き出す（コピー）"
@@ -27,6 +29,7 @@ object RecordsPanel {
         chWave: Int = 0, chKills: Int = 0,
         chDaysLeft: Int = 0, // v2.119: how long this week's sky still stands
         stClock: String = "", stKills: Long = 0, stSorties: Long = 0, // v2.123 勤続記録
+        bestiaryKnown: Int = -1, // v2.124: the summary count (negative hides the line)
         has: (Achievement) -> Boolean,
     ): List<String> = buildList {
         // v2.84: plain section headers — the ── flourishes were noise (isHeader colours them).
@@ -44,21 +47,24 @@ object RecordsPanel {
         add("勤続記録") // v2.123
         add(if (stSorties > 0) "累計 $stClock　総撃破 $stKills　出撃 $stSorties" else "これから — 最初の出撃を待っている")
         val unlocked = Achievement.entries.count(has)
+        // v2.124: page 1 is a summary — the title list and the bestiary live on their own spreads,
+        // so this page never outgrows one screen again (it had crept onto the footer buttons).
         add("実績 $unlocked/${Achievement.entries.size}")
-        // v2.70: 18 entries — titles two to a row so the panel never outgrows a small screen
-        // (the full description still arrives with the unlock toast and in the 勤務記録).
-        Achievement.entries
-            .map { if (has(it)) "『${it.title}』" else "？？？" }
-            .chunked(2)
-            .forEach { add(it.joinToString("　")) }
+        if (bestiaryKnown >= 0) add("討伐図鑑 $bestiaryKnown/${kindCount()}")
     }
 
     /** v2.113 討伐図鑑: the second page — every enemy kind, named once it has fallen to you.
      *  [count] answers kills for a kind id; unmet kinds stay a quiet ？？？. Four to a row. */
+    /** v2.124: the book needs only ids and display names — built once, GameConfig is heavy. */
+    private val kinds: List<Pair<String, String>> by lazy {
+        io.github.panda17tk.arpg.config.GameConfig().enemies.entries.sortedBy { it.key }.map { it.key to it.value.name }
+    }
+
+    fun kindCount(): Int = kinds.size
+
     fun bestiaryLines(count: (String) -> Int, page: Int = 0): List<String> {
-        val kinds = io.github.panda17tk.arpg.config.GameConfig().enemies.entries.sortedBy { it.key }
-        val known = kinds.count { count(it.key) > 0 }
-        val rows = kinds.map { (id, def) -> if (count(id) > 0) "${def.name}×${count(id)}" else "？？？" }
+        val known = kinds.count { count(it.first) > 0 }
+        val rows = kinds.map { (id, name) -> if (count(id) > 0) "$name×${count(id)}" else "？？？" }
             .chunked(6) // six to a row; v2.120 pages the rows so the glyphs stay readable
             .map { it.joinToString("　") }
         val pages = bestiaryPages(kinds.size)
@@ -92,12 +98,16 @@ object RecordsPanel {
                 UiButton(x, h * 0.13f + 54f, bw, 44f, BACK_LABEL),
                 UiButton(x, h * 0.13f, bw, 44f, CLOSE_LABEL),
             )
-        } else listOf(
-            UiButton(x, h * 0.13f + 162f, bw, 44f, HANDOVER_LABEL), // v2.122
-            UiButton(x, h * 0.13f + 108f, bw, 44f, BESTIARY_LABEL), // v2.113
-            UiButton(x, h * 0.13f + 54f, bw, 44f, REPLAY_LABEL),
-            UiButton(x, h * 0.13f, bw, 44f, CLOSE_LABEL),
-        )
+        } else { // v2.124: two columns keep the footer low — the summary lines stay clear above
+            val half = (bw - 8f) / 2f
+            listOf(
+                UiButton(x, h * 0.13f + 108f, half, 44f, BESTIARY_LABEL),
+                UiButton(x + half + 8f, h * 0.13f + 108f, half, 44f, ACHIEVEMENTS_LABEL),
+                UiButton(x, h * 0.13f + 54f, half, 44f, HANDOVER_LABEL),
+                UiButton(x + half + 8f, h * 0.13f + 54f, half, 44f, REPLAY_LABEL),
+                UiButton(x, h * 0.13f, bw, 44f, CLOSE_LABEL),
+            )
+        }
     }
 
     /** v2.122 引き継ぎ: the page's calm explanation (first line is its header). */
@@ -118,5 +128,25 @@ object RecordsPanel {
             UiButton(x, h * 0.13f + 54f, bw, 44f, BACK_LABEL),
             UiButton(x, h * 0.13f, bw, 44f, CLOSE_LABEL),
         )
+    }
+
+    /** v2.124 実績の見開き: the full title list, two to a row, paged like the bestiary. */
+    fun achievementLines(page: Int = 0, has: (Achievement) -> Boolean): List<String> {
+        val rows = Achievement.entries
+            .map { if (has(it)) "『${it.title}』" else "？？？" }
+            .chunked(2)
+            .map { it.joinToString("　") }
+        val pages = achievementPages()
+        val p = page.coerceIn(0, pages - 1)
+        val unlocked = Achievement.entries.count(has)
+        return buildList {
+            add("実績 $unlocked/${Achievement.entries.size}（${p + 1}/$pages）")
+            addAll(rows.drop(p * ACH_ROWS).take(ACH_ROWS))
+        }
+    }
+
+    fun achievementPages(): Int {
+        val rows = (Achievement.entries.size + 1) / 2
+        return if (rows <= 0) 1 else (rows + ACH_ROWS - 1) / ACH_ROWS
     }
 }
