@@ -49,6 +49,8 @@ class MobDamageSystem(private val grid: SpatialGrid<Entity>) :
             val big = mob.tier != "normal"
             if (!wild) {
                 gameOver.kills++
+                val bkey = mob.def.id.ifEmpty { mob.kind } // v2.113 図鑑: the stable roster key
+                gameOver.killsByKind[bkey] = (gameOver.killsByKind[bkey] ?: 0) + 1
                 healOnKill()
                 // v2.45 星の依頼: the visit's tallies quests are paid from at takeoff.
                 worldState.questKills++

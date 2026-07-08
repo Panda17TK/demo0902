@@ -385,6 +385,7 @@ class GameScreen(
      *  and the real player snapshot are all untouched — a simulation leaves no trace but skill. */
     internal fun toggleTraining() {
         if (!simMode) {
+            io.github.panda17tk.arpg.save.Bestiary.record(gw.gameOver.killsByKind) // v2.113: the real world's tallies, before the sim
             simMode = true
             preSimCarry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
             worldSeed = TRAINING_SEED
@@ -545,6 +546,7 @@ class GameScreen(
         context: PlanetContext? = null, society: PlanetSocietyState? = null,
         weather: WeatherKind = WeatherKind.CLEAR,
     ) {
+        if (!simMode) io.github.panda17tk.arpg.save.Bestiary.record(gw.gameOver.killsByKind) // v2.113: fold before the swap
         val carry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
         worldSeed = seed
         gw = WorldFactory.create(input, configStore.config, seed, mode, biome, carry, spawn, context, society, weather, boons = metaBoons, trait = if (mode == WorldMode.SPACE) SystemTraits.traitFor(session.spaceSeed) else SystemTrait.NONE, difficulty = runDifficulty)
@@ -904,6 +906,7 @@ class GameScreen(
                     simMode -> Scores.recordSim(gw.waveState.num, gw.gameOver.kills)
                     else -> Scores.record(gw.waveState.num, gw.gameOver.kills)
                 }
+                if (!simMode) io.github.panda17tk.arpg.save.Bestiary.record(gw.gameOver.killsByKind) // v2.113 図鑑
                 session.persist() // LP v2.28: a death checkpoints the universe's memory too
                 if (!simMode) runStore.clear() // v2.33: death consumes the saved run (roguelite)
                 // v2.46 遺品: death leaves half the dust and every gate shard where you fell —
