@@ -8,6 +8,28 @@ import org.junit.jupiter.api.Test
 
 /** v2.102 検証ラン: the weekly clock, the weekly sky, and the weekly ledger. */
 class ChallengeTest {
+    @org.junit.jupiter.api.Test fun `the week's remaining days count down to the Monday turn`() {
+        // v2.119: 1970-01-05 was a Monday — a fresh week opens with 7 days on the clock.
+        val monday = 4L * 86_400_000L
+        org.junit.jupiter.api.Assertions.assertEquals(7, Challenge.daysLeft(monday))
+        org.junit.jupiter.api.Assertions.assertEquals(1, Challenge.daysLeft(monday - 1L))
+        org.junit.jupiter.api.Assertions.assertEquals(1, Challenge.daysLeft(monday + 6L * 86_400_000L))
+        for (t in listOf(0L, monday, monday + 3L * 86_400_000L, 1_752_000_000_000L)) {
+            org.junit.jupiter.api.Assertions.assertTrue(Challenge.daysLeft(t) in 1..7, "out of range at $t")
+            // the day the clock hits zero is exactly the day the week index turns
+            org.junit.jupiter.api.Assertions.assertEquals(
+                Challenge.weekOf(t) + 1,
+                Challenge.weekOf(t + Challenge.daysLeft(t).toLong() * 86_400_000L),
+                "the sky turns when the clock runs out (at $t)",
+            )
+        }
+    }
+
+    @org.junit.jupiter.api.Test fun `the records line wears the deadline`() {
+        val lines = io.github.panda17tk.arpg.ui.RecordsPanel.lines(0, 0, 0, 0, chWeek = 2947L, chWave = 9, chKills = 77, chDaysLeft = 3) { false }
+        org.junit.jupiter.api.Assertions.assertTrue(lines.any { it.contains("残り3日") }, "got $lines")
+    }
+
     private val day = 86_400_000L
 
     @Test fun `the week turns on Monday`() {

@@ -431,6 +431,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             Scores.bestWave, Scores.bestKills, Scores.simBestWave, Scores.simBestKills,
             clears = io.github.panda17tk.arpg.save.Endings.clears, // v2.93
             chWeek = Scores.chWeek, chWave = Scores.chBestWave, chKills = Scores.chBestKills, // v2.102
+            chDaysLeft = io.github.panda17tk.arpg.save.Challenge.daysLeft(System.currentTimeMillis()), // v2.119
         ) { Achievements.has(it) }
         val btns = RecordsPanel.buttons(w, h, recordsBestiary)
         val px = 14f; val pw = w - 28f; val pTop = h * 0.90f; val pBot = h * 0.11f
