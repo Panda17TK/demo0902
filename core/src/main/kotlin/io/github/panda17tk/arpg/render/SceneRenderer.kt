@@ -13,6 +13,7 @@ import io.github.panda17tk.arpg.ecs.components.Bullet
 import io.github.panda17tk.arpg.ecs.components.Boomerang
 import io.github.panda17tk.arpg.ecs.components.EBullet
 import io.github.panda17tk.arpg.ecs.components.Facing
+import io.github.panda17tk.arpg.ecs.components.Fx
 import io.github.panda17tk.arpg.ecs.components.Grenade
 import io.github.panda17tk.arpg.ecs.components.Health
 import io.github.panda17tk.arpg.ecs.components.Meteor
@@ -123,10 +124,16 @@ class SceneRenderer {
         drawFacilities(shapes, gw, animTime)
         drawEscapePad(shapes, gw)
         drawMobs(shapes, gw, animTime)
+        // v2.128 捕食: mid-snap the keeper lunges toward the swallowed pickup and back.
+        val chompP = (gw.fx.chompT / Fx.CHOMP_TIME).coerceIn(0f, 1f) // 1 fresh -> 0 done
+        val lunge = if (chompP > 0f) sin((1f - chompP) * 3.1415927f) * 7f else 0f
+        val plX = pose.x + gw.fx.chompDx * lunge
+        val plY = pose.y + gw.fx.chompDy * lunge
         Actors.drawPlayer(
-            shapes, pose.x, pose.y, pose.faceX, pose.faceY, pose.dashing, pose.hit, pose.muzzle, animTime,
+            shapes, plX, plY, pose.faceX, pose.faceY, pose.dashing, pose.hit, pose.muzzle, animTime,
             pose.weaponType, pose.armorId, pose.oc, pose.moving,
         )
+        if (chompP > 0f) drawChomp(shapes, plX, plY, gw.fx.chompDx, gw.fx.chompDy, 1f - chompP)
         drawProjectiles(shapes, gw, animTime)
         drawMeteors(shapes, gw)  // v2.87 流星群
         drawPillars(shapes, gw)  // v2.87 依頼の答え
@@ -393,6 +400,16 @@ class SceneRenderer {
                 }
             }
         }
+    }
+
+    /** v2.128 捕食: two pale jaws gape in front of the keeper and clack shut on the morsel. */
+    private fun drawChomp(s: ShapeRenderer, x: Float, y: Float, dx: Float, dy: Float, p: Float) {
+        val gape = (if (p < 0.5f) p * 2f else (1f - p) * 2f) * 9f + 1.5f // open out, snap shut
+        val nx = -dy; val ny = dx
+        val mx = x + dx * 13f; val my = y + dy * 13f
+        tmpC.set(1f, 0.95f, 0.78f, 0.85f); s.color = tmpC
+        s.triangle(mx + nx * gape, my + ny * gape, mx + dx * 9f, my + dy * 9f, mx - dx * 3f + nx * 2f, my - dy * 3f + ny * 2f)
+        s.triangle(mx - nx * gape, my - ny * gape, mx + dx * 9f, my + dy * 9f, mx - dx * 3f - nx * 2f, my - dy * 3f - ny * 2f)
     }
 
     private fun drawProjectiles(shapes: ShapeRenderer, gw: GameWorld, animTime: Float) {
