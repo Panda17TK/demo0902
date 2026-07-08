@@ -47,6 +47,10 @@ enum class Achievement(val title: String, val desc: String) {
     VAULT_DELVER("遺構の底へ", "封じられた地下遺構の最奥に立った"), // v2.95
     TRADER_CLIENT("行商の客", "宙を行く行商船で買い物をした"), // v2.100
     LIFELINE("引き上げた手", "難破船の生存者を救助した"), // v2.110
+    // v2.117: the ledger and the book (append-only ids).
+    TRADE_LEDGER("星の帳簿", "行商船に持物を売った"),
+    BESTIARY_50("図鑑の厚み", "討伐図鑑に50種を記した"),
+    BESTIARY_FULL("全記録", "討伐図鑑のすべての種を記した"),
 }
 
 object Achievements {
