@@ -19,6 +19,9 @@ object Actors {
     private val TAU = (Math.PI * 2.0).toFloat()
 
     private val SHADOW = Color(0f, 0f, 0f, 0.30f)
+
+    private val SHADOW_LEGS = Color(0.10f, 0.09f, 0.08f, 0.9f) // v2.129: creature legs read as dark strokes
+    private val TUSK = Color(0.94f, 0.90f, 0.80f, 1f) // v2.129: boar ivory
     private val PLAYER = Color.valueOf("7ab0ff")
     private val PLAYER_HIT = Color.valueOf("ff9aa2")
     private val BELLY = Color(1f, 1f, 1f, 0.18f)
@@ -162,6 +165,7 @@ object Actors {
         faceX: Float, faceY: Float, moving: Boolean, hitFlash: Boolean, dodge: Boolean,
         chargeProg: Float, enrage: Boolean, hpFrac: Float, animSeed: Float, time: Float,
         role: FamilyRole = FamilyRole.NONE, level: Int = 1,
+        look: CreatureLook.Look? = null, // v2.129 野生動物の意匠: non-null routes to the animal painters
     ) {
         // v2.85 squash & stretch: breath at rest, bob on the move, flinch squash on a hit —
         // every painter below sees the scaled body; the shadow stays grounded on the raw box.
@@ -182,6 +186,7 @@ object Actors {
         }
         when {
             elite -> elite(s, x, y, w, h, base, color, faceX, faceY, enrage, tier == "boss", time, animSeed)
+            look != null -> creature(s, x, y, w, h, base, color, faceX, faceY, moving, time, animSeed, look) // v2.129
             kind == "zombie" -> zombie(s, x, y, w, h, base, color, faceX, faceY, moving, chargeProg, time, animSeed)
             kind == "spitter" -> spitter(s, x, y, w, h, base, color, faceX, faceY, time, animSeed)
             kind == "stalker" -> stalker(s, x, y, w, h, base, color, faceX, faceY)
@@ -222,6 +227,123 @@ object Actors {
             s.color = BAR_BG; s.rect(x - bw / 2f, by, bw, bh)
             s.color = if (hpFrac > 0.5f) BAR_HI else if (hpFrac > 0.25f) BAR_MID else BAR_LO
             s.rect(x - bw / 2f, by, bw * hpFrac.coerceIn(0f, 1f), bh)
+        }
+    }
+
+    /** v2.129 野生動物の意匠: motif-based animal painters — each form reads as its animal.
+     *  All plans face horizontally (dir = sign of faceX) like the creatures on old field guides. */
+    @Suppress("LongParameterList", "LongMethod")
+    private fun creature(
+        s: ShapeRenderer, x: Float, y: Float, w: Float, h: Float, base: Color, color: Color,
+        fx: Float, fy: Float, moving: Boolean, time: Float, seed: Float, look: CreatureLook.Look,
+    ) {
+        val dir = if (fx < 0f) -1f else 1f
+        val trot = if (moving) sin(time * 10f + seed) else 0f
+        val dark = shade(color, -30)
+        val light = shade(color, 22)
+        when (look.form) {
+            CreatureLook.Form.FLYER -> {
+                val flap = sin(time * 11f + seed) * h * 0.45f
+                s.color = base
+                s.triangle(x, y, x - w * 0.65f, y - h * 0.25f - flap, x - w * 0.15f, y + h * 0.10f)
+                s.triangle(x, y, x + w * 0.65f, y - h * 0.25f + flap, x + w * 0.15f, y + h * 0.10f)
+                s.color = light; ellipseC(s, x, y, w * 0.22f, h * 0.30f) // the slight body between the wings
+                s.color = dark; s.circle(x + dir * w * 0.14f, y - h * 0.18f, 2.2f, 6) // head
+                s.color = EYE_DARK; s.circle(x + dir * w * 0.20f, y - h * 0.20f, 1.1f, 4)
+            }
+            CreatureLook.Form.FLOATER -> {
+                s.color = base; ellipseC(s, x, y - h * 0.12f, w * 0.42f, h * 0.34f) // the bell
+                s.color = light; ellipseC(s, x, y - h * 0.20f, w * 0.26f, h * 0.16f)
+                s.color = dark
+                for (i in -1..1) { // tendrils sway under the bell
+                    val sway = sin(time * 3f + seed + i) * 2.5f
+                    s.rectLine(x + i * w * 0.18f, y + h * 0.05f, x + i * w * 0.18f + sway, y + h * 0.46f, 1.6f)
+                }
+            }
+            CreatureLook.Form.SERPENT -> {
+                s.color = base
+                for (i in 0..3) { // body beads trailing behind the head with a travelling wave
+                    val bx = x - dir * i * w * 0.22f
+                    val by = y + sin(time * 6f + seed + i * 1.1f) * h * 0.14f
+                    s.circle(bx, by, (w * 0.16f) * (1f - i * 0.12f), 10)
+                }
+                s.color = dark; s.circle(x + dir * w * 0.16f, y, w * 0.15f, 10) // head
+                s.color = EYE_DARK; s.circle(x + dir * w * 0.24f, y - 1.5f, 1.2f, 4)
+            }
+            CreatureLook.Form.SHELLED -> {
+                s.color = SHADOW_LEGS; for (lx in intArrayOf(-1, 1)) s.rect(x + lx * w * 0.28f - 1.5f, y + h * 0.18f, 3f, h * 0.22f + trot) // stub legs
+                s.color = base; arcDome(s, x, y + h * 0.10f, w * 0.44f, h * 0.42f) // the shell dome
+                s.color = light; arcDome(s, x, y + h * 0.06f, w * 0.30f, h * 0.26f)
+                s.color = dark; s.rect(x - w * 0.44f, y + h * 0.08f, w * 0.88f, 2.2f) // the shell rim
+                s.color = dark; s.circle(x + dir * w * 0.50f, y + h * 0.12f, 2.6f, 8) // head poking out
+                s.color = EYE_DARK; s.circle(x + dir * w * 0.55f, y + h * 0.10f, 1f, 4)
+            }
+            CreatureLook.Form.RODENT -> {
+                s.color = base; ellipseC(s, x, y + h * 0.08f, w * 0.34f, h * 0.28f) // a small crouched body
+                s.color = light; s.circle(x + dir * w * 0.26f, y - h * 0.06f, w * 0.16f, 10) // head
+                s.color = dark
+                val earH = if (look.longEars) h * 0.42f else h * 0.16f // the hare's ears stand tall
+                s.rectLine(x + dir * w * 0.20f, y - h * 0.14f, x + dir * w * 0.16f, y - h * 0.14f - earH, 2f)
+                s.rectLine(x + dir * w * 0.30f, y - h * 0.14f, x + dir * w * 0.28f, y - h * 0.14f - earH, 2f)
+                s.rectLine(x - dir * w * 0.30f, y + h * 0.08f, x - dir * w * 0.44f, y - h * 0.02f + trot, 1.6f) // tail flick
+                s.color = EYE_DARK; s.circle(x + dir * w * 0.32f, y - h * 0.08f, 1.1f, 4)
+            }
+            CreatureLook.Form.PREDATOR -> {
+                s.color = base; ellipseC(s, x, y + h * 0.06f, w * 0.42f, h * 0.24f) // a long, low body
+                s.color = SHADOW_LEGS
+                for (i in intArrayOf(-1, 1)) { // trotting legs, front pair opposite the back pair
+                    s.rect(x + i * w * 0.26f - 1.5f, y + h * 0.22f, 3f, h * 0.24f + trot * i)
+                    s.rect(x + i * w * 0.10f - 1.5f, y + h * 0.22f, 3f, h * 0.24f - trot * i)
+                }
+                s.color = base; s.circle(x + dir * w * 0.40f, y - h * 0.06f, w * 0.16f, 10) // head
+                s.color = dark // the pointed snout, pricked ears, and a swaying tail
+                s.triangle(x + dir * w * 0.48f, y - h * 0.12f, x + dir * w * 0.66f, y - h * 0.02f, x + dir * w * 0.46f, y + h * 0.02f)
+                s.triangle(x + dir * w * 0.34f, y - h * 0.16f, x + dir * w * 0.30f, y - h * 0.34f, x + dir * w * 0.42f, y - h * 0.18f)
+                s.triangle(x + dir * w * 0.46f, y - h * 0.14f, x + dir * w * 0.46f, y - h * 0.30f, x + dir * w * 0.54f, y - h * 0.12f)
+                if (look.bushyTail) {
+                    val wag = sin(time * 5f + seed) * h * 0.10f
+                    s.rectLine(x - dir * w * 0.40f, y + h * 0.02f, x - dir * w * 0.62f, y - h * 0.16f + wag, 3.2f)
+                }
+                s.color = RED_EYE; s.circle(x + dir * w * 0.44f, y - h * 0.10f, 1.3f, 4)
+            }
+            CreatureLook.Form.QUADRUPED -> {
+                s.color = SHADOW_LEGS
+                for (i in intArrayOf(-1, 1)) { // grazing legs
+                    s.rect(x + i * w * 0.24f - 1.5f, y + h * 0.16f, 3f, h * 0.30f + trot * i)
+                    s.rect(x + i * w * 0.08f - 1.5f, y + h * 0.16f, 3f, h * 0.30f - trot * i)
+                }
+                s.color = base; ellipseC(s, x, y, w * 0.38f, h * 0.30f) // a round grazer's body
+                s.color = light; ellipseC(s, x - dir * w * 0.06f, y - h * 0.06f, w * 0.24f, h * 0.16f)
+                s.color = base; s.circle(x + dir * w * 0.38f, y - h * 0.22f, w * 0.14f, 10) // head held high
+                s.color = dark
+                s.triangle(x + dir * w * 0.34f, y - h * 0.32f, x + dir * w * 0.30f, y - h * 0.44f, x + dir * w * 0.40f, y - h * 0.32f) // ear
+                if (look.horns) { // antlers / curls above the brow
+                    s.rectLine(x + dir * w * 0.36f, y - h * 0.34f, x + dir * w * 0.28f, y - h * 0.58f, 1.8f)
+                    s.rectLine(x + dir * w * 0.32f, y - h * 0.48f, x + dir * w * 0.44f, y - h * 0.56f, 1.6f)
+                    s.rectLine(x + dir * w * 0.44f, y - h * 0.34f, x + dir * w * 0.52f, y - h * 0.52f, 1.8f)
+                }
+                if (look.tusks) { // pale tusks curling up from the jaw
+                    s.color = TUSK
+                    s.triangle(x + dir * w * 0.46f, y - h * 0.16f, x + dir * w * 0.56f, y - h * 0.28f, x + dir * w * 0.50f, y - h * 0.14f)
+                    s.color = dark
+                }
+                s.rectLine(x - dir * w * 0.38f, y - h * 0.04f, x - dir * w * 0.48f, y + h * 0.06f + trot, 2f) // tail
+                s.color = EYE_DARK; s.circle(x + dir * w * 0.42f, y - h * 0.24f, 1.2f, 4)
+            }
+        }
+    }
+
+    /** The upper half of an ellipse — a shell dome (Filled). */
+    private fun arcDome(s: ShapeRenderer, cx: Float, cy: Float, rx: Float, ry: Float) {
+        var px = cx - rx
+        var py = cy
+        val steps = 14
+        for (i in 1..steps) {
+            val a = Math.PI.toFloat() * i / steps
+            val nx = cx - cos(a) * rx
+            val ny = cy - sin(a) * ry
+            s.triangle(cx, cy, px, py, nx, ny)
+            px = nx; py = ny
         }
     }
 

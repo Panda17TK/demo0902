@@ -388,7 +388,10 @@ class SceneRenderer {
                 // v2.42: rank rides into the drawing — family role ornaments + level pips.
                 val role = e.getOrNull(io.github.panda17tk.arpg.ecs.components.CreatureMind)?.familyRole
                     ?: io.github.panda17tk.arpg.config.FamilyRole.NONE
-                Actors.drawMob(shapes, mm.kind, mm.tier, mt.x, mt.y, mm.def.w, mm.def.h, Color.valueOf(mm.def.color), mf.x, mf.y, moving, mh.hitFlash > 0f, ma.dodgeT > 0f, chargeProg, ma.enrageT > 0f, hpFrac, e.id * 1.3f, animTime, role, mm.level)
+                val look = if (mm.def.lifeKind == io.github.panda17tk.arpg.config.LifeKind.WILDLIFE) {
+                    CreatureLook.of(mm.def.id, mm.def.wildRole) // v2.129 野生動物の意匠
+                } else null
+                Actors.drawMob(shapes, mm.kind, mm.tier, mt.x, mt.y, mm.def.w, mm.def.h, Color.valueOf(mm.def.color), mf.x, mf.y, moving, mh.hitFlash > 0f, ma.dodgeT > 0f, chargeProg, ma.enrageT > 0f, hpFrac, e.id * 1.3f, animTime, role, mm.level, look)
                 if (mm.bountyDust > 0) { // v2.86: the head wears its price — a gold pulse + a diamond overhead
                     val pulse = 0.6f + 0.4f * sin(animTime * 5f)
                     tmpC.set(1f, 0.82f, 0.35f, 0.16f * pulse); shapes.color = tmpC
