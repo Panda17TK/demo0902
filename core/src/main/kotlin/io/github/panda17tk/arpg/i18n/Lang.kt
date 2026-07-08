@@ -91,6 +91,7 @@ object Lang {
         "売る" to "Sell",
         "棚へ戻る" to "Back to Shelves",
         "前へ" to "Prev",
+        "戻す" to "Undo",
         "次へ" to "Next",
     )
 }

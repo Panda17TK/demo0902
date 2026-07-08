@@ -486,12 +486,14 @@ internal fun GameScreen.drawTraderShop() {
         val rows = if (selling) TraderPanel.sellRows(w, h, pageItems.size) else TraderPanel.rows(w, h, stock.size)
         val footer = if (selling) TraderPanel.sellFooter(w, h) else TraderPanel.shelfFooter(w, h)
         if (traderNoteT > 0f) { traderNoteT -= Gdx.graphics.deltaTime; if (traderNoteT <= 0f) traderNote = null }
+        if (sellUndoT > 0f) { sellUndoT -= Gdx.graphics.deltaTime; if (sellUndoT <= 0f) sellUndoItem = null } // v2.118
         Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND)
         shapes.projectionMatrix = hudViewport.camera.combined
         shapes.begin(ShapeRenderer.ShapeType.Filled)
         cEventTmp.set(0f, 0f, 0f, 0.78f); shapes.color = cEventTmp
         shapes.rect(0f, 0f, w, h)
-        (rows + footer).forEach { b ->
+        val undo = if (selling && sellUndoT > 0f && sellUndoItem != null) TraderPanel.undoButton(w, h) else null // v2.118
+        (rows + footer + listOfNotNull(undo)).forEach { b ->
             cEventTmp.set(1f, 0.82f, 0.45f, 0.20f); shapes.color = cEventTmp // the warm lamp, not HUD blue
             shapes.rect(b.x - 1.5f, b.y - 1.5f, b.w + 3f, b.h + 3f)
             cEventTmp.set(0.12f, 0.10f, 0.08f, 0.95f); shapes.color = cEventTmp
@@ -534,12 +536,34 @@ internal fun GameScreen.drawTraderShop() {
             bannerGlyph.setText(font, io.github.panda17tk.arpg.i18n.Lang.tr(b.label)) // v2.115
             font.draw(batch, bannerGlyph, b.centerX - bannerGlyph.width / 2f, b.centerY + bannerGlyph.height / 2f)
         }
+        undo?.let { b -> // v2.118: the take-it-back chip names its price
+            bannerGlyph.setText(font, "${io.github.panda17tk.arpg.i18n.Lang.tr(TraderPanel.UNDO)}（-${sellUndoPay}屑）")
+            font.draw(batch, bannerGlyph, b.centerX - bannerGlyph.width / 2f, b.centerY + bannerGlyph.height / 2f)
+        }
         batch.end()
     }
 
 /** v2.100 行商船: buy the tapped shelf slot if the dust covers it — or flip to buyback, or step away. */
 internal fun GameScreen.handleTraderTap(w: Float, h: Float) {
         if (traderSelling) { // v2.114 買い取り
+            val u = sellUndoItem // v2.118 戻す: same price, same slot, while the chip is lit
+            if (u != null && sellUndoT > 0f && Modals.hitModal(listOf(TraderPanel.undoButton(w, h)), tapX, tapY) == 0) {
+                with(gw.world) {
+                    val mats = gw.player[Materials]
+                    if (mats.dust >= sellUndoPay) {
+                        mats.dust -= sellUndoPay
+                        val pack = gw.player[Gear].backpack
+                        pack.add(sellUndoIdx.coerceAtMost(pack.size), u)
+                        traderNote = "${u.name} を棚から戻した（-${sellUndoPay}屑）"
+                        sellUndoItem = null; sellUndoT = 0f
+                        Sfx.play("pickup", 1.1f)
+                    } else {
+                        traderNote = "屑が足りない — 戻せない"
+                    }
+                }
+                traderNoteT = SAVED_NOTE_TIME
+                return
+            }
             val goods = sellables()
             when (Modals.hitModal(TraderPanel.sellFooter(w, h), tapX, tapY)) {
                 0 -> { val p = TraderPanel.sellPages(goods.size); sellPage = (sellPage - 1 + p) % p; Sfx.play("scan"); return }
@@ -557,6 +581,7 @@ internal fun GameScreen.handleTraderTap(w: Float, h: Float) {
             }
             sellPage = sellPage.coerceAtMost(TraderPanel.sellPages(sellables().size) - 1).coerceAtLeast(0)
             traderNote = "${item.name} を売った（+${pay}屑）"; traderNoteT = SAVED_NOTE_TIME
+            sellUndoItem = item; sellUndoPay = pay; sellUndoIdx = backpackIdx; sellUndoT = SELL_UNDO_TIME // v2.118
             tryUnlock(Achievement.TRADE_LEDGER) // v2.117
             Sfx.play("pickup", 0.9f)
             return
