@@ -47,7 +47,7 @@ class MobDamageSystem(private val grid: SpatialGrid<Entity>) :
             // no lifesteal, no loot farm (a wolf eating a deer must not tick the player's tally).
             val wild = mob.def.lifeKind == LifeKind.WILDLIFE
             val big = mob.tier != "normal"
-            if (!wild) {
+            if (!wild && !mob.fellByWild) {
                 gameOver.kills++
                 val bkey = mob.def.id.ifEmpty { mob.kind } // v2.113 図鑑: the stable roster key
                 gameOver.killsByKind[bkey] = (gameOver.killsByKind[bkey] ?: 0) + 1
@@ -55,12 +55,14 @@ class MobDamageSystem(private val grid: SpatialGrid<Entity>) :
                 // v2.45 星の依頼: the visit's tallies quests are paid from at takeoff.
                 worldState.questKills++
                 if (big) worldState.questElites++
-            } else if (!mob.fellByWild) {
+            } else if (wild && !mob.fellByWild) {
                 // v2.130 図鑑: the player's own wild kills enter the field book — a predator's hunt
                 // does not. Still no score, no loot, no quest credit: the ecosystem framing stands.
                 val bkey = mob.def.id.ifEmpty { mob.kind }
                 gameOver.killsByKind[bkey] = (gameOver.killsByKind[bkey] ?: 0) + 1
             }
+            // v2.132 敵対: a hunter's kill of a SAPIENT is the wild's deed too — no score, no loot
+            // (the fellByWild flag now guards both sides of the lifeKind fence).
             if (wild && mob.def.wildRole == WildRole.PREDATOR) {
                 // v2.69 護衛: one less predator pressing on the children (whoever felled it —
                 // the ecosystem's own kills count too; the star only sees the pressure lift).
@@ -70,7 +72,7 @@ class MobDamageSystem(private val grid: SpatialGrid<Entity>) :
             // bounty head goes grander — five chained blasts, a white-out, a longer slow-mo and a
             // gold reward shower (the player's kills only, never the wild's own hunts).
             val bodyColor = Color.valueOf(mob.def.color.removePrefix("#"))
-            val grand = !wild && (mob.tier == "boss" || mob.bountyDust > 0)
+            val grand = !wild && !mob.fellByWild && (mob.tier == "boss" || mob.bountyDust > 0)
             // v2.92 feats: the sim only counts; the screen decides what a count unlocks.
             if (mob.tier == "rogue") gameOver.rogueKills++
             if (mob.phase2 && !wild) gameOver.rageKills++
@@ -91,7 +93,7 @@ class MobDamageSystem(private val grid: SpatialGrid<Entity>) :
             val dustMul = (if (waveState.event == WaveEvent.STORM) WaveEvents.STORM_DUST_MUL else 1) +
                 io.github.panda17tk.arpg.sim.SystemTraits.dustBonus(worldState.trait) + // v2.91 RICH
                 difficulty.dustBonus // v2.97 過負荷: the pressure pays
-            if (!wild) Pickups.dropOnKill(world, rng, t.x, t.y, big, worldState.spawnTweaks.bonusMaterialChance, dustMul)
+            if (!wild && !mob.fellByWild) Pickups.dropOnKill(world, rng, t.x, t.y, big, worldState.spawnTweaks.bonusMaterialChance, dustMul)
             // v2.45 賞金首: a bounty head bursts into its dust pile, and the HUD says so.
             if (mob.bountyDust > 0) {
                 Pickups.spawn(world, "dust", mob.bountyDust, t.x, t.y - 8f)

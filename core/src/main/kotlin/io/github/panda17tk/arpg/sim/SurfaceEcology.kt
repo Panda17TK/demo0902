@@ -165,7 +165,7 @@ object SurfaceEcology {
                 wild("tomb_stalker", 1, WILD_MID, WILD_FAR)
             }
             PlanetBiome.LONELY -> { // rare, mostly-noncombat encounters
-                wild("star_moth", 2, WILD_NEAR, WILD_FAR)       // a drifting moth or two
+                wild("star_moth", 3, WILD_NEAR, WILD_FAR)       // a drifting moth or three (v2.132: the wild outnumbers the camp)
                 wild("old_hound", 1, WILD_NEAR, WILD_MID)       // a lone old hound
                 if (rng.nextFloat() < 0.5f) wild("last_beast", 1, WILD_FAR, WILD_EDGE) // rarely, one last beast
                 wild("dust_skipper", 2, WILD_NEAR, WILD_FAR)    // v2.82: quick little scavengers

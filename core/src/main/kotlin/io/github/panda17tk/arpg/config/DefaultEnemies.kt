@@ -563,6 +563,7 @@ private fun pioneerWildlife(): Map<String, EnemyDef> = mapOf(
         name = "霜ウサギ", tier = "normal", color = "#bfe6ef", hp = 44f, speed = 92f, w = 18f, h = 16f,
         seeRange = 300f, contactKB = 150f, gravityResponse = 1.0f,
         lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.HERD, diet = Diet.HERBIVORE, herdAffinity = 0.85f, fear = 0.85f, biome = PlanetBiome.ICE,
+        canBlink = true, // v2.132 縮地: the hare escapes in one bound
     ),
 )
 
@@ -614,6 +615,7 @@ private fun iceWildlife(): Map<String, EnemyDef> = mapOf(
             AttackSpec("lunge", cd = 3.2f, range = 130f, power = 420f),
             AttackSpec("melee", cd = 0.9f, dmg = 13f, range = 16f, arc = 360f),
         ),
+        canBlink = true, // v2.132 縮地: the pale hunter strikes in one stride
     ),
     "frost_worm" to EnemyDef(
         name = "霜の大蟲", tier = "normal", color = "#9fc4d8", hp = 320f, speed = 64f, w = 34f, h = 30f,
@@ -1029,6 +1031,7 @@ private fun expansionWildlife(): Map<String, EnemyDef> = mapOf(
         name = "荊山猫", tier = "normal", color = "#7a6a4a", hp = 66f, speed = 108f, w = 22f, h = 16f,
         seeRange = 380f, contactKB = 200f,
         lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREDATOR, diet = Diet.CARNIVORE, herdAffinity = 0.2f, fear = 0.3f, biome = PlanetBiome.NATURE,
+        canBlink = true, // v2.132 縮地: the lynx pounces in one stride
     ),
     "ashwing" to EnemyDef(
         name = "灰翼", tier = "normal", color = "#b08a6a", hp = 22f, speed = 116f, w = 14f, h = 12f,
@@ -1064,11 +1067,13 @@ private fun expansionWildlife(): Map<String, EnemyDef> = mapOf(
         name = "墓所の徘徊者", tier = "normal", color = "#4e4a56", hp = 84f, speed = 88f, w = 24f, h = 18f,
         seeRange = 340f, contactKB = 240f,
         lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREDATOR, diet = Diet.CARNIVORE, herdAffinity = 0.1f, fear = 0.2f, territoryRadius = 140f, biome = PlanetBiome.DEAD,
+        canBlink = true, // v2.132 縮地: the tomb's hunter strikes in one stride
     ),
     "dust_skipper" to EnemyDef(
         name = "塵跳ね", tier = "normal", color = "#b0a890", hp = 20f, speed = 120f, w = 12f, h = 10f,
         seeRange = 220f, contactKB = 70f,
         lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREY, diet = Diet.OMNIVORE, herdAffinity = 0.3f, fear = 0.95f, biome = PlanetBiome.LONELY,
+        canBlink = true, // v2.132 縮地: the skipper escapes in one bound
     ),
     // v2.130 宙を泳ぐもの: fish-like wildlife adrift in SPACE skies (biome null + WILDLIFE —
     // every spawn pool filters by lifeKind, so the waves never field them). gravityResponse 0:

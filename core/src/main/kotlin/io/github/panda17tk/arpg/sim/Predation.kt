@@ -18,15 +18,20 @@ object Predation {
     const val APEX_BITE = 22f     // an apex's bite
 
     /** Can [predator] (a wild hunter) actually prey on [prey] this encounter? */
+    /** v2.132 敵対: bravery at/above this makes a hunter aggressive toward sapients and the keeper. */
+    const val BRAVE = 0.7f
+
     fun canPredate(predator: EnemyDef, prey: EnemyDef): Boolean {
         if (predator.lifeKind != LifeKind.WILDLIFE) return false
         if (prey === predator) return false
         val wildPrey = prey.lifeKind == LifeKind.WILDLIFE && prey.wildRole in WILD_PREY
         val sapientChild = prey.familyRole == FamilyRole.CHILD // a sapient society's young is fair game
+        // v2.132 敵対: a BRAVE hunter no longer respects the camp line — sapient adults are prey too.
+        val sapientAdult = prey.lifeKind == LifeKind.SAPIENT && predator.bravery >= BRAVE
         return when (predator.wildRole) {
-            WildRole.PREDATOR -> wildPrey || sapientChild
+            WildRole.PREDATOR -> wildPrey || sapientChild || sapientAdult
             // An apex sits atop the chain: it also takes lesser predators.
-            WildRole.APEX -> wildPrey || sapientChild || (prey.lifeKind == LifeKind.WILDLIFE && prey.wildRole == WildRole.PREDATOR)
+            WildRole.APEX -> wildPrey || sapientChild || sapientAdult || (prey.lifeKind == LifeKind.WILDLIFE && prey.wildRole == WildRole.PREDATOR)
             else -> false // scavengers (carrion — next round), nest-guards and grazers don't hunt
         }
     }

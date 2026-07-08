@@ -6,7 +6,12 @@ import com.github.quillraven.fleks.World.Companion.family
 import io.github.panda17tk.arpg.config.LifeKind
 import io.github.panda17tk.arpg.config.WildRole
 import io.github.panda17tk.arpg.config.WildState
+import io.github.panda17tk.arpg.config.GameConfig
+import io.github.panda17tk.arpg.ecs.components.Gear
 import io.github.panda17tk.arpg.ecs.components.Health
+import io.github.panda17tk.arpg.ecs.components.Mods
+import io.github.panda17tk.arpg.ecs.components.PlayerTag
+import io.github.panda17tk.arpg.ecs.components.Velocity
 import io.github.panda17tk.arpg.ecs.components.Mob
 import io.github.panda17tk.arpg.ecs.components.Transform
 import io.github.panda17tk.arpg.pathfinding.SpatialGrid
@@ -18,11 +23,14 @@ import kotlin.math.hypot
 /**
  * Wild predators biting their prey — the 食べ ("eat") of 食べ、逃げ、守り、死ぬ. Kept separate from
  * [WildlifeSystem] (which only senses + moves) so neither system bloats. Only WILDLIFE predators/apexes
- * act; prey they kill is reaped by [MobDamageSystem] next tick. The player is never bitten here — toward
- * the player a predator only Threatens/Chases (decided in WildAI). Pure rules live in [Predation].
+ * act; prey they kill is reaped by [MobDamageSystem] next tick. v2.132: a BRAVE hunter on the hunt
+ * snaps at the KEEPER too (same bite, same cooldown); the timid still only threaten. Rules: [Predation].
  */
 class WildPredationSystem(private val mobGrid: SpatialGrid<Entity>) :
     IteratingSystem(family { all(Mob, Transform, Health) }) {
+    private val config: GameConfig = world.inject()
+    private val difficulty: io.github.panda17tk.arpg.sim.Difficulty = world.inject()
+    private val players by lazy { world.family { all(PlayerTag, Transform, Health, Velocity) } }
 
     override fun onTickEntity(entity: Entity) {
         val pred = entity[Mob]
@@ -37,6 +45,27 @@ class WildPredationSystem(private val mobGrid: SpatialGrid<Entity>) :
         if (pred.feedCd > 0f) { pred.feedCd -= deltaTime; return } // one bite per cooldown — skip the scan while chewing
 
         val t = entity[Transform]
+        // v2.132 近接: a BRAVE hunter mid-hunt snaps at the keeper standing in its way.
+        if (pred.def.bravery >= Predation.BRAVE) {
+            var bit = false
+            players.forEach { e ->
+                if (bit) return@forEach
+                val pt = e[Transform]; val ph = e[Health]
+                val d = hypot(pt.x - t.x, pt.y - t.y)
+                if (d < BITE_RANGE && ph.iTime <= 0f) {
+                    ph.hp -= Predation.biteDamage(pred.def) *
+                        (e.getOrNull(Gear)?.loadout?.damageTakenMul ?: 1f) * difficulty.dmgTakenMul *
+                        (e.getOrNull(Mods)?.armorMul ?: 1f)
+                    ph.iTime = config.ai.iFrameContact
+                    val dd = d.coerceAtLeast(0.0001f)
+                    e[Velocity].vx += (pt.x - t.x) / dd * pred.def.contactKB
+                    e[Velocity].vy += (pt.y - t.y) / dd * pred.def.contactKB
+                    pred.feedCd = FEED_CD
+                    bit = true
+                }
+            }
+            if (bit) return
+        }
         var prey: Entity? = null
         var preyD = Float.MAX_VALUE
         mobGrid.forNearby(t.x, t.y, BITE_RANGE) { other ->
