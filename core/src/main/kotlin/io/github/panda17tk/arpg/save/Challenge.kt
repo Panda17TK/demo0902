@@ -16,6 +16,12 @@ object Challenge {
         return if (z <= 1L) z + 0x7EC1L else z
     }
 
+    /** v2.119: days until the sky turns (Monday 00:00 UTC) — 1..7; 1 means within 24 hours. */
+    fun daysLeft(epochMillis: Long): Int {
+        val day = epochMillis / 86_400_000L + 3 // aligned so week boundaries land on multiples of 7
+        return (7 - (day % 7)).toInt()
+    }
+
     /** The short code the HUD and the records both wear (calm — a designation, not a fanfare). */
     fun codeFor(week: Long): String = "W$week"
 }

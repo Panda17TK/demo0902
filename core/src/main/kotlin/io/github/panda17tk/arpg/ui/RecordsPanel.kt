@@ -21,6 +21,7 @@ object RecordsPanel {
         clears: Int = 0, // v2.93: completed syncs
         chWeek: Long = 0L, // v2.102 検証ラン: this week's proving-run ledger
         chWave: Int = 0, chKills: Int = 0,
+        chDaysLeft: Int = 0, // v2.119: how long this week's sky still stands
         has: (Achievement) -> Boolean,
     ): List<String> = buildList {
         // v2.84: plain section headers — the ── flourishes were noise (isHeader colours them).
@@ -32,7 +33,8 @@ object RecordsPanel {
         add("訓練記録（旧式）")
         add(if (simWave > 0) "ウェーブ $simWave　撃破 $simKills" else "未実施")
         add("検証ラン（今週の宙域）")
-        add(if (chWave > 0) "W$chWeek　ウェーブ $chWave　撃破 $chKills" else "未実施")
+        val turn = if (chDaysLeft in 1..7) "　残り${chDaysLeft}日" else "" // v2.119
+        add(if (chWave > 0) "W$chWeek　ウェーブ $chWave　撃破 $chKills$turn" else "未実施$turn")
         if (clears > 0) add("同期完了 ${clears}回 — 網は眠り、また編み直された") // v2.93
         val unlocked = Achievement.entries.count(has)
         add("実績 $unlocked/${Achievement.entries.size}")

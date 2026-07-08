@@ -439,7 +439,7 @@ class GameScreen(
         lastCardId = null; cachedCard = null
         chipsKey = -1; cachedChips = emptyList(); questChipKey = -1; questChip = null
         marketSold.clear(); traderSold.clear(); traderGreeted = false; pendingJump = false
-        rewardToast = "検証ラン ${Challenge.codeFor(challengeWeek)} — 全員同じ宙域・同じ装備。成果は持ち出せない"
+        rewardToast = "検証ラン ${Challenge.codeFor(challengeWeek)} — 全員同じ宙域・同じ装備。残り${Challenge.daysLeft(System.currentTimeMillis())}日"
         rewardToastT = TOAST_TIME
         rebuildMemoryTones()
         syncAmbience()
