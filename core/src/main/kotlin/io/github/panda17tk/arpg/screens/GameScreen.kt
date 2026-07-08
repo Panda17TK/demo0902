@@ -370,7 +370,7 @@ class GameScreen(
             io.github.panda17tk.arpg.i18n.Lang.en = sp.getBoolean("langEn", false) // v2.115 English表示
         } catch (_: Throwable) { /* defaults stay on */ }
         if (startFresh) runStore.clear() // v2.58: タイトルの「はじめから」は前のランを置いていく
-        if (startFresh || !tryRestoreRun()) newRun() // v2.33: a saved run resumes where it left off
+        if (startFresh || !tryRestoreRun()) newRun(countSortie = !startInTraining && !startInChallenge) // v2.33/v2.125
         if (startInTraining && !simMode) toggleTraining() // v2.58: straight into the simulation
         if (startInChallenge && !challengeMode) enterChallenge() // v2.102: 今週の宙域へ直行
         // v2.60: the boot diagnostic runs once per install (never inside the training sim).
@@ -440,19 +440,21 @@ class GameScreen(
         lastCardId = null; cachedCard = null
         chipsKey = -1; cachedChips = emptyList(); questChipKey = -1; questChip = null
         marketSold.clear(); traderSold.clear(); traderGreeted = false; pendingJump = false
-        rewardToast = "検証ラン ${Challenge.codeFor(challengeWeek)} — 全員同じ宙域・同じ装備。残り${Challenge.daysLeft(System.currentTimeMillis())}日"
+        rewardToast = "検証ラン ${Challenge.codeFor(challengeWeek)} — 全員同じ宙域・同じ装備。残り${Challenge.daysLeft(System.currentTimeMillis())}日（補助設定は有効）"
         rewardToastT = TOAST_TIME
         rebuildMemoryTones()
         syncAmbience()
     }
 
-    /** Build (or rebuild) the run and reset per-run screen state (Phase 7 restart). */
-    internal fun newRun() {
+    /** Build (or rebuild) the run and reset per-run screen state (Phase 7 restart).
+     *  [countSortie] is false only when show() builds a throwaway world on the way into the
+     *  training sim or the proving run — that departure is not a real sortie (v2.125). */
+    internal fun newRun(countSortie: Boolean = true) {
         // v2.117 図鑑: an abandoned run still counts (a death already folded at game over).
         if (::gw.isInitialized && !gw.gameOver.isOver) foldBestiary()
         simMode = false; preSimCarry = null // v2.53: a real restart always leaves the simulation
         challengeMode = false // v2.102
-        io.github.panda17tk.arpg.save.Stats.addSortie() // v2.123: a fresh real run leaves the hangar
+        if (countSortie) io.github.panda17tk.arpg.save.Stats.addSortie() // v2.123: a fresh real run leaves the hangar
         session.reset() // a fresh run forgets every planet
         runStore.clear() // v2.33: restarting abandons the saved run
         worldSeed = session.spaceSeed
