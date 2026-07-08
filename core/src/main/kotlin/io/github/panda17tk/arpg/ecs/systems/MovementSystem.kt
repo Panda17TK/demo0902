@@ -198,6 +198,9 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
             if (crash > 0f && !loadout.has(ItemTrait.CRASH_PROOF)) {
                 h.hp = (h.hp - crash.coerceIn(CRASH_DMG_MIN, CRASH_DMG_MAX)).coerceAtLeast(0f)
             }
+            // v2.127: a damaging slam knocks the wind out too — two segments of the 12-segment
+            // bar, gear or no gear (armor spares the hull, not the pilot's breath).
+            if (crash > 0f) s.value = (s.value - s.max * CRASH_STA_COST).coerceAtLeast(0f)
         }
         // Stamina: a button dash drains hard, a stick dash barely sips, otherwise it regenerates.
         if (staInf) {
@@ -259,6 +262,7 @@ class MovementSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing
         private const val CRASH_DMG_K = 0.008f // damage per unit of speed past the threshold (~1 HP at 445)
         private const val CRASH_DMG_MIN = 1f // a damaging crash costs at least 1 HP...
         private const val CRASH_DMG_MAX = 5f // ...and at most 5, however hard the slam
+        private const val CRASH_STA_COST = 2f / 12f // v2.127: a damaging slam costs two stamina segments
         private const val IMPACT_SHAKE_K = 0.022f // shake magnitude per unit of impact speed
         private const val IMPACT_SHAKE_MAX = 16f // …capped so a hard hit doesn't nauseate
         private const val IMPACT_SHAKE_T = 0.2f // shake duration (s)

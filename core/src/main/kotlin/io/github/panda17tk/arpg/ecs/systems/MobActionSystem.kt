@@ -32,18 +32,24 @@ class MobActionSystem : IteratingSystem(family { all(Mob, Transform, MobAction, 
         val t = entity[Transform]; val m = entity[Mob]; val a = entity[MobAction]; val b = entity[Body]
         val dt = deltaTime
 
-        // Dash-ram: a dashing player barging into a mob shoves it back (no damage — just a hard knockback). Governs
-        // the mob's away-velocity up to DASH_RAM_KB rather than accumulating, so a sustained overlap won't fling it.
+        // Dash-ram: a dashing player with REAL momentum barging into a mob shoves it back (no damage —
+        // just a hard knockback that scales with the player's speed). Governs the mob's away-velocity up
+        // to the target rather than accumulating, so a sustained overlap won't fling it. v2.127: the shove
+        // now needs speed — a from-rest dash tap no longer bats creatures aside.
         val mv = entity[Velocity]
         players.forEach { e ->
             if (!e[PlayerTag].dashing) return@forEach
+            val pv = e[Velocity]
+            val pSpeed = hypot(pv.vx + pv.driftX, pv.vy + pv.driftY)
+            if (pSpeed < DASH_RAM_MIN_SPEED) return@forEach
             val pt = e[Transform]
             val dx = t.x - pt.x; val dy = t.y - pt.y
             val d = hypot(dx, dy)
             if (d < (b.halfW + b.halfH) * 0.5f + Tuning.PLAYER_RADIUS + DASH_RAM_PAD) {
                 val dd = d.coerceAtLeast(0.0001f); val ux = dx / dd; val uy = dy / dd
+                val kb = maxOf(DASH_RAM_KB, pSpeed * DASH_RAM_SPEED_MUL)
                 val away = mv.vx * ux + mv.vy * uy
-                if (away < DASH_RAM_KB) { mv.vx += ux * (DASH_RAM_KB - away); mv.vy += uy * (DASH_RAM_KB - away) }
+                if (away < kb) { mv.vx += ux * (kb - away); mv.vy += uy * (kb - away) }
             }
         }
 
@@ -95,7 +101,9 @@ class MobActionSystem : IteratingSystem(family { all(Mob, Transform, MobAction, 
     }
 
     companion object {
-        private const val DASH_RAM_KB = 340f  // away-speed imparted to a mob the dashing player rams
+        private const val DASH_RAM_KB = 340f  // floor of the away-speed imparted to a rammed mob
         private const val DASH_RAM_PAD = 3f   // extra contact margin beyond the two radii
+        private const val DASH_RAM_MIN_SPEED = 260f // v2.127: below this the dash has no shove in it
+        private const val DASH_RAM_SPEED_MUL = 1.25f // v2.127: a faster ram flings harder than the floor
     }
 }
