@@ -155,6 +155,7 @@ object Lang {
         for (d in 1..7) add("残り${d}日" to "${d}d left")
         add("全員同じ宙域・同じ装備。" to "Same sky, same loadout for everyone. ")
         add("検証ラン " to "Proving Run ")
+        add("（補助設定は有効）" to " (assist settings apply)")
         // 行商船
         add("行商船 — 買い取り " to "Trader - buyback ")
         add("行商船" to "Trader")
