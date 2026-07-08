@@ -75,7 +75,9 @@ class WildlifeSystem : IteratingSystem(family { all(Mob, Transform, Velocity, Bo
             if (od.lifeKind == LifeKind.WILDLIFE && (od.wildRole == WildRole.PREDATOR || od.wildRole == WildRole.APEX)) {
                 if (od2 < PRED_SENSE2 && od2 < predBest) { predBest = od2; predatorNear = true; predX = ot.x; predY = ot.y }
             }
-            val huntable = (od.lifeKind == LifeKind.WILDLIFE && od.wildRole in HUNTABLE) || od.familyRole == FamilyRole.CHILD
+            val huntable = (od.lifeKind == LifeKind.WILDLIFE && od.wildRole in HUNTABLE) || od.familyRole == FamilyRole.CHILD ||
+                (od.lifeKind == LifeKind.SAPIENT && m.def.bravery >= io.github.panda17tk.arpg.sim.Predation.BRAVE &&
+                    (m.def.wildRole == WildRole.PREDATOR || m.def.wildRole == WildRole.APEX)) // v2.132 敵対
             if (huntable && od2 < PREY_SENSE2 && od2 < preyBest) { preyBest = od2; preyNear = true; preyX = ot.x; preyY = ot.y }
             if (other[Mob].kind == m.kind && od2 < HERD_SENSE2) { herdSumX += ot.x; herdSumY += ot.y; herdCount++ }
         }
@@ -141,6 +143,17 @@ class WildlifeSystem : IteratingSystem(family { all(Mob, Transform, Velocity, Bo
             WildState.Chase -> {
                 val tx = if (preyNear) preyX else px; val ty = if (preyNear) preyY else py
                 val l = hypot(tx - t.x, ty - t.y); if (l > 1e-3f) { dx = (tx - t.x) / l; dy = (ty - t.y) / l }; mul = CHASE_MUL
+                // v2.132 縮地: a blink-hunter closes the last stretch of a chase in one stride,
+                // landing a pace short of the mark (MobActionSystem executes the teleport).
+                if (m.def.canBlink && l > BLINK_STRIKE_MIN && l < BLINK_STRIKE_MAX) {
+                    entity.getOrNull(io.github.panda17tk.arpg.ecs.components.MobAction)?.let { a ->
+                        if (a.dodgeCd <= 0f && a.blinkT <= 0f && a.blinkChargeT <= 0f) {
+                            a.blinkDx = dx * (l - 28f); a.blinkDy = dy * (l - 28f)
+                            a.blinkTotal = 0.10f; a.blinkT = 0.10f
+                            a.dodgeCd = BLINK_FLEE_CD
+                        }
+                    }
+                }
             }
         }
         if (dx != 0f || dy != 0f) { val l = hypot(dx, dy); if (l > 1e-3f) { dx /= l; dy /= l; f.x = dx; f.y = dy } }
@@ -174,6 +187,8 @@ class WildlifeSystem : IteratingSystem(family { all(Mob, Transform, Velocity, Bo
         private val HUNTABLE = setOf(WildRole.PREY, WildRole.HERD, WildRole.HATCHLING, WildRole.SWARM, WildRole.SCHOOL) // v2.131: teeth follow the schools
         private const val BLINK_FLEE_DIST = 110f // v2.131 縮地: one stride of vanish
         private const val BLINK_FLEE_CD = 2.6f
+        private const val BLINK_STRIKE_MIN = 80f  // v2.132 縮地: too close needs no stride...
+        private const val BLINK_STRIKE_MAX = 220f // ...too far and the hunter keeps padding
         private const val TAU = 6.2831855f
         private const val KNOCK_DECAY = 0.02f      // knockback velocity bleeds fast
         private const val DRIFT_DECAY = 0.8f       // gravity/crash momentum bleeds ~20%/s

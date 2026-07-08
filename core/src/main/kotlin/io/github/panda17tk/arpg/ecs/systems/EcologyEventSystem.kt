@@ -50,7 +50,7 @@ class EcologyEventSystem : IntervalSystem() {
                 if (prev != null && prev > 0f && hp <= 0f) {
                     // died this tick (caught just before MobDamageSystem reaps it)
                     when {
-                        m.def.familyRole == FamilyRole.CHILD -> soc.onChildKilled(ctx)
+                        m.def.familyRole == FamilyRole.CHILD && !m.fellByWild -> soc.onChildKilled(ctx) // v2.132: a wolf's kill is not the keeper's sin
                         m.def.familyRole == FamilyRole.KING -> soc.leaderDefeated = true
                     }
                     if (wild) when (m.def.wildRole) {
