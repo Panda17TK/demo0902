@@ -131,9 +131,10 @@ object WorldFactory {
             BaseField(Bases.pickLargest(clusters, 6, 18).map { Base(it.cx * Tuning.TILE, it.cy * Tuning.TILE, tribes.tribeOf(it.cx * Tuning.TILE, it.cy * Tuning.TILE), it.radius * Tuning.TILE) })
         }
         val gravityField = GravityField()
-        // Discrete planets: 6..8 per stage (v2.39 — more worlds to land on), deterministic from the
-        // seed, clear of the player spawn, with a wider size range so systems read as varied.
-        val planetCount = 6 + Rng(seed xor 0x50A4E70BL).nextInt(3)
+        // Discrete planets: 10..14 per stage (v2.134 星の数 — half again more worlds to land on;
+        // 6..8 since v2.39), deterministic from the seed, clear of the player spawn, with a wider
+        // size range so systems read as varied. Every planet is landable.
+        val planetCount = 10 + Rng(seed xor 0x50A4E70BL).nextInt(5)
         val planetField = PlanetField(
             if (mode == WorldMode.SURFACE) emptyList()
             else Planets.place(

@@ -14,9 +14,9 @@ import org.junit.jupiter.api.Test
 
 /** v2.39: more planets, richer space roster, beam charge, melee wave. */
 class WorldV239Test {
-    @Test fun `space carries 6 to 8 planets with varied sizes`() {
+    @Test fun `space carries 10 to 14 planets with varied sizes`() { // v2.134 星の数 (was 6..8)
         val gw = WorldFactory.create(InputState(), seed = 5L)
-        assertTrue(gw.planets.size in 6..8, "got ${gw.planets.size} planets")
+        assertTrue(gw.planets.size in 10..14, "got ${gw.planets.size} planets")
         val radii = gw.planets.map { it.radius }
         assertTrue(radii.max() - radii.min() > 20f, "planet sizes should vary: $radii")
     }
