@@ -242,6 +242,16 @@ object Actors {
         val dark = shade(color, -30)
         val light = shade(color, 22)
         when (look.form) {
+            CreatureLook.Form.FISH -> { // v2.130 宙を泳ぐもの: a fish gliding through the void
+                val swim = sin(time * 8f + seed)
+                s.color = base
+                ellipseC(s, x, y, w * 0.38f, h * 0.30f) // the body, nose toward dir
+                s.color = shade(color, -18)
+                s.triangle(x - dir * w * 0.30f, y, x - dir * w * 0.58f, y - h * 0.26f + swim * 2f, x - dir * w * 0.58f, y + h * 0.26f + swim * 2f) // tail fin, sculling
+                s.triangle(x - dir * w * 0.02f, y - h * 0.26f, x + dir * w * 0.16f, y - h * 0.26f, x + dir * w * 0.02f, y - h * 0.48f) // dorsal fin
+                s.color = light; ellipseC(s, x + dir * w * 0.06f, y + h * 0.06f, w * 0.22f, h * 0.14f) // pale belly
+                s.color = EYE_DARK; s.circle(x + dir * w * 0.28f, y - h * 0.06f, 1.3f, 4)
+            }
             CreatureLook.Form.FLYER -> {
                 val flap = sin(time * 11f + seed) * h * 0.45f
                 s.color = base

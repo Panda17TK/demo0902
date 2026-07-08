@@ -31,6 +31,7 @@ class Mob(
     var hunger: Float = 0f,   // 0..1, climbs over time; a predator hunts when high, drops while feeding
     var wanderCd: Float = 0f, // re-roll timer for the idle wander heading
     var feedCd: Float = 0f,   // cooldown between predation bites
+    var fellByWild: Boolean = false, // v2.130 図鑑: set when a predator's bite (not the player) lands the kill
     var homeX: Float = 0f,    // nest / home position (set to the spawn point); nest-guards return here
     var homeY: Float = 0f,
 ) : Component<Mob> {

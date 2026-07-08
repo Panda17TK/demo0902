@@ -55,7 +55,13 @@ class MobDamageSystem(private val grid: SpatialGrid<Entity>) :
                 // v2.45 星の依頼: the visit's tallies quests are paid from at takeoff.
                 worldState.questKills++
                 if (big) worldState.questElites++
-            } else if (mob.def.wildRole == WildRole.PREDATOR) {
+            } else if (!mob.fellByWild) {
+                // v2.130 図鑑: the player's own wild kills enter the field book — a predator's hunt
+                // does not. Still no score, no loot, no quest credit: the ecosystem framing stands.
+                val bkey = mob.def.id.ifEmpty { mob.kind }
+                gameOver.killsByKind[bkey] = (gameOver.killsByKind[bkey] ?: 0) + 1
+            }
+            if (wild && mob.def.wildRole == WildRole.PREDATOR) {
                 // v2.69 護衛: one less predator pressing on the children (whoever felled it —
                 // the ecosystem's own kills count too; the star only sees the pressure lift).
                 worldState.questPredators++

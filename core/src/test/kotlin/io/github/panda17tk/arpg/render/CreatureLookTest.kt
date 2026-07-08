@@ -23,6 +23,9 @@ class CreatureLookTest {
         assertEquals(CreatureLook.Form.FLOATER, CreatureLook.of("cloud_plankton", WildRole.PREY).form)
         assertEquals(CreatureLook.Form.SHELLED, CreatureLook.of("thorn_tortoise", WildRole.HERD).form)
         assertEquals(CreatureLook.Form.SERPENT, CreatureLook.of("lava_serpent", WildRole.PREDATOR).form)
+        assertEquals(CreatureLook.Form.FISH, CreatureLook.of("star_sardine", WildRole.HERD).form) // v2.130
+        assertEquals(CreatureLook.Form.FISH, CreatureLook.of("void_koi", WildRole.HERD).form)
+        assertEquals(CreatureLook.Form.FISH, CreatureLook.of("lantern_angler", WildRole.PREY).form)
     }
 
     @Test fun `the live roster's wildlife spreads across many distinct body plans`() {
