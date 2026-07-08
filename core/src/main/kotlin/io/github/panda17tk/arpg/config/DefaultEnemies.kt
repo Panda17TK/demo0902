@@ -1255,4 +1255,22 @@ private fun expansionWildlife(): Map<String, EnemyDef> = mapOf(
         seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
         lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.APEX, diet = Diet.CARNIVORE, herdAffinity = 0.1f, fear = 0.15f, territoryRadius = 140f, 
     ),
+
+    // --- v2.135 満ちる海: the tyrant, the island, and the island's retinue ---
+    "tyrant_shark" to EnemyDef(
+        name = "暴君鮫", tier = "normal", color = "#8a5a68", hp = 480f, speed = 130f, w = 54f, h = 22f,
+        seeRange = 340f, contactKB = 380f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.APEX, diet = Diet.CARNIVORE, herdAffinity = 0f,
+        fear = 0.02f, territoryRadius = 320f, // bravery 1 (default) — v2.132 敵対 makes it hunt sapients and the keeper
+    ),
+    "isle_whale" to EnemyDef(
+        name = "島鯨", tier = "normal", color = "#48607e", hp = 1200f, speed = 26f, w = 120f, h = 50f,
+        seeRange = 220f, contactKB = 120f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.HERD, diet = Diet.HERBIVORE, herdAffinity = 0.2f, fear = 0.02f, // a drifting island — nothing spooks it
+    ),
+    "pilot_minnow" to EnemyDef(
+        name = "水先魚", tier = "normal", color = "#9fb8d8", hp = 4f, speed = 135f, w = 7f, h = 4f,
+        seeRange = 160f, contactKB = 20f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.SCHOOL, diet = Diet.HERBIVORE, herdAffinity = 1f, fear = 0.9f, // the whale's retinue (SchoolFishSystem pulls it home)
+    ),
 )

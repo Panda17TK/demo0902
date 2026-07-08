@@ -22,7 +22,7 @@ class WorldFishTest {
         n
     }
 
-    @Test fun `some space skies host fish, deterministically per seed`() {
+    @Test fun `every space sky hosts fish, deterministically per seed`() { // v2.135 満ちる海 (was: some skies)
         var hosted = 0
         for (seed in 1L..20L) {
             val a = WorldFactory.create(InputState(), seed = seed)
@@ -30,7 +30,7 @@ class WorldFishTest {
             assertEquals(wildCount(a), wildCount(b), "seed $seed schools the same sky twice")
             if (wildCount(a) > 0) hosted++
         }
-        assertTrue(hosted in 1..19, "fish visit some skies but not all (got $hosted/20)")
+        assertEquals(20, hosted, "the ocean fills every sky now")
     }
 
     @Test fun `the fish are true void wildlife, and surfaces never host them`() {

@@ -39,13 +39,18 @@ class SchoolFishSystem : IteratingSystem(family { all(Mob, Transform, Velocity, 
     private val skind = ArrayList<Int>(128)
     private val px = ArrayList<Float>(8)
     private val py = ArrayList<Float>(8)
+    // v2.135 島鯨: whale positions — the pilot fish's home current
+    private val wx = ArrayList<Float>(4)
+    private val wy = ArrayList<Float>(4)
 
     override fun onTick() {
         time += deltaTime
         sx.clear(); sy.clear(); shx.clear(); shy.clear(); skind.clear(); px.clear(); py.clear()
+        wx.clear(); wy.clear()
         family.forEach { e ->
             val m = e[Mob]
             if (m.def.lifeKind != LifeKind.WILDLIFE) return@forEach
+            if (m.def.id == WHALE_KIND) { val t = e[Transform]; wx.add(t.x); wy.add(t.y) }
             when (m.def.wildRole) {
                 WildRole.SCHOOL -> {
                     val t = e[Transform]; val f = e[Facing]
@@ -109,6 +114,20 @@ class SchoolFishSystem : IteratingSystem(family { all(Mob, Transform, Velocity, 
             }
         }
 
+        // --- v2.135 島鯨: a pilot fish is pulled home to the nearest whale ---
+        if (m.def.id == PILOT_KIND) {
+            var bd2 = Float.MAX_VALUE; var bi = -1
+            for (i in wx.indices) {
+                val dx = wx[i] - t.x; val dy = wy[i] - t.y
+                val d2 = dx * dx + dy * dy
+                if (d2 < bd2) { bd2 = d2; bi = i }
+            }
+            if (bi >= 0 && bd2 < WHALE_SENSE2 && bd2 > WHALE_KEEP2) {
+                val d = hypot(wx[bi] - t.x, wy[bi] - t.y)
+                steerX += (wx[bi] - t.x) / d * W_WHALE; steerY += (wy[bi] - t.y) / d * W_WHALE
+            }
+        }
+
         // --- a gentle wander so a calm school still drifts and shimmers ---
         val phase = time * 0.9f + (entity.id % 97) * 1.7f
         steerX += cos(phase) * W_WANDER; steerY += sin(phase) * W_WANDER
@@ -137,5 +156,11 @@ class SchoolFishSystem : IteratingSystem(family { all(Mob, Transform, Velocity, 
         private const val W_FLEE_PRED = 2.4f
         private const val W_WANDER = 0.35f
         private const val TURN = 4.5f // heading inertia: how fast the urge bends the swim line
+        // v2.135 島鯨: the retinue and its island
+        private const val WHALE_KIND = "isle_whale"
+        private const val PILOT_KIND = "pilot_minnow"
+        private const val WHALE_SENSE2 = 900f * 900f // a pilot fish feels its whale this far out
+        private const val WHALE_KEEP2 = 90f * 90f    // ...and rests once it swims alongside
+        private const val W_WHALE = 1.4f
     }
 }

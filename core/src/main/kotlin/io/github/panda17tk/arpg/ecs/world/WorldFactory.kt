@@ -344,40 +344,60 @@ object WorldFactory {
         // and the surge counts hostiles only, so a far-off fish never stalls a wave.
         if (mode != WorldMode.SURFACE) {
             val fRng = Rng(seed xor 0x0F15E5L)
-            if (fRng.nextFloat() < FISH_CHANCE) {
-                val fa = fRng.nextFloat() * TAU
-                val fd = 500f + fRng.nextFloat() * 800f
-                val rawX = (spawnX + kotlin.math.cos(fa) * fd).coerceIn(Tuning.TILE * 4f, map.width * Tuning.TILE - Tuning.TILE * 4f)
-                val rawY = (spawnY + kotlin.math.sin(fa) * fd).coerceIn(Tuning.TILE * 4f, map.height * Tuning.TILE - Tuning.TILE * 4f)
-                val (sx, sy) = snapToFloor(map, rawX, rawY)
-                fun shoal(id: String, count: Int, spread: Float) {
-                    config.enemies[id]?.let { def ->
-                        repeat(count) {
-                            val a = fRng.nextFloat() * TAU
-                            val r = fRng.nextFloat() * spread
-                            MobFactory.spawn(world, def, sx + kotlin.math.cos(a) * r, sy + kotlin.math.sin(a) * r)
-                        }
+            val fww = map.width * Tuning.TILE; val fwh = map.height * Tuning.TILE
+            fun shoalAt(cx0: Float, cy0: Float, id: String, count: Int, spread: Float) {
+                config.enemies[id]?.let { def ->
+                    repeat(count) {
+                        val a = fRng.nextFloat() * TAU
+                        val r = fRng.nextFloat() * spread
+                        MobFactory.spawn(world, def, cx0 + kotlin.math.cos(a) * r, cy0 + kotlin.math.sin(a) * r)
                     }
                 }
-                // v2.131: ~a hundred tiny fish move as one — the boid school (鰯 or 鯵)
-                shoal(if (fRng.nextFloat() < 0.5f) "star_sardine" else "void_aji", 90 + fRng.nextInt(21), 130f)
-                // one or two medium schools swim their own loop nearby
-                val mediums = listOf("comet_saury", "nebula_herring", "gate_smelt", "drift_capelin")
-                repeat(1 + fRng.nextInt(2)) { shoal(mediums[fRng.nextInt(mediums.size)], 8 + fRng.nextInt(8), 90f) }
-                // loners and pairs scattered through the sky
-                val singles = listOf(
-                    "stardust_minnow", "aurora_trout", "magnet_catfish", "crystal_seahorse", "moon_flounder",
-                    "glass_icefish", "rust_grouper", "twin_sole", "cloud_puffer", "ring_saba", "debris_goby",
-                    "silver_arowana", "pale_dolphin", "sun_tang", "echo_pike", "warp_flyfish", "blink_darter",
-                    "void_koi", "lantern_angler",
+            }
+            fun site(): Pair<Float, Float> = snapToFloor(
+                map,
+                Tuning.TILE * 6f + fRng.nextFloat() * (fww - Tuning.TILE * 12f),
+                Tuning.TILE * 6f + fRng.nextFloat() * (fwh - Tuning.TILE * 12f),
+            )
+            // v2.131: ~a hundred tiny fish move as one — the boid school still rises near the pad,
+            // so the first minutes of every sortie have life in view.
+            val fa = fRng.nextFloat() * TAU
+            val fd = 500f + fRng.nextFloat() * 800f
+            val rawX = (spawnX + kotlin.math.cos(fa) * fd).coerceIn(Tuning.TILE * 4f, fww - Tuning.TILE * 4f)
+            val rawY = (spawnY + kotlin.math.sin(fa) * fd).coerceIn(Tuning.TILE * 4f, fwh - Tuning.TILE * 4f)
+            val (sx, sy) = snapToFloor(map, rawX, rawY)
+            shoalAt(sx, sy, if (fRng.nextFloat() < 0.5f) "star_sardine" else "void_aji", 90 + fRng.nextInt(21), 130f)
+            val hunters = listOf("void_shark", "rift_cuda", "abyss_lure", "ember_piranha", "star_moray", "thunder_marlin", "dusk_gar")
+            if (fRng.nextFloat() < 0.55f) shoalAt(sx, sy, hunters[fRng.nextInt(hunters.size)], 1, 320f)
+            // v2.135 満ちる海: one group per map sector (3×3) — the ocean fills the WHOLE sky,
+            // not a single clump by the pad. Every sky now hosts fish, wherever the keeper drifts.
+            val mediums = listOf("comet_saury", "nebula_herring", "gate_smelt", "drift_capelin")
+            val singles = listOf(
+                "stardust_minnow", "aurora_trout", "magnet_catfish", "crystal_seahorse", "moon_flounder",
+                "glass_icefish", "rust_grouper", "twin_sole", "cloud_puffer", "ring_saba", "debris_goby",
+                "silver_arowana", "pale_dolphin", "sun_tang", "echo_pike", "warp_flyfish", "blink_darter",
+                "void_koi", "lantern_angler",
+            )
+            for (gy in 0 until 3) for (gx in 0 until 3) {
+                val (px2, py2) = snapToFloor(
+                    map,
+                    fww / 3f * (gx + 0.15f + fRng.nextFloat() * 0.7f),
+                    fwh / 3f * (gy + 0.15f + fRng.nextFloat() * 0.7f),
                 )
-                repeat(3 + fRng.nextInt(3)) { shoal(singles[fRng.nextInt(singles.size)], 1 + fRng.nextInt(2), 500f) }
-                // sometimes teeth follow the school
-                val hunters = listOf("void_shark", "rift_cuda", "abyss_lure", "ember_piranha", "star_moray", "thunder_marlin", "dusk_gar")
-                if (fRng.nextFloat() < 0.55f) shoal(hunters[fRng.nextInt(hunters.size)], 1, 320f)
-                // and rarely something vast passes by
-                val giants = listOf("gravity_whale", "song_whale", "old_coelacanth")
-                if (fRng.nextFloat() < 0.18f) shoal(giants[fRng.nextInt(giants.size)], 1, 700f)
+                if (fRng.nextFloat() < 0.4f) shoalAt(px2, py2, mediums[fRng.nextInt(mediums.size)], 8 + fRng.nextInt(8), 90f)
+                else shoalAt(px2, py2, singles[fRng.nextInt(singles.size)], 1 + fRng.nextInt(2), 220f)
+                if (fRng.nextFloat() < 0.2f) shoalAt(px2, py2, hunters[fRng.nextInt(hunters.size)], 1, 320f)
+            }
+            // rarely something vast passes by, anywhere in the sky
+            val giants = listOf("gravity_whale", "song_whale", "old_coelacanth")
+            if (fRng.nextFloat() < 0.25f) { val (vx2, vy2) = site(); shoalAt(vx2, vy2, giants[fRng.nextInt(giants.size)], 1, 200f) }
+            // v2.135 暴君鮫: some skies belong to the tyrant — an apex that hunts sapients and the keeper
+            if (fRng.nextFloat() < 0.45f) { val (tx2, ty2) = site(); shoalAt(tx2, ty2, "tyrant_shark", 1, 0f) }
+            // v2.135 島鯨: a drifting island trailing its retinue of pilot fish
+            if (fRng.nextFloat() < 0.5f) {
+                val (wx2, wy2) = site()
+                shoalAt(wx2, wy2, "isle_whale", 1, 0f)
+                shoalAt(wx2, wy2, "pilot_minnow", 24 + fRng.nextInt(13), 110f)
             }
         }
 
@@ -562,7 +582,6 @@ object WorldFactory {
     }
 
     private const val TAU = 6.2831855f
-    private const val FISH_CHANCE = 0.75f // v2.130 宙を泳ぐもの: most skies, not all
     private const val SPACE_DRIFTERS = 30      // v2.36: creatures adrift in space from world creation
     private const val DRIFTER_MIN_DIST = 600f  // ...scattered in a ring well clear of the spawn
     private const val DRIFTER_RANGE = 1800f
