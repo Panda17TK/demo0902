@@ -67,4 +67,8 @@ data class EnemyDef(
     val canBlink: Boolean = false,             // v2.131 縮地: this creature blinks a stride when it flees
     val attacks: List<AttackSpec> = emptyList(),
     val dodge: DodgeSpec? = null,
-)
+) {
+    // v2.136 泳ぐ魚: a space fish — wild, weightless, homeless (the only wildlife with no biome and
+    // no weight). It never stands still and turns away from the rocks instead of pinning against them.
+    val swims: Boolean get() = lifeKind == LifeKind.WILDLIFE && gravityResponse == 0f && biome == null
+}

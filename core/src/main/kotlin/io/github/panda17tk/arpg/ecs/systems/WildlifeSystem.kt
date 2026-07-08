@@ -156,14 +156,17 @@ class WildlifeSystem : IteratingSystem(family { all(Mob, Transform, Velocity, Bo
                 }
             }
         }
+        // v2.136 泳ぐ魚: a space fish never hangs dead in the void — where a land animal would
+        // stand (graze, threaten, feed, sleep), the fish keeps swimming a slow wander instead.
+        if (mul == 0f && m.def.swims) { rollWander(m, f, dt); dx = f.x; dy = f.y; mul = WANDER_MUL }
         if (dx != 0f || dy != 0f) { val l = hypot(dx, dy); if (l > 1e-3f) { dx /= l; dy /= l; f.x = dx; f.y = dy } }
 
         // Apply movement riding on any leftover drift, stopping at walls (no crash/fall damage), same as AISystem.
         val moveEff = m.speed * mul
         val r1 = Collision.moveAndCollide(map, t.x, t.y, b.halfW, b.halfH, dx * moveEff * dt + (v.vx + v.driftX) * dt, 0f)
-        if (r1.hitX) v.driftX = 0f
+        if (r1.hitX) { v.driftX = 0f; if (m.def.swims) f.x = -f.x } // v2.136: a fish turns off the rock, not pins against it
         val r2 = Collision.moveAndCollide(map, r1.x, r1.y, b.halfW, b.halfH, 0f, dy * moveEff * dt + (v.vy + v.driftY) * dt)
-        if (r2.hitY) v.driftY = 0f
+        if (r2.hitY) { v.driftY = 0f; if (m.def.swims) f.y = -f.y }
         t.x = r2.x; t.y = r2.y
         val pc = CircleCollision.resolve(t.x, t.y, b.halfW, v.vx + v.driftX, v.vy + v.driftY, planetField.planets)
         if (pc.hit) {
