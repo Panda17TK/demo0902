@@ -388,7 +388,7 @@ class GameScreen(
      *  and the real player snapshot are all untouched — a simulation leaves no trace but skill. */
     internal fun toggleTraining() {
         if (!simMode) {
-            io.github.panda17tk.arpg.save.Bestiary.record(gw.gameOver.killsByKind) // v2.113: the real world's tallies, before the sim
+            foldBestiary() // v2.113: the real world's tallies, before the sim
             simMode = true
             preSimCarry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
             worldSeed = TRAINING_SEED
@@ -415,6 +415,7 @@ class GameScreen(
      *  loadout, no boons, NORMAL. The real run's snapshot is taken once and kept across retries,
      *  so leaving the challenge always restores exactly what was left behind. */
     internal fun enterChallenge() {
+        if (::gw.isInitialized) foldBestiary() // v2.117: entering the proving run is a seam like the training door
         if (!challengeMode) preSimCarry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
         simMode = true; challengeMode = true
         // v2.106 公正化: the proving run starts from the shipped numbers — session knobs all reset,
@@ -441,6 +442,8 @@ class GameScreen(
 
     /** Build (or rebuild) the run and reset per-run screen state (Phase 7 restart). */
     internal fun newRun() {
+        // v2.117 図鑑: an abandoned run still counts (a death already folded at game over).
+        if (::gw.isInitialized && !gw.gameOver.isOver) foldBestiary()
         simMode = false; preSimCarry = null // v2.53: a real restart always leaves the simulation
         challengeMode = false // v2.102
         session.reset() // a fresh run forgets every planet
@@ -549,7 +552,7 @@ class GameScreen(
         context: PlanetContext? = null, society: PlanetSocietyState? = null,
         weather: WeatherKind = WeatherKind.CLEAR,
     ) {
-        if (!simMode) io.github.panda17tk.arpg.save.Bestiary.record(gw.gameOver.killsByKind) // v2.113: fold before the swap
+        foldBestiary() // v2.113: fold before the swap
         val carry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
         worldSeed = seed
         gw = WorldFactory.create(input, configStore.config, seed, mode, biome, carry, spawn, context, society, weather, boons = metaBoons, trait = if (mode == WorldMode.SPACE) SystemTraits.traitFor(session.spaceSeed) else SystemTrait.NONE, difficulty = runDifficulty)
@@ -910,7 +913,7 @@ class GameScreen(
                     simMode -> Scores.recordSim(gw.waveState.num, gw.gameOver.kills)
                     else -> Scores.record(gw.waveState.num, gw.gameOver.kills)
                 }
-                if (!simMode) io.github.panda17tk.arpg.save.Bestiary.record(gw.gameOver.killsByKind) // v2.113 図鑑
+                foldBestiary() // v2.113 図鑑
                 session.persist() // LP v2.28: a death checkpoints the universe's memory too
                 if (!simMode) runStore.clear() // v2.33: death consumes the saved run (roguelite)
                 // v2.46 遺品: death leaves half the dust and every gate shard where you fell —
@@ -1089,6 +1092,16 @@ class GameScreen(
 
 
     /** v2.62 実績: unlock + one-line toast the first time only. */
+    /** v2.117 図鑑: fold the current world's tallies at a seam (real runs only) and mark
+     *  the record achievements. Every world-discarding path calls this exactly once. */
+    internal fun foldBestiary() {
+        if (simMode) return
+        io.github.panda17tk.arpg.save.Bestiary.record(gw.gameOver.killsByKind)
+        val known = io.github.panda17tk.arpg.save.Bestiary.knownCount()
+        if (known >= 50) tryUnlock(Achievement.BESTIARY_50)
+        if (known >= configStore.config.enemies.size) tryUnlock(Achievement.BESTIARY_FULL)
+    }
+
     internal fun tryUnlock(a: Achievement) {
         if (Achievements.unlock(a)) {
             rewardToast = "実績解除『${a.title}』 — ${a.desc}"

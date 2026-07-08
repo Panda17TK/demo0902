@@ -44,6 +44,15 @@ class AchievementsTest {
         }
     }
 
+    @Test fun `the v117 records keep their stable ids at the tail`() {
+        // v2.117: append-only — the ids are the save format, so they live at the end, verbatim.
+        assertEquals(38, Achievement.entries.size)
+        assertEquals("星の帳簿", Achievement.TRADE_LEDGER.title)
+        assertEquals("図鑑の厚み", Achievement.BESTIARY_50.title)
+        assertEquals("全記録", Achievement.BESTIARY_FULL.title)
+        assertTrue(Achievement.BESTIARY_FULL.ordinal == Achievement.entries.size - 1)
+    }
+
     @Test fun `every achievement has a calm title and description`() {
         for (a in Achievement.entries) {
             assertTrue(a.title.isNotBlank() && a.desc.isNotBlank())

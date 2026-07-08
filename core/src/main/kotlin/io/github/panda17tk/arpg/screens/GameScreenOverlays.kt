@@ -319,6 +319,7 @@ internal fun GameScreen.handleEndingTaps() {
                 }
             }
             else -> { // the epilogue closes to the title; the finished run is consumed
+                foldBestiary() // v2.117: the final world's tallies close the book too
                 runStore.clear()
                 (Gdx.app.applicationListener as? App)?.showTitle()
             }
@@ -339,7 +340,7 @@ internal fun GameScreen.handlePauseTaps() {
                     PauseAction.MEMORY -> overlay = Overlay.MEMORY
                     PauseAction.SIM -> { toggleTraining(); overlay = Overlay.NONE } // v2.53
                     PauseAction.TITLE -> { // v2.58: auto-save the real run, then the front door
-                        if (!simMode) io.github.panda17tk.arpg.save.Bestiary.record(gw.gameOver.killsByKind) // v2.113
+                        foldBestiary() // v2.113
                         if (!simMode && !gw.gameOver.isOver) saveRun()
                         (Gdx.app.applicationListener as? App)?.showTitle()
                         return
@@ -556,6 +557,7 @@ internal fun GameScreen.handleTraderTap(w: Float, h: Float) {
             }
             sellPage = sellPage.coerceAtMost(TraderPanel.sellPages(sellables().size) - 1).coerceAtLeast(0)
             traderNote = "${item.name} を売った（+${pay}屑）"; traderNoteT = SAVED_NOTE_TIME
+            tryUnlock(Achievement.TRADE_LEDGER) // v2.117
             Sfx.play("pickup", 0.9f)
             return
         }
