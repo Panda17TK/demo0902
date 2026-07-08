@@ -11,7 +11,8 @@ class WildlifeNeverSpeakTest {
         assertTrue(wild.all { !it.canSpeak }, "wildlife must be mute (it builds an ecosystem, not a society)")
     }
 
-    @Test fun `every wildlife creature lives on a biome`() {
-        assertTrue(wild.all { it.biome != null }, "wildlife must belong to a planet biome")
+    @Test fun `every wildlife creature lives on a biome — or swims the void`() {
+        // v2.130: the void fish are biome-less by design; everything else stays planet-bound.
+        assertTrue(wild.all { it.biome != null || it.gravityResponse == 0f }, "wildlife belongs to a biome or the void")
     }
 }

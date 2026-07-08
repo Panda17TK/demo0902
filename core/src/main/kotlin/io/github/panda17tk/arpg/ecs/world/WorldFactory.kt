@@ -312,7 +312,7 @@ object WorldFactory {
         // completion and live caps, so a drifter at the map's far edge never stalls the wave train.
         if (mode != WorldMode.SURFACE) {
             val driftersRng = Rng(seed xor 0x00D21F7E5L)
-            val normalKeys = config.enemies.filterValues { it.tier == "normal" && it.biome == null }.keys.toList()
+            val normalKeys = config.enemies.filterValues { it.tier == "normal" && it.biome == null && it.lifeKind == io.github.panda17tk.arpg.config.LifeKind.HOSTILE }.keys.toList() // v2.130: fish are not drifters
             if (normalKeys.isNotEmpty()) {
                 repeat(SPACE_DRIFTERS) {
                     val def = config.enemies[normalKeys[driftersRng.nextInt(normalKeys.size)]] ?: return@repeat
@@ -332,6 +332,35 @@ object WorldFactory {
                         e[Velocity].driftX = kotlin.math.cos(va) * sp
                         e[Velocity].driftY = kotlin.math.sin(va) * sp
                     }
+                }
+            }
+        }
+
+        // v2.130 宙を泳ぐもの: most skies host fish — a sardine school, sometimes a koi pair or a
+        // lone angler. Their own rng stream; the waves never field them (the pools filter lifeKind)
+        // and the surge counts hostiles only, so a far-off fish never stalls a wave.
+        if (mode != WorldMode.SURFACE) {
+            val fRng = Rng(seed xor 0x0F15E5L)
+            if (fRng.nextFloat() < FISH_CHANCE) {
+                val fa = fRng.nextFloat() * TAU
+                val fd = 500f + fRng.nextFloat() * 800f
+                val rawX = (spawnX + kotlin.math.cos(fa) * fd).coerceIn(Tuning.TILE * 4f, map.width * Tuning.TILE - Tuning.TILE * 4f)
+                val rawY = (spawnY + kotlin.math.sin(fa) * fd).coerceIn(Tuning.TILE * 4f, map.height * Tuning.TILE - Tuning.TILE * 4f)
+                val (sx, sy) = snapToFloor(map, rawX, rawY)
+                config.enemies["star_sardine"]?.let { def ->
+                    repeat(4 + fRng.nextInt(4)) {
+                        val a = fRng.nextFloat() * TAU
+                        val r = fRng.nextFloat() * 90f
+                        MobFactory.spawn(world, def, sx + kotlin.math.cos(a) * r, sy + kotlin.math.sin(a) * r)
+                    }
+                }
+                if (fRng.nextFloat() < 0.5f) config.enemies["void_koi"]?.let { def ->
+                    repeat(1 + fRng.nextInt(2)) {
+                        MobFactory.spawn(world, def, sx + (fRng.nextFloat() - 0.5f) * 260f, sy + (fRng.nextFloat() - 0.5f) * 260f)
+                    }
+                }
+                if (fRng.nextFloat() < 0.4f) config.enemies["lantern_angler"]?.let { def ->
+                    MobFactory.spawn(world, def, sx + (fRng.nextFloat() - 0.5f) * 600f, sy + (fRng.nextFloat() - 0.5f) * 600f)
                 }
             }
         }
@@ -376,7 +405,7 @@ object WorldFactory {
         // drifter picket (drifters — they aggro on approach but never stall the wave train).
         if (mode != WorldMode.SURFACE && worldState.wrecks.isNotEmpty()) {
             val lootRng = Rng(seed xor 0x100CCAFEL)
-            val guardKeys = config.enemies.filterValues { it.tier == "normal" && it.biome == null }.keys.toList()
+            val guardKeys = config.enemies.filterValues { it.tier == "normal" && it.biome == null && it.lifeKind == io.github.panda17tk.arpg.config.LifeKind.HOSTILE }.keys.toList() // v2.130
             for ((wx, wy) in worldState.wrecks) {
                 Pickups.spawn(world, "item:" + ItemCatalog.gunFor(lootRng.nextInt(1000)).id, 1, wx, wy)
                 Pickups.spawn(world, "dust", 25 + lootRng.nextInt(36), wx + 16f, wy + 6f)
@@ -491,6 +520,7 @@ object WorldFactory {
     }
 
     private const val TAU = 6.2831855f
+    private const val FISH_CHANCE = 0.75f // v2.130 宙を泳ぐもの: most skies, not all
     private const val SPACE_DRIFTERS = 30      // v2.36: creatures adrift in space from world creation
     private const val DRIFTER_MIN_DIST = 600f  // ...scattered in a ring well clear of the spawn
     private const val DRIFTER_RANGE = 1800f

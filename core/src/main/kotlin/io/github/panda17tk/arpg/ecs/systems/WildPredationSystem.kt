@@ -52,6 +52,7 @@ class WildPredationSystem(private val mobGrid: SpatialGrid<Entity>) :
         if (preyD > BITE_RANGE) return // a grid bucket can reach a touch past the radius — confirm the real distance
         with(world) {
             target[Health].hp -= Predation.biteDamage(pred.def)
+            if (target[Health].hp <= 0f) target[Mob].fellByWild = true // v2.130 図鑑: the wild's own kill, not the player's
             pred.hunger = (pred.hunger - Predation.feedingGain(pred.def, target[Mob].def)).coerceAtLeast(0f)
         }
         pred.feedCd = FEED_CD

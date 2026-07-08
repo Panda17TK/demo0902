@@ -9,7 +9,7 @@ import io.github.panda17tk.arpg.config.WildRole
  * from it, tests pin it, and a new species only needs a keyword here to find its shape.
  */
 object CreatureLook {
-    enum class Form { QUADRUPED, PREDATOR, FLYER, FLOATER, SHELLED, SERPENT, RODENT }
+    enum class Form { QUADRUPED, PREDATOR, FLYER, FLOATER, SHELLED, SERPENT, RODENT, FISH }
 
     data class Look(
         val form: Form,
@@ -22,6 +22,7 @@ object CreatureLook {
     fun of(id: String, role: WildRole): Look {
         fun has(vararg keys: String) = keys.any { it in id }
         return when {
+            has("sardine", "koi", "angler", "fish") -> Look(Form.FISH) // v2.130 宙を泳ぐもの
             has("serpent", "eel", "worm", "parasite") -> Look(Form.SERPENT)
             has("moth", "crow", "owl", "ashwing", "ray", "sky_") -> Look(Form.FLYER)
             has("jelly", "plankton", "wisp") -> Look(Form.FLOATER)

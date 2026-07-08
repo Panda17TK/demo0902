@@ -1070,4 +1070,22 @@ private fun expansionWildlife(): Map<String, EnemyDef> = mapOf(
         seeRange = 220f, contactKB = 70f,
         lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREY, diet = Diet.OMNIVORE, herdAffinity = 0.3f, fear = 0.95f, biome = PlanetBiome.LONELY,
     ),
+    // v2.130 宙を泳ぐもの: fish-like wildlife adrift in SPACE skies (biome null + WILDLIFE —
+    // every spawn pool filters by lifeKind, so the waves never field them). gravityResponse 0:
+    // they swim the void as if it were water, unbothered by the planets' pull.
+    "star_sardine" to EnemyDef(
+        name = "星鰯", tier = "normal", color = "#7fd4e8", hp = 8f, speed = 95f, w = 14f, h = 8f,
+        seeRange = 200f, contactKB = 40f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.HERD, diet = Diet.ENERGY, herdAffinity = 0.9f, fear = 0.9f,
+    ),
+    "void_koi" to EnemyDef(
+        name = "宙鯉", tier = "normal", color = "#e8a06a", hp = 60f, speed = 40f, w = 34f, h = 18f,
+        seeRange = 160f, contactKB = 80f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.HERD, diet = Diet.ENERGY, herdAffinity = 0.4f, fear = 0.5f,
+    ),
+    "lantern_angler" to EnemyDef(
+        name = "提灯魚", tier = "normal", color = "#b48fe0", hp = 25f, speed = 60f, w = 20f, h = 12f,
+        seeRange = 260f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREY, diet = Diet.ENERGY, fear = 0.7f,
+    ),
 )
