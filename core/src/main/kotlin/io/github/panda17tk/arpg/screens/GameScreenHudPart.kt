@@ -203,7 +203,7 @@ internal fun GameScreen.drawHud(paused: Boolean, sta: Float, staMax: Float, over
         if (overlay == Overlay.INVENTORY) drawInventory()
         if (overlay == Overlay.TRADER) drawTraderShop() // v2.100 行商船
         if (overlay == Overlay.TUNING) drawTuning() // v2.111: the knob popup rides the register too
-        if (overlay == Overlay.PAUSE) Hud.pause(shapes, batch, font, Fonts.title, hudViewport, Modals.pauseButtons(hudW, hudH, pauseHasMemory(), simMode))
+        if (overlay == Overlay.PAUSE) Hud.pause(shapes, batch, font, Fonts.title, hudViewport, Modals.pauseButtons(hudW, hudH, pauseHasMemory(), simMode, challengeMode))
         if (overlay == Overlay.HELP) Hud.help(shapes, batch, font, Fonts.title, hudViewport, Modals.helpButtons(hudW, hudH).first(), HELP_LINES)
         if (overlay == Overlay.FORGET) Hud.forget(shapes, batch, font, Fonts.title, hudViewport, Modals.forgetButtons(hudW, hudH))
         if (overlay == Overlay.MEMORY) {

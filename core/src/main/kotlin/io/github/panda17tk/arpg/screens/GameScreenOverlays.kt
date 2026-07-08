@@ -332,7 +332,7 @@ internal fun GameScreen.handlePauseTaps() {
         when (overlay) {
             Overlay.PAUSE -> {
                 val hasMemory = pauseHasMemory()
-                when (PauseFlow.action(Modals.hitModal(Modals.pauseButtons(w, h, hasMemory, simMode), tapX, tapY) ?: -1, hasMemory)) {
+                when (PauseFlow.action(Modals.hitModal(Modals.pauseButtons(w, h, hasMemory, simMode, challengeMode), tapX, tapY) ?: -1, hasMemory)) {
                     PauseAction.RESUME -> overlay = Overlay.NONE
                     PauseAction.RESTART -> { if (challengeMode) enterChallenge() else newRun(); overlay = Overlay.NONE }
                     PauseAction.HELP -> overlay = Overlay.HELP

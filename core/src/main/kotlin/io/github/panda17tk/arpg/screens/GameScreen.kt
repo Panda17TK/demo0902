@@ -291,6 +291,7 @@ class GameScreen(
     internal var runDifficulty = io.github.panda17tk.arpg.sim.Difficulty.NORMAL // v2.97
     // v2.98 調整モード: the popup's state (open flag, current page, the live knob list).
     internal var tunePage = 0
+    internal var lowHpT = 0f // v2.112 低HP警告: the red rim's breathing clock
     internal var tuneParams: List<io.github.panda17tk.arpg.config.TuneParam> = emptyList()
     internal var softFlash = false // v2.96: photosensitivity — dims the white-outs
     internal var prevWaveNum = 0 // v2.92: to notice a wave ending (流星群を生き延びた)
@@ -357,6 +358,7 @@ class GameScreen(
             val sp = Gdx.app.getPreferences(SETTINGS_PREFS)
             controlHints = sp.getBoolean(SETTINGS_HINTS, true)
             loreHints = sp.getBoolean(SETTINGS_LORE, true)
+            input.aimAssist = sp.getBoolean("aimAssist", true) // v2.112 エイム補助
         } catch (_: Throwable) { /* defaults stay on */ }
         if (startFresh) runStore.clear() // v2.58: タイトルの「はじめから」は前のランを置いていく
         if (startFresh || !tryRestoreRun()) newRun() // v2.33: a saved run resumes where it left off
@@ -864,6 +866,7 @@ class GameScreen(
         drawWeather(delta) // v2.74: the planet's climate, between the world and the HUD
         drawEventFx(delta) // v2.86: the wave event colors the whole sky, not just a line
         drawKillFlash()    // v2.88: the white-out that crowns a boss kill
+        drawLowHpPulse(delta) // v2.112: the hull's red breathing under 30%
         drawHud(paused, sta, staMax, overheat)
         drawNavMarkers() // v2.108: the sky's landmarks, pinned to the screen edge
         updateBossBar(delta, px, py)

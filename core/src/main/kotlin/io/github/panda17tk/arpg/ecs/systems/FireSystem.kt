@@ -213,11 +213,30 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
                 val shotPitch = when (def.id) { "shotgun" -> 0.62f; "rifle" -> 0.82f; "smg" -> 1.3f; "mg" -> 1.12f; else -> 1f }
                 fx.requestSfx("shot", shotPitch, 0.7f)
                 fx.addKick(-dirX * kick, -dirY * kick)
+                // v2.112 エイム補助: on touch, thumbs are coarse — bend the burst a few degrees
+                // toward the nearest mob inside a narrow cone. Manual precision weapons
+                // (beam/rail/grenade/blade) never take the help; this branch is the guns only.
+                var assistAim = aim
+                if (input.aimAssist) {
+                    var bestD = Float.MAX_VALUE
+                    val pi = Math.PI.toFloat(); val twoPi = pi * 2f
+                    mobGrid.forNearby(t.x, t.y, ASSIST_RANGE) { mobEntity ->
+                        val mt = with(world) { mobEntity[Transform] }
+                        val d = hypot(mt.x - t.x, mt.y - t.y)
+                        if (d >= bestD || d > ASSIST_RANGE) return@forNearby
+                        val want = atan2(mt.y - t.y, mt.x - t.x)
+                        val diff = ((want - aim + pi * 3f) % twoPi) - pi
+                        if (abs(diff) <= ASSIST_CONE) {
+                            bestD = d
+                            assistAim = aim + diff.coerceIn(-ASSIST_BEND, ASSIST_BEND)
+                        }
+                    }
+                }
                 // v2.40 variants: the equipped gun shapes the ballistics — spread, muzzle velocity, homing.
                 val spread = def.spread * (gradeItem?.spreadMul ?: 1f)
                 val bulletSpeed = config.player.bulletSpeed * (gradeItem?.bulletSpeedMul ?: 1f) * mods.bulletSpeedMul // v2.107
                 val homing = gradeItem?.homing ?: 0f
-                val angles = Firing.bulletAngles(aim, spread, def.pellets, rng)
+                val angles = Firing.bulletAngles(assistAim, spread, def.pellets, rng)
                 for (a in angles) {
                     val vx = cos(a) * bulletSpeed; val vy = sin(a) * bulletSpeed
                     world.entity {
@@ -245,5 +264,9 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
         private const val RAIL_W = 2.2f           // slug corridor half-width at snap fire
         private val popRail = Color.valueOf("ffe9b8") // rail numbers, hot amber-white
         private const val BLADE_SPEED = 520f // v2.101 帰還刃: the opening throw's pace
+        // v2.112 エイム補助: the cone the thumb forgives, and how far the barrel will lean.
+        private const val ASSIST_RANGE = 480f
+        private const val ASSIST_CONE = 0.21f  // ~12°
+        private const val ASSIST_BEND = 0.14f  // ~8° — a lean, never a lock-on
     }
 }
