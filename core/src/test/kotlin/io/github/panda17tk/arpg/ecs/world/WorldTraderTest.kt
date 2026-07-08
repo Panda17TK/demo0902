@@ -76,6 +76,17 @@ class WorldTraderTest {
         assertEquals(2, io.github.panda17tk.arpg.ui.TraderPanel.sellPages(7))
     }
 
+    @Test fun `the undo chip sits on screen, clear of the buyback footer`() {
+        // v2.118 戻す
+        for ((w, h) in listOf(320f to 640f, 360f to 800f, 420f to 900f)) {
+            val undo = io.github.panda17tk.arpg.ui.TraderPanel.undoButton(w, h)
+            assertTrue(undo.x >= 0f && undo.y >= 0f && undo.x + undo.w <= w && undo.y + undo.h <= h, "off screen: $undo at $w x $h")
+            val footer = io.github.panda17tk.arpg.ui.TraderPanel.sellFooter(w, h)
+            assertTrue(undo.y + undo.h <= footer.first().y, "the chip stays below the footer at $w x $h")
+        }
+        assertEquals("戻す", io.github.panda17tk.arpg.ui.TraderPanel.UNDO)
+    }
+
     @Test fun `the shop panel stacks its plates above the leave button`() {
         val rows = TraderPanel.rows(360f, 800f, 4)
         assertEquals(4, rows.size)

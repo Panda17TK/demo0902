@@ -132,6 +132,7 @@ internal const val GATE_TAP_R = 96f       // v2.44: world-px radius that counts 
 internal const val TRAINING_SEED = 4242L   // v2.53: the simulation always rebuilds the same arena
 internal const val HINT_TOP = 138f          // v2.54: hint panels start below the top HUD band
 internal const val BOSSBAR_RANGE = 680f     // v2.88: a heavy inside this range owns the boss bar
+internal const val SELL_UNDO_TIME = 8f     // v2.118 戻す: how long the last sale can be taken back
 internal const val SETTINGS_PREFS = "drift-settings" // v2.39: device-level settings (not run state)
 internal const val SETTINGS_SWAP = "controlSwap"
 internal const val SETTINGS_ONBOARD = "onboardDone" // v2.47: the first-run walkthrough ran once
@@ -272,6 +273,10 @@ class GameScreen(
     internal var traderNoteT = 0f
     internal var traderSelling = false // v2.114 買い取り: the stall's second face
     internal var sellPage = 0
+    internal var sellUndoItem: io.github.panda17tk.arpg.item.ItemDef? = null // v2.118 戻す
+    internal var sellUndoPay = 0
+    internal var sellUndoIdx = 0
+    internal var sellUndoT = 0f
 
     // Takeoff send-off toast (LP v2.29): one line in the SPACE HUD for a few seconds after leaving.
     internal var rewardToast: String? = null
@@ -734,6 +739,7 @@ class GameScreen(
                     traderGreeted = true
                     traderNote = null; traderNoteT = 0f
                     traderSelling = false; sellPage = 0 // v2.114: the shop opens on its shelves
+                    sellUndoItem = null; sellUndoT = 0f // v2.118: a new visit starts with a clean ledger
                     overlay = Overlay.TRADER
                     Sfx.play("scan")
                 }

@@ -12,6 +12,7 @@ object TraderPanel {
     const val SELL = "売る"     // v2.114: flips the stall to buyback
     const val BACK = "棚へ戻る" // v2.114: back to the shelves
     const val SELL_ROWS = 6     // backpack items shown per page
+    const val UNDO = "戻す"     // v2.118: buy the last sale back at the same price
 
     /** One tappable plate per stock slot, top-down under the title band. */
     fun rows(w: Float, h: Float, count: Int): List<UiButton> {
@@ -59,6 +60,12 @@ object TraderPanel {
             UiButton(x + each + 8f, y, each, 48f, "次へ"),
             UiButton(x + 2 * (each + 8f), y, each, 48f, BACK),
         )
+    }
+
+    /** v2.118: the undo chip sits below the buyback footer, clear of everything. */
+    fun undoButton(w: Float, h: Float): UiButton {
+        val bw = min(280f, w * 0.70f)
+        return UiButton((w - bw) / 2f, h * 0.115f - 56f, bw, 44f, UNDO)
     }
 
     fun sellPages(count: Int): Int = if (count <= 0) 1 else (count + SELL_ROWS - 1) / SELL_ROWS
