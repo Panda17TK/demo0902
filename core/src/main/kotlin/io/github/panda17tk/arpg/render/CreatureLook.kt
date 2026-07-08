@@ -22,7 +22,12 @@ object CreatureLook {
     fun of(id: String, role: WildRole): Look {
         fun has(vararg keys: String) = keys.any { it in id }
         return when {
-            has("sardine", "koi", "angler", "fish") -> Look(Form.FISH) // v2.130 宙を泳ぐもの
+            has(
+                "sardine", "koi", "angler", "fish", "aji", "saury", "herring", "smelt", "capelin",
+                "minnow", "trout", "seahorse", "flounder", "grouper", "sole", "puffer", "saba",
+                "goby", "arowana", "dolphin", "tang", "pike", "darter", "shark", "cuda", "lure",
+                "piranha", "moray", "marlin", "gar", "whale", "coelacanth",
+            ) -> Look(Form.FISH) // v2.130/v2.131 宙を泳ぐもの
             has("serpent", "eel", "worm", "parasite") -> Look(Form.SERPENT)
             has("moth", "crow", "owl", "ashwing", "ray", "sky_") -> Look(Form.FLYER)
             has("jelly", "plankton", "wisp") -> Look(Form.FLOATER)

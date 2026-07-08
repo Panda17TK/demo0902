@@ -12,7 +12,7 @@ import io.github.panda17tk.arpg.config.WildRole
  */
 object Predation {
     /** Wild animals a hunter will eat (the player is never a predation target — only Threaten/Chase). */
-    private val WILD_PREY = setOf(WildRole.PREY, WildRole.HERD, WildRole.HATCHLING, WildRole.SWARM)
+    private val WILD_PREY = setOf(WildRole.PREY, WildRole.HERD, WildRole.HATCHLING, WildRole.SWARM, WildRole.SCHOOL)
 
     const val PREDATOR_BITE = 11f // a pack hunter's bite
     const val APEX_BITE = 22f     // an apex's bite

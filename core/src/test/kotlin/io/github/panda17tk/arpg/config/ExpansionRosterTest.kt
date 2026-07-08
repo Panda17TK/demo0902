@@ -11,7 +11,7 @@ class ExpansionRosterTest {
     private val enemies = GameConfig().enemies
 
     @Test fun `the roster grew by fifty, to 123 species — plus the rogue`() {
-        assertEquals(127, enemies.size, "73 old + 50 new (v2.82) + rogue_drifter (v2.83) + 3 void fish (v2.130)")
+        assertEquals(159, enemies.size, "73 old + 50 new (v2.82) + rogue_drifter (v2.83) + 3 void fish (v2.130) + 32 fish (v2.131)")
         assertEquals("rogue", enemies.getValue("rogue_drifter").tier, "the rogue stays out of every pool")
     }
 

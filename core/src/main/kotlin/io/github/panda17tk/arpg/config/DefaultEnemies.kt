@@ -1073,10 +1073,10 @@ private fun expansionWildlife(): Map<String, EnemyDef> = mapOf(
     // v2.130 宙を泳ぐもの: fish-like wildlife adrift in SPACE skies (biome null + WILDLIFE —
     // every spawn pool filters by lifeKind, so the waves never field them). gravityResponse 0:
     // they swim the void as if it were water, unbothered by the planets' pull.
-    "star_sardine" to EnemyDef(
-        name = "星鰯", tier = "normal", color = "#7fd4e8", hp = 8f, speed = 95f, w = 14f, h = 8f,
+    "star_sardine" to EnemyDef( // v2.131: joined the boid schools, sardine-sized
+        name = "星鰯", tier = "normal", color = "#7fd4e8", hp = 8f, speed = 125f, w = 8f, h = 5f,
         seeRange = 200f, contactKB = 40f, gravityResponse = 0f,
-        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.HERD, diet = Diet.ENERGY, herdAffinity = 0.9f, fear = 0.9f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.SCHOOL, diet = Diet.ENERGY, herdAffinity = 0.9f, fear = 0.9f,
     ),
     "void_koi" to EnemyDef(
         name = "宙鯉", tier = "normal", color = "#e8a06a", hp = 60f, speed = 40f, w = 34f, h = 18f,
@@ -1087,5 +1087,167 @@ private fun expansionWildlife(): Map<String, EnemyDef> = mapOf(
         name = "提灯魚", tier = "normal", color = "#b48fe0", hp = 25f, speed = 60f, w = 20f, h = 12f,
         seeRange = 260f, contactKB = 60f, gravityResponse = 0f,
         lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREY, diet = Diet.ENERGY, fear = 0.7f,
+    ),
+    // v2.131 大海の宙: thirty-two more fish. The tiny ones (鰯/鯵) run as boid schools of
+    // ~a hundred (SchoolFishSystem); teeth hunt the schools; whales pass by like weather.
+    "void_aji" to EnemyDef(
+        name = "宙鯵", tier = "normal", color = "#9fd8c8", hp = 8f, speed = 130f, w = 8f, h = 5f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.SCHOOL, diet = Diet.ENERGY, herdAffinity = 0.9f, fear = 0.95f, 
+    ),
+    "comet_saury" to EnemyDef(
+        name = "彗星秋刀魚", tier = "normal", color = "#b9d4ee", hp = 10f, speed = 120f, w = 16f, h = 5f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.SCHOOL, diet = Diet.ENERGY, herdAffinity = 0.9f, fear = 0.9f, 
+    ),
+    "nebula_herring" to EnemyDef(
+        name = "星雲鰊", tier = "normal", color = "#a8c4e8", hp = 10f, speed = 115f, w = 12f, h = 7f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.SCHOOL, diet = Diet.ENERGY, herdAffinity = 0.9f, fear = 0.9f, 
+    ),
+    "gate_smelt" to EnemyDef(
+        name = "門の公魚", tier = "normal", color = "#d8e4f0", hp = 9f, speed = 110f, w = 11f, h = 6f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.SCHOOL, diet = Diet.ENERGY, herdAffinity = 0.9f, fear = 0.9f, 
+    ),
+    "drift_capelin" to EnemyDef(
+        name = "流れ樺魚", tier = "normal", color = "#c8d8d0", hp = 9f, speed = 118f, w = 10f, h = 6f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.SCHOOL, diet = Diet.ENERGY, herdAffinity = 0.9f, fear = 0.9f, 
+    ),
+    "stardust_minnow" to EnemyDef(
+        name = "星屑目高", tier = "normal", color = "#e8e0b8", hp = 6f, speed = 100f, w = 7f, h = 5f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREY, diet = Diet.ENERGY, herdAffinity = 0.4f, fear = 0.95f, 
+    ),
+    "aurora_trout" to EnemyDef(
+        name = "極光鱒", tier = "normal", color = "#a8e8d8", hp = 22f, speed = 105f, w = 20f, h = 9f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREY, diet = Diet.ENERGY, herdAffinity = 0.2f, fear = 0.7f, 
+    ),
+    "magnet_catfish" to EnemyDef(
+        name = "磁気鯰", tier = "normal", color = "#6a6a80", hp = 35f, speed = 55f, w = 26f, h = 12f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.HERD, diet = Diet.ENERGY, herdAffinity = 0.2f, fear = 0.4f, 
+    ),
+    "crystal_seahorse" to EnemyDef(
+        name = "晶の海馬", tier = "normal", color = "#c8ecf4", hp = 12f, speed = 35f, w = 8f, h = 14f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREY, diet = Diet.ENERGY, herdAffinity = 0.3f, fear = 0.8f, 
+    ),
+    "moon_flounder" to EnemyDef(
+        name = "月鰈", tier = "normal", color = "#e0dcc8", hp = 18f, speed = 45f, w = 22f, h = 10f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREY, diet = Diet.ENERGY, herdAffinity = 0.1f, fear = 0.6f, 
+    ),
+    "glass_icefish" to EnemyDef(
+        name = "硝子魚", tier = "normal", color = "#e8f4fa", hp = 10f, speed = 95f, w = 14f, h = 6f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREY, diet = Diet.ENERGY, herdAffinity = 0.5f, fear = 0.85f, 
+    ),
+    "rust_grouper" to EnemyDef(
+        name = "錆羽太", tier = "normal", color = "#b07850", hp = 40f, speed = 50f, w = 24f, h = 14f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.HERD, diet = Diet.ENERGY, herdAffinity = 0.2f, fear = 0.4f, 
+    ),
+    "twin_sole" to EnemyDef(
+        name = "双子舌鮃", tier = "normal", color = "#d0c8a8", hp = 16f, speed = 48f, w = 18f, h = 8f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.HERD, diet = Diet.ENERGY, herdAffinity = 0.7f, fear = 0.6f, 
+    ),
+    "cloud_puffer" to EnemyDef(
+        name = "雲河豚", tier = "normal", color = "#f0e8f8", hp = 20f, speed = 40f, w = 14f, h = 13f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREY, diet = Diet.ENERGY, herdAffinity = 0.1f, fear = 0.75f, 
+    ),
+    "ring_saba" to EnemyDef(
+        name = "環鯖", tier = "normal", color = "#88a8c8", hp = 14f, speed = 125f, w = 15f, h = 6f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.HERD, diet = Diet.ENERGY, herdAffinity = 0.6f, fear = 0.85f, 
+    ),
+    "debris_goby" to EnemyDef(
+        name = "瓦礫鯊", tier = "normal", color = "#98917e", hp = 9f, speed = 70f, w = 9f, h = 6f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREY, diet = Diet.ENERGY, herdAffinity = 0.3f, fear = 0.8f, 
+    ),
+    "silver_arowana" to EnemyDef(
+        name = "銀アロワナ", tier = "normal", color = "#d8dee8", hp = 30f, speed = 90f, w = 28f, h = 8f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.HERD, diet = Diet.ENERGY, herdAffinity = 0.2f, fear = 0.5f, 
+    ),
+    "pale_dolphin" to EnemyDef(
+        name = "白海豚", tier = "normal", color = "#eef2f6", hp = 55f, speed = 130f, w = 30f, h = 14f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.HERD, diet = Diet.ENERGY, herdAffinity = 0.5f, fear = 0.3f, 
+    ),
+    "sun_tang" to EnemyDef(
+        name = "陽帯魚", tier = "normal", color = "#f4c860", hp = 12f, speed = 85f, w = 12f, h = 8f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREY, diet = Diet.ENERGY, herdAffinity = 0.4f, fear = 0.8f, 
+    ),
+    "echo_pike" to EnemyDef(
+        name = "谺魳", tier = "normal", color = "#7c94a8", hp = 26f, speed = 115f, w = 24f, h = 7f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.HERD, diet = Diet.ENERGY, herdAffinity = 0.3f, fear = 0.55f, 
+    ),
+    "warp_flyfish" to EnemyDef(
+        name = "跳飛魚", tier = "normal", color = "#9fc0e8", hp = 12f, speed = 140f, w = 13f, h = 6f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREY, diet = Diet.ENERGY, herdAffinity = 0.4f, fear = 0.9f, canBlink = true, 
+    ),
+    "blink_darter" to EnemyDef(
+        name = "瞬き魚", tier = "normal", color = "#c0a8ee", hp = 8f, speed = 135f, w = 9f, h = 5f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREY, diet = Diet.ENERGY, herdAffinity = 0.4f, fear = 0.9f, canBlink = true, 
+    ),
+    "void_shark" to EnemyDef(
+        name = "宙鮫", tier = "normal", color = "#7888a0", hp = 90f, speed = 125f, w = 40f, h = 16f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREDATOR, diet = Diet.CARNIVORE, herdAffinity = 0.1f, fear = 0.2f, territoryRadius = 160f, 
+    ),
+    "rift_cuda" to EnemyDef(
+        name = "裂け目梭魚", tier = "normal", color = "#90a4b8", hp = 55f, speed = 150f, w = 30f, h = 8f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREDATOR, diet = Diet.CARNIVORE, herdAffinity = 0.1f, fear = 0.25f, 
+    ),
+    "abyss_lure" to EnemyDef(
+        name = "淵提灯", tier = "normal", color = "#7060a0", hp = 45f, speed = 45f, w = 22f, h = 14f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREDATOR, diet = Diet.CARNIVORE, herdAffinity = 0.1f, fear = 0.3f, 
+    ),
+    "ember_piranha" to EnemyDef(
+        name = "焔歯魚", tier = "normal", color = "#d86848", hp = 25f, speed = 130f, w = 12f, h = 8f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREDATOR, diet = Diet.CARNIVORE, herdAffinity = 0.5f, fear = 0.35f, 
+    ),
+    "star_moray" to EnemyDef(
+        name = "星鱓", tier = "normal", color = "#687858", hp = 60f, speed = 70f, w = 34f, h = 10f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREDATOR, diet = Diet.CARNIVORE, herdAffinity = 0.1f, fear = 0.25f, 
+    ),
+    "thunder_marlin" to EnemyDef(
+        name = "雷梶木", tier = "normal", color = "#6888c0", hp = 70f, speed = 170f, w = 38f, h = 10f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREDATOR, diet = Diet.CARNIVORE, herdAffinity = 0.1f, fear = 0.2f, 
+    ),
+    "dusk_gar" to EnemyDef(
+        name = "宵鱗魚", tier = "normal", color = "#907858", hp = 50f, speed = 95f, w = 32f, h = 8f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREDATOR, diet = Diet.CARNIVORE, herdAffinity = 0.1f, fear = 0.3f, 
+    ),
+    "gravity_whale" to EnemyDef(
+        name = "重力鯨", tier = "normal", color = "#5a6a88", hp = 400f, speed = 45f, w = 70f, h = 30f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.APEX, diet = Diet.CARNIVORE, herdAffinity = 0.1f, fear = 0.05f, territoryRadius = 200f, 
+    ),
+    "song_whale" to EnemyDef(
+        name = "歌鯨", tier = "normal", color = "#7a88a8", hp = 380f, speed = 40f, w = 66f, h = 28f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.APEX, diet = Diet.CARNIVORE, herdAffinity = 0.1f, fear = 0.05f, territoryRadius = 180f, 
+    ),
+    "old_coelacanth" to EnemyDef(
+        name = "古の腔棘魚", tier = "normal", color = "#4a5868", hp = 120f, speed = 55f, w = 36f, h = 16f,
+        seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
+        lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.APEX, diet = Diet.CARNIVORE, herdAffinity = 0.1f, fear = 0.15f, territoryRadius = 140f, 
     ),
 )

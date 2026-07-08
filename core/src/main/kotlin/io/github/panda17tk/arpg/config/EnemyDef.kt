@@ -64,6 +64,7 @@ data class EnemyDef(
     val herdAffinity: Float = 0f,              // 0..1: how strongly it sticks with its herd
     val fear: Float = 0f,                      // 0..1: how readily it flees the player / predators
     val territoryRadius: Float = 0f,           // px an apex / nest-guard reacts within (0 = none)
+    val canBlink: Boolean = false,             // v2.131 縮地: this creature blinks a stride when it flees
     val attacks: List<AttackSpec> = emptyList(),
     val dodge: DodgeSpec? = null,
 )

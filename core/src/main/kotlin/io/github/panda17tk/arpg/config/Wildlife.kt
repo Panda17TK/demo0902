@@ -26,6 +26,7 @@ enum class WildRole {
     SWARM,       // tiny clustering creatures
     NEST_GUARD,  // defends a nest of hatchlings
     HATCHLING,   // defenceless young — always flees
+    SCHOOL,      // v2.131: boid fish — moved by SchoolFishSystem, not WildlifeSystem
 }
 
 /** What an animal eats (drives who it hunts / ignores). */

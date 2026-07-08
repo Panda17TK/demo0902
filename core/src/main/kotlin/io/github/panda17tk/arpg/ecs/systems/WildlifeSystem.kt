@@ -46,6 +46,7 @@ class WildlifeSystem : IteratingSystem(family { all(Mob, Transform, Velocity, Bo
     override fun onTickEntity(entity: Entity) {
         val m = entity[Mob]
         if (m.def.lifeKind != LifeKind.WILDLIFE) return // only wild animals; AISystem handles the rest
+        if (m.def.wildRole == WildRole.SCHOOL) return // v2.131: boid fish belong to SchoolFishSystem
 
         val t = entity[Transform]
         val v = entity[Velocity]
@@ -118,6 +119,17 @@ class WildlifeSystem : IteratingSystem(family { all(Mob, Transform, Velocity, Bo
             WildState.Flee -> {
                 val tx = if (predatorNear) predX else px; val ty = if (predatorNear) predY else py
                 val l = hypot(t.x - tx, t.y - ty); if (l > 1e-3f) { dx = (t.x - tx) / l; dy = (t.y - ty) / l }; mul = FLEE_MUL
+                // v2.131 縮地: a blink-swimmer vanishes a stride away instead of merely running
+                // (MobActionSystem executes the teleport + afterimages; dodgeCd doubles as its cooldown).
+                if (m.def.canBlink && (dx != 0f || dy != 0f)) {
+                    entity.getOrNull(io.github.panda17tk.arpg.ecs.components.MobAction)?.let { a ->
+                        if (a.dodgeCd <= 0f && a.blinkT <= 0f && a.blinkChargeT <= 0f) {
+                            a.blinkDx = dx * BLINK_FLEE_DIST; a.blinkDy = dy * BLINK_FLEE_DIST
+                            a.blinkTotal = 0.12f; a.blinkT = 0.12f
+                            a.dodgeCd = BLINK_FLEE_CD
+                        }
+                    }
+                }
             }
             WildState.Herd -> {
                 val l = hypot(herdCx - t.x, herdCy - t.y); if (l > 1e-3f) { dx = (herdCx - t.x) / l; dy = (herdCy - t.y) / l }; mul = HERD_MUL
@@ -159,7 +171,9 @@ class WildlifeSystem : IteratingSystem(family { all(Mob, Transform, Velocity, Bo
     }
 
     companion object {
-        private val HUNTABLE = setOf(WildRole.PREY, WildRole.HERD, WildRole.HATCHLING, WildRole.SWARM)
+        private val HUNTABLE = setOf(WildRole.PREY, WildRole.HERD, WildRole.HATCHLING, WildRole.SWARM, WildRole.SCHOOL) // v2.131: teeth follow the schools
+        private const val BLINK_FLEE_DIST = 110f // v2.131 縮地: one stride of vanish
+        private const val BLINK_FLEE_CD = 2.6f
         private const val TAU = 6.2831855f
         private const val KNOCK_DECAY = 0.02f      // knockback velocity bleeds fast
         private const val DRIFT_DECAY = 0.8f       // gravity/crash momentum bleeds ~20%/s

@@ -49,6 +49,10 @@ object WildAI {
                 else -> WildState.Graze
             }
 
+            // v2.131: SCHOOL never reaches this table (SchoolFishSystem owns the boids) —
+            // if it ever does, fleeing when spooked is the only honest answer for a fish.
+            WildRole.SCHOOL -> if (spooked) WildState.Flee else WildState.Wander
+
             WildRole.SWARM -> when {
                 spooked -> WildState.Flee
                 herdSeparated -> WildState.Herd
