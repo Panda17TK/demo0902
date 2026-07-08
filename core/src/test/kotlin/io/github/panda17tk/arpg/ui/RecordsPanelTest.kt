@@ -19,24 +19,38 @@ class RecordsPanelTest {
         assertTrue(seasoned.any { it == "実績 ${Achievement.entries.size}/${Achievement.entries.size}" })
     }
 
-    @Test fun `locked achievements are unspoken question marks in order`() {
+    @Test fun `locked achievements are unspoken question marks in order, across the spreads`() {
+        // v2.124: the titles moved off page 1 onto their own paged spread
         val only = setOf(Achievement.FIRST_LANDING, Achievement.BOUNTY_HUNTER)
-        val lines = RecordsPanel.lines(1, 1, 0, 0) { it in only }
-        // v2.70: the block is the last ceil(n/2) lines — titles two to a row, enum order kept
-        val rows = (Achievement.entries.size + 1) / 2
-        val block = lines.takeLast(rows)
+        val pages = RecordsPanel.achievementPages()
+        assertTrue(pages >= 2, "38 titles need more than one spread")
+        val block = (0 until pages).flatMap { RecordsPanel.achievementLines(it) { a -> a in only }.drop(1) }
         val expected = Achievement.entries
             .map { if (it in only) "『${it.title}』" else "？？？" }
             .chunked(2)
             .map { it.joinToString("　") }
-        assertEquals(expected, block)
-        assertTrue(block.any { it.contains("初着陸") } && block.any { it.contains("賞金稼ぎ") })
+        assertEquals(expected, block, "every title appears exactly once, enum order kept")
+        assertTrue(RecordsPanel.achievementLines(0) { false }.first().startsWith("実績 0/${Achievement.entries.size}（1/"))
+        assertTrue(RecordsPanel.achievementLines(0) { false }.size <= 1 + RecordsPanel.ACH_ROWS)
+    }
+
+    @Test fun `the summary page fits one screen and names both books`() {
+        // v2.124: page 1 had crept onto its own footer — it is a summary now, hard-capped
+        val lines = RecordsPanel.lines(12, 340, 7, 90, clears = 2, chWeek = 2947, chWave = 9, chKills = 77,
+            chDaysLeft = 3, stClock = "3:07", stKills = 210, stSorties = 9, bestiaryKnown = 41) { true }
+        assertTrue(lines.size <= 13, "the summary stays short (got ${lines.size}: $lines)")
+        assertTrue(lines.any { it == "実績 ${Achievement.entries.size}/${Achievement.entries.size}" })
+        assertTrue(lines.any { it.startsWith("討伐図鑑 41/") })
+        assertTrue(lines.none { it.contains("『") }, "titles live on their own spread now")
     }
 
     @Test fun `the footer actions fit on screen and never overlap, on both pages`() {
         for ((w, h) in listOf(320f to 640f, 360f to 780f, 420f to 900f)) {
             val bs = RecordsPanel.buttons(w, h)
-            assertEquals(listOf(RecordsPanel.HANDOVER_LABEL, RecordsPanel.BESTIARY_LABEL, RecordsPanel.REPLAY_LABEL, RecordsPanel.CLOSE_LABEL), bs.map { it.label }) // v2.113/v2.122
+            assertEquals( // v2.124: two columns keep the footer low
+                listOf(RecordsPanel.BESTIARY_LABEL, RecordsPanel.ACHIEVEMENTS_LABEL, RecordsPanel.HANDOVER_LABEL, RecordsPanel.REPLAY_LABEL, RecordsPanel.CLOSE_LABEL),
+                bs.map { it.label },
+            )
             val page2 = RecordsPanel.buttons(w, h, bestiary = true)
             assertEquals(listOf("前へ", "次へ", RecordsPanel.BACK_LABEL, RecordsPanel.CLOSE_LABEL), page2.map { it.label }) // v2.120
             for (b in bs + page2) assertTrue(b.x >= 0f && b.y >= 0f && b.x + b.w <= w && b.y + b.h <= h, "off screen: $b")
