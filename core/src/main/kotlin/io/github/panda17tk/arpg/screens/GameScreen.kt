@@ -270,6 +270,8 @@ class GameScreen(
     internal var traderGreeted = false
     internal var traderNote: String? = null
     internal var traderNoteT = 0f
+    internal var traderSelling = false // v2.114 買い取り: the stall's second face
+    internal var sellPage = 0
 
     // Takeoff send-off toast (LP v2.29): one line in the SPACE HUD for a few seconds after leaving.
     internal var rewardToast: String? = null
@@ -727,6 +729,7 @@ class GameScreen(
                 } else if (d < Tuning.TILE * 2.5f && !traderGreeted) {
                     traderGreeted = true
                     traderNote = null; traderNoteT = 0f
+                    traderSelling = false; sellPage = 0 // v2.114: the shop opens on its shelves
                     overlay = Overlay.TRADER
                     Sfx.play("scan")
                 }
