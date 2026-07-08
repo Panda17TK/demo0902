@@ -45,6 +45,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
     private var t = 0f
     private var hasSave = false
     private var showRecords = false // v2.64 記録: the service-record overlay
+    private var recordsBestiary = false // v2.113 図鑑: the record's second page
     private var diagQueued = false  // v2.64: 起動診断をもう一度 was pressed this visit
     private var showSettings = false // v2.66 設定: the settings-panel overlay
     private var showWorkshop = false // v2.90 工房: the workshop overlay
@@ -90,6 +91,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         Achievements.load() // v2.64 記録: the service record reads from here
         Workshop.load() // v2.90 工房: the ledger and its ranks
         io.github.panda17tk.arpg.save.Endings.load() // v2.93: the completed syncs
+        io.github.panda17tk.arpg.save.Bestiary.load() // v2.113 図鑑
         try { // v2.59 設定: restore the sound / haptics switches
             val sp = Gdx.app.getPreferences("drift-settings")
             Sfx.enabled = sp.getBoolean("soundOn", true)
@@ -418,12 +420,14 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
 
     /** v2.64 記録: dim + glass panel + the record lines + [起動診断をもう一度][閉じる]. */
     private fun drawRecords(w: Float, h: Float) {
-        val lines = RecordsPanel.lines(
+        val lines = if (recordsBestiary) { // v2.113 図鑑: the record's second page
+            RecordsPanel.bestiaryLines { io.github.panda17tk.arpg.save.Bestiary.count(it) }
+        } else RecordsPanel.lines(
             Scores.bestWave, Scores.bestKills, Scores.simBestWave, Scores.simBestKills,
             clears = io.github.panda17tk.arpg.save.Endings.clears, // v2.93
             chWeek = Scores.chWeek, chWave = Scores.chBestWave, chKills = Scores.chBestKills, // v2.102
         ) { Achievements.has(it) }
-        val btns = RecordsPanel.buttons(w, h)
+        val btns = RecordsPanel.buttons(w, h, recordsBestiary)
         val px = 14f; val pw = w - 28f; val pTop = h * 0.90f; val pBot = h * 0.11f
         shapes.begin(ShapeRenderer.ShapeType.Filled)
         shapes.color = Color(0f, 0f, 0f, 0.72f); shapes.rect(0f, 0f, w, h)
@@ -441,10 +445,11 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         batch.begin()
         val font = Fonts.ui
         var y = pTop - 26f
+        val step = ((pTop - pBot - 130f) / lines.size).coerceIn(15f, 24f) // v2.113: long pages tighten, never spill
         for (line in lines) {
             font.color = if (RecordsPanel.isHeader(line)) cSub else Color.WHITE
-            drawFitted(font, line, w / 2f, y, pw - 24f)
-            y -= 24f
+            drawFitted(font, line, w / 2f, y, pw - 24f, scale = if (step < 20f) 0.85f else 1f)
+            y -= step
         }
         font.color = cSub
         if (diagQueued) drawFitted(font, "✓ 次のランで起動診断を実行します", w / 2f, btns[0].y + btns[0].h + 26f, pw - 24f)
@@ -488,9 +493,11 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
                 return
             }
             if (showRecords) { // v2.64: the overlay swallows every tap while open
-                val hit = RecordsPanel.buttons(viewport.worldWidth, viewport.worldHeight)
+                val hit = RecordsPanel.buttons(viewport.worldWidth, viewport.worldHeight, recordsBestiary)
                     .firstOrNull { it.contains(tmp.x, tmp.y) } ?: return
                 when (hit.label) {
+                    RecordsPanel.BESTIARY_LABEL -> { recordsBestiary = true; Sfx.play("scan") } // v2.113
+                    RecordsPanel.BACK_LABEL -> { recordsBestiary = false; Sfx.play("scan") }
                     RecordsPanel.REPLAY_LABEL -> {
                         diagQueued = true
                         try {
@@ -501,7 +508,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
                         } catch (_: Throwable) { /* best-effort */ }
                         Sfx.play("scan")
                     }
-                    RecordsPanel.CLOSE_LABEL -> showRecords = false
+                    RecordsPanel.CLOSE_LABEL -> { showRecords = false; recordsBestiary = false }
                 }
                 return
             }

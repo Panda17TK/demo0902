@@ -33,15 +33,30 @@ class RecordsPanelTest {
         assertTrue(block.any { it.contains("初着陸") } && block.any { it.contains("賞金稼ぎ") })
     }
 
-    @Test fun `the two actions fit on screen and never overlap`() {
+    @Test fun `the footer actions fit on screen and never overlap, on both pages`() {
         for ((w, h) in listOf(320f to 640f, 360f to 780f, 420f to 900f)) {
             val bs = RecordsPanel.buttons(w, h)
-            assertEquals(listOf(RecordsPanel.REPLAY_LABEL, RecordsPanel.CLOSE_LABEL), bs.map { it.label })
-            for (b in bs) assertTrue(b.x >= 0f && b.y >= 0f && b.x + b.w <= w && b.y + b.h <= h, "off screen: $b")
-            val (a, b) = bs
-            val disjoint = a.y + a.h <= b.y || b.y + b.h <= a.y
-            assertTrue(disjoint, "overlap $a / $b")
+            assertEquals(listOf(RecordsPanel.BESTIARY_LABEL, RecordsPanel.REPLAY_LABEL, RecordsPanel.CLOSE_LABEL), bs.map { it.label }) // v2.113
+            val page2 = RecordsPanel.buttons(w, h, bestiary = true)
+            assertEquals(listOf(RecordsPanel.BACK_LABEL, RecordsPanel.CLOSE_LABEL), page2.map { it.label })
+            for (b in bs + page2) assertTrue(b.x >= 0f && b.y >= 0f && b.x + b.w <= w && b.y + b.h <= h, "off screen: $b")
+            for (list in listOf(bs, page2)) for (i in list.indices) for (j in i + 1 until list.size) {
+                val a = list[i]; val b = list[j]
+                assertTrue(a.y + a.h <= b.y || b.y + b.h <= a.y, "overlap $a / $b")
+            }
         }
+    }
+
+    @Test fun `the bestiary names only what has fallen, four to a row`() {
+        val total = io.github.panda17tk.arpg.config.GameConfig().enemies.size
+        val blank = RecordsPanel.bestiaryLines { 0 }
+        assertTrue(blank.first() == "討伐図鑑 0/$total")
+        assertTrue(RecordsPanel.isHeader(blank.first()))
+        assertTrue(blank.drop(1).all { line -> line.split("　").all { it == "？？？" } }, "unmet kinds stay unspoken")
+        val hunter = RecordsPanel.bestiaryLines { if (it == "zombie") 12 else 0 }
+        assertTrue(hunter.first() == "討伐図鑑 1/$total")
+        assertTrue(hunter.any { it.contains("ゾンビ×12") }, "a fallen kind shows its name and tally")
+        assertTrue(blank.size <= 24, "six to a row keeps the page on a small screen (got ${blank.size})")
     }
 
     @Test fun `the records chip sits clear of the menu and the settings chip`() {

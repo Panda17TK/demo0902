@@ -35,6 +35,8 @@ data class AttackSpec(
 @Serializable
 data class EnemyDef(
     val name: String,
+    var id: String = "", // v2.113 図鑑: the roster key, stamped by defaultEnemies() — a stable save id
+
     val tier: String = "normal",
     val color: String = "#b24a4a",
     var hp: Float,    // v2.99: tunable live (roster knob)

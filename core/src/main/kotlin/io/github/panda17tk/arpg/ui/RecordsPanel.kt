@@ -11,6 +11,8 @@ import kotlin.math.min
 object RecordsPanel {
     const val REPLAY_LABEL = "起動診断をもう一度"
     const val CLOSE_LABEL = "閉じる"
+    const val BESTIARY_LABEL = "討伐図鑑を見る" // v2.113
+    const val BACK_LABEL = "記録へ戻る"
 
     /** The panel body, top-down. [has] answers whether an achievement is unlocked. */
     fun lines(
@@ -42,15 +44,33 @@ object RecordsPanel {
             .forEach { add(it.joinToString("　")) }
     }
 
+    /** v2.113 討伐図鑑: the second page — every enemy kind, named once it has fallen to you.
+     *  [count] answers kills for a kind id; unmet kinds stay a quiet ？？？. Four to a row. */
+    fun bestiaryLines(count: (String) -> Int): List<String> {
+        val kinds = io.github.panda17tk.arpg.config.GameConfig().enemies.entries.sortedBy { it.key }
+        val known = kinds.count { count(it.key) > 0 }
+        return buildList {
+            add("討伐図鑑 $known/${kinds.size}")
+            kinds.map { (id, def) -> if (count(id) > 0) "${def.name}×${count(id)}" else "？？？" }
+                .chunked(6) // 124 kinds — six to a row keeps the page inside a phone screen
+                .forEach { add(it.joinToString("　")) }
+        }
+    }
+
     /** v2.84: which lines are section headers (drawn muted by the title screen). */
     fun isHeader(line: String): Boolean =
-        line == "到達記録" || line == "訓練記録（旧式）" || line == "検証ラン（今週の宙域）" || line.startsWith("実績 ")
+        line == "到達記録" || line == "訓練記録（旧式）" || line == "検証ラン（今週の宙域）" ||
+            line.startsWith("実績 ") || line.startsWith("討伐図鑑 ")
 
-    /** The two actions at the panel's foot: replay the boot diagnostic, and close. */
-    fun buttons(w: Float, h: Float): List<UiButton> {
+    /** The actions at the panel's foot. Page 1 (記録): 図鑑/診断/閉じる. Page 2 (図鑑): 戻る/閉じる. */
+    fun buttons(w: Float, h: Float, bestiary: Boolean = false): List<UiButton> {
         val bw = min(300f, w * 0.66f)
         val x = (w - bw) / 2f
-        return listOf(
+        return if (bestiary) listOf(
+            UiButton(x, h * 0.13f + 54f, bw, 44f, BACK_LABEL),
+            UiButton(x, h * 0.13f, bw, 44f, CLOSE_LABEL),
+        ) else listOf(
+            UiButton(x, h * 0.13f + 108f, bw, 44f, BESTIARY_LABEL), // v2.113
             UiButton(x, h * 0.13f + 54f, bw, 44f, REPLAY_LABEL),
             UiButton(x, h * 0.13f, bw, 44f, CLOSE_LABEL),
         )

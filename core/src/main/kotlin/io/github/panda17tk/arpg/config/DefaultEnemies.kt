@@ -32,7 +32,7 @@ internal fun defaultEnemies(): Map<String, EnemyDef> = buildMap {
     putAll(rogueDrifter()) // v2.83
     putAll(expansionSociety())
     putAll(expansionWildlife())
-}
+}.onEach { (key, def) -> def.id = key } // v2.113 図鑑: every def knows its stable roster key
 
 /** The space waves' rank-and-file: zombie / spitter / stalker (legacy BUILTIN_ENEMIES). */
 private fun spaceEnemies(): Map<String, EnemyDef> = mapOf(
