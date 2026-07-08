@@ -340,6 +340,7 @@ class GameScreen(
         Sfx.init()
         Scores.load()
         Achievements.load() // v2.62
+        io.github.panda17tk.arpg.save.Stats.load() // v2.123
         session.restore() // LP v2.28: the universe remembers you across runs and restarts
         touchEnabled = Gdx.app.type == Application.ApplicationType.Android
         controlSwap = try { Gdx.app.getPreferences(SETTINGS_PREFS).getBoolean(SETTINGS_SWAP, false) } catch (_: Throwable) { false }
@@ -451,6 +452,7 @@ class GameScreen(
         if (::gw.isInitialized && !gw.gameOver.isOver) foldBestiary()
         simMode = false; preSimCarry = null // v2.53: a real restart always leaves the simulation
         challengeMode = false // v2.102
+        io.github.panda17tk.arpg.save.Stats.addSortie() // v2.123: a fresh real run leaves the hangar
         session.reset() // a fresh run forgets every planet
         runStore.clear() // v2.33: restarting abandons the saved run
         worldSeed = session.spaceSeed
@@ -920,6 +922,7 @@ class GameScreen(
                     else -> Scores.record(gw.waveState.num, gw.gameOver.kills)
                 }
                 foldBestiary() // v2.113 図鑑
+                if (!simMode) io.github.panda17tk.arpg.save.Stats.addDeath() // v2.123
                 session.persist() // LP v2.28: a death checkpoints the universe's memory too
                 if (!simMode) runStore.clear() // v2.33: death consumes the saved run (roguelite)
                 // v2.46 遺品: death leaves half the dust and every gate shard where you fell —
@@ -948,6 +951,7 @@ class GameScreen(
         } else if (paused) {
             accumulator = 0f // freeze the sim while paused; skip stepping & the upgrade flow
         } else {
+            if (!simMode) io.github.panda17tk.arpg.save.Stats.tick(delta) // v2.123 勤続時計
             updateUpgradeFlow(delta)
             trackPlayerHitShake()
         }
@@ -1103,6 +1107,8 @@ class GameScreen(
     internal fun foldBestiary() {
         if (simMode) return
         io.github.panda17tk.arpg.save.Bestiary.record(gw.gameOver.killsByKind)
+        io.github.panda17tk.arpg.save.Stats.fold(gw.gameOver.killsByKind) // v2.123 勤続記録: same seam
+        gw.gameOver.killsByKind.clear() // a seam folds once — a second pass finds nothing
         val known = io.github.panda17tk.arpg.save.Bestiary.knownCount()
         if (known >= 50) tryUnlock(Achievement.BESTIARY_50)
         if (known >= configStore.config.enemies.size) tryUnlock(Achievement.BESTIARY_FULL)

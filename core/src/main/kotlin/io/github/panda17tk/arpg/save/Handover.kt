@@ -15,7 +15,7 @@ object Handover {
     /** Every store the account lives in — settings, records, and all three journey slots. */
     val STORES: List<String> = buildList {
         add("drift-settings")
-        addAll(listOf("arpg-scores", "arpg-achievements", "drift-bestiary", "drift-workshop", "drift-endings"))
+        addAll(listOf("arpg-scores", "arpg-achievements", "drift-bestiary", "drift-workshop", "drift-endings", "drift-stats"))
         for (base in listOf("arpg-run", "arpg-universe", "arpg-relic")) {
             for (s in 0..2) add(SaveSlots.keyFor(base, s))
         }
@@ -90,7 +90,7 @@ object Handover {
                 }
                 p.flush()
             }
-            Scores.load(); Achievements.load(); Bestiary.load(); Workshop.load(); Endings.load()
+            Scores.load(); Achievements.load(); Bestiary.load(); Workshop.load(); Endings.load(); Stats.load()
             true
         } catch (_: Throwable) { false }
     }

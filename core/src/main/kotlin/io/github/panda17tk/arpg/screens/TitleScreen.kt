@@ -96,6 +96,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         Workshop.load() // v2.90 工房: the ledger and its ranks
         io.github.panda17tk.arpg.save.Endings.load() // v2.93: the completed syncs
         io.github.panda17tk.arpg.save.Bestiary.load() // v2.113 図鑑
+        io.github.panda17tk.arpg.save.Stats.load() // v2.123 勤続記録
         loadSettings() // v2.122: shared with the transfer page's import
         Ambience.setMaster(volume)
         Ambience.setEnabled(Sfx.enabled) // v2.63: the サウンド toggle gates the ambient loop too
@@ -442,6 +443,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             clears = io.github.panda17tk.arpg.save.Endings.clears, // v2.93
             chWeek = Scores.chWeek, chWave = Scores.chBestWave, chKills = Scores.chBestKills, // v2.102
             chDaysLeft = io.github.panda17tk.arpg.save.Challenge.daysLeft(System.currentTimeMillis()), // v2.119
+            stClock = io.github.panda17tk.arpg.save.Stats.clock(), stKills = io.github.panda17tk.arpg.save.Stats.kills, stSorties = io.github.panda17tk.arpg.save.Stats.sorties, // v2.123
         ) { Achievements.has(it) }
         val btns = if (recordsHandover) RecordsPanel.handoverButtons(w, h) else RecordsPanel.buttons(w, h, recordsBestiary)
         val px = 14f; val pw = w - 28f; val pTop = h * 0.90f; val pBot = h * 0.11f
