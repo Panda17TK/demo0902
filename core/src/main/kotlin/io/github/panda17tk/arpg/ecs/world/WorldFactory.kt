@@ -48,6 +48,7 @@ import io.github.panda17tk.arpg.ecs.systems.SnapshotSystem
 import io.github.panda17tk.arpg.ecs.systems.TraderRaidSystem
 import io.github.panda17tk.arpg.ecs.systems.DesyncSurgeSystem
 import io.github.panda17tk.arpg.ecs.systems.WeaponSwitchSystem
+import io.github.panda17tk.arpg.ecs.systems.SchoolFishSystem
 import io.github.panda17tk.arpg.ecs.systems.WildPredationSystem
 import io.github.panda17tk.arpg.ecs.systems.WildlifeSystem
 import io.github.panda17tk.arpg.input.InputState
@@ -263,6 +264,7 @@ object WorldFactory {
                 add(AISystem(mobGrid))
                 add(WildlifeSystem()) // mute wild animals: graze/herd/flee/hunt (AISystem skips WILDLIFE)
                 add(WildPredationSystem(mobGrid)) // wild predators bite their prey (eats, drops hunger)
+                add(SchoolFishSystem()) // v2.131 魚群: boids for SCHOOL fish (separation/alignment/cohesion+flee)
                 add(MobActionSystem())
                 add(DesyncSurgeSystem())
                 add(BaseSystem())
@@ -347,21 +349,34 @@ object WorldFactory {
                 val rawX = (spawnX + kotlin.math.cos(fa) * fd).coerceIn(Tuning.TILE * 4f, map.width * Tuning.TILE - Tuning.TILE * 4f)
                 val rawY = (spawnY + kotlin.math.sin(fa) * fd).coerceIn(Tuning.TILE * 4f, map.height * Tuning.TILE - Tuning.TILE * 4f)
                 val (sx, sy) = snapToFloor(map, rawX, rawY)
-                config.enemies["star_sardine"]?.let { def ->
-                    repeat(4 + fRng.nextInt(4)) {
-                        val a = fRng.nextFloat() * TAU
-                        val r = fRng.nextFloat() * 90f
-                        MobFactory.spawn(world, def, sx + kotlin.math.cos(a) * r, sy + kotlin.math.sin(a) * r)
+                fun shoal(id: String, count: Int, spread: Float) {
+                    config.enemies[id]?.let { def ->
+                        repeat(count) {
+                            val a = fRng.nextFloat() * TAU
+                            val r = fRng.nextFloat() * spread
+                            MobFactory.spawn(world, def, sx + kotlin.math.cos(a) * r, sy + kotlin.math.sin(a) * r)
+                        }
                     }
                 }
-                if (fRng.nextFloat() < 0.5f) config.enemies["void_koi"]?.let { def ->
-                    repeat(1 + fRng.nextInt(2)) {
-                        MobFactory.spawn(world, def, sx + (fRng.nextFloat() - 0.5f) * 260f, sy + (fRng.nextFloat() - 0.5f) * 260f)
-                    }
-                }
-                if (fRng.nextFloat() < 0.4f) config.enemies["lantern_angler"]?.let { def ->
-                    MobFactory.spawn(world, def, sx + (fRng.nextFloat() - 0.5f) * 600f, sy + (fRng.nextFloat() - 0.5f) * 600f)
-                }
+                // v2.131: ~a hundred tiny fish move as one — the boid school (鰯 or 鯵)
+                shoal(if (fRng.nextFloat() < 0.5f) "star_sardine" else "void_aji", 90 + fRng.nextInt(21), 130f)
+                // one or two medium schools swim their own loop nearby
+                val mediums = listOf("comet_saury", "nebula_herring", "gate_smelt", "drift_capelin")
+                repeat(1 + fRng.nextInt(2)) { shoal(mediums[fRng.nextInt(mediums.size)], 8 + fRng.nextInt(8), 90f) }
+                // loners and pairs scattered through the sky
+                val singles = listOf(
+                    "stardust_minnow", "aurora_trout", "magnet_catfish", "crystal_seahorse", "moon_flounder",
+                    "glass_icefish", "rust_grouper", "twin_sole", "cloud_puffer", "ring_saba", "debris_goby",
+                    "silver_arowana", "pale_dolphin", "sun_tang", "echo_pike", "warp_flyfish", "blink_darter",
+                    "void_koi", "lantern_angler",
+                )
+                repeat(3 + fRng.nextInt(3)) { shoal(singles[fRng.nextInt(singles.size)], 1 + fRng.nextInt(2), 500f) }
+                // sometimes teeth follow the school
+                val hunters = listOf("void_shark", "rift_cuda", "abyss_lure", "ember_piranha", "star_moray", "thunder_marlin", "dusk_gar")
+                if (fRng.nextFloat() < 0.55f) shoal(hunters[fRng.nextInt(hunters.size)], 1, 320f)
+                // and rarely something vast passes by
+                val giants = listOf("gravity_whale", "song_whale", "old_coelacanth")
+                if (fRng.nextFloat() < 0.18f) shoal(giants[fRng.nextInt(giants.size)], 1, 700f)
             }
         }
 
