@@ -4,7 +4,8 @@ package io.github.panda17tk.arpg.sim
  * v2.60 チュートリアル第1弾 — 「保守員人格の起動診断」。The tutorial is not a shooting lesson;
  * in-fiction it is the boot diagnostic of an old keeper persona. Layer 1 covers the ship:
  * move → shoot → pick up the dust it sheds → dash → find and scan a memory star → land.
- * (Layer 2 — the child, the predator, the star remembering — arrives in the next pass.)
+ * Layer 2 is a single quiet surface beat: observe, then home (v2.146: the child scene was cut
+ * — the diagnostic should not spotlight the children).
  * Pure state machine: the screen feeds events in, prompts come out. Skippable at every step.
  */
 enum class TutorialStep {
@@ -16,14 +17,10 @@ enum class TutorialStep {
     FIND_PLANET, // 記憶星を検出 — 信号へ
     LAND,        // 接続可能 — 着陸
     OBSERVE,     // v2.61 Layer2: 地表サーバーに接続 — 観察してください
-    CHILD,       // v2.61: 小型人格プロセスを検出 — 傷つければ、星は覚えます
-    MEMORY,      // v2.61: 星の記憶に記録 (守った/傷つけた/観察のみ)
     RETURN_PAD,  // v2.61: 帰還パッドへ戻ると離陸できます
     COMPLETE,    // 起動診断 完了
 }
 
-/** v2.61: what the star ended up writing down during the first visit. */
-enum class TutorialMemory { NONE, PROTECTED, HARMED }
 
 class TutorialController {
     var step: TutorialStep = TutorialStep.BOOT_PROMPT
@@ -34,8 +31,6 @@ class TutorialController {
 
     private var moved = 0f
     private var surfaceT = 0f
-    var memory: TutorialMemory = TutorialMemory.NONE
-        private set
 
     /** [診断する] on the boot prompt. */
     fun begin() {
@@ -75,33 +70,16 @@ class TutorialController {
         if (step == TutorialStep.LAND || step == TutorialStep.FIND_PLANET) step = TutorialStep.OBSERVE
     }
 
-    /** v2.61: surface time drives the observation beats (and the fallback when no event happens). */
+    /** v2.61: surface time drives the single observation beat, then points home. */
     fun onSurfaceTick(delta: Float) {
-        if (step != TutorialStep.OBSERVE && step != TutorialStep.CHILD && step != TutorialStep.MEMORY) return
+        if (step != TutorialStep.OBSERVE) return
         surfaceT += delta
-        when (step) {
-            TutorialStep.OBSERVE -> if (surfaceT >= OBSERVE_TIME) { step = TutorialStep.CHILD; surfaceT = 0f }
-            TutorialStep.CHILD -> if (surfaceT >= CHILD_TIMEOUT) { // nothing happened — record the quiet visit
-                memory = TutorialMemory.NONE; step = TutorialStep.MEMORY; surfaceT = 0f
-            }
-            TutorialStep.MEMORY -> if (surfaceT >= MEMORY_TIME) { step = TutorialStep.RETURN_PAD; surfaceT = 0f }
-            else -> {}
-        }
-    }
-
-    /** v2.61: the society wrote something down (protected a child / harmed one). */
-    fun onSocietyEvent(protected: Boolean) {
-        if (step != TutorialStep.OBSERVE && step != TutorialStep.CHILD) return
-        memory = if (protected) TutorialMemory.PROTECTED else TutorialMemory.HARMED
-        step = TutorialStep.MEMORY
-        surfaceT = 0f
+        if (surfaceT >= OBSERVE_TIME) { step = TutorialStep.RETURN_PAD; surfaceT = 0f }
     }
 
     /** v2.61: lifting off the first planet completes the diagnostic. */
     fun onTakeoff() {
-        if (step == TutorialStep.OBSERVE || step == TutorialStep.CHILD ||
-            step == TutorialStep.MEMORY || step == TutorialStep.RETURN_PAD
-        ) {
+        if (step == TutorialStep.OBSERVE || step == TutorialStep.RETURN_PAD) {
             step = TutorialStep.COMPLETE
         }
     }
@@ -140,15 +118,6 @@ class TutorialController {
             "地表サーバーに接続　住民出力を確認",
             "すべてが敵とは限りません",
         )
-        TutorialStep.CHILD -> listOf(
-            "小型人格プロセスを検出 — この星の子らです",
-            "傷つければ、星は覚えます",
-        )
-        TutorialStep.MEMORY -> when (memory) {
-            TutorialMemory.PROTECTED -> listOf("星の記憶に記録: 子らを守った", "感謝 +　敵意 −")
-            TutorialMemory.HARMED -> listOf("星の記憶に記録: 子を傷つけた", "この星の敵意ログに残ります")
-            TutorialMemory.NONE -> listOf("観察を記録した", "この星は、あなたを覚えはじめています")
-        }
         TutorialStep.RETURN_PAD -> listOf(
             "帰還パッドへ戻ると離陸できます",
         )
@@ -163,8 +132,6 @@ class TutorialController {
     companion object {
         const val MOVE_GOAL = 480f // ~15 tiles of drifting — feel the inertia, don't rush it
         const val REWARD_DUST = 10 // the same either way: skipping must never cost the player
-        const val OBSERVE_TIME = 5f    // v2.61: watch before you act
-        const val CHILD_TIMEOUT = 25f  // v2.61: no event happened — record the quiet visit instead
-        const val MEMORY_TIME = 4f     // v2.61: the summary lingers, then points home
+        const val OBSERVE_TIME = 5f    // v2.61: watch before you act, then the prompt points home
     }
 }
