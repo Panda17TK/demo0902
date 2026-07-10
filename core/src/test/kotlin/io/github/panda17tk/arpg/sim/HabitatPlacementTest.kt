@@ -43,6 +43,23 @@ class HabitatPlacementTest {
         }
     }
 
+    @Test fun `the magma nest and the frozen pond hold their kin too`() {
+        // MAGMA: the crater hatchlings gather at the nest facility (v2.133 anchor, ICE/MAGMA gap from the audit)
+        for (seed in 1L..3L) {
+            val magma = SurfaceEcology.populate(PlanetBiome.MAGMA, 1000f, 1000f, 3400f, 2200f, Rng(seed))
+            val nest = magma.facilities.first { it.kind == FacilityKind.NEST }
+            for (p in magma.placements.filter { it.key == "crater_hatchling" }) {
+                assertTrue(hypot(p.x - nest.x, p.y - nest.y) <= nest.radius * 1.2f, "seed $seed: the hatchling keeps to the nest")
+            }
+        }
+        // ICE: the frozen ponds are real water bodies and their shore points sit dry beside them
+        val ice = io.github.panda17tk.arpg.map.SurfaceWater.generate(PlanetBiome.ICE, 4L, 3400f, 2200f)
+        assertTrue(ice.frozen && ice.lakes.isNotEmpty(), "the ice world keeps its ponds")
+        val lake = ice.lakes.first()
+        val shore = io.github.panda17tk.arpg.map.SurfaceWater.nearestShore(ice, lake.cx, lake.cy)!!
+        assertTrue(!io.github.panda17tk.arpg.map.SurfaceWater.inWater(ice, shore.first, shore.second), "the calf's bank is beside the pond, not on it")
+    }
+
     @Test fun `the nearest shore stands on the bank, not in the wade`() {
         val lakeWorld = WaterBodies(lakes = listOf(Lake(500f, 500f, 100f, 60f)), rivers = emptyList(), frozen = false)
         val (sx, sy) = SurfaceWater.nearestShore(lakeWorld, 500f, 500f)!!

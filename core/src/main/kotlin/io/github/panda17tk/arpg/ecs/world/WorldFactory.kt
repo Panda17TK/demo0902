@@ -152,45 +152,27 @@ object WorldFactory {
         // v2.48 惑星サーバー: every surface carries its memory core — the star's Layer-1 archive,
         // placed deterministically a walk away from the pad. Stand before it and it speaks once.
         if (mode == WorldMode.SURFACE) {
-            val mRng = Rng(seed xor 0x3E3C0DEL)
-            val ma = mRng.nextFloat() * TAU
-            val md = 700f + mRng.nextFloat() * 900f
-            val mx = (loaded.playerSpawnX + kotlin.math.cos(ma) * md).coerceIn(Tuning.TILE * 4f, map.width * Tuning.TILE - Tuning.TILE * 4f)
-            val my = (loaded.playerSpawnY + kotlin.math.sin(ma) * md).coerceIn(Tuning.TILE * 4f, map.height * Tuning.TILE - Tuning.TILE * 4f)
-            worldState.memoryCore = snapToFloor(map, mx, my)
+            worldState.memoryCore = placeNear(map, Rng(seed xor 0x3E3C0DEL), loaded.playerSpawnX, loaded.playerSpawnY, 700f, 900f)
         }
         // In space, scatter a flowing field of debris + asteroids around the player (cosmetic; fills the void).
         if (mode != WorldMode.SURFACE) worldState.drift = Drift.field(Rng(seed xor 0x0DEB712L), 120, loaded.playerSpawnX, loaded.playerSpawnY, 1400f)
         // v2.44: the system's jump gate — one per system, deterministic, out past the near planets.
         if (mode != WorldMode.SURFACE) {
-            val gRng = Rng(seed xor 0x6A7E9A7EL)
-            val ga = gRng.nextFloat() * TAU
-            val gd = 1800f + gRng.nextFloat() * 1200f
-            val gx = (loaded.playerSpawnX + kotlin.math.cos(ga) * gd).coerceIn(Tuning.TILE * 4f, map.width * Tuning.TILE - Tuning.TILE * 4f)
-            val gy = (loaded.playerSpawnY + kotlin.math.sin(ga) * gd).coerceIn(Tuning.TILE * 4f, map.height * Tuning.TILE - Tuning.TILE * 4f)
-            worldState.gate = snapToFloor(map, gx, gy)
+            worldState.gate = placeNear(map, Rng(seed xor 0x6A7E9A7EL), loaded.playerSpawnX, loaded.playerSpawnY, 1800f, 1200f)
         }
         // v2.46 難破船: 2..3 wrecked hulls drift in each system, nearer than the gate. Their loot
         // and guards are placed after the ECS world exists (below); the sites live here for drawing.
         if (mode != WorldMode.SURFACE) {
             val wRng = Rng(seed xor 0x37EC57A1L)
             worldState.wrecks = List(2 + wRng.nextInt(2)) {
-                val wa = wRng.nextFloat() * TAU
-                val wd = 900f + wRng.nextFloat() * 1500f
-                val wx = (loaded.playerSpawnX + kotlin.math.cos(wa) * wd).coerceIn(Tuning.TILE * 4f, map.width * Tuning.TILE - Tuning.TILE * 4f)
-                val wy = (loaded.playerSpawnY + kotlin.math.sin(wa) * wd).coerceIn(Tuning.TILE * 4f, map.height * Tuning.TILE - Tuning.TILE * 4f)
-                snapToFloor(map, wx, wy)
+                placeNear(map, wRng, loaded.playerSpawnX, loaded.playerSpawnY, 900f, 1500f)
             }
         }
         // v2.110 彗星: some skies carry a comet — a bright head trailing dust beads worth sweeping.
         if (mode != WorldMode.SURFACE) {
             val cRng = Rng(seed xor 0x0C0EE70AL)
             if (cRng.nextFloat() < COMET_CHANCE) {
-                val ca = cRng.nextFloat() * TAU
-                val cdist = 600f + cRng.nextFloat() * 900f
-                val hx = (loaded.playerSpawnX + kotlin.math.cos(ca) * cdist).coerceIn(Tuning.TILE * 6f, map.width * Tuning.TILE - Tuning.TILE * 6f)
-                val hy = (loaded.playerSpawnY + kotlin.math.sin(ca) * cdist).coerceIn(Tuning.TILE * 6f, map.height * Tuning.TILE - Tuning.TILE * 6f)
-                val head = snapToFloor(map, hx, hy)
+                val head = placeNear(map, cRng, loaded.playerSpawnX, loaded.playerSpawnY, 600f, 900f, marginTiles = 6f)
                 val ta = cRng.nextFloat() * TAU
                 worldState.comet = head
                 worldState.cometDir = kotlin.math.cos(ta) to kotlin.math.sin(ta)
@@ -201,11 +183,7 @@ object WorldFactory {
         if (mode != WorldMode.SURFACE) {
             val tRng = Rng(seed xor 0x7124DE72L)
             if (tRng.nextFloat() < TRADER_CHANCE) {
-                val ta = tRng.nextFloat() * TAU
-                val td = 700f + tRng.nextFloat() * 1200f
-                val tx = (loaded.playerSpawnX + kotlin.math.cos(ta) * td).coerceIn(Tuning.TILE * 4f, map.width * Tuning.TILE - Tuning.TILE * 4f)
-                val ty = (loaded.playerSpawnY + kotlin.math.sin(ta) * td).coerceIn(Tuning.TILE * 4f, map.height * Tuning.TILE - Tuning.TILE * 4f)
-                worldState.trader = snapToFloor(map, tx, ty)
+                worldState.trader = placeNear(map, tRng, loaded.playerSpawnX, loaded.playerSpawnY, 700f, 1200f)
             }
         }
         // v2.110 生存者: one wreck sometimes shelters a survivor — approaching it is the rescue.
@@ -543,6 +521,21 @@ object WorldFactory {
             it.worldState = worldState
             it.visited = VisitedMap(map.width, map.height)
         }
+    }
+
+    /**
+     * v2.143: one polar-offset placement — an angle then a distance drawn from [rng] (the exact
+     * draw order every call site used, so layouts stay byte-stable), clamped into the arena and
+     * snapped to free floor. Collapses five hand-inlined copies (memory core / gate / wrecks /
+     * comet head / trader).
+     */
+    private fun placeNear(map: TileMap, rng: Rng, cx: Float, cy: Float, base: Float, range: Float, marginTiles: Float = 4f): Pair<Float, Float> {
+        val a = rng.nextFloat() * TAU
+        val d = base + rng.nextFloat() * range
+        val m = Tuning.TILE * marginTiles
+        val x = (cx + kotlin.math.cos(a) * d).coerceIn(m, map.width * Tuning.TILE - m)
+        val y = (cy + kotlin.math.sin(a) * d).coerceIn(m, map.height * Tuning.TILE - m)
+        return snapToFloor(map, x, y)
     }
 
     /** v2.133 適所の生態: like [snapToFloor], but the tile must also be out of open water. */

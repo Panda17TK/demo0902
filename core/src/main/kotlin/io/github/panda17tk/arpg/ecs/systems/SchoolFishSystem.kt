@@ -28,6 +28,7 @@ import kotlin.math.sin
  */
 class SchoolFishSystem : IteratingSystem(family { all(Mob, Transform, Velocity, Body, Facing) }) {
     private val map: TileMap = world.inject()
+    private val config: io.github.panda17tk.arpg.config.GameConfig = world.inject() // v2.143: live wild knobs
     private val players by lazy { world.family { all(PlayerTag, Transform) } }
 
     private var time = 0f
@@ -93,10 +94,10 @@ class SchoolFishSystem : IteratingSystem(family { all(Mob, Transform, Velocity, 
         if (n > 0) {
             val cx = cohX / n - t.x; val cy = cohY / n - t.y
             val cl = hypot(cx, cy).coerceAtLeast(0.0001f)
-            steerX += cx / cl * W_COHESION + alX / n * W_ALIGN
-            steerY += cy / cl * W_COHESION + alY / n * W_ALIGN
+            steerX += cx / cl * config.wild.schoolCohesion + alX / n * config.wild.schoolAlign
+            steerY += cy / cl * config.wild.schoolCohesion + alY / n * config.wild.schoolAlign
         }
-        steerX += sepX * W_SEPARATE; steerY += sepY * W_SEPARATE
+        steerX += sepX * config.wild.schoolSeparate; steerY += sepY * config.wild.schoolSeparate
 
         // --- fear: the player and any predator scatter the school ---
         players.forEach { e ->
@@ -105,7 +106,7 @@ class SchoolFishSystem : IteratingSystem(family { all(Mob, Transform, Velocity, 
             val d2 = dx * dx + dy * dy
             if (d2 < FLEE_R2 && d2 > 0.0001f) {
                 val d = hypot(dx, dy)
-                steerX += dx / d * W_FLEE; steerY += dy / d * W_FLEE
+                steerX += dx / d * config.wild.schoolFlee; steerY += dy / d * config.wild.schoolFlee
             }
         }
         for (i in px.indices) {
@@ -133,7 +134,7 @@ class SchoolFishSystem : IteratingSystem(family { all(Mob, Transform, Velocity, 
 
         // --- a gentle wander so a calm school still drifts and shimmers ---
         val phase = time * 0.9f + (entity.id % 97) * 1.7f
-        steerX += cos(phase) * W_WANDER; steerY += sin(phase) * W_WANDER
+        steerX += cos(phase) * config.wild.schoolWander; steerY += sin(phase) * config.wild.schoolWander
 
         // --- steer the heading with inertia, then swim ---
         var hx = f.x + steerX * TURN * dt
@@ -152,12 +153,7 @@ class SchoolFishSystem : IteratingSystem(family { all(Mob, Transform, Velocity, 
         private const val NEIGHBOR_R2 = 52f * 52f // mates inside this ring pull the fish along
         private const val SEP_R2 = 13f * 13f      // closer than this pushes apart (no stacking)
         private const val FLEE_R2 = 130f * 130f   // the player / a predator scatters the school
-        private const val W_COHESION = 0.9f
-        private const val W_ALIGN = 0.7f
-        private const val W_SEPARATE = 26f
-        private const val W_FLEE = 3.2f
-        private const val W_FLEE_PRED = 2.4f
-        private const val W_WANDER = 0.35f
+        private const val W_FLEE_PRED = 2.4f // v2.143: the tunable weights moved to WildConfig
         private const val TURN = 4.5f // heading inertia: how fast the urge bends the swim line
         // v2.135 島鯨: the retinue and its island
         private const val WHALE_KIND = "isle_whale"

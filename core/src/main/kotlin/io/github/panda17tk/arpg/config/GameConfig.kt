@@ -10,6 +10,7 @@ data class GameConfig(
     val player: PlayerConfig = PlayerConfig(),
     val weapons: List<WeaponDef> = Weapons.ALL,
     val ai: AiConfig = AiConfig(),
+    val wild: WildConfig = WildConfig(), // v2.143 調整モード・野生の棚
     val waves: WaveConfig = WaveConfig(),
     val upgrades: UpgradesConfig = UpgradesConfig(),
     val enemies: Map<String, EnemyDef> = defaultEnemies(),
