@@ -221,6 +221,9 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
                     var bestD = Float.MAX_VALUE
                     val pi = Math.PI.toFloat(); val twoPi = pi * 2f
                     mobGrid.forNearby(t.x, t.y, ASSIST_RANGE) { mobEntity ->
+                        // v2.137 狙いの節度: the assist never bends toward harmless wildlife —
+                        // a passing school must not steal the aim from the actual threat.
+                        if (!io.github.panda17tk.arpg.sim.Predation.autoTargetable(with(world) { mobEntity[Mob].def })) return@forNearby
                         val mt = with(world) { mobEntity[Transform] }
                         val d = hypot(mt.x - t.x, mt.y - t.y)
                         if (d >= bestD || d > ASSIST_RANGE) return@forNearby
