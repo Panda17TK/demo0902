@@ -56,6 +56,10 @@ class PlayerPose(
 class SceneRenderer {
     private val glyphLayout = GlyphLayout()
     private val tmpC = Color()
+    // v2.139 描画の倹約: per-def caches so the mob pass allocates nothing per frame
+    private val mobColorCache = HashMap<String, Color>()
+    private val mobColorTmp = Color()
+    private val lookCache = HashMap<String, CreatureLook.Look>()
 
     // Cached projectile/actor colors (avoid per-frame alloc), ported from the legacy renderer.
     private val cTrail = Color(0.63f, 0.82f, 1f, 0.5f)
@@ -123,7 +127,7 @@ class SceneRenderer {
         drawDecor(shapes, gw, animTime) // v2.78: the ground's furniture, under everything built
         drawFacilities(shapes, gw, animTime)
         drawEscapePad(shapes, gw)
-        drawMobs(shapes, gw, animTime)
+        drawMobs(shapes, camera, gw, animTime)
         // v2.128 捕食: mid-snap the keeper lunges toward the swallowed pickup and back.
         val chompP = (gw.fx.chompT / Fx.CHOMP_TIME).coerceIn(0f, 1f) // 1 fresh -> 0 done
         val lunge = if (chompP > 0f) sin((1f - chompP) * 3.1415927f) * 7f else 0f
@@ -375,10 +379,16 @@ class SceneRenderer {
         shapes.circle(pad.first, pad.second, Tuning.TILE * 0.55f, 20)
     }
 
-    private fun drawMobs(shapes: ShapeRenderer, gw: GameWorld, animTime: Float) {
+    private fun drawMobs(shapes: ShapeRenderer, camera: OrthographicCamera, gw: GameWorld, animTime: Float) {
+        // v2.139 描画の倹約: the fish fill the WHOLE 2100-tile sky — draw only what the camera sees
+        // (same culling drawTerrain already does). ~300 mobs shrink to the screenful that matters.
+        val cullHW = camera.viewportWidth / 2f + CULL_MARGIN
+        val cullHH = camera.viewportHeight / 2f + CULL_MARGIN
         with(gw.world) {
             gw.world.family { all(Mob, Transform, Health, Facing, Velocity, MobAction) }.forEach { e ->
-                val mt = e[Transform]; val mm = e[Mob]; val mh = e[Health]; val mf = e[Facing]; val mv = e[Velocity]; val ma = e[MobAction]
+                val mt = e[Transform]
+                if (kotlin.math.abs(mt.x - camera.position.x) > cullHW || kotlin.math.abs(mt.y - camera.position.y) > cullHH) return@forEach
+                val mm = e[Mob]; val mh = e[Health]; val mf = e[Facing]; val mv = e[Velocity]; val ma = e[MobAction]
                 val moving = (mt.x - mt.prevX) * (mt.x - mt.prevX) + (mt.y - mt.prevY) * (mt.y - mt.prevY) > 0.0025f || (mv.vx * mv.vx + mv.vy * mv.vy) > 4f
                 val chargeProg = if (ma.chargeT > 0f) {
                     val windup = mm.def.attacks.firstOrNull { it.type == "charge_melee" }?.windup ?: 0.7f
@@ -389,9 +399,12 @@ class SceneRenderer {
                 val role = e.getOrNull(io.github.panda17tk.arpg.ecs.components.CreatureMind)?.familyRole
                     ?: io.github.panda17tk.arpg.config.FamilyRole.NONE
                 val look = if (mm.def.lifeKind == io.github.panda17tk.arpg.config.LifeKind.WILDLIFE) {
-                    CreatureLook.of(mm.def.id, mm.def.wildRole) // v2.129 野生動物の意匠
+                    lookCache.getOrPut(mm.def.id) { CreatureLook.of(mm.def.id, mm.def.wildRole) } // v2.129 意匠 / v2.139 memoised
                 } else null
-                Actors.drawMob(shapes, mm.kind, mm.tier, mt.x, mt.y, mm.def.w, mm.def.h, Color.valueOf(mm.def.color), mf.x, mf.y, moving, mh.hitFlash > 0f, ma.dodgeT > 0f, chargeProg, ma.enrageT > 0f, hpFrac, e.id * 1.3f, animTime, role, mm.level, look)
+                // v2.139 描画の倹約: Color.valueOf parses a hex STRING — memoise per def colour and
+                // hand painters a reusable copy (they may tint it), killing ~300 parses+allocs/frame.
+                mobColorTmp.set(mobColorCache.getOrPut(mm.def.color) { Color.valueOf(mm.def.color) })
+                Actors.drawMob(shapes, mm.kind, mm.tier, mt.x, mt.y, mm.def.w, mm.def.h, mobColorTmp, mf.x, mf.y, moving, mh.hitFlash > 0f, ma.dodgeT > 0f, chargeProg, ma.enrageT > 0f, hpFrac, e.id * 1.3f, animTime, role, mm.level, look)
                 if (mm.bountyDust > 0) { // v2.86: the head wears its price — a gold pulse + a diamond overhead
                     val pulse = 0.6f + 0.4f * sin(animTime * 5f)
                     tmpC.set(1f, 0.82f, 0.35f, 0.16f * pulse); shapes.color = tmpC
@@ -948,6 +961,7 @@ class SceneRenderer {
     }
 
     private companion object {
+        const val CULL_MARGIN = 96f // v2.139: mobs just off-screen still draw (pop-in guard)
         const val TAU = 6.2831855f
     }
 }
