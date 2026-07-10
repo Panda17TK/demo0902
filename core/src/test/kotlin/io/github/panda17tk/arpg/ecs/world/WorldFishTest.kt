@@ -51,8 +51,9 @@ class WorldFishTest {
 
     @Test fun `fish never enter the hostile spawn pools`() {
         // mirrors the DesyncSurge / drifter / guard pool predicates — lifeKind keeps wildlife out
+        // (v2.141: the pools take everything EXCEPT wildlife, so sapient combatants surge again)
         val pool = GameConfig().enemies
-            .filterValues { it.tier == "normal" && it.biome == null && it.lifeKind == LifeKind.HOSTILE }.keys
+            .filterValues { it.tier == "normal" && it.biome == null && it.lifeKind != LifeKind.WILDLIFE }.keys
         assertTrue(fishIds.none { it in pool }, "wildlife must not surge")
         assertTrue(pool.isNotEmpty(), "the hostile pool still stands")
     }

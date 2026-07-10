@@ -60,6 +60,9 @@ class MobDamageSystem(private val grid: SpatialGrid<Entity>) :
                 // does not. Still no score, no loot, no quest credit: the ecosystem framing stands.
                 val bkey = mob.def.id.ifEmpty { mob.kind }
                 gameOver.killsByKind[bkey] = (gameOver.killsByKind[bkey] ?: 0) + 1
+                // v2.141 図鑑の救済: a whale-class hunt pays a little dust — the field book's
+                // giants (島鯨 hp1200 etc.) are no longer a pure no-reward grind.
+                if (mob.def.hp >= GIANT_HP) Pickups.spawn(world, "dust", GIANT_DUST, t.x, t.y)
             }
             // v2.132 敵対: a hunter's kill of a SAPIENT is the wild's deed too — no score, no loot
             // (the fellByWild flag now guards both sides of the lifeKind fence).
@@ -137,5 +140,10 @@ class MobDamageSystem(private val grid: SpatialGrid<Entity>) :
                 ph.hp = minOf(ph.hpMax, ph.hp + mods.healOnKill)
             }
         }
+    }
+
+    companion object {
+        private const val GIANT_HP = 300f // v2.141 図鑑の救済: wild this tough pays dust when the KEEPER fells it
+        private const val GIANT_DUST = 30
     }
 }

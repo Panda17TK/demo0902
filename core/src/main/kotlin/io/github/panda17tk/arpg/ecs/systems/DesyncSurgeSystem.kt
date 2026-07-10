@@ -41,9 +41,9 @@ class DesyncSurgeSystem : IteratingSystem(family { all(PlayerTag, Transform) }) 
 
     private val mobs by lazy { world.family { all(Mob) } }
     // Space waves draw only from generic enemies; biome creatures (biome != null) live on their planet's surface.
-    private val normalKeys: List<String> = config.enemies.filterValues { it.tier == "normal" && it.biome == null && it.lifeKind == io.github.panda17tk.arpg.config.LifeKind.HOSTILE }.keys.toList() // v2.130: fish never surge
-    private val midBossKeys: List<String> = config.enemies.filterValues { it.tier == "midboss" && it.biome == null && it.lifeKind == io.github.panda17tk.arpg.config.LifeKind.HOSTILE }.keys.toList()
-    private val bossKeys: List<String> = config.enemies.filterValues { it.tier == "boss" && it.biome == null && it.lifeKind == io.github.panda17tk.arpg.config.LifeKind.HOSTILE }.keys.toList()
+    private val normalKeys: List<String> = config.enemies.filterValues { it.tier == "normal" && it.biome == null && it.lifeKind != io.github.panda17tk.arpg.config.LifeKind.WILDLIFE }.keys.toList() // v2.130/v2.141: fish never surge — but SAPIENT combatants DO (== HOSTILE had exiled 12 species)
+    private val midBossKeys: List<String> = config.enemies.filterValues { it.tier == "midboss" && it.biome == null && it.lifeKind != io.github.panda17tk.arpg.config.LifeKind.WILDLIFE }.keys.toList()
+    private val bossKeys: List<String> = config.enemies.filterValues { it.tier == "boss" && it.biome == null && it.lifeKind != io.github.panda17tk.arpg.config.LifeKind.WILDLIFE }.keys.toList()
 
     override fun onTickEntity(entity: Entity) {
         // On a planet's surface the inhabitants are placed once by SurfaceEcology; no endless waves.
@@ -57,7 +57,7 @@ class DesyncSurgeSystem : IteratingSystem(family { all(PlayerTag, Transform) }) 
         // v2.36: drifters don't count — a coasting stranger at the far edge of space neither eats
         // the live cap nor keeps a cleared wave open.
         var waveMobs = 0
-        mobs.forEach { m -> if (!m[Mob].drifter && m[Mob].def.lifeKind == io.github.panda17tk.arpg.config.LifeKind.HOSTILE) waveMobs++ } // v2.130: wildlife never stalls a wave
+        mobs.forEach { m -> if (!m[Mob].drifter && m[Mob].def.lifeKind != io.github.panda17tk.arpg.config.LifeKind.WILDLIFE) waveMobs++ } // v2.130/v2.141: wildlife never stalls a wave — sapient wave members count again
 
         if (w.phase == "active") {
             // v2.87 流星群: through a METEOR wave the sky keeps falling — one rock every beat.
