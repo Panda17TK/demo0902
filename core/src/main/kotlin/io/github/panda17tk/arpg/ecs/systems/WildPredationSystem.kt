@@ -58,7 +58,7 @@ class WildPredationSystem(private val mobGrid: SpatialGrid<Entity>) :
                 if (d < BITE_RANGE * ENGAGE_MUL) {
                     engaged = true
                     if (pred.biteWindup <= 0f) {
-                        pred.biteWindup = BITE_WINDUP
+                        pred.biteWindup = config.wild.biteWindup // v2.143: tunable telegraph
                         fx.spawnWarnRing(t.x, t.y)
                     } else {
                         pred.biteWindup -= deltaTime
@@ -105,7 +105,6 @@ class WildPredationSystem(private val mobGrid: SpatialGrid<Entity>) :
     companion object {
         private val BITE_RANGE = Tuning.TILE * 1.25f // close enough to land a bite (~40px)
         private const val FEED_CD = 0.8f             // seconds between bites on the same meal
-        private const val BITE_WINDUP = 0.45f        // v2.138: the lunge telegraphs this long before the teeth close
-        private const val ENGAGE_MUL = 1.6f          // ...and commits when the keeper is within range × this
+        private const val ENGAGE_MUL = 1.6f          // commits when the keeper is within range × this (windup: WildConfig)
     }
 }

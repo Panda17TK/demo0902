@@ -145,6 +145,15 @@ object TuningCatalog {
         add("経路再計算間隔", bai.flowRebuildInterval, 0.05f, 0.05f, 10f, { ai.flowRebuildInterval }, { ai.flowRebuildInterval = it })
         add("接触ノックバック", bai.playerKnockback, 20f, 0f, 5000f, { ai.playerKnockback }, { ai.playerKnockback = it })
         add("接触無敵時間", bai.iFrameContact, 0.05f, 0f, 10f, { ai.iFrameContact }, { ai.iFrameContact = it })
+        // v2.143 野生/魚群 — the ecology's knobs (defaults = the shipped boid/predation constants)
+        val wl = config.wild
+        val bwl = base.wild
+        add("群れ結集", bwl.schoolCohesion, 0.05f, 0f, 10f, { wl.schoolCohesion }, { wl.schoolCohesion = it })
+        add("群れ整列", bwl.schoolAlign, 0.05f, 0f, 10f, { wl.schoolAlign }, { wl.schoolAlign = it })
+        add("群れ分離", bwl.schoolSeparate, 1f, 0f, 200f, { wl.schoolSeparate }, { wl.schoolSeparate = it })
+        add("群れ逃走", bwl.schoolFlee, 0.1f, 0f, 20f, { wl.schoolFlee }, { wl.schoolFlee = it })
+        add("群れ徘徊", bwl.schoolWander, 0.05f, 0f, 5f, { wl.schoolWander }, { wl.schoolWander = it })
+        add("噛みつき溜め", bwl.biteWindup, 0.05f, 0.05f, 3f, { wl.biteWindup }, { wl.biteWindup = it })
     }
 }
 
