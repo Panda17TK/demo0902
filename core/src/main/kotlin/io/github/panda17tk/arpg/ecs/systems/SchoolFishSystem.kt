@@ -31,12 +31,14 @@ class SchoolFishSystem : IteratingSystem(family { all(Mob, Transform, Velocity, 
     private val players by lazy { world.family { all(PlayerTag, Transform) } }
 
     private var time = 0f
-    // per-tick caches: school members (position + heading + kind hash) and predator positions
-    private val sx = ArrayList<Float>(128)
-    private val sy = ArrayList<Float>(128)
-    private val shx = ArrayList<Float>(128)
-    private val shy = ArrayList<Float>(128)
-    private val skind = ArrayList<Int>(128)
+    // per-tick caches. v2.140 シムの節約: school members are bucketed PER KIND so each fish scans
+    // only its own school (the old flat pool made every fish touch all ~170 members: n² across kinds).
+    private class SchoolPool {
+        val x = ArrayList<Float>(128); val y = ArrayList<Float>(128)
+        val hx = ArrayList<Float>(128); val hy = ArrayList<Float>(128)
+        fun clear() { x.clear(); y.clear(); hx.clear(); hy.clear() }
+    }
+    private val pools = HashMap<Int, SchoolPool>()
     private val px = ArrayList<Float>(8)
     private val py = ArrayList<Float>(8)
     // v2.135 島鯨: whale positions — the pilot fish's home current
@@ -45,8 +47,8 @@ class SchoolFishSystem : IteratingSystem(family { all(Mob, Transform, Velocity, 
 
     override fun onTick() {
         time += deltaTime
-        sx.clear(); sy.clear(); shx.clear(); shy.clear(); skind.clear(); px.clear(); py.clear()
-        wx.clear(); wy.clear()
+        pools.values.forEach { it.clear() }
+        px.clear(); py.clear(); wx.clear(); wy.clear()
         family.forEach { e ->
             val m = e[Mob]
             if (m.def.lifeKind != LifeKind.WILDLIFE) return@forEach
@@ -54,7 +56,8 @@ class SchoolFishSystem : IteratingSystem(family { all(Mob, Transform, Velocity, 
             when (m.def.wildRole) {
                 WildRole.SCHOOL -> {
                     val t = e[Transform]; val f = e[Facing]
-                    sx.add(t.x); sy.add(t.y); shx.add(f.x); shy.add(f.y); skind.add(m.kind.hashCode())
+                    val pool = pools.getOrPut(m.kind.hashCode()) { SchoolPool() }
+                    pool.x.add(t.x); pool.y.add(t.y); pool.hx.add(f.x); pool.hy.add(f.y)
                 }
                 WildRole.PREDATOR, WildRole.APEX -> {
                     val t = e[Transform]; px.add(t.x); py.add(t.y)
@@ -76,14 +79,14 @@ class SchoolFishSystem : IteratingSystem(family { all(Mob, Transform, Velocity, 
         v.vx *= 0.02f.pow(dt); v.vy *= 0.02f.pow(dt)
         v.driftX *= 0.5f.pow(dt); v.driftY *= 0.5f.pow(dt)
 
-        // --- the three boid urges, over same-kind school mates ---
+        // --- the three boid urges, over same-kind school mates (v2.140: own pool only) ---
         var cohX = 0f; var cohY = 0f; var alX = 0f; var alY = 0f; var sepX = 0f; var sepY = 0f; var n = 0
-        for (i in sx.indices) {
-            if (skind[i] != myKind) continue
-            val dx = sx[i] - t.x; val dy = sy[i] - t.y
+        val pool = pools[myKind]
+        if (pool != null) for (i in pool.x.indices) {
+            val dx = pool.x[i] - t.x; val dy = pool.y[i] - t.y
             val d2 = dx * dx + dy * dy
             if (d2 <= 0.0001f || d2 > NEIGHBOR_R2) continue
-            cohX += sx[i]; cohY += sy[i]; alX += shx[i]; alY += shy[i]; n++
+            cohX += pool.x[i]; cohY += pool.y[i]; alX += pool.hx[i]; alY += pool.hy[i]; n++
             if (d2 < SEP_R2) { sepX -= dx / d2; sepY -= dy / d2 }
         }
         var steerX = 0f; var steerY = 0f
