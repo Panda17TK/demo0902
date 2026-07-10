@@ -23,7 +23,8 @@ import kotlin.math.sin
  * and cohesion among same-kind fish, plus a hard flee from the player and from predatory
  * wildlife. WildlifeSystem hands SCHOOL over entirely (its herd logic would fight the flock).
  * A school runs near a hundred fish, so the neighbour pass caches every member's position
- * once per tick and scans only school members — O(n²) at n≈100 is comfortably cheap.
+ * once per tick and scans only its own flock — O(n²) at n≈100 is comfortably cheap even
+ * with dozens of flocks in the sky (v2.144 大群衆: pools split per spawn flock, not per species).
  * Determinism: no rng — the wander phase derives from the entity id and the sim clock.
  */
 class SchoolFishSystem : IteratingSystem(family { all(Mob, Transform, Velocity, Body, Facing) }) {
@@ -32,11 +33,17 @@ class SchoolFishSystem : IteratingSystem(family { all(Mob, Transform, Velocity, 
     private val players by lazy { world.family { all(PlayerTag, Transform) } }
 
     private var time = 0f
-    // per-tick caches. v2.140 シムの節約: school members are bucketed PER KIND so each fish scans
-    // only its own school (the old flat pool made every fish touch all ~170 members: n² across kinds).
+    // per-tick caches. v2.140 bucketed per kind; v2.144 大群衆 buckets per FLOCK — thirty sardine
+    // schools must not melt into one n² pool. Unboxed FloatBuf: at ~5000 fish the old
+    // ArrayList<Float> would box ~20k floats per tick, pure GC churn on a phone.
+    private class FloatBuf {
+        var a = FloatArray(128); var n = 0
+        fun add(v: Float) { if (n == a.size) a = a.copyOf(a.size * 2); a[n++] = v }
+        fun clear() { n = 0 }
+    }
     private class SchoolPool {
-        val x = ArrayList<Float>(128); val y = ArrayList<Float>(128)
-        val hx = ArrayList<Float>(128); val hy = ArrayList<Float>(128)
+        val x = FloatBuf(); val y = FloatBuf()
+        val hx = FloatBuf(); val hy = FloatBuf()
         fun clear() { x.clear(); y.clear(); hx.clear(); hy.clear() }
     }
     private val pools = HashMap<Int, SchoolPool>()
@@ -57,7 +64,7 @@ class SchoolFishSystem : IteratingSystem(family { all(Mob, Transform, Velocity, 
             when (m.def.wildRole) {
                 WildRole.SCHOOL -> {
                     val t = e[Transform]; val f = e[Facing]
-                    val pool = pools.getOrPut(m.kind.hashCode()) { SchoolPool() }
+                    val pool = pools.getOrPut(poolKey(m)) { SchoolPool() }
                     pool.x.add(t.x); pool.y.add(t.y); pool.hx.add(f.x); pool.hy.add(f.y)
                 }
                 WildRole.PREDATOR, WildRole.APEX -> {
@@ -74,7 +81,7 @@ class SchoolFishSystem : IteratingSystem(family { all(Mob, Transform, Velocity, 
         if (m.def.lifeKind != LifeKind.WILDLIFE || m.def.wildRole != WildRole.SCHOOL) return
         val t = entity[Transform]; val v = entity[Velocity]; val b = entity[Body]; val f = entity[Facing]
         val dt = deltaTime
-        val myKind = m.kind.hashCode()
+        val myKey = poolKey(m)
 
         // knockback / flung momentum bleeds off like every other creature
         v.vx *= 0.02f.pow(dt); v.vy *= 0.02f.pow(dt)
@@ -82,12 +89,12 @@ class SchoolFishSystem : IteratingSystem(family { all(Mob, Transform, Velocity, 
 
         // --- the three boid urges, over same-kind school mates (v2.140: own pool only) ---
         var cohX = 0f; var cohY = 0f; var alX = 0f; var alY = 0f; var sepX = 0f; var sepY = 0f; var n = 0
-        val pool = pools[myKind]
-        if (pool != null) for (i in pool.x.indices) {
-            val dx = pool.x[i] - t.x; val dy = pool.y[i] - t.y
+        val pool = pools[myKey]
+        if (pool != null) for (i in 0 until pool.x.n) {
+            val dx = pool.x.a[i] - t.x; val dy = pool.y.a[i] - t.y
             val d2 = dx * dx + dy * dy
             if (d2 <= 0.0001f || d2 > NEIGHBOR_R2) continue
-            cohX += pool.x[i]; cohY += pool.y[i]; alX += pool.hx[i]; alY += pool.hy[i]; n++
+            cohX += pool.x.a[i]; cohY += pool.y.a[i]; alX += pool.hx.a[i]; alY += pool.hy.a[i]; n++
             if (d2 < SEP_R2) { sepX -= dx / d2; sepY -= dy / d2 }
         }
         var steerX = 0f; var steerY = 0f
@@ -148,6 +155,10 @@ class SchoolFishSystem : IteratingSystem(family { all(Mob, Transform, Velocity, 
         if (r2.hitY) { v.driftY = 0f; f.y = -f.y }
         t.x = r2.x; t.y = r2.y
     }
+
+    // v2.144 大群衆: a school is its spawn flock, not the whole species. group 0 (hand-spawned
+    // strays) still pools kind-wide, so a lone test sardine keeps its old behaviour.
+    private fun poolKey(m: Mob): Int = if (m.schoolGroup == 0) m.kind.hashCode() else m.schoolGroup * -0x61c88647
 
     companion object {
         private const val NEIGHBOR_R2 = 52f * 52f // mates inside this ring pull the fish along
