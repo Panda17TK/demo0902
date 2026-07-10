@@ -64,7 +64,9 @@ class EcologyEventSystem : IntervalSystem() {
                     if (m.def.familyRole == FamilyRole.CHILD) soc.onChildHarmed(ctx)
                 }
                 if (hp > 0f && wildHunter && nearAChild(t.x, t.y, THREAT_RANGE)) soc.onWildPredatorThreatenedChild()
-                prevHp[e] = hp
+                // v2.140 シムの節約: the dead leave the ledger — the map no longer grows for the
+                // whole visit (reaped entities kept their keys forever).
+                if (hp <= 0f) prevHp.remove(e) else prevHp[e] = hp
             }
         }
     }

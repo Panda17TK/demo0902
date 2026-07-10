@@ -35,12 +35,12 @@ import kotlin.math.sin
  * wildlife); this system owns wildlife movement + collision entirely, so wildlife never deal contact
  * damage or run attacks. The brain is the pure [WildAI]; here we just sense the world and move.
  */
-class WildlifeSystem : IteratingSystem(family { all(Mob, Transform, Velocity, Body, Health, Facing) }) {
+class WildlifeSystem(private val mobGrid: io.github.panda17tk.arpg.pathfinding.SpatialGrid<Entity>) :
+    IteratingSystem(family { all(Mob, Transform, Velocity, Body, Health, Facing) }) {
     private val map: TileMap = world.inject()
     private val planetField: PlanetField = world.inject()
     private val worldState: WorldState = world.inject()
     private val players by lazy { world.family { all(PlayerTag, Transform) } }
-    private val mobs by lazy { world.family { all(Mob, Transform, Health) } }
     private val wanderRng = Rng(0x21D7A11FEL) // private stream: keeps idle wander out of the combat RNG
 
     override fun onTickEntity(entity: Entity) {
@@ -68,8 +68,10 @@ class WildlifeSystem : IteratingSystem(family { all(Mob, Transform, Velocity, Bo
         var predatorNear = false; var predX = 0f; var predY = 0f; var predBest = Float.MAX_VALUE
         var preyNear = false; var preyX = 0f; var preyY = 0f; var preyBest = Float.MAX_VALUE
         var herdSumX = 0f; var herdSumY = 0f; var herdCount = 0
-        mobs.forEach { other ->
-            if (other == entity) return@forEach
+        // v2.140 シムの節約: every sense radius is <=260px — scan the grid's neighbourhood, not
+        // the whole ~300-mob family (the same broad-phase WildPredationSystem already rides).
+        mobGrid.forNearby(t.x, t.y, SENSE_MAX) { other ->
+            if (other == entity) return@forNearby
             val ot = other[Transform]; val od = other[Mob].def
             val od2 = (ot.x - t.x) * (ot.x - t.x) + (ot.y - t.y) * (ot.y - t.y)
             if (od.lifeKind == LifeKind.WILDLIFE && (od.wildRole == WildRole.PREDATOR || od.wildRole == WildRole.APEX)) {
@@ -199,6 +201,7 @@ class WildlifeSystem : IteratingSystem(family { all(Mob, Transform, Velocity, Bo
         private const val KNOCK_DECAY = 0.02f      // knockback velocity bleeds fast
         private const val DRIFT_DECAY = 0.8f       // gravity/crash momentum bleeds ~20%/s
         private const val CRASH_RESTITUTION = 0.35f
+        private const val SENSE_MAX = 260f          // v2.140: grid scan radius = the widest sense below
         private const val PRED_SENSE2 = 220f * 220f // prey notice a predator within ~7 tiles
         private const val PREY_SENSE2 = 260f * 260f // a predator smells prey within ~8 tiles
         private const val HERD_SENSE2 = 220f * 220f // herd-mates within this count toward the centre

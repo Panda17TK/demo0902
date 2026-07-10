@@ -263,7 +263,7 @@ object WorldFactory {
                 add(SmokeSystem())
                 add(FlowRebuildSystem())
                 add(AISystem(mobGrid))
-                add(WildlifeSystem()) // mute wild animals: graze/herd/flee/hunt (AISystem skips WILDLIFE)
+                add(WildlifeSystem(mobGrid)) // mute wild animals: graze/herd/flee/hunt (AISystem skips WILDLIFE)
                 add(WildPredationSystem(mobGrid)) // wild predators bite their prey (eats, drops hunger)
                 add(SchoolFishSystem()) // v2.131 魚群: boids for SCHOOL fish (separation/alignment/cohesion+flee)
                 add(MobActionSystem())
