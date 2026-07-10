@@ -36,6 +36,15 @@ object Predation {
         }
     }
 
+    /**
+     * v2.137 狙いの節度: should the keeper's AUTO-targeting (aim assist, seeker rounds, proximity
+     * fuses) lock onto this creature? Harmless wildlife never earns the lock — only a hunter brave
+     * enough to bite the keeper does. Deliberate, manually aimed hits still land on anything.
+     */
+    fun autoTargetable(def: EnemyDef): Boolean =
+        def.lifeKind != LifeKind.WILDLIFE ||
+            ((def.wildRole == WildRole.PREDATOR || def.wildRole == WildRole.APEX) && def.bravery >= BRAVE)
+
     /** Damage a single bite deals. */
     fun biteDamage(predator: EnemyDef): Float = when (predator.wildRole) {
         WildRole.APEX -> APEX_BITE

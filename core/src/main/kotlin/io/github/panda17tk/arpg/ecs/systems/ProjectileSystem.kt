@@ -66,6 +66,8 @@ class ProjectileSystem(private val mobGrid: SpatialGrid<Entity>) :
             if (b.homing > 0f) {
                 var bestD = Float.MAX_VALUE; var bestX = 0f; var bestY = 0f
                 mobGrid.forNearby(t.x, t.y, HOMING_RANGE) { mobEntity ->
+                    // v2.137 狙いの節度: seeker rounds ignore harmless wildlife (see Predation.autoTargetable)
+                    if (!io.github.panda17tk.arpg.sim.Predation.autoTargetable(with(world) { mobEntity[Mob].def })) return@forNearby
                     val mt = with(world) { mobEntity[Transform] }
                     val d = hypot(mt.x - t.x, mt.y - t.y)
                     if (d < bestD) { bestD = d; bestX = mt.x; bestY = mt.y }
@@ -128,6 +130,8 @@ class ProjectileSystem(private val mobGrid: SpatialGrid<Entity>) :
             var prox = false
             mobGrid.forNearby(t.x, t.y, Tuning.TILE) { mobEntity ->
                 if (!prox) {
+                    // v2.137 狙いの節度: a passing minnow must not trip the fuse
+                    if (!io.github.panda17tk.arpg.sim.Predation.autoTargetable(with(world) { mobEntity[Mob].def })) return@forNearby
                     val mt = with(world) { mobEntity[Transform] }
                     if (hypot(mt.x - t.x, mt.y - t.y) <= Tuning.TILE) prox = true
                 }

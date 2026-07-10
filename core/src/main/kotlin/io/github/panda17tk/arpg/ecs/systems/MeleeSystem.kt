@@ -116,7 +116,8 @@ class MeleeSystem(private val mobGrid: SpatialGrid<Entity>) :
                     val mobH = with(world) { mobEntity[Health] }
                     val mobV = with(world) { mobEntity[Velocity] }
                     val mobA = with(world) { mobEntity[MobAction] }
-                    val mobDodge = with(world) { mobEntity[Mob].def.dodge }
+                    val mobDef = with(world) { mobEntity[Mob].def }
+                    val mobDodge = mobDef.dodge
                     val nx = if (dist > 0f) ddx / dist else 1f
                     val ny = if (dist > 0f) ddy / dist else 0f
                     val hpBefore = mobH.hp
@@ -132,7 +133,8 @@ class MeleeSystem(private val mobGrid: SpatialGrid<Entity>) :
                         )
                     }
                     // v2.42: a leeching arm drinks back a fraction of the damage that actually landed.
-                    if (gearMelee.meleeLifesteal > 0f && mobH.hp < hpBefore) {
+                    // v2.137 狙いの節度: never from wildlife — a school of fish must not be a fountain.
+                    if (gearMelee.meleeLifesteal > 0f && mobH.hp < hpBefore && mobDef.lifeKind != io.github.panda17tk.arpg.config.LifeKind.WILDLIFE) {
                         val ph = entity[Health]
                         ph.hp = (ph.hp + (hpBefore - mobH.hp) * gearMelee.meleeLifesteal).coerceAtMost(ph.hpMax)
                     }
