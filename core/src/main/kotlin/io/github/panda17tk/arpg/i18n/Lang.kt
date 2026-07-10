@@ -24,6 +24,19 @@ object Lang {
 
     private val cache = HashMap<String, String>()
 
+    /** v2.142: an English display name from a stable snake_case id ("void_aji" → "Void Aji"). */
+    private fun enName(id: String): String {
+        val parts = id.split('_').filter { it.isNotEmpty() }
+        val ordered = when (parts.firstOrNull()) {
+            "thruster", "armor" -> parts.drop(1) + parts.first() // category reads better at the tail
+            "gun", "melee", "acc", "use", "mat", "read", "lore" -> parts.drop(1)
+            else -> parts
+        }
+        return ordered.joinToString(" ") { w ->
+            if (w.all { it.isDigit() }) "Mk.$w" else w.replaceFirstChar { c -> c.uppercase() }
+        }
+    }
+
     private val TABLE: Map<String, String> = mapOf(
         // タイトル
         "つづきから" to "Continue",
@@ -172,6 +185,16 @@ object Lang {
         add("【+" to " [+")
         add("【" to " [")
         add("討伐図鑑 " to "Bestiary ")
+        // v2.142 英語化第3弾: species names — 162 kinds, auto-derived from their stable English ids
+        // ("tyrant_shark" → "Tyrant Shark"). The bestiary, event feed and speech lines pick these up.
+        io.github.panda17tk.arpg.config.GameConfig().enemies.forEach { (id, def) ->
+            if (def.name.any { it.code >= 0x2E80 }) add(def.name to enName(id))
+        }
+        // v2.142: item names (thruster/armor/consumable/lore …) — id-derived with the category moved
+        // to the tail ("armor_cloth" → "Cloth Armor"); gun items ride the weapon tokens as well.
+        io.github.panda17tk.arpg.item.ItemCatalog.ALL.forEach { item ->
+            if (item.name.any { it.code >= 0x2E80 }) add(item.name to enName(item.id))
+        }
         // weapon names (from the live catalog — ids are stable)
         val weaponEn = mapOf(
             "pistol" to "Pistol", "shotgun" to "Shotgun", "mg" to "Machine Gun",
