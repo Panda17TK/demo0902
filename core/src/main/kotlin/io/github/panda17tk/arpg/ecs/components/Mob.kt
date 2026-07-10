@@ -35,6 +35,7 @@ class Mob(
     var biteWindup: Float = 0f, // v2.138 公正な野生: a brave hunter's lunge at the keeper telegraphs this long first
     var homeX: Float = 0f,    // nest / home position (set to the spawn point); nest-guards return here
     var homeY: Float = 0f,
+    var schoolGroup: Int = 0, // v2.144 大群衆: which spawn flock a SCHOOL fish swims with (0 = kind-wide)
 ) : Component<Mob> {
     val tier: String get() = def.tier
     override fun type() = Mob

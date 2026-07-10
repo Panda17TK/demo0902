@@ -323,12 +323,14 @@ object WorldFactory {
         if (mode != WorldMode.SURFACE) {
             val fRng = Rng(seed xor 0x0F15E5L)
             val fww = map.width * Tuning.TILE; val fwh = map.height * Tuning.TILE
+            var schoolSeq = 0 // v2.144 大群衆: every shoal call is its own flock — boids school per flock
             fun shoalAt(cx0: Float, cy0: Float, id: String, count: Int, spread: Float) {
                 config.enemies[id]?.let { def ->
+                    schoolSeq++
                     repeat(count) {
                         val a = fRng.nextFloat() * TAU
                         val r = fRng.nextFloat() * spread
-                        MobFactory.spawn(world, def, cx0 + kotlin.math.cos(a) * r, cy0 + kotlin.math.sin(a) * r)
+                        MobFactory.spawn(world, def, cx0 + kotlin.math.cos(a) * r, cy0 + kotlin.math.sin(a) * r, schoolGroup = schoolSeq)
                     }
                 }
             }
@@ -347,27 +349,49 @@ object WorldFactory {
             shoalAt(sx, sy, io.github.panda17tk.arpg.config.SpaceFishRoster.TINY[if (fRng.nextFloat() < 0.5f) 0 else 1], 90 + fRng.nextInt(21), 130f)
             val hunters = io.github.panda17tk.arpg.config.SpaceFishRoster.HUNTERS // v2.141: the roster object is the spawn truth
             if (fRng.nextFloat() < 0.55f) shoalAt(sx, sy, hunters[fRng.nextInt(hunters.size)], 1, 320f)
-            // v2.135 満ちる海: one group per map sector (3×3) — the ocean fills the WHOLE sky,
-            // not a single clump by the pad. Every sky now hosts fish, wherever the keeper drifts.
+            // v2.135 満ちる海 → v2.144 大群衆: the ocean fills the WHOLE sky, thirtyfold. Every
+            // sector hosts several boid flocks of its own plus medium schools, loners and teeth —
+            // ~5000 fish per sky. The boid pass stays cheap because each fish scans only its own
+            // flock (SchoolFishSystem.poolKey), and the pools carry unboxed float buffers.
             val mediums = io.github.panda17tk.arpg.config.SpaceFishRoster.MEDIUMS
             val singles = io.github.panda17tk.arpg.config.SpaceFishRoster.SINGLES
+            val tiny = io.github.panda17tk.arpg.config.SpaceFishRoster.TINY
             for (gy in 0 until 3) for (gx in 0 until 3) {
-                val (px2, py2) = snapToFloor(
+                fun sectorPoint(): Pair<Float, Float> = snapToFloor(
                     map,
                     fww / 3f * (gx + 0.15f + fRng.nextFloat() * 0.7f),
                     fwh / 3f * (gy + 0.15f + fRng.nextFloat() * 0.7f),
                 )
-                if (fRng.nextFloat() < 0.4f) shoalAt(px2, py2, mediums[fRng.nextInt(mediums.size)], 8 + fRng.nextInt(8), 90f)
-                else shoalAt(px2, py2, singles[fRng.nextInt(singles.size)], 1 + fRng.nextInt(2), 220f)
-                if (fRng.nextFloat() < 0.2f) shoalAt(px2, py2, hunters[fRng.nextInt(hunters.size)], 1, 320f)
+                repeat(5) { // the tiny schools ARE the ocean now — five flocks per sector, ~100 strong each
+                    val (px2, py2) = sectorPoint()
+                    shoalAt(px2, py2, tiny[fRng.nextInt(tiny.size)], 80 + fRng.nextInt(41), 150f)
+                }
+                repeat(3) {
+                    val (px2, py2) = sectorPoint()
+                    shoalAt(px2, py2, mediums[fRng.nextInt(mediums.size)], 10 + fRng.nextInt(11), 100f)
+                }
+                repeat(2) {
+                    val (px2, py2) = sectorPoint()
+                    shoalAt(px2, py2, singles[fRng.nextInt(singles.size)], 1 + fRng.nextInt(2), 220f)
+                }
+                repeat(2) { // the teeth follow the plenty
+                    val (px2, py2) = sectorPoint()
+                    shoalAt(px2, py2, hunters[fRng.nextInt(hunters.size)], 1, 320f)
+                }
+                if (fRng.nextFloat() < 0.35f) {
+                    val (px2, py2) = sectorPoint()
+                    shoalAt(px2, py2, hunters[fRng.nextInt(hunters.size)], 1, 320f)
+                }
             }
-            // rarely something vast passes by, anywhere in the sky
+            // the vast ones are no longer rare — a crowded ocean feeds more giants
             val giants = io.github.panda17tk.arpg.config.SpaceFishRoster.GIANTS
+            repeat(3) { val (vx2, vy2) = site(); shoalAt(vx2, vy2, giants[fRng.nextInt(giants.size)], 1, 200f) }
             if (fRng.nextFloat() < 0.25f) { val (vx2, vy2) = site(); shoalAt(vx2, vy2, giants[fRng.nextInt(giants.size)], 1, 200f) }
-            // v2.135 暴君鮫: some skies belong to the tyrant — an apex that hunts sapients and the keeper
+            // v2.135 暴君鮫: every sky has its tyrant now — some have two
+            run { val (tx2, ty2) = site(); shoalAt(tx2, ty2, io.github.panda17tk.arpg.config.SpaceFishRoster.TYRANT, 1, 0f) }
             if (fRng.nextFloat() < 0.45f) { val (tx2, ty2) = site(); shoalAt(tx2, ty2, io.github.panda17tk.arpg.config.SpaceFishRoster.TYRANT, 1, 0f) }
-            // v2.135 島鯨: a drifting island trailing its retinue of pilot fish
-            if (fRng.nextFloat() < 0.5f) {
+            // v2.135 島鯨: two drifting islands, each trailing its retinue of pilot fish
+            repeat(2) {
                 val (wx2, wy2) = site()
                 shoalAt(wx2, wy2, io.github.panda17tk.arpg.config.SpaceFishRoster.WHALE, 1, 0f)
                 shoalAt(wx2, wy2, io.github.panda17tk.arpg.config.SpaceFishRoster.PILOT, 24 + fRng.nextInt(13), 110f)

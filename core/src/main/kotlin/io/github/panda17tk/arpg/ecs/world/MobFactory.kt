@@ -15,7 +15,7 @@ import io.github.panda17tk.arpg.ecs.components.Velocity
 
 object MobFactory {
     /** Spawn one mob entity at (x,y). waveNum scales hp/speed (legacy makeMobFromKey). */
-    fun spawn(world: World, def: EnemyDef, x: Float, y: Float, waveNum: Int = 1, hpScalePerWave: Float = 0f, speedScalePerWave: Float = 0f, tribe: Int = 0, dashes: Boolean = false, drifter: Boolean = false): Entity {
+    fun spawn(world: World, def: EnemyDef, x: Float, y: Float, waveNum: Int = 1, hpScalePerWave: Float = 0f, speedScalePerWave: Float = 0f, tribe: Int = 0, dashes: Boolean = false, drifter: Boolean = false, schoolGroup: Int = 0): Entity {
         val hs = 1f + (waveNum - 1) * hpScalePerWave
         val ss = 1f + (waveNum - 1) * speedScalePerWave
         val hp = def.hp * hs
@@ -35,6 +35,7 @@ object MobFactory {
                 // used their FIRST attack.
                 level = when (def.tier) { "boss" -> 10; "midboss" -> 5; else -> 1 },
                 homeX = x, homeY = y, // a wild animal's nest/home is where it first appears
+                schoolGroup = schoolGroup,
             )
             it += MobAction()
             it += CreatureMind(
