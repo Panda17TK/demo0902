@@ -113,10 +113,8 @@ object RecordsPanel {
     /** v2.122 引き継ぎ: the page's calm explanation (first line is its header). */
     fun handoverLines(): List<String> = listOf(
         "引き継ぎ",
-        "書き出すと、すべての記録と設定がひとつの引き継ぎ文になり",
-        "クリップボードへ入る（メモ帳などに貼って持ち運べる）",
-        "新しい端末で同じ文をコピーしてから取り込むと、記録がこの形に戻る",
-        "取り込みは今の記録を上書きする——先に書き出しておくと安全",
+        "書き出し: 全記録と設定をクリップボードの一文に",
+        "取り込み: 同じ文を貼って復元 — 今の記録は上書き",
     )
 
     fun handoverButtons(w: Float, h: Float): List<UiButton> {
