@@ -122,7 +122,7 @@ class TutorialController {
         )
         TutorialStep.PICKUP_DUST -> listOf(
             "起動診断 3/6　記憶片を検出: 星屑",
-            "破損プロセスから剥離した記憶片です — 回収してください",
+            "回収してください",
         )
         TutorialStep.DASH -> listOf(
             "起動診断 4/6　緊急推進を確認します",
@@ -130,7 +130,7 @@ class TutorialController {
         )
         TutorialStep.FIND_PLANET -> listOf(
             "起動診断 5/6　近傍に記憶星を検出",
-            "ナビの矢印へ — この星は、あなたをまだ知りません",
+            "ナビの矢印へ",
         )
         TutorialStep.LAND -> listOf(
             "起動診断 6/6　接続可能",
@@ -138,7 +138,7 @@ class TutorialController {
         )
         TutorialStep.OBSERVE -> listOf(
             "地表サーバーに接続　住民出力を確認",
-            "すべての出力が敵とは限りません — 観察してください",
+            "すべてが敵とは限りません",
         )
         TutorialStep.CHILD -> listOf(
             "小型人格プロセスを検出 — この星の子らです",
@@ -146,20 +146,19 @@ class TutorialController {
         )
         TutorialStep.MEMORY -> when (memory) {
             TutorialMemory.PROTECTED -> listOf("星の記憶に記録: 子らを守った", "感謝 +　敵意 −")
-            TutorialMemory.HARMED -> listOf("星の記憶に記録: 子を傷つけた", "警告: この星の敵意ログに残ります — 市の応答が変わる可能性があります")
+            TutorialMemory.HARMED -> listOf("星の記憶に記録: 子を傷つけた", "この星の敵意ログに残ります")
             TutorialMemory.NONE -> listOf("観察を記録した", "この星は、あなたを覚えはじめています")
         }
         TutorialStep.RETURN_PAD -> listOf(
             "帰還パッドへ戻ると離陸できます",
-            "宇宙へ戻れば、この星のスキャンカードに記憶が刻まれています",
         )
         TutorialStep.COMPLETE -> emptyList()
     }
 
     /** The completion line — same whether diagnosed or skipped (skipping never punishes). */
     fun completionToast(): String =
-        if (skipped) "起動診断をスキップ — ヒントはプレイ中にも表示されます"
-        else "起動診断 完了 — 以後、星々はあなたの行動を記録します"
+        if (skipped) "起動診断をスキップ"
+        else "起動診断 完了"
 
     companion object {
         const val MOVE_GOAL = 480f // ~15 tiles of drifting — feel the inertia, don't rush it

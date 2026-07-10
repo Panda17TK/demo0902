@@ -533,7 +533,7 @@ object Hud {
                     fitCenterLabel(batch, font, controlLabel, toggle.centerX, toggle.centerY, toggle.w - 16f)
                 } else {
                     font.color = cHint
-                    fitCenterLabel(batch, font, "スロットをタップで持物と交換", w / 2f, body.y + 22f, body.w - 8f)
+                    fitCenterLabel(batch, font, "タップで交換", w / 2f, body.y + 22f, body.w - 8f)
                     font.color = Color.WHITE
                 }
             }
@@ -557,7 +557,7 @@ object Hud {
                         font.color = cHint; font.draw(batch, "持物は空", body.x + 12f, body.y + body.h - 10f); font.color = Color.WHITE
                     }
                     font.color = cHint
-                    fitCenterLabel(batch, font, note ?: "タップ：消費アイテムを使う / 読み物を読む", w / 2f, body.y + 20f, body.w - 8f)
+                    fitCenterLabel(batch, font, note ?: "タップで使う / 読む", w / 2f, body.y + 20f, body.w - 8f)
                     font.color = Color.WHITE
                 }
             }
@@ -575,7 +575,7 @@ object Hud {
             InvTab.SAVE -> {
                 save?.let { centerLabel(batch, titleFont, it.label, it.centerX, it.centerY) }
                 font.color = cHint
-                fitCenterLabel(batch, font, "この場でランを保存する（やられると消える）", w / 2f, body.y + body.h * 0.30f, body.w - 8f)
+                fitCenterLabel(batch, font, "ランを保存 — やられると消える", w / 2f, body.y + body.h * 0.30f, body.w - 8f)
                 font.color = Color.WHITE
                 note?.let { fitCenterLabel(batch, font, it, w / 2f, body.y + body.h * 0.22f, body.w - 8f) }
             }

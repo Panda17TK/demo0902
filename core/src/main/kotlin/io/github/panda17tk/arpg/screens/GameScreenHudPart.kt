@@ -258,7 +258,7 @@ internal fun GameScreen.drawObjectiveHint(paused: Boolean, hudW: Float, hudH: Fl
                 if (!busy) {
                     Hud.hintPanel(
                         shapes, batch, font, hudViewport,
-                        listOfNotNull(toast, "訓練環境 — 模擬戦闘のみ（ポーズから終了）"), hudH - HINT_TOP,
+                        listOfNotNull(toast, "訓練環境 — 模擬戦闘のみ"), hudH - HINT_TOP,
                     )
                 }
                 return
@@ -270,7 +270,7 @@ internal fun GameScreen.drawObjectiveHint(paused: Boolean, hudW: Float, hudH: Fl
                 if (!busy) {
                 // v2.66 操作ヒント OFF drops the how-to line; the nav/gate compasses stay.
                     val idle = if (!controlHints) null
-                    else if (touchEnabled) "惑星に近づくとカードが出る　惑星をタップで着陸" else "惑星に近づいて [L] で着陸"
+                    else if (touchEnabled) "惑星をタップで着陸" else "惑星に近づいて [L] で着陸"
                     val (ppx, ppy) = with(gw.world) { val t = gw.player[Transform]; t.x to t.y }
                     val nearest = gw.planets.minByOrNull { hypot(it.cx - ppx, it.cy - ppy) }
                     val nav = nearest?.let {
@@ -288,7 +288,7 @@ internal fun GameScreen.drawObjectiveHint(paused: Boolean, hudW: Float, hudH: Fl
                     val shards = with(gw.world) { gw.player[Materials].shards }
                     val gateLine = ws.gate?.let { g ->
                         if (shards < gateNeed()) {
-                            "ゲート鍵 $shards/${gateNeed()}（強敵が落とす）"
+                            "ゲート鍵 $shards/${gateNeed()}"
                         } else {
                             val dx = g.first - ppx; val dy = g.second - ppy
                             val dist = hypot(dx, dy).toInt()
@@ -297,7 +297,7 @@ internal fun GameScreen.drawObjectiveHint(paused: Boolean, hudW: Float, hudH: Fl
                             } else {
                                 if (dy >= 0f) "↓" else "↑"
                             }
-                            "ジャンプゲート $arrow $dist　接近して跳躍"
+                            "ジャンプゲート $arrow $dist"
                         }
                     }
                     Hud.hintPanel(
@@ -316,7 +316,7 @@ internal fun GameScreen.drawObjectiveHint(paused: Boolean, hudW: Float, hudH: Fl
             cachedCard?.let {
                 val hint = when { // v2.34/38: planet or card = the landing button (v2.66: mutable)
                     !controlHints -> ""
-                    touchEnabled -> "惑星かこのカードをタップで着陸"
+                    touchEnabled -> "タップで着陸"
                     else -> "[L] 着陸"
                 }
                 Hud.planetScanCard(shapes, batch, font, Fonts.title, hudViewport, it, hint)
@@ -334,7 +334,7 @@ internal fun GameScreen.drawObjectiveHint(paused: Boolean, hudW: Float, hudH: Fl
         val biome = ws.biome
         val onPad = playerOnEscapePad()
         val hint = when {
-            onPad -> "[L] 脱出パッドから離陸して宇宙へ"
+            onPad -> "[L] 離陸"
             biome != null -> SurfaceObjective.hudLine(biome, elites, ws.society, ws.context ?: PlanetContext.NEUTRAL, ws.rememberedPlanet)
             else -> "[L] 離陸して宇宙へ"
         }
