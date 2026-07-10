@@ -914,7 +914,7 @@ class SceneRenderer {
                 val sp = e[Speech]
                 if (sp.remaining > 0f && sp.text.isNotEmpty()) {
                     val mt = e[Transform]
-                    glyphLayout.setText(font, sp.text)
+                    glyphLayout.setText(font, io.github.panda17tk.arpg.i18n.Lang.tr(sp.text)) // v2.142 英語化第3弾
                     val lw = glyphLayout.width; val lh = abs(glyphLayout.height)
                     tmpC.set(0f, 0f, 0f, 0.5f); shapes.color = tmpC
                     shapes.rect(mt.x - lw / 2f - 4f, mt.y - 20f - lh - 2f, lw + 8f, lh * 2f + 6f)
@@ -930,7 +930,7 @@ class SceneRenderer {
                 val sp = e[Speech]
                 if (sp.remaining > 0f && sp.text.isNotEmpty()) {
                     val mt = e[Transform]
-                    glyphLayout.setText(font, sp.text)
+                    glyphLayout.setText(font, io.github.panda17tk.arpg.i18n.Lang.tr(sp.text)) // v2.142 英語化第3弾
                     font.draw(batch, glyphLayout, mt.x - glyphLayout.width / 2f, mt.y - 20f)
                 }
             }

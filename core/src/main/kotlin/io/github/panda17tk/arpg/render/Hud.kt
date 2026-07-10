@@ -457,7 +457,7 @@ object Hud {
                 EventKind.NEUTRAL -> cHudInk
             }
             font.setColor(base.r, base.g, base.b, alpha)
-            font.draw(batch, e.text, l.stats.x, y)
+            font.draw(batch, io.github.panda17tk.arpg.i18n.Lang.tr(e.text), l.stats.x, y) // v2.142 英語化第3弾
             y -= 20f
         }
         font.color = Color.WHITE
