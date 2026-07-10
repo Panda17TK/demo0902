@@ -53,7 +53,7 @@ class WorldOceanTest {
         val (px, py) = with(gw.world) { gw.player[Transform].let { it.x to it.y } }
         MobFactory.spawn(gw.world, shark, px + 20f, py)
         val hpBefore = with(gw.world) { gw.player[Health].hp }
-        repeat(10) { gw.world.update(dt) }
+        repeat(60) { gw.world.update(dt) } // the lunge telegraphs first (v2.138), then the teeth close
         assertTrue(with(gw.world) { gw.player[Health].hp } < hpBefore, "the tyrant's bite lands on the keeper")
     }
 

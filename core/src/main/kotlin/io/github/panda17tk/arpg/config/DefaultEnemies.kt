@@ -517,6 +517,7 @@ private fun natureWildlife(): Map<String, EnemyDef> = mapOf(
             AttackSpec("lunge", cd = 3.0f, range = 110f, power = 380f),
             AttackSpec("melee", cd = 0.9f, dmg = 12f, range = 16f, arc = 360f),
         ),
+        bravery = 0.45f, // v2.138 公正な野生: a pack hunter, wary of the keeper — threatens, never bites
     ),
     "root_boar" to EnemyDef(
         name = "ねもといのしし", tier = "normal", color = "#9a6b4a", hp = 120f, speed = 66f, w = 28f, h = 24f,
@@ -549,6 +550,7 @@ private fun natureWildlife(): Map<String, EnemyDef> = mapOf(
             AttackSpec("charge_melee", cd = 3.4f, range = 90f, reach = 38f, windup = 0.7f, dmg = 22f, kb = 420f),
             AttackSpec("melee", cd = 0.8f, dmg = 18f, range = 26f, arc = 360f),
         ),
+        bravery = 0.9f, // v2.138 公正な野生: the lord of the wood
     ),
 )
 
@@ -587,6 +589,7 @@ private fun magmaWildlife(): Map<String, EnemyDef> = mapOf(
             AttackSpec("lunge", cd = 3.0f, range = 120f, power = 400f),
             AttackSpec("melee", cd = 0.9f, dmg = 14f, range = 18f, arc = 360f),
         ),
+        bravery = 0.6f, // v2.138 公正な野生: keeps its distance from the big prey
     ),
     "crater_hatchling" to EnemyDef(
         name = "火口の雛", tier = "normal", color = "#f0a050", hp = 18f, speed = 88f, w = 14f, h = 14f,
@@ -616,6 +619,7 @@ private fun iceWildlife(): Map<String, EnemyDef> = mapOf(
             AttackSpec("melee", cd = 0.9f, dmg = 13f, range = 16f, arc = 360f),
         ),
         canBlink = true, // v2.132 縮地: the pale hunter strikes in one stride
+        bravery = 0.8f, // v2.138 公正な野生: the pale hunter crosses the line
     ),
     "frost_worm" to EnemyDef(
         name = "霜の大蟲", tier = "normal", color = "#9fc4d8", hp = 320f, speed = 64f, w = 34f, h = 30f,
@@ -625,6 +629,7 @@ private fun iceWildlife(): Map<String, EnemyDef> = mapOf(
             AttackSpec("charge_melee", cd = 3.4f, range = 90f, reach = 38f, windup = 0.7f, dmg = 22f, kb = 420f),
             AttackSpec("melee", cd = 0.8f, dmg = 18f, range = 26f, arc = 360f),
         ),
+        bravery = 0.9f, // v2.138 公正な野生: the great worm fears nothing
     ),
 )
 
@@ -648,6 +653,7 @@ private fun gasWildlife(): Map<String, EnemyDef> = mapOf(
             AttackSpec("lunge", cd = 3.0f, range = 120f, power = 380f),
             AttackSpec("melee", cd = 1.0f, dmg = 12f, range = 18f, arc = 360f),
         ),
+        bravery = 0.5f, // v2.138 公正な野生: sparks and circles, no more
     ),
     "gravity_whelp" to EnemyDef(
         name = "重力の仔", tier = "normal", color = "#b0c0e0", hp = 16f, speed = 90f, w = 13f, h = 13f,
@@ -675,6 +681,7 @@ private fun deadWildlife(): Map<String, EnemyDef> = mapOf(
         attacks = listOf(
             AttackSpec("charge_melee", cd = 3.6f, range = 80f, reach = 32f, windup = 0.8f, dmg = 18f, kb = 360f),
         ),
+        bravery = 0.85f, // v2.138 公正な野生: an ambusher takes what steps close
     ),
     "ruin_parasite" to EnemyDef(
         name = "廃墟の寄生体", tier = "normal", color = "#7a6f86", hp = 38f, speed = 96f, w = 16f, h = 16f,
@@ -712,6 +719,7 @@ private fun lonelyWildlife(): Map<String, EnemyDef> = mapOf(
             AttackSpec("charge_melee", cd = 3.8f, range = 90f, reach = 36f, windup = 0.8f, dmg = 20f, kb = 400f),
             AttackSpec("melee", cd = 0.9f, dmg = 16f, range = 24f, arc = 360f),
         ),
+        bravery = 0.75f, // v2.138 公正な野生: old, slow, and past fearing
     ),
 )
 
@@ -1032,6 +1040,7 @@ private fun expansionWildlife(): Map<String, EnemyDef> = mapOf(
         seeRange = 380f, contactKB = 200f,
         lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREDATOR, diet = Diet.CARNIVORE, herdAffinity = 0.2f, fear = 0.3f, biome = PlanetBiome.NATURE,
         canBlink = true, // v2.132 縮地: the lynx pounces in one stride
+        bravery = 0.65f, // v2.138 公正な野生: bold, but not that bold
     ),
     "ashwing" to EnemyDef(
         name = "灰翼", tier = "normal", color = "#b08a6a", hp = 22f, speed = 116f, w = 14f, h = 12f,
@@ -1052,6 +1061,7 @@ private fun expansionWildlife(): Map<String, EnemyDef> = mapOf(
         name = "凍て狼", tier = "normal", color = "#9ab0c4", hp = 68f, speed = 102f, w = 22f, h = 18f,
         seeRange = 380f, contactKB = 220f,
         lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREDATOR, diet = Diet.CARNIVORE, herdAffinity = 0.5f, fear = 0.25f, biome = PlanetBiome.ICE,
+        bravery = 0.55f, // v2.138 公正な野生: the cold keeps it careful
     ),
     "sky_grazer" to EnemyDef(
         name = "空の放牧獣", tier = "normal", color = "#c0b890", hp = 140f, speed = 36f, w = 32f, h = 24f,
@@ -1068,6 +1078,7 @@ private fun expansionWildlife(): Map<String, EnemyDef> = mapOf(
         seeRange = 340f, contactKB = 240f,
         lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREDATOR, diet = Diet.CARNIVORE, herdAffinity = 0.1f, fear = 0.2f, territoryRadius = 140f, biome = PlanetBiome.DEAD,
         canBlink = true, // v2.132 縮地: the tomb's hunter strikes in one stride
+        bravery = 0.8f, // v2.138 公正な野生: the tomb's hunter crosses the line
     ),
     "dust_skipper" to EnemyDef(
         name = "塵跳ね", tier = "normal", color = "#b0a890", hp = 20f, speed = 120f, w = 12f, h = 10f,
@@ -1209,51 +1220,61 @@ private fun expansionWildlife(): Map<String, EnemyDef> = mapOf(
         name = "宙鮫", tier = "normal", color = "#7888a0", hp = 90f, speed = 125f, w = 40f, h = 16f,
         seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
         lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREDATOR, diet = Diet.CARNIVORE, herdAffinity = 0.1f, fear = 0.2f, territoryRadius = 160f, 
+        bravery = 0.65f, // v2.138 公正な野生: circles the keeper, seldom commits
     ),
     "rift_cuda" to EnemyDef(
         name = "裂け目梭魚", tier = "normal", color = "#90a4b8", hp = 55f, speed = 150f, w = 30f, h = 8f,
         seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
         lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREDATOR, diet = Diet.CARNIVORE, herdAffinity = 0.1f, fear = 0.25f, 
+        bravery = 0.6f, // v2.138 公正な野生: a darting hunter of smaller things
     ),
     "abyss_lure" to EnemyDef(
         name = "淵提灯", tier = "normal", color = "#7060a0", hp = 45f, speed = 45f, w = 22f, h = 14f,
         seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
         lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREDATOR, diet = Diet.CARNIVORE, herdAffinity = 0.1f, fear = 0.3f, 
+        bravery = 0.75f, // v2.138 公正な野生: the angler takes whatever drifts to the light
     ),
     "ember_piranha" to EnemyDef(
         name = "焔歯魚", tier = "normal", color = "#d86848", hp = 25f, speed = 130f, w = 12f, h = 8f,
         seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
         lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREDATOR, diet = Diet.CARNIVORE, herdAffinity = 0.5f, fear = 0.35f, 
+        bravery = 0.8f, // v2.138 公正な野生: frenzy knows no caution
     ),
     "star_moray" to EnemyDef(
         name = "星鱓", tier = "normal", color = "#687858", hp = 60f, speed = 70f, w = 34f, h = 10f,
         seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
         lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREDATOR, diet = Diet.CARNIVORE, herdAffinity = 0.1f, fear = 0.25f, 
+        bravery = 0.7f, // v2.138 公正な野生: just brave enough to snap
     ),
     "thunder_marlin" to EnemyDef(
         name = "雷梶木", tier = "normal", color = "#6888c0", hp = 70f, speed = 170f, w = 38f, h = 10f,
         seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
         lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREDATOR, diet = Diet.CARNIVORE, herdAffinity = 0.1f, fear = 0.2f, 
+        bravery = 0.6f, // v2.138 公正な野生: fast, but not foolhardy
     ),
     "dusk_gar" to EnemyDef(
         name = "宵鱗魚", tier = "normal", color = "#907858", hp = 50f, speed = 95f, w = 32f, h = 8f,
         seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
         lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREDATOR, diet = Diet.CARNIVORE, herdAffinity = 0.1f, fear = 0.3f, 
+        bravery = 0.55f, // v2.138 公正な野生: an ambusher of fish, not keepers
     ),
     "gravity_whale" to EnemyDef(
         name = "重力鯨", tier = "normal", color = "#5a6a88", hp = 400f, speed = 45f, w = 70f, h = 30f,
         seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
         lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.APEX, diet = Diet.CARNIVORE, herdAffinity = 0.1f, fear = 0.05f, territoryRadius = 200f, 
+        bravery = 0.2f, // v2.138 公正な野生: vast and utterly gentle
     ),
     "song_whale" to EnemyDef(
         name = "歌鯨", tier = "normal", color = "#7a88a8", hp = 380f, speed = 40f, w = 66f, h = 28f,
         seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
         lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.APEX, diet = Diet.CARNIVORE, herdAffinity = 0.1f, fear = 0.05f, territoryRadius = 180f, 
+        bravery = 0.15f, // v2.138 公正な野生: it only sings
     ),
     "old_coelacanth" to EnemyDef(
         name = "古の腔棘魚", tier = "normal", color = "#4a5868", hp = 120f, speed = 55f, w = 36f, h = 16f,
         seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
         lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.APEX, diet = Diet.CARNIVORE, herdAffinity = 0.1f, fear = 0.15f, territoryRadius = 140f, 
+        bravery = 0.5f, // v2.138 公正な野生: too old for fights it can avoid
     ),
 
     // --- v2.135 満ちる海: the tyrant, the island, and the island's retinue ---

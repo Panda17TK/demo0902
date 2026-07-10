@@ -27,7 +27,9 @@ class EcologyDynamicsTest {
         val (px, py) = with(gw.world) { gw.player[Transform].let { it.x to it.y } }
         MobFactory.spawn(gw.world, apex, px + 20f, py)
         val hpBefore = with(gw.world) { gw.player[Health].hp }
-        repeat(10) { gw.world.update(dt) }
+        repeat(12) { gw.world.update(dt) } // inside the windup — the lunge is telegraphed, not instant (v2.138)
+        assertTrue(with(gw.world) { gw.player[Health].hp } == hpBefore, "no instant bite — the lunge telegraphs first")
+        repeat(48) { gw.world.update(dt) } // the windup passes; the teeth close
         val hpAfter = with(gw.world) { gw.player[Health].hp }
         assertTrue(hpAfter < hpBefore, "the bite lands ($hpBefore -> $hpAfter)")
     }
@@ -38,7 +40,7 @@ class EcologyDynamicsTest {
         val (px, py) = with(gw.world) { gw.player[Transform].let { it.x to it.y } }
         MobFactory.spawn(gw.world, timid, px + 20f, py)
         val hpBefore = with(gw.world) { gw.player[Health].hp }
-        repeat(10) { gw.world.update(dt) }
+        repeat(60) { gw.world.update(dt) }
         val hpAfter = with(gw.world) { gw.player[Health].hp }
         assertEquals(hpBefore, hpAfter, "a timid beast only threatens")
     }

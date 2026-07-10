@@ -149,7 +149,9 @@ class WildlifeSystem : IteratingSystem(family { all(Mob, Transform, Velocity, Bo
                     entity.getOrNull(io.github.panda17tk.arpg.ecs.components.MobAction)?.let { a ->
                         if (a.dodgeCd <= 0f && a.blinkT <= 0f && a.blinkChargeT <= 0f) {
                             a.blinkDx = dx * (l - 28f); a.blinkDy = dy * (l - 28f)
-                            a.blinkTotal = 0.10f; a.blinkT = 0.10f
+                            // v2.138 公正な野生: the strike CHARGES first (MobActionSystem's telegraph),
+                            // a readable beat before the teleport — the flee-blink stays instant.
+                            a.blinkTotal = 0.10f; a.blinkChargeT = BLINK_STRIKE_WINDUP
                             a.dodgeCd = BLINK_FLEE_CD
                         }
                     }
@@ -192,6 +194,7 @@ class WildlifeSystem : IteratingSystem(family { all(Mob, Transform, Velocity, Bo
         private const val BLINK_FLEE_CD = 2.6f
         private const val BLINK_STRIKE_MIN = 80f  // v2.132 縮地: too close needs no stride...
         private const val BLINK_STRIKE_MAX = 220f // ...too far and the hunter keeps padding
+        private const val BLINK_STRIKE_WINDUP = 0.22f // v2.138: the offensive blink telegraphs this long
         private const val TAU = 6.2831855f
         private const val KNOCK_DECAY = 0.02f      // knockback velocity bleeds fast
         private const val DRIFT_DECAY = 0.8f       // gravity/crash momentum bleeds ~20%/s

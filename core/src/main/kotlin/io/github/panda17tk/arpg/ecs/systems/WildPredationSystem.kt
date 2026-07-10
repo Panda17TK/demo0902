@@ -29,6 +29,7 @@ import kotlin.math.hypot
 class WildPredationSystem(private val mobGrid: SpatialGrid<Entity>) :
     IteratingSystem(family { all(Mob, Transform, Health) }) {
     private val config: GameConfig = world.inject()
+    private val fx: io.github.panda17tk.arpg.ecs.components.Fx = world.inject()
     private val difficulty: io.github.panda17tk.arpg.sim.Difficulty = world.inject()
     private val players by lazy { world.family { all(PlayerTag, Transform, Health, Velocity) } }
 
@@ -45,26 +46,40 @@ class WildPredationSystem(private val mobGrid: SpatialGrid<Entity>) :
         if (pred.feedCd > 0f) { pred.feedCd -= deltaTime; return } // one bite per cooldown — skip the scan while chewing
 
         val t = entity[Transform]
-        // v2.132 近接: a BRAVE hunter mid-hunt snaps at the keeper standing in its way.
+        // v2.132 近接 / v2.138 公正な野生: a BRAVE hunter mid-hunt lunges at the keeper — but the
+        // lunge is TELEGRAPHED: a warn ring and a short windup before the teeth close, the same
+        // fairness a hostile's charge windup gives. Step out of reach and the lunge whiffs.
         if (pred.def.bravery >= Predation.BRAVE) {
-            var bit = false
+            var engaged = false
             players.forEach { e ->
-                if (bit) return@forEach
+                if (engaged) return@forEach
                 val pt = e[Transform]; val ph = e[Health]
                 val d = hypot(pt.x - t.x, pt.y - t.y)
-                if (d < BITE_RANGE && ph.iTime <= 0f) {
-                    ph.hp -= Predation.biteDamage(pred.def) *
-                        (e.getOrNull(Gear)?.loadout?.damageTakenMul ?: 1f) * difficulty.dmgTakenMul *
-                        (e.getOrNull(Mods)?.armorMul ?: 1f)
-                    ph.iTime = config.ai.iFrameContact
-                    val dd = d.coerceAtLeast(0.0001f)
-                    e[Velocity].vx += (pt.x - t.x) / dd * pred.def.contactKB
-                    e[Velocity].vy += (pt.y - t.y) / dd * pred.def.contactKB
-                    pred.feedCd = FEED_CD
-                    bit = true
+                if (d < BITE_RANGE * ENGAGE_MUL) {
+                    engaged = true
+                    if (pred.biteWindup <= 0f) {
+                        pred.biteWindup = BITE_WINDUP
+                        fx.spawnWarnRing(t.x, t.y)
+                    } else {
+                        pred.biteWindup -= deltaTime
+                        if (pred.biteWindup <= 0f) {
+                            pred.biteWindup = 0f
+                            if (d < BITE_RANGE && ph.iTime <= 0f) {
+                                ph.hp -= Predation.biteDamage(pred.def) *
+                                    (e.getOrNull(Gear)?.loadout?.damageTakenMul ?: 1f) * difficulty.dmgTakenMul *
+                                    (e.getOrNull(Mods)?.armorMul ?: 1f)
+                                ph.iTime = config.ai.iFrameContact
+                                val dd = d.coerceAtLeast(0.0001f)
+                                e[Velocity].vx += (pt.x - t.x) / dd * pred.def.contactKB
+                                e[Velocity].vy += (pt.y - t.y) / dd * pred.def.contactKB
+                                pred.feedCd = FEED_CD
+                            }
+                        }
+                    }
                 }
             }
-            if (bit) return
+            if (engaged) return // committed to the keeper — no prey scan this tick
+            pred.biteWindup = 0f // the keeper slipped away; the lunge resets
         }
         var prey: Entity? = null
         var preyD = Float.MAX_VALUE
@@ -90,5 +105,7 @@ class WildPredationSystem(private val mobGrid: SpatialGrid<Entity>) :
     companion object {
         private val BITE_RANGE = Tuning.TILE * 1.25f // close enough to land a bite (~40px)
         private const val FEED_CD = 0.8f             // seconds between bites on the same meal
+        private const val BITE_WINDUP = 0.45f        // v2.138: the lunge telegraphs this long before the teeth close
+        private const val ENGAGE_MUL = 1.6f          // ...and commits when the keeper is within range × this
     }
 }
