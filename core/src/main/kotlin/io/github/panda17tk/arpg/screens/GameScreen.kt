@@ -664,13 +664,8 @@ class GameScreen(
                 tutPrevDust = dustNow
                 if (input.dash) t.onDash()
                 if (cachedCard != null) t.onScan()
-                // v2.61 Layer 2: the first surface — observe, the child, the star writing it down.
-                if (gw.worldState.mode == WorldMode.SURFACE) {
-                    t.onSurfaceTick(simDelta)
-                    val soc = gw.worldState.society
-                    if (soc.childHarmed || soc.childKilled) t.onSocietyEvent(protected = false)
-                    else if (soc.predatorKilledNearChild || soc.mercy > 0.05f) t.onSocietyEvent(protected = true)
-                }
+                // v2.61/v2.146 Layer 2: the first surface — a single observe beat, then home.
+                if (gw.worldState.mode == WorldMode.SURFACE) t.onSurfaceTick(simDelta)
                 if (t.done) finishTutorial()
             }
         }
