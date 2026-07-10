@@ -64,9 +64,10 @@ class MobDamageSystem(private val grid: SpatialGrid<Entity>) :
             // v2.132 敵対: a hunter's kill of a SAPIENT is the wild's deed too — no score, no loot
             // (the fellByWild flag now guards both sides of the lifeKind fence).
             if (wild && mob.def.wildRole == WildRole.PREDATOR) {
-                // v2.69 護衛: one less predator pressing on the children (whoever felled it —
-                // the ecosystem's own kills count too; the star only sees the pressure lift).
-                worldState.questPredators++
+                // v2.69 護衛 / v2.138 公正な野生: only the KEEPER's kills fulfil the escort —
+                // the apex eating a wolf is the food web at work, not the player's deed
+                // (predators die to each other constantly now; the quest must not self-complete).
+                if (!mob.fellByWild) worldState.questPredators++
             }
             // v2.85 段階的な死 / v2.88 撃破の儀式: bodies squash out, then burst. A true boss or a
             // bounty head goes grander — five chained blasts, a white-out, a longer slow-mo and a

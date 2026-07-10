@@ -31,15 +31,16 @@ class EcologyBalanceTest {
 
     @Test fun `a brave hunter preys on sapient adults - a timid one keeps the old line`() {
         val defs = GameConfig().enemies
-        val wolf = defs.getValue("fang_wolf")          // default bravery 1f — brave
+        val stalker = defs.getValue("white_stalker")   // v2.138: one of the brave few
+        val wolf = defs.getValue("fang_wolf")          // v2.138: the timid majority
         val apex = defs.getValue("forest_apex")
         val shaman = defs.getValue("spore_shaman")     // a sapient adult of the camp
         assertEquals(LifeKind.SAPIENT, shaman.lifeKind)
-        assertTrue(wolf.bravery >= Predation.BRAVE && apex.bravery >= Predation.BRAVE)
-        assertTrue(Predation.canPredate(wolf, shaman), "a brave predator crosses the camp line")
+        assertTrue(stalker.bravery >= Predation.BRAVE && apex.bravery >= Predation.BRAVE)
+        assertTrue(wolf.bravery < Predation.BRAVE, "the wolf keeps the old line now")
+        assertTrue(Predation.canPredate(stalker, shaman), "a brave predator crosses the camp line")
         assertTrue(Predation.canPredate(apex, shaman), "an apex crosses it too")
-        assertFalse(Predation.canPredate(wolf.copy(bravery = 0.2f), shaman),
-            "a timid hunter still only threatens sapients")
+        assertFalse(Predation.canPredate(wolf, shaman), "a timid hunter still only threatens sapients")
         assertFalse(Predation.canPredate(defs.getValue("horn_deer"), shaman), "a grazer never hunts")
     }
 }

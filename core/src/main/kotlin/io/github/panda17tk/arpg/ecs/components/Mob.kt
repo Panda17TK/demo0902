@@ -32,6 +32,7 @@ class Mob(
     var wanderCd: Float = 0f, // re-roll timer for the idle wander heading
     var feedCd: Float = 0f,   // cooldown between predation bites
     var fellByWild: Boolean = false, // v2.130 図鑑: set when a predator's bite (not the player) lands the kill
+    var biteWindup: Float = 0f, // v2.138 公正な野生: a brave hunter's lunge at the keeper telegraphs this long first
     var homeX: Float = 0f,    // nest / home position (set to the spawn point); nest-guards return here
     var homeY: Float = 0f,
 ) : Component<Mob> {
