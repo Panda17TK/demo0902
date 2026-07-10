@@ -315,7 +315,7 @@ object WorldFactory {
         // completion and live caps, so a drifter at the map's far edge never stalls the wave train.
         if (mode != WorldMode.SURFACE) {
             val driftersRng = Rng(seed xor 0x00D21F7E5L)
-            val normalKeys = config.enemies.filterValues { it.tier == "normal" && it.biome == null && it.lifeKind == io.github.panda17tk.arpg.config.LifeKind.HOSTILE }.keys.toList() // v2.130: fish are not drifters
+            val normalKeys = config.enemies.filterValues { it.tier == "normal" && it.biome == null && it.lifeKind != io.github.panda17tk.arpg.config.LifeKind.WILDLIFE }.keys.toList() // v2.130/v2.141: fish are not drifters — sapient wanderers are
             if (normalKeys.isNotEmpty()) {
                 repeat(SPACE_DRIFTERS) {
                     val def = config.enemies[normalKeys[driftersRng.nextInt(normalKeys.size)]] ?: return@repeat
@@ -366,18 +366,13 @@ object WorldFactory {
             val rawX = (spawnX + kotlin.math.cos(fa) * fd).coerceIn(Tuning.TILE * 4f, fww - Tuning.TILE * 4f)
             val rawY = (spawnY + kotlin.math.sin(fa) * fd).coerceIn(Tuning.TILE * 4f, fwh - Tuning.TILE * 4f)
             val (sx, sy) = snapToFloor(map, rawX, rawY)
-            shoalAt(sx, sy, if (fRng.nextFloat() < 0.5f) "star_sardine" else "void_aji", 90 + fRng.nextInt(21), 130f)
-            val hunters = listOf("void_shark", "rift_cuda", "abyss_lure", "ember_piranha", "star_moray", "thunder_marlin", "dusk_gar")
+            shoalAt(sx, sy, io.github.panda17tk.arpg.config.SpaceFishRoster.TINY[if (fRng.nextFloat() < 0.5f) 0 else 1], 90 + fRng.nextInt(21), 130f)
+            val hunters = io.github.panda17tk.arpg.config.SpaceFishRoster.HUNTERS // v2.141: the roster object is the spawn truth
             if (fRng.nextFloat() < 0.55f) shoalAt(sx, sy, hunters[fRng.nextInt(hunters.size)], 1, 320f)
             // v2.135 満ちる海: one group per map sector (3×3) — the ocean fills the WHOLE sky,
             // not a single clump by the pad. Every sky now hosts fish, wherever the keeper drifts.
-            val mediums = listOf("comet_saury", "nebula_herring", "gate_smelt", "drift_capelin")
-            val singles = listOf(
-                "stardust_minnow", "aurora_trout", "magnet_catfish", "crystal_seahorse", "moon_flounder",
-                "glass_icefish", "rust_grouper", "twin_sole", "cloud_puffer", "ring_saba", "debris_goby",
-                "silver_arowana", "pale_dolphin", "sun_tang", "echo_pike", "warp_flyfish", "blink_darter",
-                "void_koi", "lantern_angler",
-            )
+            val mediums = io.github.panda17tk.arpg.config.SpaceFishRoster.MEDIUMS
+            val singles = io.github.panda17tk.arpg.config.SpaceFishRoster.SINGLES
             for (gy in 0 until 3) for (gx in 0 until 3) {
                 val (px2, py2) = snapToFloor(
                     map,
@@ -389,15 +384,15 @@ object WorldFactory {
                 if (fRng.nextFloat() < 0.2f) shoalAt(px2, py2, hunters[fRng.nextInt(hunters.size)], 1, 320f)
             }
             // rarely something vast passes by, anywhere in the sky
-            val giants = listOf("gravity_whale", "song_whale", "old_coelacanth")
+            val giants = io.github.panda17tk.arpg.config.SpaceFishRoster.GIANTS
             if (fRng.nextFloat() < 0.25f) { val (vx2, vy2) = site(); shoalAt(vx2, vy2, giants[fRng.nextInt(giants.size)], 1, 200f) }
             // v2.135 暴君鮫: some skies belong to the tyrant — an apex that hunts sapients and the keeper
-            if (fRng.nextFloat() < 0.45f) { val (tx2, ty2) = site(); shoalAt(tx2, ty2, "tyrant_shark", 1, 0f) }
+            if (fRng.nextFloat() < 0.45f) { val (tx2, ty2) = site(); shoalAt(tx2, ty2, io.github.panda17tk.arpg.config.SpaceFishRoster.TYRANT, 1, 0f) }
             // v2.135 島鯨: a drifting island trailing its retinue of pilot fish
             if (fRng.nextFloat() < 0.5f) {
                 val (wx2, wy2) = site()
-                shoalAt(wx2, wy2, "isle_whale", 1, 0f)
-                shoalAt(wx2, wy2, "pilot_minnow", 24 + fRng.nextInt(13), 110f)
+                shoalAt(wx2, wy2, io.github.panda17tk.arpg.config.SpaceFishRoster.WHALE, 1, 0f)
+                shoalAt(wx2, wy2, io.github.panda17tk.arpg.config.SpaceFishRoster.PILOT, 24 + fRng.nextInt(13), 110f)
             }
         }
 
@@ -441,7 +436,7 @@ object WorldFactory {
         // drifter picket (drifters — they aggro on approach but never stall the wave train).
         if (mode != WorldMode.SURFACE && worldState.wrecks.isNotEmpty()) {
             val lootRng = Rng(seed xor 0x100CCAFEL)
-            val guardKeys = config.enemies.filterValues { it.tier == "normal" && it.biome == null && it.lifeKind == io.github.panda17tk.arpg.config.LifeKind.HOSTILE }.keys.toList() // v2.130
+            val guardKeys = config.enemies.filterValues { it.tier == "normal" && it.biome == null && it.lifeKind != io.github.panda17tk.arpg.config.LifeKind.WILDLIFE }.keys.toList() // v2.130/v2.141
             for ((wx, wy) in worldState.wrecks) {
                 Pickups.spawn(world, "item:" + ItemCatalog.gunFor(lootRng.nextInt(1000)).id, 1, wx, wy)
                 Pickups.spawn(world, "dust", 25 + lootRng.nextInt(36), wx + 16f, wy + 6f)
