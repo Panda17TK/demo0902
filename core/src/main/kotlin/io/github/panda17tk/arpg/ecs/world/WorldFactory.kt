@@ -226,7 +226,7 @@ object WorldFactory {
                 add(EventFeedSystem())
                 add(GameOverSystem())
                 add(MovementSystem())
-                add(RestRegenSystem()) // v2.83: stand still, heal 1/s
+                add(RestRegenSystem(mobGrid)) // v2.83: stand still, heal 1/s
                 add(GravitySystem())
                 add(LandingSystem())
                 add(BuildSystem())
@@ -356,14 +356,34 @@ object WorldFactory {
             val mediums = io.github.panda17tk.arpg.config.SpaceFishRoster.MEDIUMS
             val singles = io.github.panda17tk.arpg.config.SpaceFishRoster.SINGLES
             val tiny = io.github.panda17tk.arpg.config.SpaceFishRoster.TINY
+            // v2.157 読む海: one flock per sector schools around a LANDMARK instead — following
+            // the fish now leads somewhere (a wreck, the comet, the trader).
+            val fishPoi = buildList {
+                addAll(worldState.wrecks)
+                worldState.comet?.let { add(it) }
+                worldState.trader?.let { add(it) }
+            }
+            // own rng stream: the landmark draw must not shift fRng — every fish position of
+            // every existing seed would move, and the seed-tuned tests with them.
+            val poiRng = Rng(seed xor 0x0F15D0C5L)
+            fun poiPoint(): Pair<Float, Float>? {
+                if (fishPoi.isEmpty()) return null
+                val (bx, by) = fishPoi[poiRng.nextInt(fishPoi.size)]
+                return snapToFloor(
+                    map,
+                    (bx + (poiRng.nextFloat() - 0.5f) * 500f).coerceIn(Tuning.TILE * 4f, fww - Tuning.TILE * 4f),
+                    (by + (poiRng.nextFloat() - 0.5f) * 500f).coerceIn(Tuning.TILE * 4f, fwh - Tuning.TILE * 4f),
+                )
+            }
             for (gy in 0 until 3) for (gx in 0 until 3) {
                 fun sectorPoint(): Pair<Float, Float> = snapToFloor(
                     map,
                     fww / 3f * (gx + 0.15f + fRng.nextFloat() * 0.7f),
                     fwh / 3f * (gy + 0.15f + fRng.nextFloat() * 0.7f),
                 )
-                repeat(5) { // the tiny schools ARE the ocean now — five flocks per sector, ~100 strong each
-                    val (px2, py2) = sectorPoint()
+                repeat(5) { k -> // the tiny schools ARE the ocean now — five flocks per sector, ~100 strong each
+                    val sp = sectorPoint() // always drawn — fRng's sequence stays byte-identical to v2.156
+                    val (px2, py2) = (if (k == 0) poiPoint() else null) ?: sp // v2.157: the first schools by a landmark
                     shoalAt(px2, py2, tiny[fRng.nextInt(tiny.size)], 80 + fRng.nextInt(41), 150f)
                 }
                 repeat(3) {
