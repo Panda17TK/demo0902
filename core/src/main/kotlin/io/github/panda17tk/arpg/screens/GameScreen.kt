@@ -132,6 +132,7 @@ internal const val GATE_TAP_R = 96f       // v2.44: world-px radius that counts 
 internal const val TRAINING_SEED = 4242L   // v2.53: the simulation always rebuilds the same arena
 internal const val HINT_TOP = 138f          // v2.54: hint panels start below the top HUD band
 internal const val BOSSBAR_RANGE = 680f     // v2.88: a heavy inside this range owns the boss bar
+internal const val TYRANT_TERRITORY = 1200f // v2.157 読む海: the tyrant's water announces itself
 internal const val SELL_UNDO_TIME = 8f     // v2.118 戻す: how long the last sale can be taken back
 internal const val SETTINGS_PREFS = "drift-settings" // v2.39: device-level settings (not run state)
 internal const val SETTINGS_SWAP = "controlSwap"
@@ -297,6 +298,7 @@ class GameScreen(
     internal var foesCache = -1
     internal var foesRescan = 0
     internal var bossScanT = 99f
+    internal var tyrantScanT = 0 // v2.157 読む海: the territory scan cadence
     internal var bossScanName: String? = null
     internal var bossScanFrac = 1f
     internal var duckLevel = 1f // v2.89: the running ambient duck
@@ -729,6 +731,25 @@ class GameScreen(
                     rewardToast = WreckLog.lineFor(worldSeed, i)
                     rewardToastT = TOAST_TIME
                     Sfx.play("scan")
+                }
+            }
+        }
+        // v2.157 読む海: crossing into the tyrant's water announces it — once per sky. The notice
+        // marks the territory: high risk, whale-class bounty (throttled scan, every ~30 frames).
+        if (!paused && !simMode && !gw.worldState.tyrantWarned && gw.worldState.mode == WorldMode.SPACE && ++tyrantScanT >= 30) {
+            tyrantScanT = 0
+            val (tpx2, tpy2) = with(gw.world) { val t = gw.player[Transform]; t.x to t.y }
+            with(gw.world) {
+                gw.world.family { all(Mob, Transform) }.forEach { e ->
+                    if (gw.worldState.tyrantWarned) return@forEach
+                    if (e[Mob].def.id != "tyrant_shark") return@forEach
+                    val t = e[Transform]
+                    if (hypot(t.x - tpx2, t.y - tpy2) < TYRANT_TERRITORY) {
+                        gw.worldState.tyrantWarned = true
+                        rewardToast = "暴君の縄張りに入った"
+                        rewardToastT = TOAST_TIME
+                        Sfx.play("hit")
+                    }
                 }
             }
         }

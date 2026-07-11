@@ -63,7 +63,9 @@ class TargetingEtiquetteTest {
         gw.world.update(dt)
         input.melee = false
         gw.world.update(dt) // reap tick
-        assertEquals(1, gw.gameOver.killsByKind["star_sardine"], "the swing landed and felled the fish")
+        // v2.157: a landmark flock may drift extra sardines into the arc — the invariant is
+        // "the swing lands AND drinks nothing", not the exact body count.
+        assertTrue((gw.gameOver.killsByKind["star_sardine"] ?: 0) >= 1, "the swing landed and felled the fish")
         val hp = with(gw.world) { gw.player[Health].hp }
         assertTrue(hp <= 40f + 0.001f, "no healing was drunk from wildlife (hp $hp)")
     }

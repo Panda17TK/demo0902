@@ -133,6 +133,7 @@ object Lang {
         "タップで着陸" to "Tap to land",
         "[L] 離陸" to "[L] Lift off",
         "[L] 離陸して宇宙へ" to "[L] Lift off to space",
+        "暴君の縄張りに入った" to "You have entered the tyrant's water", // v2.157 読む海
         // 持物 / インベントリ
         "装備" to "Gear",
         "アイテム" to "Items",
