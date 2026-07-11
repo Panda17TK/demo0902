@@ -292,7 +292,7 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
         aggressive: Boolean, brawl: Boolean, smarts: Float, see: Boolean,
         dist: Float, dx: Float, dy: Float, toPx: Float, toPy: Float, px: Float, py: Float,
     ) {
-        val hasRanged = m.def.attacks.any { it.type == "shot" }
+        val hasRanged = m.def.attacks.any { it.type in RANGED_TYPES } // v2.152: homing/burst/nova… kite too
         val cover = if (aggressive && !brawl && smarts > COVER_SMARTS && see) coverDir(t.x, t.y, px, py) else null
         // Rallying defenders surge; everyone else moves at their normal effective speed.
         val moveEff = eff * if (mind.state == CreatureState.Rally) RALLY_SPEED else 1f
@@ -473,6 +473,8 @@ class AISystem(private val mobGrid: SpatialGrid<Entity>) :
     }
 
     companion object {
+        // v2.152 目覚めた牙: every projectile archetype counts as ranged for the kite brain
+        internal val RANGED_TYPES = setOf("shot", "twin_shot", "spray", "spiral", "nova", "homing", "burst", "barrage")
         private val COH_RADIUS = Tuning.TILE * 5f // same-tribe cohesion + hostile-scan radius
         private val HOSTILE_RANGE = Tuning.TILE * 7f // lock onto a hostile-tribe mob within this range
         private const val COH_W = 0.22f // herd cohesion weight (< separation's 0.5 so herds don't collapse)
