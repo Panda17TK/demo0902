@@ -271,7 +271,7 @@ internal fun GameScreen.drawEnding() {
         var y = h * (if (endingStage == pages.size + 1) 0.80f else 0.62f)
         cEventTmp.set(0.90f, 0.93f, 1f, 1f); font.color = cEventTmp
         for (line in lines) {
-            bannerGlyph.setText(font, line)
+            bannerGlyph.setText(font, io.github.panda17tk.arpg.i18n.Lang.tr(line)) // v2.162 英語化第4弾
             font.draw(batch, bannerGlyph, (w - bannerGlyph.width) / 2f, y)
             y -= 30f
         }
@@ -282,7 +282,7 @@ internal fun GameScreen.drawEnding() {
             else -> "タップで記録を閉じる"
         }
         if (hint.isNotEmpty()) {
-            bannerGlyph.setText(font, hint)
+            bannerGlyph.setText(font, io.github.panda17tk.arpg.i18n.Lang.tr(hint)) // v2.162
             font.draw(batch, bannerGlyph, (w - bannerGlyph.width) / 2f, h * 0.16f)
         }
         if (endingStage == pages.size + 1) {
