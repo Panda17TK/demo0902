@@ -571,6 +571,7 @@ class GameScreen(
         foldBestiary() // v2.113: fold before the swap
         val carry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
         worldSeed = seed
+        gw.world.dispose() // v2.153: release the outgoing world's systems at the seam
         gw = WorldFactory.create(input, configStore.config, seed, mode, biome, carry, spawn, context, society, weather, boons = metaBoons, trait = if (mode == WorldMode.SPACE) SystemTraits.traitFor(session.spaceSeed) else SystemTrait.NONE, difficulty = runDifficulty)
         gw.waveState.num = carry.wave
         accumulator = 0f; camInit = false; overlay = Overlay.NONE
@@ -1295,6 +1296,7 @@ class GameScreen(
         shapes.dispose()
         batch.dispose()
         font.dispose()
-        Sfx.dispose()
+        // v2.153: Sfx is process-wide (App owns init/dispose) — disposing here silenced every
+        // menu click after the first play session.
     }
 }

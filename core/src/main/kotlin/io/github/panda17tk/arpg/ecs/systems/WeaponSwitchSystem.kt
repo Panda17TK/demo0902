@@ -15,6 +15,7 @@ class WeaponSwitchSystem : IteratingSystem(family { all(PlayerTag, Arsenal) }) {
     override fun onTickEntity(entity: Entity) {
         val slot = input.weaponSlot
         if (slot < 0) return
+        input.weaponSlot = -1 // v2.153: the request persists across frames — consume it here
         val arsenal = entity[Arsenal]
         if (slot >= arsenal.weapons.size) return
         arsenal.curW = slot

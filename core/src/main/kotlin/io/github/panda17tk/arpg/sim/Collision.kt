@@ -13,9 +13,22 @@ data class CollisionResult(val x: Float, val y: Float, val hitX: Boolean, val hi
  * Returns the resolved position + which axes were blocked.
  */
 object Collision {
+    /** True when the AABB overlaps any solid tile (strictly — flush contact does not count). */
+    private fun overlapsSolid(map: TileMap, x: Float, y: Float, halfW: Float, halfH: Float): Boolean {
+        val x0 = floor((x - halfW) / Tuning.TILE).toInt(); val x1 = floor((x + halfW) / Tuning.TILE).toInt()
+        val y0 = floor((y - halfH) / Tuning.TILE).toInt(); val y1 = floor((y + halfH) / Tuning.TILE).toInt()
+        for (ty in y0..y1) for (tx in x0..x1) if (map.solidAt(tx, ty)) return true
+        return false
+    }
+
     fun moveAndCollide(
         map: TileMap, x: Float, y: Float, halfW: Float, halfH: Float, dx: Float, dy: Float,
     ): CollisionResult {
+        // v2.153: an entity already embedded in rock (spawned or shoved inside) must be able to
+        // leave — the face guards below only stop CROSSINGS, so an embedded start pins forever.
+        if (overlapsSolid(map, x, y, halfW - 0.5f, halfH - 0.5f)) {
+            return CollisionResult(x + dx, y + dy, hitX = false, hitY = false)
+        }
         // --- X axis ---
         var px = x + dx
         var hitX = false

@@ -51,7 +51,11 @@ class TouchControls {
 
     /** [swapMeleeFire] (v2.39): the inventory toggle — the right stick swings the melee arm and the
      *  ML button fires the gun (hold to fire; releasing it is the manual-fire edge). */
-    fun poll(input: InputState, viewport: Viewport, blocks: Int, mag: Int, magSize: Int?, canLand: Boolean, hasOverclock: Boolean = false, swapMeleeFire: Boolean = false, tuneMode: Boolean = false) {
+    fun poll(input: InputState, viewport: Viewport, blocks: Int, mag: Int, magSize: Int?, canLand: Boolean, hasOverclock: Boolean = false, swapMeleeFire: Boolean = false, tuneMode: Boolean = false, ownedWeapons: Int = WEAPON_SLOTS) {
+        // v2.153: a modal froze the edge trackers — sync them this frame but emit no edges,
+        // or resuming from pause fires a beam at the last stale aim.
+        val emit = !suppressEdges
+        suppressEdges = false
         layout.screenW = viewport.worldWidth; layout.screenH = viewport.worldHeight
         val vis = TouchButtons.visible(blocks, mag, magSize, canLand, hasOverclock, tuneMode)
         visibleButtons = vis
@@ -119,7 +123,7 @@ class TouchControls {
         // Manual-fire weapons (beam/grenade) shoot when you RELEASE the aim stick: emit a one-frame release edge
         // and hold the last aim so Facing (and thus the shot) stays pointed where you were aiming.
         val aimingNow = input.aiming
-        if (!swapMeleeFire && prevAiming && !aimingNow) {
+        if (emit && !swapMeleeFire && prevAiming && !aimingNow) {
             input.fireRelease = true
             input.aiming = true
             input.aimX = lastAimX; input.aimY = lastAimY
@@ -129,14 +133,18 @@ class TouchControls {
         if (swapMeleeFire) {
             // The ML button IS the trigger: hold to fire, release = the manual-fire edge (beam/grenade).
             if (melee) input.fire = true
-            if (!melee && prevMelee) input.fireRelease = true
-        } else if (melee && !prevMelee) input.melee = true
-        if (reload && !prevReload) input.reload = true
-        if (wall && !prevWall) input.placeWall = true
-        if (weapon && !prevWeapon) { input.weaponSlot = weaponIdx; weaponIdx = (weaponIdx + 1) % WEAPON_SLOTS }
-        if (land && !prevLand) input.land = true // edge: fire landing once per tap
-        if (inv && !prevInv) input.inventory = true // edge: open/close the inventory once per tap (v2.33)
-        if (tuneBtn && !prevTune) input.tune = true // edge: open/close the tuning popup (v2.98)
+            if (emit && !melee && prevMelee) input.fireRelease = true
+        } else if (emit && melee && !prevMelee) input.melee = true
+        if (emit && reload && !prevReload) input.reload = true
+        if (emit && wall && !prevWall) input.placeWall = true
+        if (emit && weapon && !prevWeapon) { // v2.153: cycle only the slots the keeper owns
+            val owned = maxOf(1, ownedWeapons)
+            input.weaponSlot = weaponIdx % owned
+            weaponIdx = (weaponIdx + 1) % owned
+        }
+        if (emit && land && !prevLand) input.land = true // edge: fire landing once per tap
+        if (emit && inv && !prevInv) input.inventory = true // edge: open/close the inventory once per tap (v2.33)
+        if (emit && tuneBtn && !prevTune) input.tune = true // edge: open/close the tuning popup (v2.98)
         if (full) input.fullThrottle = true // held: OC full throttle (v2.33)
         prevMelee = melee; prevReload = reload; prevWall = wall; prevWeapon = weapon; prevLand = land; prevInv = inv; prevTune = tuneBtn
 
@@ -156,6 +164,9 @@ class TouchControls {
         prevPressed = pressed
         pressedButtons = pressed
     }
+
+    private var suppressEdges = false
+    fun suppressEdgesOnce() { suppressEdges = true } // v2.153: called while a modal gates polling
 
     companion object {
         private const val MAX_POINTERS = 10

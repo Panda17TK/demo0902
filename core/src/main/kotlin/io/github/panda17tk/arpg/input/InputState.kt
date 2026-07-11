@@ -11,7 +11,10 @@ class InputState {
     var down = false
     var moveMag = 0f           // analog move-stick deflection 0..1 (keyboard stays 0); a big push triggers a stick dash
     var dash = false
-    var placeWall = false   // edge-triggered: true only on the frame F transitions down
+    var placeWallT = 0f
+    var placeWall: Boolean  // edge-triggered, buffered (v2.153)
+        get() = placeWallT > 0f
+        set(value) { placeWallT = if (value) EDGE_BUFFER else 0f }
     var fire = false           // held (K)
 
     // v2.42: the manual-fire release is a BUFFERED request, not a one-frame edge. A render frame can
@@ -22,11 +25,19 @@ class InputState {
     var fireRelease: Boolean
         get() = fireReleaseT > 0f
         set(value) { fireReleaseT = if (value) FIRE_BUFFER else 0f }
-    var melee = false          // edge (J)
+    // v2.153 音と手の修理: the other edge actions get the fireRelease treatment — a render
+    // frame that runs zero sim substeps must not swallow a tap. Consumers clear on use.
+    var meleeT = 0f
+    var melee: Boolean
+        get() = meleeT > 0f
+        set(value) { meleeT = if (value) EDGE_BUFFER else 0f }
     // v2.112 エイム補助: set by the screen from settings. Input IS the nondeterministic boundary,
     // so the sim reading this flag keeps the determinism contract intact.
     var aimAssist = true
-    var reload = false         // edge (R)
+    var reloadT = 0f
+    var reload: Boolean
+        get() = reloadT > 0f
+        set(value) { reloadT = if (value) EDGE_BUFFER else 0f }
     var land = false           // edge: land on / take off from a planet (L key or the touch LAND button)
     var weaponSlot = -1        // 0..4 on the frame 1-5 is pressed, else -1
     var aimX = 0f              // twin-stick: right-stick aim direction (unit vector)
@@ -38,5 +49,6 @@ class InputState {
 
     companion object {
         const val FIRE_BUFFER = 0.3f // seconds a manual-fire release stays queued (v2.42)
+        const val EDGE_BUFFER = 0.25f // v2.153: melee/reload/wall taps queue the same way
     }
 }

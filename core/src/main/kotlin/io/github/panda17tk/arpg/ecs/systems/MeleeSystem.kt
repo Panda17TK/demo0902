@@ -64,6 +64,7 @@ class MeleeSystem(private val mobGrid: SpatialGrid<Entity>) :
         // the beat missed: past the (tightening) chain window, the combo lets go
         if (comboStep > 0 && sinceSwing > lastCd + MeleeCombo.chainWindow(comboStep)) comboStep = 0
         if (!input.melee || cd.melee > 0f) return
+        input.melee = false // v2.153: the buffered tap is consumed by this swing
 
         val t = entity[Transform]; val f = entity[Facing]; val s = entity[Stamina]; val mods = entity[Mods]
         if (s.overheat) return // no stamina actions while overheated

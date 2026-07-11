@@ -138,7 +138,10 @@ internal fun GameScreen.pollGameplayTouch(paused: Boolean) {
             val canLand = (ws.mode == WorldMode.SPACE && ws.landingCandidate != null) ||
                 (ws.mode == WorldMode.SURFACE && playerOnEscapePad())
             val hasOverclock = with(gw.world) { gw.player[Gear].loadout.hasOverclockThruster }
-            touch.poll(input, hudViewport, tBlocks, tw.mag, tw.def.magSize, canLand, hasOverclock, controlSwap, io.github.panda17tk.arpg.save.TuneMode.active && !challengeMode) // v2.106 公正化
+            val tOwned = with(gw.world) { gw.player[Arsenal] }.weapons.size
+            touch.poll(input, hudViewport, tBlocks, tw.mag, tw.def.magSize, canLand, hasOverclock, controlSwap, io.github.panda17tk.arpg.save.TuneMode.active && !challengeMode, ownedWeapons = tOwned) // v2.106 公正化 / v2.153 所持スロット巡回
+        } else if (touchEnabled) {
+            touch.suppressEdgesOnce() // v2.153: a modal gated the poll — swallow the stale edges on resume
         }
     }
 
