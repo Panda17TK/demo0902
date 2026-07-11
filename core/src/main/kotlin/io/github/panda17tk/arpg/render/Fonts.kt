@@ -24,6 +24,8 @@ object Fonts {
 
     /** [uiScale] is the device density so glyphs are baked large enough to read in dp-unit space. */
     fun load(uiScale: Float = 1f) {
+        dispose() // v2.168 安全な帰還: retire the previous pair + generator — every screen swap
+        // used to leak a FreeType generator and two fonts (screens must NOT dispose these)
         try {
             val handle = Gdx.files.internal(FONT_PATH)
             if (handle.exists()) {
