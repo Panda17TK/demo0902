@@ -18,6 +18,7 @@ import kotlin.math.sin
 object Actors {
     private val TAU = (Math.PI * 2.0).toFloat()
 
+    private const val TINY_FISH_W = 13f // v2.167: at or under this body width, a fish is crowd
     private val SHADOW = Color(0f, 0f, 0f, 0.30f)
 
     private val SHADOW_LEGS = Color(0.10f, 0.09f, 0.08f, 0.9f) // v2.129: creature legs read as dark strokes
@@ -178,7 +179,10 @@ object Actors {
         val w = wIn * wS; val h = hIn * hS
         val y = yIn + (hIn - h) / 2f + yOff
         val elite = tier == "midboss" || tier == "boss"
-        s.color = SHADOW; ellipseC(s, x, yIn + hIn / 2f - 1f, wIn * 0.46f, hIn * 0.18f)
+        // v2.167 性能計: the sardine crowd is the bulk of every space frame — a tiny fish keeps
+        // body + tail and skips shadow, fins, belly and eye (half the primitives of the school).
+        val tinyFish = look?.form == CreatureLook.Form.FISH && wIn <= TINY_FISH_W
+        if (!tinyFish) { s.color = SHADOW; ellipseC(s, x, yIn + hIn / 2f - 1f, wIn * 0.46f, hIn * 0.18f) }
         val base = when {
             dodge -> baseTmp.set(Color.WHITE).also { it.a = 0.55f }
             hitFlash -> baseTmp.set(Color.WHITE)
@@ -186,7 +190,7 @@ object Actors {
         }
         when {
             elite -> elite(s, x, y, w, h, base, color, faceX, faceY, enrage, tier == "boss", time, animSeed)
-            look != null -> creature(s, x, y, w, h, base, color, faceX, faceY, moving, time, animSeed, look) // v2.129
+            look != null -> creature(s, x, y, w, h, base, color, faceX, faceY, moving, time, animSeed, look, tinyFish) // v2.129 / v2.167
             kind == "zombie" -> zombie(s, x, y, w, h, base, color, faceX, faceY, moving, chargeProg, time, animSeed)
             kind == "spitter" -> spitter(s, x, y, w, h, base, color, faceX, faceY, time, animSeed)
             kind == "stalker" -> stalker(s, x, y, w, h, base, color, faceX, faceY)
@@ -236,6 +240,7 @@ object Actors {
     private fun creature(
         s: ShapeRenderer, x: Float, y: Float, w: Float, h: Float, base: Color, color: Color,
         fx: Float, fy: Float, moving: Boolean, time: Float, seed: Float, look: CreatureLook.Look,
+        tiny: Boolean = false, // v2.167 性能計: the sardine crowd draws body + tail only
     ) {
         val dir = if (fx < 0f) -1f else 1f
         val trot = if (moving) sin(time * 10f + seed) else 0f
@@ -248,9 +253,11 @@ object Actors {
                 ellipseC(s, x, y, w * 0.38f, h * 0.30f) // the body, nose toward dir
                 s.color = shade(color, -18)
                 s.triangle(x - dir * w * 0.30f, y, x - dir * w * 0.58f, y - h * 0.26f + swim * 2f, x - dir * w * 0.58f, y + h * 0.26f + swim * 2f) // tail fin, sculling
-                s.triangle(x - dir * w * 0.02f, y - h * 0.26f, x + dir * w * 0.16f, y - h * 0.26f, x + dir * w * 0.02f, y - h * 0.48f) // dorsal fin
-                s.color = light; ellipseC(s, x + dir * w * 0.06f, y + h * 0.06f, w * 0.22f, h * 0.14f) // pale belly
-                s.color = EYE_DARK; s.circle(x + dir * w * 0.28f, y - h * 0.06f, 1.3f, 4)
+                if (!tiny) { // v2.167: the details belong to fish big enough to read them
+                    s.triangle(x - dir * w * 0.02f, y - h * 0.26f, x + dir * w * 0.16f, y - h * 0.26f, x + dir * w * 0.02f, y - h * 0.48f) // dorsal fin
+                    s.color = light; ellipseC(s, x + dir * w * 0.06f, y + h * 0.06f, w * 0.22f, h * 0.14f) // pale belly
+                    s.color = EYE_DARK; s.circle(x + dir * w * 0.28f, y - h * 0.06f, 1.3f, 4)
+                }
             }
             CreatureLook.Form.FLYER -> {
                 val flap = sin(time * 11f + seed) * h * 0.45f

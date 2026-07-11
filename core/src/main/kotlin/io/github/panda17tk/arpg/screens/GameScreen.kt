@@ -171,6 +171,7 @@ class GameScreen(
     internal lateinit var worldViewport: ExtendViewport
     internal lateinit var hudViewport: ScreenViewport
     internal val scene = SceneRenderer()
+    private val cPerf = Color(0.62f, 1f, 0.72f, 0.92f) // v2.167 性能計
 
     internal var accumulator = 0f
     internal var camX = Tuning.VIEW_W / 2f
@@ -667,7 +668,9 @@ class GameScreen(
         // The OUT leg just completed → swap behind black (jump or landing/takeoff).
         if (!paused && fade.update(delta)) { if (pendingJump) performJump() else handleLanding() }
 
+        val perfSimT0 = System.nanoTime() // v2.167 性能計 (presentation clock — the sim never reads it)
         if (!advanceSim(simDelta, paused)) return // restarted this frame — draw from the fresh run next frame
+        io.github.panda17tk.arpg.save.PerfHud.tickSim(System.nanoTime() - perfSimT0)
         val alpha = (accumulator / Constants.FIXED_DT).coerceIn(0f, 1f)
 
         // interpolated player position + state
@@ -934,6 +937,7 @@ class GameScreen(
         gw.worldState.gateReady = gw.worldState.mode == WorldMode.SPACE &&
             with(gw.world) { gw.player[Materials].shards } >= gateNeed()
 
+        val perfDrawT0 = System.nanoTime() // v2.167 性能計
         // world (procedural sprites — ported from legacy renderer.js + enemy-sprites.js)
         worldViewport.apply()
         scene.draw(shapes, batch, font, camera, gw, animTime, pose, memoryTones)
@@ -949,6 +953,34 @@ class GameScreen(
         drawComboChip()    // v2.92: the melee rhythm while its window is alive
         drawEventBanner() // v2.86: the opening band rides over the HUD
         drawEnding()       // v2.93: the final dialogue, over everything
+        io.github.panda17tk.arpg.save.PerfHud.tickDraw(System.nanoTime() - perfDrawT0)
+        if (io.github.panda17tk.arpg.save.PerfHud.enabled) drawPerfHud() // v2.167 性能計
+    }
+
+    // v2.167 性能計: the corner line — rebuilt twice a second so it costs nothing to keep on
+    private var perfLine = ""
+    private var perfLineT = 0f
+    private fun drawPerfHud() {
+        val p = io.github.panda17tk.arpg.save.PerfHud
+        perfLineT -= Gdx.graphics.deltaTime
+        if (perfLineT <= 0f || perfLine.isEmpty()) {
+            perfLineT = 0.5f
+            val mobs = with(gw.world) { gw.world.family { all(Mob) }.numEntities }
+            val heap = Gdx.app.javaHeap / (1024L * 1024L)
+            perfLine = "${Gdx.graphics.framesPerSecond}fps  sim %.1fms  draw %.1fms  mob ${p.mobsDrawn}/$mobs  ${heap}MB"
+                .format(p.simMs, p.drawMs)
+        }
+        hudViewport.apply()
+        batch.projectionMatrix = hudViewport.camera.combined
+        batch.begin()
+        val f = Fonts.ui
+        val sx = f.data.scaleX; val sy = f.data.scaleY
+        f.data.setScale(sx * 0.8f, sy * 0.8f)
+        f.color = cPerf
+        f.draw(batch, perfLine, 10f, hudViewport.worldHeight - 46f)
+        f.color = Color.WHITE
+        f.data.setScale(sx, sy)
+        batch.end()
     }
 
 

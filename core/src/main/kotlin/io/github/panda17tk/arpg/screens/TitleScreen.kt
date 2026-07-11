@@ -121,6 +121,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             volume = sp.getFloat("masterVolume", 1f).coerceIn(0f, 1f) // v2.96
             difficulty = io.github.panda17tk.arpg.sim.Difficulty.byName(sp.getString("difficulty", "NORMAL")) // v2.97
             io.github.panda17tk.arpg.save.OceanDensity.tier = sp.getInteger("oceanDensity", io.github.panda17tk.arpg.save.OceanDensity.MEDIUM).coerceIn(0, 2) // v2.165
+            io.github.panda17tk.arpg.save.PerfHud.enabled = sp.getBoolean("perfHud", false) // v2.167
         } catch (_: Throwable) { /* defaults stay on */ }
         io.github.panda17tk.arpg.i18n.Lang.en = langEn // v2.115: the dictionary follows the pref
         Sfx.volume = volume
@@ -421,6 +422,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             sp.putFloat("masterVolume", volume)    // v2.96
             sp.putString("difficulty", difficulty.name) // v2.97
             sp.putInteger("oceanDensity", io.github.panda17tk.arpg.save.OceanDensity.tier) // v2.165
+            sp.putBoolean("perfHud", io.github.panda17tk.arpg.save.PerfHud.enabled) // v2.167
             sp.flush()
         } catch (_: Throwable) { /* persist best-effort */ }
     }
@@ -434,6 +436,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         SettingsPanel.SOFT_FLASH -> softFlash // v2.96
         SettingsPanel.AIM_ASSIST -> assistOn   // v2.112
         SettingsPanel.LANGUAGE -> langEn       // v2.115
+        SettingsPanel.PERF -> io.github.panda17tk.arpg.save.PerfHud.enabled // v2.167
         else -> loreOn
     }
 
@@ -632,6 +635,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
                         persistSettings()
                         Sfx.play("scan")
                     }
+                    SettingsPanel.PERF -> { io.github.panda17tk.arpg.save.PerfHud.enabled = !io.github.panda17tk.arpg.save.PerfHud.enabled; persistSettings() } // v2.167
                 }
                 return
             }
