@@ -137,8 +137,13 @@ class MobDamageSystem(private val grid: SpatialGrid<Entity>) :
             }
         }
         if (lodHasPl && entity[Mob].def.wildRole == io.github.panda17tk.arpg.config.WildRole.SCHOOL) {
-            val lod = io.github.panda17tk.arpg.sim.WildLod.strideAt(t.x, t.y, lodPlX, lodPlY)
-            if (!io.github.panda17tk.arpg.sim.WildLod.due(lod, lodTick, entity.id)) return // v2.164 軽い海
+            val ldx = t.x - lodPlX; val ldy = t.y - lodPlY
+            val d2 = ldx * ldx + ldy * ldy
+            // v2.169: stagger only past GRID_KEEP (beyond every weapon's reach) — inside it the
+            // grid stays complete so a max-range railgun slug always finds what it hit.
+            if (d2 > io.github.panda17tk.arpg.sim.WildLod.GRID_KEEP2 &&
+                !io.github.panda17tk.arpg.sim.WildLod.due(io.github.panda17tk.arpg.sim.WildLod.stride(d2), lodTick, entity.id)
+            ) return // v2.164 軽い海
         }
         grid.insert(entity, t.x, t.y)
     }

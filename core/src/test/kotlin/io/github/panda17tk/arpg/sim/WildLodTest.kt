@@ -14,6 +14,13 @@ import kotlin.math.hypot
 
 /** v2.164 軽い海: the far ocean ticks on a stagger — same paths, a fraction of the cost. */
 class WildLodTest {
+    @Test fun `the damage grid stays complete out to the railgun's reach`() {
+        // v2.169 診断修正: RAIL_RANGE (1600) > MID (1500) let rail slugs pass through fish whose
+        // grid insertion was staggered — GRID_KEEP must cover every weapon's reach.
+        assertTrue(WildLod.GRID_KEEP > io.github.panda17tk.arpg.ecs.systems.FireSystem.RAIL_RANGE)
+        assertTrue(WildLod.GRID_KEEP > WildLod.MID)
+    }
+
     private val dt = 1f / 60f
 
     @Test fun `the stride ladder and its stagger cover every fish exactly once per cycle`() {

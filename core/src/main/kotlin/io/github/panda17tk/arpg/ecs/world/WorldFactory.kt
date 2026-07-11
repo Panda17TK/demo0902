@@ -105,6 +105,9 @@ object WorldFactory {
         ngClears: Int = 0, // v2.160 周回の印II: completed syncs deepen the surge (0 = untouched)
         oceanKeep: Int = 1, // v2.165 海の密度: every n-th school member spawns (1 = the full 30× ocean)
         area: Pair<Int, Int>? = null, // v2.166 宙域の九分割: which 3×3 slice to build (SPACE only; null = the whole legacy sky)
+        lootedWrecks: Set<Int> = emptySet(), // v2.169 診断修正: sky-wide wreck indices already emptied this run
+        survivorRescued: Boolean = false,    // v2.169: the sky's survivor was already rescued this run
+        cometSwept: Boolean = false,         // v2.169: the comet's dust beads were already collected
     ): GameWorld {
         // v2.166 宙域の九分割: an AREA world is one 3×3 slice of the space stage — 1/9 the
         // tiles, 1/9 the flow field, 1/9 the ocean. The full stage never materialises in area mode.
@@ -134,11 +137,23 @@ object WorldFactory {
         var spawnX = playerSpawn?.first ?: loaded.playerSpawnX
         var spawnY = playerSpawn?.second ?: loaded.playerSpawnY
         if (area != null && playerSpawn != null) {
-            // an area entry point comes from a neighbouring slice's edge — keep it inside and out of rock
-            val cx = spawnX.coerceIn(Tuning.TILE * 2f, map.width * Tuning.TILE - Tuning.TILE * 2f)
-            val cy = spawnY.coerceIn(Tuning.TILE * 2f, map.height * Tuning.TILE - Tuning.TILE * 2f)
-            val sp = snapToFloor(map, cx, cy)
-            spawnX = sp.first; spawnY = sp.second
+            // an area entry point comes from a neighbouring slice's edge — keep it inside, out of
+            // rock, and (v2.169) clear of the EDGE_TRIGGER band: snapToFloor can slide up to 8
+            // tiles, which could drop the arrival back into the band and re-fire the crossing
+            // every frame (a per-frame world rebuild). A failed attempt pulls the search deeper
+            // into the slice and tries again.
+            val safe = io.github.panda17tk.arpg.sim.AreaGrid.EDGE_TRIGGER + Tuning.TILE
+            val mwPx = map.width * Tuning.TILE; val mhPx = map.height * Tuning.TILE
+            var tryInset = io.github.panda17tk.arpg.sim.AreaGrid.ENTRY_INSET
+            for (attempt in 0 until 8) {
+                val cx = spawnX.coerceIn(tryInset, mwPx - tryInset)
+                val cy = spawnY.coerceIn(tryInset, mhPx - tryInset)
+                val sp = snapToFloor(map, cx, cy)
+                val ok = sp.first > safe && sp.first < mwPx - safe && sp.second > safe && sp.second < mhPx - safe
+                if (ok || attempt == 7) { spawnX = sp.first; spawnY = sp.second }
+                if (ok) break
+                tryInset += Tuning.TILE * 4f
+            }
         }
         // v2.95 地下遺構: stamped BEFORE the flow field reads the map, so pathing knows the plating.
         val vaultPos = if (mode == WorldMode.SURFACE && biome != null) {
@@ -206,10 +221,13 @@ object WorldFactory {
         if (mode != WorldMode.SURFACE) worldState.drift = Drift.field(Rng(seed xor 0x0DEB712L), 120, spawnX, spawnY, 1400f)
         // v2.44: the system's jump gate — one per system, deterministic, out past the near planets.
         if (mode != WorldMode.SURFACE) {
-            worldState.gate = if (area == null) {
-                placeNear(map, Rng(seed xor 0x6A7E9A7EL), loaded.playerSpawnX, loaded.playerSpawnY, 1800f, 1200f)
+            if (area == null) {
+                worldState.gate = placeNear(map, Rng(seed xor 0x6A7E9A7EL), loaded.playerSpawnX, loaded.playerSpawnY, 1800f, 1200f)
+                worldState.gateGlobal = worldState.gate // v2.169: local == global in the legacy sky
             } else { // v2.166: drawn globally — present only in the slice that contains it
-                gPlace(Rng(seed xor 0x6A7E9A7EL), 1800f, 1200f).takeIf { inArea(it.first, it.second) }?.let { localize(it) }
+                val gGate = gPlace(Rng(seed xor 0x6A7E9A7EL), 1800f, 1200f)
+                worldState.gateGlobal = gGate // v2.169: every slice keeps the bearing home
+                worldState.gate = gGate.takeIf { inArea(it.first, it.second) }?.let { localize(it) }
             }
         }
         // v2.46 難破船: 2..3 wrecked hulls drift in each system, nearer than the gate. Their loot
@@ -220,19 +238,21 @@ object WorldFactory {
                 worldState.wrecks = List(2 + wRng.nextInt(2)) {
                     placeNear(map, wRng, loaded.playerSpawnX, loaded.playerSpawnY, 900f, 1500f)
                 }
+                worldState.wreckIndices = worldState.wrecks.indices.toList() // v2.169
             } else { // v2.166: the survivor is chosen against the GLOBAL list, then mapped local
                 val globalWrecks = List(2 + wRng.nextInt(2)) { gPlace(wRng, 900f, 1500f) }
                 val svRng = Rng(seed xor 0x5A110B0AL)
                 val svIdx = if (svRng.nextFloat() < SURVIVOR_CHANCE) svRng.nextInt(globalWrecks.size) else -1
                 val kept = globalWrecks.withIndex().filter { inArea(it.value.first, it.value.second) }
                 worldState.wrecks = kept.map { localize(it.value) }
+                worldState.wreckIndices = kept.map { it.index } // v2.169: the sky-wide identity
                 worldState.survivorWreck = kept.indexOfFirst { it.index == svIdx }
             }
         }
         // v2.110 彗星: some skies carry a comet — a bright head trailing dust beads worth sweeping.
         if (mode != WorldMode.SURFACE) {
             val cRng = Rng(seed xor 0x0C0EE70AL)
-            if (cRng.nextFloat() < COMET_CHANCE) {
+            if (cRng.nextFloat() < COMET_CHANCE) { // (the head still places when swept — only the beads stay gone)
                 val head = if (area == null) placeNear(map, cRng, loaded.playerSpawnX, loaded.playerSpawnY, 600f, 900f, marginTiles = 6f)
                 else gPlace(cRng, 600f, 900f, marginTiles = 6f)
                 val ta = cRng.nextFloat() * TAU
@@ -256,6 +276,9 @@ object WorldFactory {
             val sRng = Rng(seed xor 0x5A110B0AL)
             if (sRng.nextFloat() < SURVIVOR_CHANCE) worldState.survivorWreck = sRng.nextInt(worldState.wrecks.size)
         }
+        // v2.169 診断修正: a survivor rescued earlier this run doesn't reappear on a rebuild —
+        // crossing out of the slice and back was a repeatable 星屑40 grant.
+        if (survivorRescued) worldState.survivorRescued = true
         val waveState = WaveState(
             num = 1,
             phase = "active",
@@ -519,7 +542,7 @@ object WorldFactory {
         if (mode != WorldMode.SURFACE) {
             val head = worldState.comet
             val dir = worldState.cometDir
-            if (head != null && dir != null) {
+            if (head != null && dir != null && !cometSwept) { // v2.169: swept beads stay swept
                 val bRng = Rng(seed xor 0x0C0EE70BL)
                 repeat(COMET_BEADS) { i ->
                     val dist = 60f + i * 46f
@@ -535,10 +558,17 @@ object WorldFactory {
         if (mode != WorldMode.SURFACE && worldState.wrecks.isNotEmpty()) {
             val lootRng = Rng(seed xor 0x100CCAFEL)
             val guardKeys = config.enemies.filterValues { it.tier == "normal" && it.biome == null && it.lifeKind != io.github.panda17tk.arpg.config.LifeKind.WILDLIFE }.keys.toList() // v2.130/v2.141
-            for ((wx, wy) in worldState.wrecks) {
-                Pickups.spawn(world, "item:" + ItemCatalog.gunFor(lootRng.nextInt(1000)).id, 1, wx, wy)
-                Pickups.spawn(world, "dust", 25 + lootRng.nextInt(36), wx + 16f, wy + 6f)
-                Pickups.spawn(world, "med", 25, wx - 16f, wy + 6f)
+            for ((wi, wreckPos) in worldState.wrecks.withIndex()) {
+                val (wx, wy) = wreckPos
+                // v2.169 診断修正: a cache emptied this run stays empty. The rolls still draw so
+                // the OTHER wrecks' loot and the guards land exactly where they always did.
+                val cacheGun = ItemCatalog.gunFor(lootRng.nextInt(1000)).id
+                val cacheDust = 25 + lootRng.nextInt(36)
+                if (worldState.wreckIndices.getOrElse(wi) { wi } !in lootedWrecks) {
+                    Pickups.spawn(world, "item:" + cacheGun, 1, wx, wy)
+                    Pickups.spawn(world, "dust", cacheDust, wx + 16f, wy + 6f)
+                    Pickups.spawn(world, "med", 25, wx - 16f, wy + 6f)
+                }
                 if (guardKeys.isNotEmpty()) repeat(3) {
                     val def = config.enemies[guardKeys[lootRng.nextInt(guardKeys.size)]] ?: return@repeat
                     val ga2 = lootRng.nextFloat() * TAU

@@ -16,6 +16,13 @@ object WildLod {
     const val MID_STRIDE = 4
     const val FAR_STRIDE = 8
 
+    /** v2.169 診断修正: within any weapon's reach the damage grid must stay COMPLETE — the
+     *  railgun snipes to 1600px (FireSystem.RAIL_RANGE), farther than MID, so gating grid
+     *  insertion at MID made rail slugs pass through fish in the 1500..1600 band on non-due
+     *  ticks. Behaviour still strides at MID; only the hittable radius is wider. */
+    const val GRID_KEEP = 1650f
+    const val GRID_KEEP2 = GRID_KEEP * GRID_KEEP
+
     fun stride(d2: Float): Int = when {
         d2 > FAR2 -> FAR_STRIDE
         d2 > MID2 -> MID_STRIDE
