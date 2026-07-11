@@ -769,10 +769,17 @@ class GameScreen(
         }
         // v2.48 惑星サーバー: standing before the memory core makes it speak — once per landing,
         // into the surface event feed (the same channel the society's memory already uses).
-        if (!paused && gw.worldState.mode == WorldMode.SURFACE && (!gw.worldState.coreVisited || !gw.worldState.coreLogShown)) {
+        // v2.155 結末への道: the visit needs a fresh APPROACH — walking away re-arms it, so a
+        // keeper parked on the core cannot auto-settle a second CORE request in the same chain.
+        if (!paused && gw.worldState.mode == WorldMode.SURFACE) {
             gw.worldState.memoryCore?.let { core ->
                 val (cpx, cpy) = with(gw.world) { val t = gw.player[Transform]; t.x to t.y }
-                if (hypot(cpx - core.first, cpy - core.second) < Tuning.TILE * 2f) {
+                if (hypot(cpx - core.first, cpy - core.second) >= Tuning.TILE * 2f) {
+                    gw.worldState.coreArmed = true
+                    return@let
+                }
+                if (gw.worldState.coreArmed && (!gw.worldState.coreVisited || !gw.worldState.coreLogShown)) {
+                    gw.worldState.coreArmed = false
                     gw.worldState.coreVisited = true // v2.68: the CORE quest counts the visit itself
                     if (!loreHints || gw.worldState.coreLogShown) return@let
                     gw.worldState.coreLogShown = true

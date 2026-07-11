@@ -40,7 +40,7 @@ enum class Achievement(val title: String, val desc: String) {
     WORKSHOP_PATRON("工房の初仕事", "工房で最初の工芸を求めた"),
     WORKSHOP_MASTER("工房の常連", "工房の工芸をひとつ極めた"),
     TRAIT_ARRIVAL("気質ある空へ", "性格を持つ星系に到達した"),
-    GATE_READY("鍵は揃った", "ゲート鍵を三つ束ねた"),
+    GATE_READY("鍵は揃った", "跳躍に足るだけのゲート鍵を束ねた"), // v2.155: 同期60%で2個に割引されるため数を言わない
     // v2.93: the two ways the story closes (append-only ids).
     FINAL_SYNC("最後の保守員", "同期を完了し、網とともに眠りについた"),
     DRIFT_ON("それでも漂う", "最後の選択で、切断して漂流を続けた"),

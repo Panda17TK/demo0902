@@ -55,7 +55,7 @@ object MemoryCoreLog {
         "隣の星系から照会が届いている。『その訪問者は、また来たのか』と",
         "あなたが直した箇所の記録が残っている。あなたは覚えていないようだが",
     )
-    private val REVEAL = listOf(
+    internal val REVEAL = listOf( // v2.155: internal so the reach test can assert membership
         "照合完了。あなたの人格ログの作成日は、あなたの記憶する誕生日より後だ",
         "おかえりなさい、最終保守員。巡回の再開を記録した",
         "あなたは住民たちと同じ、記憶からの出力だ。それでも巡回は続いている",
@@ -71,7 +71,7 @@ object MemoryCoreLog {
      */
     fun lineFor(planetId: Long, biome: PlanetBiome?, system: Int = 1): String {
         val pool = when {
-            system >= 4 -> REVEAL
+            system >= 3 -> REVEAL // v2.155 結末への道: was 4 — the reveal now lands where runs actually go
             system >= 2 -> AWARE + COMMON.take(2)
             else -> COMMON + (biome?.let { BY_BIOME[it] } ?: emptyList())
         }

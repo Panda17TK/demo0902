@@ -50,6 +50,7 @@ class WorldState(
      *  coreVisited is independent of coreLogShown so the quest works with 世界観ヒント off. */
     var questDust: Int = 0,
     var coreVisited: Boolean = false,
+    var coreArmed: Boolean = true, // v2.155: leaving the core re-arms the visit — no parked re-settles
     /** v2.69 星の依頼: predators put down this visit + seconds spent on the surface. */
     var questPredators: Int = 0,
     var questTime: Float = 0f,
