@@ -85,7 +85,7 @@ object Lang {
         // 設定のささやき (hintFor)
         "効果音と環境音" to "Sound effects and ambience",
         "タップで 100→75→50→25→0 と巡回" to "Tap cycles 100 > 75 > 50 > 25 > 0",
-        "振動" to "Vibration",
+        "被弾の振動" to "Vibration on hits",
         "スティック右・ボタン左に反転" to "Stick right, buttons left",
         "操作ガイド" to "Control hints",
         "記憶核の語り・遭難記録" to "Memory-core voices, distress logs",
@@ -93,6 +93,46 @@ object Lang {
         "撃破の白フラッシュを弱める" to "Dim the white kill flashes",
         "射撃が近くの敵へわずかに寄る" to "Shots lean gently toward foes",
         "主要ラベルを英語で表示" to "Show main labels in English",
+        // v2.148 ヒント帯 (hintPanel) — 起動診断
+        "保守員人格 起動中……　記憶同期: 失敗　星間ネットワーク: 応答なし" to "Keeper persona booting...　memory sync: failed　network: silent",
+        "ローカル保全モードで再開します — 起動診断を実行しますか？" to "Resuming in local maintenance mode - run the boot diagnostic?",
+        "起動診断 1/6　推進制御を確認します" to "Diagnostic 1/6　checking thrusters",
+        "左スティックで船体を移動" to "Move with the left stick",
+        "WASD / 方向キーで船体を移動" to "Move with WASD / arrow keys",
+        "起動診断 2/6　防衛工具を確認します" to "Diagnostic 2/6　checking defense tools",
+        "右スティックで照準・離して発射　対象を1体破壊" to "Aim with the right stick, release to fire　destroy one target",
+        "マウスで照準・クリックで発射　対象を1体破壊" to "Aim with the mouse, click to fire　destroy one target",
+        "起動診断 3/6　記憶片を検出: 星屑" to "Diagnostic 3/6　memory shards detected: dust",
+        "回収してください" to "Collect them",
+        "起動診断 4/6　緊急推進を確認します" to "Diagnostic 4/6　checking emergency thrust",
+        "DASH ボタンで距離を取る" to "DASH to break away",
+        "Shift でダッシュして距離を取る" to "Shift to dash away",
+        "起動診断 5/6　近傍に記憶星を検出" to "Diagnostic 5/6　memory star detected nearby",
+        "ナビの矢印へ" to "Follow the nav arrow",
+        "起動診断 6/6　接続可能" to "Diagnostic 6/6　connection ready",
+        "惑星かスキャンカードをタップで着陸" to "Tap the planet or its card to land",
+        "[L] で着陸" to "[L] to land",
+        "地表サーバーに接続　住民出力を確認" to "Connected to the surface server　observe the residents",
+        "すべてが敵とは限りません" to "Not everything is hostile",
+        "帰還パッドへ戻ると離陸できます" to "Return to the pad to lift off",
+        "起動診断をスキップ" to "Boot diagnostic skipped",
+        "起動診断 完了" to "Boot diagnostic complete",
+        // v2.148 ヒント帯 — オンボーディング
+        "左スティックで移動" to "Move with the left stick",
+        "WASD で移動" to "Move with WASD",
+        "右スティックで照準・離して発射" to "Aim with the right stick, release to fire",
+        "マウスで照準・クリックで発射" to "Aim with the mouse, click to fire",
+        "DASH でダッシュ" to "DASH to dash",
+        "Shift でダッシュ" to "Shift to dash",
+        "惑星に近づいて着陸" to "Approach a planet and land",
+        // v2.148 ヒント帯 — 宇宙/地表の操作ヒント
+        "訓練環境 — 模擬戦闘のみ" to "Training sim - combat drills only",
+        "惑星をタップで着陸" to "Tap a planet to land",
+        "惑星に近づいて [L] で着陸" to "Approach a planet, [L] to land",
+        "[L] 着陸" to "[L] Land",
+        "タップで着陸" to "Tap to land",
+        "[L] 離陸" to "[L] Lift off",
+        "[L] 離陸して宇宙へ" to "[L] Lift off to space",
         // 持物 / インベントリ
         "装備" to "Gear",
         "アイテム" to "Items",
@@ -140,6 +180,9 @@ object Lang {
         add("保守員は倒れた — 記録は星に残る" to "The keeper has fallen - the stars keep the record")
         add("旅の記録 — 星々はあなたを覚えている" to "The voyage - the stars remember you")
         add("最深 同期汚染 " to "Deepest desync ")
+        add("最寄りの惑星 " to "Nearest planet ") // v2.148: the composed hint lines
+        add("ジャンプゲート " to "Jump gate ")
+        add("ゲート鍵 " to "Gate keys ")
         add("ウェーブ(旧式) " to "Wave (legacy) ")
         add("残プロセス " to "processes ")
         add("宙域安定 " to "stability ")

@@ -199,8 +199,9 @@ object Hud {
      * screen width — nothing ever spills off the edges again. [topY] is the panel's top edge
      * (callers place it just below the top HUD band, or under the scan card).
      */
-    fun hintPanel(shapes: ShapeRenderer, batch: SpriteBatch, font: BitmapFont, vp: Viewport, lines: List<String>, topY: Float) {
-        if (lines.isEmpty()) return
+    fun hintPanel(shapes: ShapeRenderer, batch: SpriteBatch, font: BitmapFont, vp: Viewport, rawLines: List<String>, topY: Float) {
+        if (rawLines.isEmpty()) return
+        val lines = rawLines.map { io.github.panda17tk.arpg.i18n.Lang.tr(it) } // v2.148: hints speak the chosen language too
         val w = vp.worldWidth
         val maxW = w - 32f
         val baseX = font.data.scaleX; val baseY = font.data.scaleY

@@ -27,7 +27,7 @@ object SettingsPanel {
     fun hintFor(label: String): String = when (label) {
         SOUND -> "効果音と環境音"
         VOLUME -> "タップで 100→75→50→25→0 と巡回"
-        HAPTICS -> "振動"
+        HAPTICS -> "被弾の振動"
         LEFTY -> "スティック右・ボタン左に反転"
         CONTROL_HINTS -> "操作ガイド"
         LORE_HINTS -> "記憶核の語り・遭難記録"
