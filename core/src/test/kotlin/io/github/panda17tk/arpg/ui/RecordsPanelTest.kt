@@ -65,12 +65,14 @@ class RecordsPanelTest {
     @Test fun `the bestiary names only what has fallen, six to a row, one spread at a time`() {
         val total = io.github.panda17tk.arpg.config.GameConfig().enemies.size
         val pages = RecordsPanel.bestiaryPages(total)
+        val combat = io.github.panda17tk.arpg.config.GameConfig().enemies.values
+            .count { it.lifeKind != io.github.panda17tk.arpg.config.LifeKind.WILDLIFE } // v2.161 戦闘枠
         val blank = RecordsPanel.bestiaryLines({ 0 })
-        assertTrue(blank.first() == "討伐図鑑 0/$total（1/$pages）", "got ${blank.first()}")
+        assertTrue(blank.first() == "討伐図鑑 0/$total　戦闘枠 0/$combat（1/$pages）", "got ${blank.first()}")
         assertTrue(RecordsPanel.isHeader(blank.first()))
         assertTrue(blank.drop(1).all { line -> line.split("　").all { it == "？？？" } }, "unmet kinds stay unspoken")
         val hunter = RecordsPanel.bestiaryLines({ if (it == "zombie") 12 else 0 })
-        assertTrue(hunter.first() == "討伐図鑑 1/$total（1/$pages）")
+        assertTrue(hunter.first() == "討伐図鑑 1/$total　戦闘枠 1/$combat（1/$pages）", "got ${hunter.first()}")
         val everySpread = (0 until pages).flatMap { RecordsPanel.bestiaryLines({ if (it == "zombie") 12 else 0 }, it) }
         assertTrue(everySpread.any { it.contains("ゾンビ×12") }, "a fallen kind shows its name and tally on its spread")
         // v2.120: a spread holds at most the header + BESTIARY_ROWS rows, and the pages tile the book

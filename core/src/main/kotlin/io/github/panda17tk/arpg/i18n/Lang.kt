@@ -229,6 +229,7 @@ object Lang {
         add("【+" to " [+")
         add("【" to " [")
         add("討伐図鑑 " to "Bestiary ")
+        add("戦闘枠 " to "combat ") // v2.161 細かい残り: the bestiary header's second tally
         // v2.159 英語化第4弾(前半): the surface objective line (biome name + situation),
         // the goal chips, and the quest chip/lines. Generic （）：！ fallbacks sort shortest
         // and run last, so composed lines close cleanly in ASCII.

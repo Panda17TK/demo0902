@@ -67,8 +67,10 @@ object Ambience {
         try { weather?.dispose() } catch (_: Throwable) {}
         weather = null
         if (!enabled) return
-        val samples = AmbienceScore.renderWeather(kind) ?: return
-        weather = loop("bgm/weather-${kind.name.lowercase()}.wav", { samples }, WEATHER_VOL)
+        loop("bgm/weather-${kind.name.lowercase()}.wav", { AmbienceScore.renderWeather(kind) }, WEATHER_VOL) {
+            // a late arrival for a sky we already left is put down, not attached
+            if (kind == weatherKind && enabled) { weather = swap(weather, it); applyBed() } else discard(it)
+        }
     }
 
     /** The sound toggle: off stops the loop, on resumes whatever the scene last asked for. */
@@ -86,22 +88,54 @@ object Ambience {
     fun dispose() = stop()
 
     private fun start(track: AmbientTrack) {
-        music = loop("bgm/${track.name.lowercase()}.wav", { AmbienceScore.render(track) }, VOLUME)
+        val g = gen // a render that lands after kill() switched scenes must not attach
+        // v2.161 細かい残り: applyBed() on arrival — the settings' master gain holds from the
+        // first breath (start() used to play at raw VOLUME until the next setMaster/setDuck).
+        loop("bgm/${track.name.lowercase()}.wav", { AmbienceScore.render(track) }, VOLUME) {
+            if (g == gen && enabled) { music = swap(music, it); applyBed() } else discard(it)
+        }
         // v2.67: the reactive layers loop alongside at volume 0; setLayers() breathes them in.
-        pulse = loop("bgm/pulse-${track.name.lowercase()}.wav", { AmbienceScore.renderLayer(AmbientLayer.PULSE, track) }, 0f)
-        shimmer = loop("bgm/shimmer-${track.name.lowercase()}.wav", { AmbienceScore.renderLayer(AmbientLayer.SHIMMER, track) }, 0f)
+        loop("bgm/pulse-${track.name.lowercase()}.wav", { AmbienceScore.renderLayer(AmbientLayer.PULSE, track) }, 0f) {
+            if (g == gen && enabled) pulse = swap(pulse, it) else discard(it)
+        }
+        loop("bgm/shimmer-${track.name.lowercase()}.wav", { AmbienceScore.renderLayer(AmbientLayer.SHIMMER, track) }, 0f) {
+            if (g == gen && enabled) shimmer = swap(shimmer, it) else discard(it)
+        }
     }
 
     // v2.153 音と手の修理: tracks are deterministic per name — render + write each ONCE per
     // session. Re-synthesizing ~1MB of WAV on the main thread at every land/takeoff was the
     // transition hitch.
+    // v2.161 細かい残り: the FIRST render moves off the main thread too — a fresh session no
+    // longer hitches at the title / first landing while the WAV synthesizes; the loop breathes
+    // in a beat later instead. Each assign closure decides whether its arrival still belongs.
     private val rendered = HashSet<String>()
-    private fun loop(path: String, samples: () -> ShortArray, vol: Float): Music? = try {
-        val fh = Gdx.files.local(path)
-        if (path !in rendered || !fh.exists()) {
-            fh.writeBytes(Wav.mono16(samples(), AmbienceScore.RATE), false)
-            rendered.add(path)
-        }
+    private var gen = 0 // bumped by kill(); start()'s closures compare against it
+
+    private fun loop(path: String, samples: () -> ShortArray?, vol: Float, assign: (Music?) -> Unit) {
+        try {
+            val fh = Gdx.files.local(path)
+            if (path in rendered && fh.exists()) {
+                assign(attach(fh, vol))
+                return
+            }
+            Thread {
+                try {
+                    val s = samples() ?: return@Thread
+                    val bytes = Wav.mono16(s, AmbienceScore.RATE)
+                    Gdx.app.postRunnable {
+                        try {
+                            fh.writeBytes(bytes, false)
+                            rendered.add(path)
+                            assign(attach(fh, vol))
+                        } catch (_: Throwable) { /* no files here → silent */ }
+                    }
+                } catch (_: Throwable) { /* render failed → stay silent */ }
+            }.apply { isDaemon = true; name = "ambience-render" }.start()
+        } catch (_: Throwable) { /* no files on this platform → silent */ }
+    }
+
+    private fun attach(fh: com.badlogic.gdx.files.FileHandle, vol: Float): Music? = try {
         Gdx.audio.newMusic(fh).apply {
             isLooping = true
             volume = vol
@@ -109,7 +143,19 @@ object Ambience {
         }
     } catch (_: Throwable) { null /* no audio on this platform → silent */ }
 
+    private fun discard(m: Music?) {
+        try { m?.stop() } catch (_: Throwable) {}
+        try { m?.dispose() } catch (_: Throwable) {}
+    }
+
+    /** Swap in a late-arriving loop: any older sibling still humming is put down first. */
+    private fun swap(old: Music?, new: Music?): Music? {
+        if (old !== new) discard(old)
+        return new
+    }
+
     private fun kill() {
+        gen++ // v2.161: a render still in flight for the old scene must not attach to the new
         for (m in listOf(music, pulse, shimmer, weather)) {
             try { m?.stop() } catch (_: Throwable) {}
             try { m?.dispose() } catch (_: Throwable) {}

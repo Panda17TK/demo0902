@@ -62,6 +62,13 @@ object RecordsPanel {
 
     fun kindCount(): Int = kinds.size
 
+    // v2.161 細かい残り: the combat frame (every non-wildlife kind — v2.158's reachable
+    // milestone) gets a live counter beside the full-book tally.
+    private val combatIds: Set<String> by lazy {
+        io.github.panda17tk.arpg.config.GameConfig().enemies
+            .filterValues { it.lifeKind != io.github.panda17tk.arpg.config.LifeKind.WILDLIFE }.keys
+    }
+
     fun bestiaryLines(count: (String) -> Int, page: Int = 0): List<String> {
         val known = kinds.count { count(it.first) > 0 }
         val rows = kinds.map { (id, name) -> if (count(id) > 0) "$name×${count(id)}" else "？？？" }
@@ -70,7 +77,8 @@ object RecordsPanel {
         val pages = bestiaryPages(kinds.size)
         val p = page.coerceIn(0, pages - 1)
         return buildList {
-            add("討伐図鑑 $known/${kinds.size}（${p + 1}/$pages）")
+            val combatKnown = combatIds.count { count(it) > 0 } // v2.161
+            add("討伐図鑑 $known/${kinds.size}　戦闘枠 $combatKnown/${combatIds.size}（${p + 1}/$pages）")
             addAll(rows.drop(p * BESTIARY_ROWS).take(BESTIARY_ROWS))
         }
     }
