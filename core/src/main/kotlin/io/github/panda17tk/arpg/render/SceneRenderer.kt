@@ -54,6 +54,9 @@ class PlayerPose(
  * units (y-down camera).
  */
 class SceneRenderer {
+    /** v2.170 文字の消灯: the creatures' bubbles obey 世界観ヒント (GameScreen mirrors the toggle). */
+    var speechEnabled = true
+
     private val glyphLayout = GlyphLayout()
     private val activeSpeakers = ArrayList<com.github.quillraven.fleks.Entity>(16) // v2.149: reused per frame
     private val tmpC = Color()
@@ -920,7 +923,7 @@ class SceneRenderer {
         // v2.149: collect the few live, on-screen speakers ONCE — the two draw passes used to
         // walk all ~5000 silent fish twice per frame.
         activeSpeakers.clear()
-        run {
+        if (speechEnabled) run { // v2.170: no bubbles when the world's asides are off
             val scx = camera.position.x; val scy = camera.position.y
             val shw = camera.viewportWidth / 2f + CULL_MARGIN
             val shh = camera.viewportHeight / 2f + CULL_MARGIN
@@ -959,16 +962,8 @@ class SceneRenderer {
                 font.draw(batch, glyphLayout, mt.x - glyphLayout.width / 2f, mt.y - 20f)
             }
         }
-        // v2.85 damage pops: small numbers floating off the wound, fading over their last third.
-        val popC = tmpC
-        gw.fx.pops.forEach { pop ->
-            val k = pop.t / pop.life
-            popC.set(pop.color); popC.a = if (k > 0.66f) (1f - k) * 3f else 1f
-            font.color = popC
-            font.data.setScale(0.16f * pop.scale, -0.16f * pop.scale)
-            glyphLayout.setText(font, pop.text)
-            font.draw(batch, glyphLayout, pop.x - glyphLayout.width / 2f, pop.y)
-        }
+        // v2.170 文字の消灯: the damage numbers retired — hit-stop, sparks, squash and the
+        // kill flash carry the feedback now (v2.85's pops still age in Fx; they just don't paint).
         font.color = Color.WHITE
         font.data.setScale(bubScaleX, bubScaleY)
         batch.end()

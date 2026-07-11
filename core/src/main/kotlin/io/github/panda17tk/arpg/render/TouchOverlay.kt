@@ -22,7 +22,6 @@ import kotlin.math.min
  * auto-fitted label (long labels shrink instead of spilling out of the circle).
  */
 object TouchOverlay {
-    private val glyph = GlyphLayout()
     private val cStickBase = Color(1f, 1f, 1f, 0.06f)
     private val cStickKnob = Color(1f, 1f, 1f, 0.30f)
     private val cAimBase = Color(1f, 0.5f, 0.4f, 0.16f)
@@ -80,25 +79,73 @@ object TouchOverlay {
             shapes.circle(cx, cy, r, 32)
             shapes.color = if (pressed) cDiscPressed else cDisc
             shapes.circle(cx, cy, r - 2.5f, 32)
+            pictogram(shapes, b, cx, cy, r, landLabel, swapMeleeFire) // v2.170 文字の消灯
         }
         shapes.end()
-        batch.projectionMatrix = vp.camera.combined
-        batch.begin()
-        for (b in l.all()) {
-            if (!showAll && b !in touch.visibleButtons) continue
-            val label = labelOf(b, landLabel, swapMeleeFire)
-            val r = l.radiusOf(b)
-            // v2.54 auto-fit: a label never spills past its disc — it shrinks to fit instead.
-            val baseX = font.data.scaleX; val baseY = font.data.scaleY
-            glyph.setText(font, label)
-            val fit = min(1f, (r * 1.7f) / glyph.width.coerceAtLeast(1f))
-            if (fit < 1f) { font.data.setScale(baseX * fit, baseY * fit); glyph.setText(font, label) }
-            font.color = cLabel
-            font.draw(batch, glyph, l.centerX(b) - glyph.width / 2f, l.centerY(b) + glyph.height / 2f)
-            font.color = Color.WHITE
-            if (fit < 1f) font.data.setScale(baseX, baseY)
+    }
+
+    /** v2.170 文字の消灯: wordless button faces — one small pictogram per verb, drawn in the
+     *  same filled-shape pass as the disc (no font: nothing to garble, fit, or translate). */
+    private fun pictogram(
+        shapes: ShapeRenderer, b: TouchButton, cx: Float, cy: Float, r: Float,
+        landLabel: String, swapMeleeFire: Boolean,
+    ) {
+        shapes.color = cLabel
+        val s = r * 0.38f
+        val fire = b == TouchButton.FIRE || (b == TouchButton.MELEE && swapMeleeFire)
+        when {
+            fire -> { // reticle: a dot and four ticks
+                shapes.circle(cx, cy, s * 0.30f, 12)
+                shapes.rect(cx - s, cy - s * 0.10f, s * 0.55f, s * 0.2f)
+                shapes.rect(cx + s * 0.45f, cy - s * 0.10f, s * 0.55f, s * 0.2f)
+                shapes.rect(cx - s * 0.10f, cy - s, s * 0.2f, s * 0.55f)
+                shapes.rect(cx - s * 0.10f, cy + s * 0.45f, s * 0.2f, s * 0.55f)
+            }
+            b == TouchButton.MELEE -> // the blade: one diagonal slash
+                shapes.rectLine(cx - s, cy - s, cx + s, cy + s, s * 0.3f)
+            b == TouchButton.DASH -> { // double chevron, running right
+                shapes.triangle(cx - s, cy + s * 0.8f, cx - s, cy - s * 0.8f, cx - s * 0.1f, cy)
+                shapes.triangle(cx + s * 0.1f, cy + s * 0.8f, cx + s * 0.1f, cy - s * 0.8f, cx + s, cy)
+            }
+            b == TouchButton.RELOAD -> { // a fresh magazine: body + lip
+                shapes.rect(cx - s * 0.35f, cy - s, s * 0.7f, s * 1.5f)
+                shapes.rect(cx - s * 0.55f, cy + s * 0.55f, s * 1.1f, s * 0.35f)
+            }
+            b == TouchButton.WALL -> { // a block: square ring
+                shapes.rect(cx - s, cy - s, s * 2f, s * 2f)
+                shapes.color = cDisc
+                shapes.rect(cx - s * 0.55f, cy - s * 0.55f, s * 1.1f, s * 1.1f)
+            }
+            b == TouchButton.WEAPON -> { // the swap: two counter-running arrows
+                shapes.rect(cx - s, cy + s * 0.15f, s * 1.4f, s * 0.25f)
+                shapes.triangle(cx + s * 0.35f, cy + s * 0.75f, cx + s * 0.35f, cy - s * 0.2f, cx + s, cy + s * 0.27f)
+                shapes.rect(cx - s * 0.4f, cy - s * 0.4f, s * 1.4f, s * 0.25f)
+                shapes.triangle(cx - s * 0.35f, cy + s * 0.05f, cx - s * 0.35f, cy - s * 0.9f, cx - s, cy - s * 0.28f)
+            }
+            b == TouchButton.LAND -> { // landing: wedge down onto the pad line; takeoff: wedge up off it
+                shapes.rect(cx - s, cy - s * 0.9f, s * 2f, s * 0.25f)
+                if (landLabel.contains("着")) {
+                    shapes.triangle(cx - s * 0.8f, cy + s * 0.9f, cx + s * 0.8f, cy + s * 0.9f, cx, cy - s * 0.3f)
+                } else {
+                    shapes.triangle(cx - s * 0.8f, cy - s * 0.3f, cx + s * 0.8f, cy - s * 0.3f, cx, cy + s * 0.9f)
+                }
+            }
+            b == TouchButton.INV -> { // the satchel: box + clasp
+                shapes.rect(cx - s * 0.8f, cy - s * 0.9f, s * 1.6f, s * 1.2f)
+                shapes.rect(cx - s * 0.45f, cy + s * 0.4f, s * 0.9f, s * 0.3f)
+            }
+            b == TouchButton.FULL -> { // full throttle: twin wedges climbing
+                shapes.triangle(cx - s * 0.8f, cy - s, cx + s * 0.8f, cy - s, cx, cy - s * 0.1f)
+                shapes.triangle(cx - s * 0.8f, cy - s * 0.1f, cx + s * 0.8f, cy - s * 0.1f, cx, cy + s)
+            }
+            b == TouchButton.TUNE -> { // sliders: three rails, three heads
+                for (i in 0..2) {
+                    val ly = cy + s * (0.7f - 0.7f * i)
+                    shapes.rect(cx - s, ly - s * 0.08f, s * 2f, s * 0.16f)
+                    shapes.rect(cx - s * 0.6f + s * 0.6f * i, ly - s * 0.28f, s * 0.3f, s * 0.56f)
+                }
+            }
         }
-        batch.end()
     }
 
     /** The stick knob, clamped to the stick radius and drawn at 42% size. */
@@ -109,16 +156,4 @@ object TouchOverlay {
         shapes.circle(cx + kx, cy + ky, radius * 0.42f, 18)
     }
 
-    private fun labelOf(b: TouchButton, landLabel: String, swapMeleeFire: Boolean): String = when (b) {
-        TouchButton.FIRE -> "射撃"
-        TouchButton.MELEE -> if (swapMeleeFire) "射撃" else "近接" // v2.39: the swap puts the gun on the button
-        TouchButton.DASH -> "ダッシュ"
-        TouchButton.RELOAD -> "装填"
-        TouchButton.WALL -> "壁"
-        TouchButton.WEAPON -> "武器"
-        TouchButton.LAND -> landLabel
-        TouchButton.INV -> "持物"
-        TouchButton.FULL -> "全開"
-        TouchButton.TUNE -> "調整" // v2.98
-    }
 }
