@@ -134,6 +134,7 @@ object Lang {
         "[L] 離陸" to "[L] Lift off",
         "[L] 離陸して宇宙へ" to "[L] Lift off to space",
         "暴君の縄張りに入った" to "You have entered the tyrant's water", // v2.157 読む海
+        "依頼 完了 — この星は満ちている" to "Requests complete - this star is content", // v2.159 英語化第4弾
         // 持物 / インベントリ
         "装備" to "Gear",
         "アイテム" to "Items",
@@ -228,6 +229,60 @@ object Lang {
         add("【+" to " [+")
         add("【" to " [")
         add("討伐図鑑 " to "Bestiary ")
+        // v2.159 英語化第4弾(前半): the surface objective line (biome name + situation),
+        // the goal chips, and the quest chip/lines. Generic （）：！ fallbacks sort shortest
+        // and run last, so composed lines close cleanly in ASCII.
+        add("自然惑星" to "Nature Planet")
+        add("火山惑星" to "Volcanic Planet")
+        add("氷惑星" to "Ice Planet")
+        add("ガス惑星" to "Gas Planet")
+        add("死の惑星" to "Dead Planet")
+        add("孤独な小惑星" to "Lonely Asteroid")
+        add("聖なる子が殺された　星は許さない" to "A sacred child was slain　the star will not forgive")
+        add("弱きものが失われた　部族は怒っている" to "The weak were lost　the tribe is enraged")
+        add("子らを傷つけた　星は怒っている" to "The children were hurt　the star is angered")
+        add("弱きものを傷つけた　守護者が奮い立つ" to "The weak were hurt　the guardians stir")
+        add("この星はあなたを敵として覚えている" to "This star remembers you as an enemy")
+        add("この星はあなたへの借りを覚えている" to "This star remembers its debt to you")
+        add("神獣は倒れた　星の均衡が崩れている" to "The sacred beast has fallen　the balance is breaking")
+        add("捕食者を退けた　森はあなたを見ている" to "A predator was driven off　the forest is watching you")
+        add("巣が荒らされた　野生がざわめく" to "A nest was ravaged　the wild is stirring")
+        add("森の主を倒した　生態系が揺らいでいる" to "The forest's master has fallen　the ecosystem trembles")
+        add("この星の主を倒せ" to "Defeat this star's masters")
+        add("主を倒した　素材を回収せよ" to "The master has fallen　recover the materials")
+        add("を制圧した　脱出パッドへ戻れ" to " is subdued　return to the escape pad")
+        add("（残り " to " (left ")
+        add("残り " to "left ")
+        add("神獣に触れてしまった" to "The sacred beast was touched")
+        add("神獣に触れるな" to "Do not touch the sacred beast")
+        add("星の主を倒した" to "The star's master has fallen")
+        add("星の主を倒せ" to "Defeat the star's master")
+        add("遺物を手にした" to "Relic in hand")
+        add("遺物" to "Relic")
+        add("子らを守れ" to "Protect the children")
+        add("主を倒した" to "Masters defeated")
+        add("主を倒せ" to "Defeat the masters")
+        // quest lines (QuestDef.line) and the chip around them — the count rides ×N
+        add("依頼: 精鋭を" to "Request: defeat elites ×")
+        add("依頼: 外敵を" to "Request: defeat hostiles ×")
+        add("依頼: 記憶片を" to "Request: gather memory shards ×")
+        add("依頼: 記憶核と照合する（" to "Request: sync with the memory core (")
+        add("依頼: 捕食者を" to "Request: drive off predators ×")
+        add("体討つ（" to " (")
+        add("回収する（" to " (")
+        add("体退ける（" to " (")
+        add("秒の定点観測（" to "s of field observation (")
+        add("依頼: " to "Request: ")
+        add("依頼を果たした +" to "Request fulfilled +")
+        add("屑 — 次の頼みが届いた" to " dust - the next request has arrived")
+        add("屑 — この星の頼みはすべて済んだ" to " dust - this star asks nothing more")
+        add("　※この空なら" to "　* this sky pays ")
+        add("屑　" to " dust　")
+        add("依頼" to "Request ")
+        add("（" to " (")
+        add("）" to ")")
+        add("：" to ": ")
+        add("！" to "!")
         // v2.142 英語化第3弾: species names — 162 kinds, auto-derived from their stable English ids
         // ("tyrant_shark" → "Tyrant Shark"). The bestiary, event feed and speech lines pick these up.
         io.github.panda17tk.arpg.config.GameConfig().enemies.forEach { (id, def) ->
@@ -273,5 +328,48 @@ object Lang {
             "BESTIARY_COMBAT" to "The Maintenance Record", // v2.158 図鑑の二段
         )
         io.github.panda17tk.arpg.save.Achievement.entries.forEach { a -> achEn[a.name]?.let { add(a.title to it) } }
+        // v2.159 英語化第4弾(前半): achievement descriptions — the record page reads whole.
+        val descEn = mapOf(
+            "FIRST_LANDING" to "Set foot on a planet for the first time",
+            "FIRST_JUMP" to "Crossed to the next system through a jump gate",
+            "STAR_RETURNER" to "Earned deep trust from two planets",
+            "KING_SLAYER" to "Felled the king on two planets",
+            "FIRST_HONE" to "Honed a weapon for the first time",
+            "SYNC_50" to "Interstellar sync recovery reached 50%",
+            "BOUNTY_HUNTER" to "Took down a bounty head",
+            "DEEP_SURGE" to "Survived desync 15",
+            "QUEST_PATRON" to "Lifted off with a star's request fulfilled",
+            "RELIC_KEEPER" to "Brought home a sleeping relic",
+            "SYNC_90" to "Interstellar sync recovery reached 90%",
+            "HONED_MAX" to "Honed a weapon to +3",
+            "GUARDIAN" to "Fulfilled a protection request",
+            "OBSERVER" to "Fulfilled an observation request",
+            "SYSTEM_3" to "Reached a third star system",
+            "DUST_RICH" to "Held 500 dust at once",
+            "QUIET_VISIT" to "Left a planet without hurting anyone",
+            "BEAST_HUNTER" to "Felled the beast king on two planets",
+            "CHAIN_PATRON" to "Saw one star's requests through to the end",
+            "STORM_WATCHER" to "Landed on a thunderstorm planet",
+            "AURORA_GAZER" to "Landed under an aurora",
+            "METEOR_SURVIVOR" to "Survived a meteor-shower wave",
+            "ROGUE_SLAYER" to "Defeated a rogue drifter",
+            "RAGE_BREAKER" to "Defeated an enraged heavyweight",
+            "GRAND_RITUAL" to "Witnessed the rite of the kill",
+            "COMBO_MASTER" to "Carried the combo to its highest beat",
+            "WORKSHOP_PATRON" to "Commissioned the workshop's first craft",
+            "WORKSHOP_MASTER" to "Mastered one workshop craft",
+            "TRAIT_ARRIVAL" to "Reached a system with a temperament",
+            "GATE_READY" to "Bundled enough gate keys for the jump",
+            "FINAL_SYNC" to "Completed the sync, and went to sleep with the net",
+            "DRIFT_ON" to "At the last choice, disconnected and drifted on",
+            "VAULT_DELVER" to "Stood at the deepest point of a sealed vault",
+            "TRADER_CLIENT" to "Bought from the wandering trader",
+            "LIFELINE" to "Rescued a survivor from a wreck",
+            "TRADE_LEDGER" to "Sold belongings to the trader",
+            "BESTIARY_50" to "Recorded 50 kinds in the bestiary",
+            "BESTIARY_FULL" to "Recorded every kind in the bestiary",
+            "BESTIARY_COMBAT" to "Recorded every combat entry (all but the wild)",
+        )
+        io.github.panda17tk.arpg.save.Achievement.entries.forEach { a -> descEn[a.name]?.let { add(a.desc to it) } }
     }.sortedByDescending { it.first.length }
 }
