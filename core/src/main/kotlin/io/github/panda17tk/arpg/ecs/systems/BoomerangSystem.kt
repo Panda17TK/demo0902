@@ -74,7 +74,7 @@ class BoomerangSystem(private val mobGrid: SpatialGrid<Entity>) :
         }
 
         // The blade's edge: every mob it crosses is cut once per leg.
-        mobGrid.forNearby(t.x, t.y, BLADE_RADIUS + 24f) { mobEntity ->
+        mobGrid.forNearby(t.x, t.y, BLADE_RADIUS + io.github.panda17tk.arpg.sim.Tuning.MAX_BODY_HALF) { mobEntity ->
             if (mobEntity in b.hit) return@forNearby
             val mobT = with(world) { mobEntity[Transform] }
             val mobB = with(world) { mobEntity[Body] }
