@@ -20,6 +20,7 @@ data class RunSaveDto(
     val landedPlanetId: Long? = null,
     val returnX: Float? = null, val returnY: Float? = null,
     val wave: Int = 1,
+    val areaX: Int = 1, val areaY: Int = 1, // v2.166 宙域の九分割 (append-only; old saves read centre)
     // Player vitals + position
     val px: Float = 0f, val py: Float = 0f,
     val hp: Float = 100f, val hpMax: Float = 100f,

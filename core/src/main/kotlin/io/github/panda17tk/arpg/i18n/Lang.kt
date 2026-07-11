@@ -254,6 +254,7 @@ object Lang {
         add("【" to " [")
         add("討伐図鑑 " to "Bestiary ")
         add("戦闘枠 " to "combat ") // v2.161 細かい残り: the bestiary header's second tally
+        add("隣の宙域へ — エリア " to "Into the next sky - area ") // v2.166 宙域の九分割
         // v2.162 英語化第4弾(後半): the memory cores' whole vocabulary — every pool line,
         // behind its prefix. Full-sentence tokens, so nothing bites into another line.
         add("記憶核: " to "Memory core: ")

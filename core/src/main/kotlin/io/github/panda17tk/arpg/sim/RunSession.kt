@@ -16,6 +16,9 @@ class RunSession(
     val memory: PlanetMemoryBook = PlanetMemoryBook(), // per-planet society memory, survives landings this run
     var landedPlanetId: Long? = null,                  // id of the planet we're on, so takeoff folds memory back in
     var returnSpawn: Pair<Float, Float>? = null,       // where to re-emerge in space after taking off
+    // v2.166 宙域の九分割: which 3×3 slice of the sky the run is in — every run begins centre
+    var areaX: Int = 1,
+    var areaY: Int = 1,
     private val store: MemoryStore? = null,            // persistence backend; null = memory dies with the run
 ) {
     /** 着陸1回ぶんの決定事項 — everything GameScreen needs to build the surface and greet the player. */
@@ -79,6 +82,7 @@ class RunSession(
     fun reset() {
         spaceSeed = 1L
         surfSeed = 100L
+        areaX = 1; areaY = 1 // v2.166
         landedPlanetId = null
         returnSpawn = null
         if (store == null) memory.memories.clear()

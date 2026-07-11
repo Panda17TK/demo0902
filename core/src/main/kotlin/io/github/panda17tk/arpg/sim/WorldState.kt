@@ -54,6 +54,11 @@ class WorldState(
     var worldSeed: Long = 1L, // v2.156 変化する波: the world's seed, for per-system cosmetic shuffles
     var tyrantWarned: Boolean = false, // v2.157 読む海: the territory notice fires once per sky
     var ngClears: Int = 0, // v2.160 周回の印II: completed syncs — the surge reads its depth from this
+    // v2.166 宙域の九分割: which 3×3 slice of the sky this world is (-1 = the undivided legacy world)
+    var areaX: Int = -1,
+    var areaY: Int = -1,
+    var areaOriginX: Float = 0f, // the slice's global tile origin, in px
+    var areaOriginY: Float = 0f,
     /** v2.69 星の依頼: predators put down this visit + seconds spent on the surface. */
     var questPredators: Int = 0,
     var questTime: Float = 0f,
