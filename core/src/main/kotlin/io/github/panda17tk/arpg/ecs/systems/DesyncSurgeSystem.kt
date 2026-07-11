@@ -41,9 +41,17 @@ class DesyncSurgeSystem : IteratingSystem(family { all(PlayerTag, Transform) }) 
 
     private val mobs by lazy { world.family { all(Mob) } }
     // Space waves draw only from generic enemies; biome creatures (biome != null) live on their planet's surface.
-    private val normalKeys: List<String> = config.enemies.filterValues { it.tier == "normal" && it.biome == null && it.lifeKind != io.github.panda17tk.arpg.config.LifeKind.WILDLIFE }.keys.toList() // v2.130/v2.141: fish never surge — but SAPIENT combatants DO (== HOSTILE had exiled 12 species)
+    // v2.156 変化する波: the pool keeps its stratigraphy (shallow → strange) but shuffles WITHIN
+    // depth bands per system — the first waves' faces change from sky to sky instead of always
+    // being the roster's first four rows.
+    private val normalKeys: List<String> = stratifiedShuffle(
+        config.enemies.filterValues { it.tier == "normal" && it.biome == null && it.lifeKind != io.github.panda17tk.arpg.config.LifeKind.WILDLIFE }.keys.toList(), // v2.130/v2.141: fish never surge — but SAPIENT combatants DO
+        worldState.worldSeed,
+    )
     private val midBossKeys: List<String> = config.enemies.filterValues { it.tier == "midboss" && it.biome == null && it.lifeKind != io.github.panda17tk.arpg.config.LifeKind.WILDLIFE }.keys.toList()
-    private val bossKeys: List<String> = config.enemies.filterValues { it.tier == "boss" && it.biome == null && it.lifeKind != io.github.panda17tk.arpg.config.LifeKind.WILDLIFE }.keys.toList()
+    // v2.156: bosses ignore the biome filter — 嵐の核 and 追放王 stalk the void too. Before this
+    // the space boss pool held ONE face (Overlord), every tenth wave, forever.
+    private val bossKeys: List<String> = config.enemies.filterValues { it.tier == "boss" && it.lifeKind != io.github.panda17tk.arpg.config.LifeKind.WILDLIFE }.keys.toList()
 
     override fun onTickEntity(entity: Entity) {
         // On a planet's surface the inhabitants are placed once by SurfaceEcology; no endless waves.
@@ -197,5 +205,21 @@ class DesyncSurgeSystem : IteratingSystem(family { all(PlayerTag, Transform) }) 
             return cx to cy
         }
         return null
+    }
+
+    companion object {
+        /** v2.156 変化する波: shuffle within depth bands of six — variety per system, but the
+         *  stratigraphy (shallow processes first, the machinery last) still holds. */
+        internal fun stratifiedShuffle(keys: List<String>, seed: Long): List<String> {
+            val r = io.github.panda17tk.arpg.math.Rng(seed xor 0x57A7A5EAL)
+            return keys.chunked(6).flatMap { band ->
+                val b = band.toMutableList()
+                for (i in b.indices.reversed()) {
+                    val j = r.nextInt(i + 1)
+                    val t = b[i]; b[i] = b[j]; b[j] = t
+                }
+                b
+            }
+        }
     }
 }
