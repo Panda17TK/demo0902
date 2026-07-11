@@ -8,9 +8,9 @@ import org.junit.jupiter.api.Test
 /** v2.93 エンディング: the threshold, the core's rest, and the words that close the story. */
 class EndgameTest {
     @Test fun `the core surfaces only when the sync tops out`() {
-        assertFalse(Endgame.ready(98))
-        assertTrue(Endgame.ready(99))
-        assertEquals(99, Endgame.THRESHOLD, "SyncRestoration caps at 99 — the core asks for the last percent")
+        assertFalse(Endgame.ready(89))
+        assertTrue(Endgame.ready(90)) // v2.155 結末への道: the door opens where runs actually reach
+        assertEquals(90, Endgame.THRESHOLD, "the cap stays 99 — the missing percent remains the story")
     }
 
     @Test fun `the core rests just off the gate's shoulder`() {

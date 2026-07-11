@@ -7,8 +7,9 @@ package io.github.panda17tk.arpg.sim
  * they will take that last percent on. Pure rules + the final dialogue text.
  */
 object Endgame {
-    /** The network as whole as one keeper can make it — the core surfaces here. */
-    const val THRESHOLD = 99
+    /** The network near-whole — the core surfaces here (v2.155: 99→90; most runs never crossed
+     *  99, so the story's close went unseen. The cap stays 99 — the missing percent remains). */
+    const val THRESHOLD = 90
 
     fun ready(syncPercent: Int): Boolean = syncPercent >= THRESHOLD
 
