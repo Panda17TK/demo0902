@@ -369,11 +369,12 @@ internal fun GameScreen.drawEventBanner() {
         batch.begin()
         val bx = font.data.scaleX; val by = font.data.scaleY
         font.data.setScale(bx * 1.25f, by * 1.25f)
-        bannerGlyph.setText(font, eventBanner.text)
+        val bannerLine = io.github.panda17tk.arpg.i18n.Lang.tr(eventBanner.text) // v2.162 英語化第4弾
+        bannerGlyph.setText(font, bannerLine)
         if (bannerGlyph.width > w - 32f) {
             val k = (w - 32f) / bannerGlyph.width
             font.data.setScale(bx * 1.25f * k, by * 1.25f * k)
-            bannerGlyph.setText(font, eventBanner.text)
+            bannerGlyph.setText(font, bannerLine)
         }
         cEventTmp.set(1f, 0.94f, 0.85f, a); font.color = cEventTmp
         font.draw(batch, bannerGlyph, (w - bannerGlyph.width) / 2f + eventBanner.slide(), y + bandH / 2f + bannerGlyph.height / 2f)

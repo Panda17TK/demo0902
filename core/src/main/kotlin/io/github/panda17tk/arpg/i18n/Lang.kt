@@ -135,6 +135,24 @@ object Lang {
         "[L] 離陸して宇宙へ" to "[L] Lift off to space",
         "暴君の縄張りに入った" to "You have entered the tyrant's water", // v2.157 読む海
         "依頼 完了 — この星は満ちている" to "Requests complete - this star is content", // v2.159 英語化第4弾
+        // v2.162 英語化第4弾(後半): the ending — pages, choice, epilogue, tap hints
+        "署名照合、完了。……最終保守員、応答を確認。" to "Signature verified. ...Final keeper, response confirmed.",
+        "外部同期 99%。残る 1% は、仕様を書いた者たちの領分だった。" to "External sync at 99%. The last 1% belonged to those who wrote the specifications.",
+        "彼らはもういない。だが網は、あなたの手で編み直された。" to "They are gone now. But the net has been rewoven by your hands.",
+        "星々は覚えている。守られた子らを。討たれた王を。返された遺物を。" to "The stars remember. The children kept safe. The kings brought down. The relics returned.",
+        "選んでほしい。" to "Choose.",
+        "最後の 1% を引き受け、網とともに眠りにつくか——" to "Take on the last 1% and go to sleep with the net -",
+        "それとも切断し、このまま漂い続けるか。" to "or disconnect, and keep drifting as you are.",
+        "同期を完了して、眠りにつく" to "Complete the sync and sleep",
+        "切断して、漂流を続ける" to "Disconnect and keep drifting",
+        "同期完了。全系、静かに稼働。" to "Sync complete. All systems running, quietly.",
+        "人類保全装置群は、次の朝を待つ姿勢に戻る。" to "The preservation machinery settles back to waiting for the next morning.",
+        "星々は、あなたを覚えている。" to "The stars remember you.",
+        "——最終保守員の記録、ここに閉じる。" to "- The final keeper's record closes here.",
+        "切断を記録した。網は、それでもあなたを覚えている。" to "Disconnection logged. The net remembers you, even so.",
+        "タップで続ける" to "Tap to continue",
+        "タップで記録を閉じる" to "Tap to close the record",
+        "漂流者を救助した — 礼にと星屑40を分けてくれた" to "Rescued a drifter - they shared 40 dust in thanks",
         // 持物 / インベントリ
         "装備" to "Gear",
         "アイテム" to "Items",
@@ -230,6 +248,56 @@ object Lang {
         add("【" to " [")
         add("討伐図鑑 " to "Bestiary ")
         add("戦闘枠 " to "combat ") // v2.161 細かい残り: the bestiary header's second tally
+        // v2.162 英語化第4弾(後半): the memory cores' whole vocabulary — every pool line,
+        // behind its prefix. Full-sentence tokens, so nothing bites into another line.
+        add("記憶核: " to "Memory core: ")
+        add("遭難記録: " to "Distress log: ")
+        add("外部同期: 停止から 9 万 4 千日。ローカル保全モードを継続する" to "External sync: 94,000 days since loss. Local preservation mode continues")
+        add("訪問者を記録した。評価は保留。危害があれば追記される" to "Visitor logged. Assessment withheld. Harm, if any, will be appended")
+        add("この記録は消去できない。人類保全ポリシー第5条: 死者を忘れるな" to "This record cannot be erased. Human Preservation Policy, Article 5: forget no one who died")
+        add("説明を要求されたが、説明できる者の人格ログが見つからない" to "An explanation was requested, but no persona log capable of explaining can be found")
+        add("修復トークン(星屑)の回収率が低下している。それでも出力は続く" to "Recovery of repair tokens (dust) is slowing. Output continues regardless")
+        add("root key の照合に失敗。上位ノードは応答しない。単独で保つ" to "Root key verification failed. Upstream nodes silent. Holding alone")
+        add("生態系復元モデル: 縮退運転。第 812 世代の芽吹きを維持中" to "Ecosystem restoration model: degraded mode. Sustaining the 812th generation's budding")
+        add("この森はバックアップである。原本は失われた。だから枯らせない" to "This forest is a backup. The original is lost. So it must not wither")
+        add("地熱炉: 定格の 31%。それでも記憶核の冷却は優先される" to "Geothermal furnace: 31% of rated output. The memory core's cooling still takes priority")
+        add("採掘統治モデル: 稼働。掘る者がいなくても、鉱脈台帳は更新される" to "Mining governance model: running. No one digs, yet the vein ledger is kept current")
+        add("低温アーカイブ: 正常。眠る人格 217 万件。解凍要求: 0 件" to "Cryo archive: nominal. Sleeping personas: 2.17 million. Thaw requests: 0")
+        add("冬眠プロトコルは終わらない。起こす者が、もういないからだ" to "The hibernation protocol never ends. There is no one left to wake them")
+        add("通信中継モデル: 待機。最後に中継した声は 700 年前の子守唄" to "Relay model: standby. The last voice relayed was a lullaby, 700 years ago")
+        add("気象予測は今日も的中した。確認する者は、いない" to "Today's weather forecast was correct again. No one is here to check")
+        add("追悼アーカイブ: 低消費運転。名前の朗読は第 4 億周目に入った" to "Memorial archive: low-power mode. The reading of names has entered its 400 millionth cycle")
+        add("この星の最後の記録: 「灯りを消さないで」。要求は履行中" to "This planet's last record: 'Do not turn off the lights.' The request is being honored")
+        add("個人用保全基盤: 単独稼働。世帯人格 1 件を維持している" to "Personal preservation unit: standalone. Maintaining 1 household persona")
+        add("家庭内モデル: 「おかえり」を再生する相手を 3 千年待っている" to "Household model: waiting 3,000 years for someone to play 'welcome home' to")
+        add("訪問者の署名を照合中。過去の保守員名簿に部分一致がある" to "Matching the visitor's signature. Partial hit in the old keeper roster")
+        add("あなたの機体番号は、退役済みの保守端末のものと一致する" to "Your hull number matches a decommissioned maintenance terminal")
+        add("あなたの歩幅は、記録にある巡回員の歩幅と 97% 一致する" to "Your stride matches a patroller's on record, at 97%")
+        add("隣の星系から照会が届いている。『その訪問者は、また来たのか』と" to "An inquiry arrived from the next system: 'Has that visitor come again?'")
+        add("あなたが直した箇所の記録が残っている。あなたは覚えていないようだが" to "Records remain of what you repaired. You do not seem to remember")
+        add("照合完了。あなたの人格ログの作成日は、あなたの記憶する誕生日より後だ" to "Match complete. Your persona log was created after the birthday you remember")
+        add("おかえりなさい、最終保守員。巡回の再開を記録した" to "Welcome back, final keeper. Resumption of patrol has been logged")
+        add("あなたは住民たちと同じ、記憶からの出力だ。それでも巡回は続いている" to "You are an output from memory, the same as the residents. The patrol continues even so")
+        add("あなたの原本は、ここには保存されていない。どこにも、保存されていない" to "Your original is not stored here. It is not stored anywhere")
+        add("第4条: 子を保護せよ。あなたがそれを守るたび、あなたの署名は彼のものに近づく" to "Article 4: protect the children. Each time you keep it, your signature drifts closer to his")
+        add("人類保全ポリシーは訪問者にも適用される。あなたも、保全対象だ" to "The Human Preservation Policy applies to visitors too. You are also to be preserved")
+        add("救難信号 7,040日目。応答なし。今日から数えるのをやめる" to "Distress signal, day 7,040. No response. As of today the count stops")
+        add("航法AIは最後まで謝り続けていた。『君のせいじゃない』と返した記録が残っている" to "The nav AI kept apologizing to the end. A reply remains on file: 'It was not your fault'")
+        add("積荷: 人類保全ポリシーの写し、420部。読める者への配達予定だった" to "Cargo: 420 copies of the Human Preservation Policy, bound for anyone who could still read")
+        add("乗員はコールドスリープを選択。起こしに来る者を、まだ待っている" to "The crew chose cold sleep. They are still waiting for someone to come wake them")
+        add("この船は星系ノードの修理へ向かう途中だった。部品はまだ貨物室にある" to "This ship was en route to repair the system node. The parts are still in the hold")
+        add("最後の通信: 『灯りは点けたままにしておく』。灯りは、点いている" to "Last transmission: 'We will leave the lights on.' The lights are on")
+        add("船体の破断は衝突によるもの。防衛プロセスの誤認記録が添付されている" to "Hull breach caused by collision. A defence-process misidentification report is attached")
+        add("航海日誌の最終頁: 『帰ったら、子どもに星の名前を教える』" to "Last page of the log: 'When I get home, I will teach my child the names of the stars'")
+        // v2.162: the event banner now funnels through tr() — the wave calls ride along
+        add("⚠ 強大な気配が近づく" to "⚠ Something vast draws near")
+        add("強敵の気配" to "A strong foe stirs")
+        add("大群が接近している" to "A horde is closing in")
+        add("磁気嵐 — 敵は荒ぶり、星屑は多くこぼれる" to "Magnetic storm - foes rage, and dust spills freely")
+        add("賞金首『" to "Bounty head 『")
+        add("』が現れた" to "』 has appeared")
+        add("清掃プロトコル起動 — 保守機構が展開する" to "Purge protocol engaged - the custodial machinery deploys")
+        add("流星群 — 岩塊が降りしきる。落下点から離れよ" to "Meteor shower - rock falls thick. Stay clear of the impact points")
         // v2.159 英語化第4弾(前半): the surface objective line (biome name + situation),
         // the goal chips, and the quest chip/lines. Generic （）：！ fallbacks sort shortest
         // and run last, so composed lines close cleanly in ASCII.
