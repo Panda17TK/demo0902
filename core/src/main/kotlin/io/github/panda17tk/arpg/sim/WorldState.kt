@@ -61,6 +61,8 @@ class WorldState(
     var questBaseDust: Int = 0,
     var questBasePredators: Int = 0,
     var questBaseTime: Float = 0f,
+    // v2.150 記録の清潔: 依頼の連鎖の段の継ぎ目 — 全カウンタの基準を取り直し、CORE の
+    // 訪問印も下ろす（連鎖内で CORE が2度出ても、2度目が即時決済されない）。
     /** v2.46 難破船: wrecked hulls adrift in the system — guarded loot caches worth boarding. */
     var wrecks: List<Pair<Float, Float>> = emptyList(),
     /** v2.100 行商船: a friendly trading vessel adrift in SOME systems (null when it isn't here). */
@@ -81,4 +83,11 @@ class WorldState(
     val wreckLogShown: MutableSet<Int> = mutableSetOf(),
     /** v2.75 天候: this landing's sky — set once by WorldFactory; ecology/render/sound all read it. */
     var weather: WeatherKind = WeatherKind.CLEAR,
-)
+) {
+    fun snapshotQuestBases() {
+        questBaseKills = questKills; questBaseElites = questElites
+        questBaseDust = questDust; questBasePredators = questPredators
+        questBaseTime = questTime
+        coreVisited = false
+    }
+}

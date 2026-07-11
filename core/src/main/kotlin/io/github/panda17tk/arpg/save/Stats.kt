@@ -34,12 +34,14 @@ object Stats {
     /** A fresh real run leaves the hangar. */
     fun addSortie() { sorties += 1; persist() }
 
-    /** Land the buffered time and this world's kills at a seam. */
-    fun fold(killsByKind: Map<String, Int>) {
+    /** Land the buffered time and this world's kills at a seam.
+     *  v2.150 記録の清潔: [wildIds] stays OUT of the lifetime counter — a fished-out sky
+     *  (~5000 wildlife since v2.144) must not read as thousands of combat kills. */
+    fun fold(killsByKind: Map<String, Int>, wildIds: Set<String> = emptySet()) {
         val whole = pendingTime.toLong()
         playSeconds += whole
         pendingTime -= whole // the fraction carries to the next seam instead of being dropped
-        kills += killsByKind.values.sumOf { it.toLong() }
+        kills += killsByKind.entries.sumOf { (k, v) -> if (k in wildIds) 0L else v.toLong() }
         persist()
     }
 
