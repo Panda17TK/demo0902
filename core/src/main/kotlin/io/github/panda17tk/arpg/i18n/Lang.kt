@@ -270,6 +270,7 @@ object Lang {
             "FINAL_SYNC" to "The Last Keeper", "DRIFT_ON" to "Still Drifting", "VAULT_DELVER" to "Vault Delver",
             "TRADER_CLIENT" to "Trader's Client", "LIFELINE" to "Lifeline", "TRADE_LEDGER" to "Star Ledger",
             "BESTIARY_50" to "A Thicker Book", "BESTIARY_FULL" to "Complete Record",
+            "BESTIARY_COMBAT" to "The Maintenance Record", // v2.158 図鑑の二段
         )
         io.github.panda17tk.arpg.save.Achievement.entries.forEach { a -> achEn[a.name]?.let { add(a.title to it) } }
     }.sortedByDescending { it.first.length }
