@@ -51,6 +51,8 @@ enum class Achievement(val title: String, val desc: String) {
     TRADE_LEDGER("星の帳簿", "行商船に持物を売った"),
     BESTIARY_50("図鑑の厚み", "討伐図鑑に50種を記した"),
     BESTIARY_FULL("全記録", "討伐図鑑のすべての種を記した"),
+    // v2.158 図鑑の二段: the combat book is the reachable milestone; FULL stays the long-tail crown.
+    BESTIARY_COMBAT("保守記録の完成", "図鑑の戦闘枠（野生をのぞく全種）を記した"),
 }
 
 object Achievements {

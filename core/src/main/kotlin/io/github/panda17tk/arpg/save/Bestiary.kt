@@ -28,6 +28,9 @@ object Bestiary {
     /** How many kinds carry at least one mark. */
     fun knownCount(): Int = tallies.count { it.value > 0 }
 
+    /** v2.158 図鑑の二段: how many of [ids] the book already holds. */
+    fun knownAmong(ids: Set<String>): Int = tallies.count { it.value > 0 && it.key in ids }
+
     /** Fold one world's tallies into the book (called at world seams; no-op when empty). */
     fun record(killsByKind: Map<String, Int>) {
         if (killsByKind.isEmpty()) return

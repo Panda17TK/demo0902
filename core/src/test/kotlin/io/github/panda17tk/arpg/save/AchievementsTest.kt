@@ -46,11 +46,14 @@ class AchievementsTest {
 
     @Test fun `the v117 records keep their stable ids at the tail`() {
         // v2.117: append-only — the ids are the save format, so they live at the end, verbatim.
-        assertEquals(38, Achievement.entries.size)
+        assertEquals(39, Achievement.entries.size) // v2.158 図鑑の二段: +保守記録の完成
         assertEquals("星の帳簿", Achievement.TRADE_LEDGER.title)
         assertEquals("図鑑の厚み", Achievement.BESTIARY_50.title)
         assertEquals("全記録", Achievement.BESTIARY_FULL.title)
-        assertTrue(Achievement.BESTIARY_FULL.ordinal == Achievement.entries.size - 1)
+        // v2.158: append-only — the new combat-book milestone takes the tail; FULL keeps its ordinal
+        assertTrue(Achievement.BESTIARY_FULL.ordinal == Achievement.entries.size - 2)
+        assertTrue(Achievement.BESTIARY_COMBAT.ordinal == Achievement.entries.size - 1)
+        assertEquals("保守記録の完成", Achievement.BESTIARY_COMBAT.title)
     }
 
     @Test fun `every achievement has a calm title and description`() {
