@@ -1070,9 +1070,19 @@ class GameScreen(
      */
     internal fun performJump() {
         pendingJump = false
+        var remitted = 0
         with(gw.world) {
             val m = gw.player[Materials]
             m.shards = (m.shards - gateNeed()).coerceAtLeast(0)
+            // v2.154 星屑の送金: the jump wires 30% of carried dust to the workshop — surviving
+            // and pressing on now banks more than the 15% death salvage ever did.
+            if (!simMode) {
+                remitted = io.github.panda17tk.arpg.save.WorkshopCatalog.remit(m.dust)
+                if (remitted > 0) {
+                    m.dust -= remitted
+                    io.github.panda17tk.arpg.save.Workshop.deposit(remitted)
+                }
+            }
         }
         session.spaceSeed += 1
         session.surfSeed = session.spaceSeed * 100
@@ -1085,7 +1095,8 @@ class GameScreen(
         if (syncPercent() >= 50) tryUnlock(Achievement.SYNC_50)
         if (syncPercent() >= 90) tryUnlock(Achievement.SYNC_90) // v2.68
         if (session.spaceSeed >= 3) tryUnlock(Achievement.SYSTEM_3) // v2.70
-        rewardToast = "第${session.spaceSeed}星系に到達した"
+        rewardToast = "第${session.spaceSeed}星系に到達した" +
+            (if (remitted > 0) "　工房へ送金 +${remitted}屑" else "")
         rewardToastT = TOAST_TIME
         // v2.91 星系の個性: the new sky introduces itself on the banner.
         gw.worldState.trait.takeIf { it != SystemTrait.NONE }?.let {

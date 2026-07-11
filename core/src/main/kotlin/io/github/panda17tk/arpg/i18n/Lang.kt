@@ -181,6 +181,7 @@ object Lang {
         add("旅の記録 — 星々はあなたを覚えている" to "The voyage - the stars remember you")
         add("最深 同期汚染 " to "Deepest desync ")
         add("最寄りの惑星 " to "Nearest planet ") // v2.148: the composed hint lines
+        add("　工房へ送金 +" to "　wired to the workshop +") // v2.154 星屑の送金
         add("ジャンプゲート " to "Jump gate ")
         add("ゲート鍵 " to "Gate keys ")
         add("ウェーブ(旧式) " to "Wave (legacy) ")
