@@ -30,6 +30,9 @@ class Mob(
     var wildState: WildState = WildState.Wander,
     var hunger: Float = 0f,   // 0..1, climbs over time; a predator hunts when high, drops while feeding
     var wanderCd: Float = 0f, // re-roll timer for the idle wander heading
+    // v2.164 軽い海: this animal's own re-roll counter — wander hashes from (id, seq), so one
+    // animal's tick cadence can never shift another's heading (no shared stream to reorder)
+    var wanderSeq: Int = 0,
     var feedCd: Float = 0f,   // cooldown between predation bites
     var fellByWild: Boolean = false, // v2.130 図鑑: set when a predator's bite (not the player) lands the kill
     var biteWindup: Float = 0f, // v2.138 公正な野生: a brave hunter's lunge at the keeper telegraphs this long first

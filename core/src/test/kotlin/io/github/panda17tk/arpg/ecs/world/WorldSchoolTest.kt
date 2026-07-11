@@ -41,7 +41,16 @@ class WorldSchoolTest {
 
     @Test fun `the boids hold a flock together and align its swim`() {
         val gw = WorldFactory.create(InputState(), seed = 1L)
-        val flock = tinyFlocks(gw).maxByOrNull { it.value }!!.key
+        // v2.164 軽い海: measure a flock swimming BESIDE the keeper — the full-rate boids the
+        // player actually watches. The far ocean ticks on WildLod's coarser stagger by design;
+        // that ring's "still swims, still deterministic" contract lives in WildLodTest.
+        val def = GameConfig().enemies.getValue("star_sardine")
+        val (px0, py0) = with(gw.world) { gw.player[Transform].let { it.x to it.y } }
+        val flock = 900101
+        repeat(90) { i ->
+            val a = i / 90f * 6.2831855f
+            MobFactory.spawn(gw.world, def, px0 + 400f + kotlin.math.cos(a) * 60f, py0 + kotlin.math.sin(a) * 60f, schoolGroup = flock)
+        }
         repeat(300) { gw.world.update(dt) } // five seconds of open water
         val xs = ArrayList<Float>(); val ys = ArrayList<Float>()
         val hx = ArrayList<Float>(); val hy = ArrayList<Float>()
