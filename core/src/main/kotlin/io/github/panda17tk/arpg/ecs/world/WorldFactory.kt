@@ -145,7 +145,7 @@ object WorldFactory {
                 seed = seed, // stable planet ids per star system → society memory persists across landings
             ),
         )
-        val worldState = WorldState(mode = mode, biome = biome, context = context, society = society ?: PlanetSocietyState())
+        val worldState = WorldState(mode = mode, biome = biome, context = context, society = society ?: PlanetSocietyState(), worldSeed = seed)
         // The escape pad sits at the surface landing point; standing on it lets the player take off again.
         if (mode == WorldMode.SURFACE) worldState.escapePad = loaded.playerSpawnX to loaded.playerSpawnY
         worldState.vault = vaultPos // v2.95

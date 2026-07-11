@@ -51,6 +51,7 @@ class WorldState(
     var questDust: Int = 0,
     var coreVisited: Boolean = false,
     var coreArmed: Boolean = true, // v2.155: leaving the core re-arms the visit — no parked re-settles
+    var worldSeed: Long = 1L, // v2.156 変化する波: the world's seed, for per-system cosmetic shuffles
     /** v2.69 星の依頼: predators put down this visit + seconds spent on the surface. */
     var questPredators: Int = 0,
     var questTime: Float = 0f,
