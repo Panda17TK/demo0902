@@ -59,6 +59,12 @@ class WorldState(
     var areaY: Int = -1,
     var areaOriginX: Float = 0f, // the slice's global tile origin, in px
     var areaOriginY: Float = 0f,
+    /** v2.169 診断修正: the gate in GLOBAL px — a bearing home from any slice (the local [gate]
+     *  is null everywhere but the slice that holds it, which left the compass blank). */
+    var gateGlobal: Pair<Float, Float>? = null,
+    /** v2.169: each local wreck's index in the sky-wide plan, so a looted cache stays looted
+     *  whichever slice rebuild lists it (legacy worlds: identity). */
+    var wreckIndices: List<Int> = emptyList(),
     /** v2.69 星の依頼: predators put down this visit + seconds spent on the surface. */
     var questPredators: Int = 0,
     var questTime: Float = 0f,

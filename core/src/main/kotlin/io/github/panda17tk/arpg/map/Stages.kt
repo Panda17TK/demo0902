@@ -177,6 +177,15 @@ object Stages {
         return (ax * (g.w / AREA_N)) to (ay * (g.h / AREA_N))
     }
 
+    /** v2.169: a slice's tile dims WITHOUT building it — the last row/column absorbs the
+     *  division remainder, so the departing map is the wrong ruler for its neighbour's edge. */
+    fun sliceDims(id: String, ax: Int, ay: Int): Pair<Int, Int> {
+        val g = SPACE_GEN.first { it.id == id }
+        val sw = if (ax == AREA_N - 1) g.w - ax * (g.w / AREA_N) else g.w / AREA_N
+        val sh = if (ay == AREA_N - 1) g.h - ay * (g.h / AREA_N) else g.h / AREA_N
+        return sw to sh
+    }
+
     /** v2.166: one ninth of the space stage, rebuilt deterministically from the generator. */
     fun slice(id: String, ax: Int, ay: Int): StageDef {
         val g = SPACE_GEN.first { it.id == id }

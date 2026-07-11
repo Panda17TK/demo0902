@@ -265,7 +265,7 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
         private const val BEAM_BLAST_DMG = 64f  // splash damage at the blast centre (0 at the rim)
         private val BEAM_SPARK = Color.valueOf("9fe8ff") // pale-cyan beam-impact sparks
         // v2.101 レールガン: longer than the beam, thin, and utterly indifferent to cover.
-        private const val RAIL_RANGE = 1600f
+        internal const val RAIL_RANGE = 1600f // v2.169: WildLod.GRID_KEEP must stay beyond this
         private const val RAIL_CHARGE_TIME = 1.0f // seconds of settled aim for full power
         private const val RAIL_W = 2.2f           // slug corridor half-width at snap fire
         private val popRail = Color.valueOf("ffe9b8") // rail numbers, hot amber-white

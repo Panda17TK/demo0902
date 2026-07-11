@@ -21,6 +21,13 @@ class RunSession(
     var areaY: Int = 1,
     private val store: MemoryStore? = null,            // persistence backend; null = memory dies with the run
 ) {
+    // v2.169 診断修正: per-sky one-time treasures. A rebuilt sky (area crossing, takeoff, the
+    // training door) regenerates deterministically — without these latches every rebuild
+    // restocked the wreck caches, the comet's beads and the survivor's thanks (a free farm).
+    val lootedWrecks: MutableSet<Int> = mutableSetOf() // sky-wide wreck indices already emptied
+    var survivorRescued: Boolean = false
+    var cometSwept: Boolean = false
+
     /** 着陸1回ぶんの決定事項 — everything GameScreen needs to build the surface and greet the player. */
     data class LandingPlan(
         val seed: Long,
@@ -83,6 +90,7 @@ class RunSession(
         spaceSeed = 1L
         surfSeed = 100L
         areaX = 1; areaY = 1 // v2.166
+        lootedWrecks.clear(); survivorRescued = false; cometSwept = false // v2.169
         landedPlanetId = null
         returnSpawn = null
         if (store == null) memory.memories.clear()

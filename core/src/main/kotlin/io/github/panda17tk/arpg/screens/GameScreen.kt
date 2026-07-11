@@ -409,6 +409,7 @@ class GameScreen(
     internal fun toggleTraining() {
         if (!simMode) {
             foldBestiary() // v2.113: the real world's tallies, before the sim
+            snapshotSkyTreasures() // v2.169: the training door is a rebuild seam too
             simMode = true
             preSimCarry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
             worldSeed = TRAINING_SEED
@@ -417,7 +418,7 @@ class GameScreen(
             simMode = false
             challengeMode = false // v2.102: leaving the walled-off world ends the proving run too
             worldSeed = session.spaceSeed
-            gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed, carry = preSimCarry, boons = metaBoons, trait = SystemTraits.traitFor(session.spaceSeed), difficulty = runDifficulty, ngClears = io.github.panda17tk.arpg.save.Endings.clears, oceanKeep = io.github.panda17tk.arpg.save.OceanDensity.keep(), area = session.areaX to session.areaY) // v2.160 / v2.165 / v2.166
+            gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed, carry = preSimCarry, boons = metaBoons, trait = SystemTraits.traitFor(session.spaceSeed), difficulty = runDifficulty, ngClears = io.github.panda17tk.arpg.save.Endings.clears, oceanKeep = io.github.panda17tk.arpg.save.OceanDensity.keep(), area = session.areaX to session.areaY, lootedWrecks = session.lootedWrecks, survivorRescued = session.survivorRescued, cometSwept = session.cometSwept) // v2.160 / v2.165 / v2.166 / v2.169
             gw.waveState.num = preSimCarry?.wave ?: 1
             preSimCarry = null
         }
@@ -437,6 +438,7 @@ class GameScreen(
     internal fun enterChallenge() {
         if (::gw.isInitialized) foldBestiary() // v2.117: entering the proving run is a seam like the training door
         if (!challengeMode) preSimCarry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
+        snapshotSkyTreasures() // v2.169: leaving the real sky for the proving run is a rebuild seam
         simMode = true; challengeMode = true
         // v2.106 公正化: the proving run starts from the shipped numbers — session knobs all reset,
         // and the tuning popup (if open) closes; the tune door itself stays shut while inside.
@@ -575,15 +577,47 @@ class GameScreen(
     }
 
     /** v2.166 宙域の九分割: swap to the neighbouring slice, re-entering from the matching edge. */
-    internal fun crossArea(dx: Int, dy: Int, px: Float, py: Float, mw: Float, mh: Float) {
+    internal fun crossArea(dx: Int, dy: Int, px: Float, py: Float) {
         session.areaX += dx; session.areaY += dy
+        // v2.169 診断修正: the entry edge is measured on the DESTINATION slice — the last
+        // row/column absorbs the division remainder, so the departing map is the wrong ruler.
+        val sid = io.github.panda17tk.arpg.map.Stages.randomSpaceId(Rng(session.spaceSeed))
+        val dims = io.github.panda17tk.arpg.map.Stages.sliceDims(sid, session.areaX, session.areaY)
         val inset = io.github.panda17tk.arpg.sim.AreaGrid.ENTRY_INSET
-        val ex = when { dx > 0 -> inset; dx < 0 -> mw - inset; else -> px }
-        val ey = when { dy > 0 -> inset; dy < 0 -> mh - inset; else -> py }
+        val ex = when { dx > 0 -> inset; dx < 0 -> dims.first * Tuning.TILE - inset; else -> px }
+        val ey = when { dy > 0 -> inset; dy < 0 -> dims.second * Tuning.TILE - inset; else -> py }
         transitionWorld(WorldMode.SPACE, null, session.spaceSeed, ex to ey)
         rewardToast = "隣の宙域へ — エリア ${session.areaX + 1}-${session.areaY + 1}"
         rewardToastT = TOAST_TIME
         Sfx.play("scan")
+    }
+
+    /** v2.169 診断修正: before the real sky is torn down (landing, crossing, jumping, the
+     *  training door), note which wreck caches stand empty and whether the comet's tail is
+     *  swept — the deterministic rebuild must not restock them (crossing an edge and back was
+     *  a free, repeatable treasure reset). Only a fully emptied cache latches; an untouched or
+     *  half-taken one returns whole, which errs on the player's side. */
+    private fun snapshotSkyTreasures() {
+        if (simMode || !::gw.isInitialized) return
+        val ws = gw.worldState
+        if (ws.mode != WorldMode.SPACE) return
+        if (ws.wrecks.isEmpty() && ws.comet == null) return
+        val drops = ArrayList<Pair<Float, Float>>()
+        with(gw.world) {
+            gw.world.family { all(io.github.panda17tk.arpg.ecs.components.Pickup, Transform) }.forEach { e ->
+                val t = e[Transform]
+                drops.add(t.x to t.y)
+            }
+        }
+        ws.wrecks.forEachIndexed { i, wk ->
+            if (drops.none { hypot(it.first - wk.first, it.second - wk.second) < Tuning.TILE * 3f }) {
+                session.lootedWrecks.add(ws.wreckIndices.getOrElse(i) { i })
+            }
+        }
+        val head = ws.comet
+        if (head != null && !session.cometSwept &&
+            drops.none { hypot(it.first - head.first, it.second - head.second) < 400f } // beads ride ≤290px out
+        ) session.cometSwept = true
     }
 
     internal fun transitionWorld(
@@ -591,11 +625,12 @@ class GameScreen(
         context: PlanetContext? = null, society: PlanetSocietyState? = null,
         weather: WeatherKind = WeatherKind.CLEAR,
     ) {
+        snapshotSkyTreasures() // v2.169 診断修正: emptied caches must not restock on the rebuild
         foldBestiary() // v2.113: fold before the swap
         val carry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
         worldSeed = seed
         gw.world.dispose() // v2.153: release the outgoing world's systems at the seam
-        gw = WorldFactory.create(input, configStore.config, seed, mode, biome, carry, spawn, context, society, weather, boons = metaBoons, trait = if (mode == WorldMode.SPACE) SystemTraits.traitFor(session.spaceSeed) else SystemTrait.NONE, difficulty = runDifficulty, ngClears = io.github.panda17tk.arpg.save.Endings.clears, oceanKeep = io.github.panda17tk.arpg.save.OceanDensity.keep(), area = if (mode == WorldMode.SPACE) session.areaX to session.areaY else null) // v2.160 / v2.165 / v2.166
+        gw = WorldFactory.create(input, configStore.config, seed, mode, biome, carry, spawn, context, society, weather, boons = metaBoons, trait = if (mode == WorldMode.SPACE) SystemTraits.traitFor(session.spaceSeed) else SystemTrait.NONE, difficulty = runDifficulty, ngClears = io.github.panda17tk.arpg.save.Endings.clears, oceanKeep = io.github.panda17tk.arpg.save.OceanDensity.keep(), area = if (mode == WorldMode.SPACE) session.areaX to session.areaY else null, lootedWrecks = session.lootedWrecks, survivorRescued = session.survivorRescued, cometSwept = session.cometSwept) // v2.160 / v2.165 / v2.166 / v2.169
         gw.waveState.num = carry.wave
         accumulator = 0f; camInit = false; overlay = Overlay.NONE
         choosing = false; offered = false; choices = emptyList(); lastHp = Float.NaN
@@ -760,14 +795,14 @@ class GameScreen(
         }
         // v2.166 宙域の九分割: reaching the slice's edge crosses into the neighbouring sky.
         // The training sim and the proving run stay walled (simMode), whatever slice they use.
-        if (!paused && !simMode && gw.worldState.mode == WorldMode.SPACE && gw.worldState.areaX >= 0 && endingStage == 0) {
+        if (!paused && !simMode && !fade.blocksInput && gw.worldState.mode == WorldMode.SPACE && gw.worldState.areaX >= 0 && endingStage == 0) { // v2.169: no crossing mid-fade
             val (apx, apy) = with(gw.world) { val t = gw.player[Transform]; t.x to t.y }
             val mw = gw.map.width * Tuning.TILE; val mh = gw.map.height * Tuning.TILE
             val adx = if (apx < io.github.panda17tk.arpg.sim.AreaGrid.EDGE_TRIGGER) -1 else if (apx > mw - io.github.panda17tk.arpg.sim.AreaGrid.EDGE_TRIGGER) 1 else 0
             val ady = if (apy < io.github.panda17tk.arpg.sim.AreaGrid.EDGE_TRIGGER) -1 else if (apy > mh - io.github.panda17tk.arpg.sim.AreaGrid.EDGE_TRIGGER) 1 else 0
             val cdx = if (io.github.panda17tk.arpg.sim.AreaGrid.hasNeighbor(session.areaX, session.areaY, adx, 0)) adx else 0
             val cdy = if (io.github.panda17tk.arpg.sim.AreaGrid.hasNeighbor(session.areaX, session.areaY, 0, ady)) ady else 0
-            if (cdx != 0 || cdy != 0) crossArea(cdx, cdy, apx, apy, mw, mh)
+            if (cdx != 0 || cdy != 0) crossArea(cdx, cdy, apx, apy)
         }
         // v2.157 読む海: crossing into the tyrant's water announces it — once per sky. The notice
         // marks the territory: high risk, whale-class bounty (throttled scan, every ~30 frames).
@@ -816,6 +851,7 @@ class GameScreen(
                 val (spx2, spy2) = with(gw.world) { val t = gw.player[Transform]; t.x to t.y }
                 if (hypot(spx2 - wk.first, spy2 - wk.second) < Tuning.TILE * 2f) {
                     gw.worldState.survivorRescued = true
+                    session.survivorRescued = true // v2.169: the rescue holds across rebuilds
                     with(gw.world) { gw.player[Materials].dust += 40 }
                     eventBanner.start("漂流者を救助した — 礼にと星屑40を分けてくれた")
                     Sfx.play("levelup")
@@ -1181,6 +1217,7 @@ class GameScreen(
         session.landedPlanetId = null
         session.returnSpawn = null
         session.areaX = 1; session.areaY = 1 // v2.166: a new system opens at its centre
+        session.lootedWrecks.clear(); session.survivorRescued = false; session.cometSwept = false // v2.169
         endingSeenThisWorld = false // v2.93: a new sky may ask the question again
         transitionWorld(WorldMode.SPACE, null, session.spaceSeed, null)
         with(gw.world) { val h = gw.player[Health]; h.hp = h.hpMax } // the jump mends the hull
@@ -1280,6 +1317,8 @@ class GameScreen(
                 returnX = session.returnSpawn?.first, returnY = session.returnSpawn?.second,
                 wave = gw.waveState.num,
                 areaX = session.areaX, areaY = session.areaY, // v2.166 宙域の九分割
+                lootedWrecks = session.lootedWrecks.toList(), // v2.169 診断修正
+                survivorRescued = session.survivorRescued, cometSwept = session.cometSwept,
                 px = t.x, py = t.y,
                 hp = hlt.hp, hpMax = hlt.hpMax, stamina = sta.value,
                 ammo9 = ammo.ammo9, ammo12 = ammo.ammo12, ammoBeam = ammo.ammoBeam, ammoNade = ammo.ammoNade,
@@ -1316,6 +1355,9 @@ class GameScreen(
         session.spaceSeed = dto.spaceSeed
         session.surfSeed = dto.surfSeed
         session.areaX = dto.areaX; session.areaY = dto.areaY // v2.166 宙域の九分割
+        session.lootedWrecks.clear(); session.lootedWrecks.addAll(dto.lootedWrecks) // v2.169
+        session.survivorRescued = dto.survivorRescued
+        session.cometSwept = dto.cometSwept
         session.landedPlanetId = dto.landedPlanetId
         val rx = dto.returnX; val ry = dto.returnY
         session.returnSpawn = if (rx != null && ry != null) rx to ry else null
@@ -1337,6 +1379,7 @@ class GameScreen(
             ngClears = io.github.panda17tk.arpg.save.Endings.clears, // v2.160 周回の印II
             oceanKeep = io.github.panda17tk.arpg.save.OceanDensity.keep(), // v2.165 海の密度
             area = if (mode == WorldMode.SPACE) dto.areaX to dto.areaY else null, // v2.166 宙域の九分割
+            lootedWrecks = session.lootedWrecks, survivorRescued = session.survivorRescued, cometSwept = session.cometSwept, // v2.169
         )
         gw.waveState.num = dto.wave
         with(gw.world) {

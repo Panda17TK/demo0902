@@ -287,7 +287,7 @@ internal fun GameScreen.drawObjectiveHint(paused: Boolean, hudW: Float, hudH: Fl
                     }
                 // v2.44: the gate line — shard progress while collecting, a live compass once ready.
                     val shards = with(gw.world) { gw.player[Materials].shards }
-                    val gateLine = ws.gate?.let { g ->
+                    val gateLine = gateLocalPos()?.let { g -> // v2.169: a bearing home from any slice
                         if (shards < gateNeed()) {
                             "ゲート鍵 $shards/${gateNeed()}"
                         } else {
@@ -460,12 +460,20 @@ internal fun GameScreen.drawInventory() {
         )
     }
 
+/** v2.169 診断修正: the gate's position in THIS slice's local frame — even when it lies in a
+ *  neighbouring slice (where ws.gate is null), the sky-wide plan still gives the compass and
+ *  the edge markers a bearing home. Distances stay true: local is global merely shifted. */
+internal fun GameScreen.gateLocalPos(): Pair<Float, Float>? {
+    val ws = gw.worldState
+    return ws.gate ?: ws.gateGlobal?.let { (it.first - ws.areaOriginX) to (it.second - ws.areaOriginY) }
+}
+
 /** v2.108 ナビ: this sky's landmarks — position, colour, and a one-glyph label. */
 internal fun GameScreen.navPois(): List<Triple<Pair<Float, Float>, com.badlogic.gdx.graphics.Color, String>> {
     val ws = gw.worldState
     return buildList {
         if (ws.mode == WorldMode.SPACE) {
-            ws.gate?.let { add(Triple(it, cNavGate, "門")) }
+            gateLocalPos()?.let { add(Triple(it, cNavGate, "門")) } // v2.169: points home from any slice
             ws.controlCore?.let { add(Triple(it, cNavCore, "核")) }
             ws.trader?.let { add(Triple(it, cNavTrader, "商")) }
             ws.wrecks.forEach { add(Triple(it, cNavWreck, "船")) }
