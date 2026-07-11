@@ -14,8 +14,8 @@ class LevelingTest {
     }
 
     @Test fun `attack variety rises with level but is capped by the archetype`() {
-        assertEquals(1, Leveling.attacksForLevel(1, 3))
-        assertEquals(2, Leveling.attacksForLevel(2, 3))
+        assertEquals(2, Leveling.attacksForLevel(1, 3)) // v2.152 目覚めた牙: two moves from level 1
+        assertEquals(3, Leveling.attacksForLevel(2, 3))
         assertEquals(3, Leveling.attacksForLevel(9, 3)) // capped at max
         assertEquals(0, Leveling.attacksForLevel(9, 0)) // no attacks defined → none
     }

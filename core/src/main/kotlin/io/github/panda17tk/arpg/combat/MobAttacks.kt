@@ -95,7 +95,10 @@ object MobAttacks {
             mobVel.vx += toPx * spec.power; mobVel.vy += toPy * spec.power; true
         }
         "heal" -> if (mobH.hp >= mobH.hpMax) false else { mobH.hp = minOf(mobH.hpMax, mobH.hp + spec.amount); true }
-        "enrage" -> { action.enrageT = spec.duration; action.enrageMul = spec.mul; true }
+        "enrage" -> { // v2.152: max, not assign — phase-2's rage-that-does-not-cool must survive this
+            action.enrageT = maxOf(action.enrageT, spec.duration)
+            action.enrageMul = maxOf(action.enrageMul, spec.mul); true
+        }
         "guard" -> { action.guardT = spec.duration; action.guardMul = spec.mul; true }
         "summon" -> { summon(world, config, rng, spec.minion, spec.count, mobT.x, mobT.y, waveNum); true }
         // --- v2.41 attack types ---

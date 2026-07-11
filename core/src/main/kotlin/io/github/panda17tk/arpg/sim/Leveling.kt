@@ -12,8 +12,10 @@ object Leveling {
 
     fun threshold(level: Int): Float = 30f * level.coerceAtLeast(1)
 
+    // v2.152 目覚めた牙: level 1 unlocks TWO moves. Before this, a normal whose first listed
+    // attack was a no-damage utility (blink/guard/lunge) could never hurt the keeper at all.
     fun attacksForLevel(level: Int, maxAttacks: Int): Int =
-        if (maxAttacks <= 0) 0 else minOf(maxAttacks, level.coerceAtLeast(1))
+        if (maxAttacks <= 0) 0 else minOf(maxAttacks, level.coerceAtLeast(1) + 1)
 
     fun smarts(intelligence: Float, level: Int): Float = intelligence + 0.1f * (level - 1).coerceAtLeast(0)
 }
