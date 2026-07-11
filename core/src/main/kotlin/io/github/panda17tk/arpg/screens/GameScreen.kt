@@ -407,12 +407,12 @@ class GameScreen(
             simMode = true
             preSimCarry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
             worldSeed = TRAINING_SEED
-            gw = WorldFactory.create(input, configStore.config, seed = TRAINING_SEED, carry = preSimCarry, boons = metaBoons, difficulty = runDifficulty)
+            gw = WorldFactory.create(input, configStore.config, seed = TRAINING_SEED, carry = preSimCarry, boons = metaBoons, difficulty = runDifficulty, oceanKeep = io.github.panda17tk.arpg.save.OceanDensity.keep()) // v2.165 海の密度
         } else {
             simMode = false
             challengeMode = false // v2.102: leaving the walled-off world ends the proving run too
             worldSeed = session.spaceSeed
-            gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed, carry = preSimCarry, boons = metaBoons, trait = SystemTraits.traitFor(session.spaceSeed), difficulty = runDifficulty, ngClears = io.github.panda17tk.arpg.save.Endings.clears) // v2.160 周回の印II
+            gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed, carry = preSimCarry, boons = metaBoons, trait = SystemTraits.traitFor(session.spaceSeed), difficulty = runDifficulty, ngClears = io.github.panda17tk.arpg.save.Endings.clears, oceanKeep = io.github.panda17tk.arpg.save.OceanDensity.keep()) // v2.160 周回の印II / v2.165 海の密度
             gw.waveState.num = preSimCarry?.wave ?: 1
             preSimCarry = null
         }
@@ -443,6 +443,9 @@ class GameScreen(
             input, configStore.config, seed = worldSeed,
             trait = SystemTraits.traitFor(worldSeed),
             difficulty = io.github.panda17tk.arpg.sim.Difficulty.NORMAL,
+            // v2.165 海の密度: the proving run pins 中 — same ocean for every contender,
+            // whatever their device runs at home
+            oceanKeep = io.github.panda17tk.arpg.save.OceanDensity.keep(io.github.panda17tk.arpg.save.OceanDensity.MEDIUM),
         )
         accumulator = 0f; camInit = false; choosing = false; offered = false; choices = emptyList()
         overlay = Overlay.NONE; lastHp = Float.NaN; prevOver = false; newBest = false
@@ -467,7 +470,7 @@ class GameScreen(
         session.reset() // a fresh run forgets every planet
         runStore.clear() // v2.33: restarting abandons the saved run
         worldSeed = session.spaceSeed
-        gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed, boons = metaBoons, trait = SystemTraits.traitFor(session.spaceSeed), difficulty = runDifficulty, ngClears = io.github.panda17tk.arpg.save.Endings.clears) // v2.160 周回の印II
+        gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed, boons = metaBoons, trait = SystemTraits.traitFor(session.spaceSeed), difficulty = runDifficulty, ngClears = io.github.panda17tk.arpg.save.Endings.clears, oceanKeep = io.github.panda17tk.arpg.save.OceanDensity.keep()) // v2.160 周回の印II / v2.165 海の密度
         accumulator = 0f
         camInit = false
         choosing = false
@@ -574,7 +577,7 @@ class GameScreen(
         val carry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
         worldSeed = seed
         gw.world.dispose() // v2.153: release the outgoing world's systems at the seam
-        gw = WorldFactory.create(input, configStore.config, seed, mode, biome, carry, spawn, context, society, weather, boons = metaBoons, trait = if (mode == WorldMode.SPACE) SystemTraits.traitFor(session.spaceSeed) else SystemTrait.NONE, difficulty = runDifficulty, ngClears = io.github.panda17tk.arpg.save.Endings.clears) // v2.160 周回の印II
+        gw = WorldFactory.create(input, configStore.config, seed, mode, biome, carry, spawn, context, society, weather, boons = metaBoons, trait = if (mode == WorldMode.SPACE) SystemTraits.traitFor(session.spaceSeed) else SystemTrait.NONE, difficulty = runDifficulty, ngClears = io.github.panda17tk.arpg.save.Endings.clears, oceanKeep = io.github.panda17tk.arpg.save.OceanDensity.keep()) // v2.160 周回の印II / v2.165 海の密度
         gw.waveState.num = carry.wave
         accumulator = 0f; camInit = false; overlay = Overlay.NONE
         choosing = false; offered = false; choices = emptyList(); lastHp = Float.NaN
@@ -1268,6 +1271,7 @@ class GameScreen(
             trait = if (mode == WorldMode.SPACE) SystemTraits.traitFor(dto.worldSeed) else SystemTrait.NONE, // v2.91
             difficulty = runDifficulty, // v2.97
             ngClears = io.github.panda17tk.arpg.save.Endings.clears, // v2.160 周回の印II
+            oceanKeep = io.github.panda17tk.arpg.save.OceanDensity.keep(), // v2.165 海の密度
         )
         gw.waveState.num = dto.wave
         with(gw.world) {

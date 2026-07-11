@@ -153,6 +153,11 @@ object Lang {
         "タップで続ける" to "Tap to continue",
         "タップで記録を閉じる" to "Tap to close the record",
         "ボタン配置を編集" to "Edit Button Layout", // v2.163
+        "海の密度" to "Ocean Density", // v2.165
+        "宇宙の魚の数（次の空から反映）" to "How many fish fill the sky (applies from the next sky)",
+        "高" to "High",
+        "中" to "Medium",
+        "低" to "Low",
         "漂流者を救助した — 礼にと星屑40を分けてくれた" to "Rescued a drifter - they shared 40 dust in thanks",
         // 持物 / インベントリ
         "装備" to "Gear",

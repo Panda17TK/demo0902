@@ -120,6 +120,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             langEn = sp.getBoolean("langEn", false)         // v2.115
             volume = sp.getFloat("masterVolume", 1f).coerceIn(0f, 1f) // v2.96
             difficulty = io.github.panda17tk.arpg.sim.Difficulty.byName(sp.getString("difficulty", "NORMAL")) // v2.97
+            io.github.panda17tk.arpg.save.OceanDensity.tier = sp.getInteger("oceanDensity", io.github.panda17tk.arpg.save.OceanDensity.MEDIUM).coerceIn(0, 2) // v2.165
         } catch (_: Throwable) { /* defaults stay on */ }
         io.github.panda17tk.arpg.i18n.Lang.en = langEn // v2.115: the dictionary follows the pref
         Sfx.volume = volume
@@ -319,6 +320,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             val text = when (b.label) {
                 SettingsPanel.CLOSE_LABEL -> b.label
                 SettingsPanel.VOLUME -> "${io.github.panda17tk.arpg.i18n.Lang.tr(SettingsPanel.VOLUME)}: ${(volume * 100).toInt()}%" // v2.96: a cycle, not a toggle
+                SettingsPanel.OCEAN -> "${io.github.panda17tk.arpg.i18n.Lang.tr(SettingsPanel.OCEAN)}: ${io.github.panda17tk.arpg.i18n.Lang.tr(io.github.panda17tk.arpg.save.OceanDensity.label())}" // v2.165
                 else -> "${io.github.panda17tk.arpg.i18n.Lang.tr(b.label)}: ${if (toggleState(b.label)) "ON" else "OFF"}"
             }
             if (b.label == SettingsPanel.CLOSE_LABEL) {
@@ -418,6 +420,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             sp.putBoolean("langEn", langEn)        // v2.115
             sp.putFloat("masterVolume", volume)    // v2.96
             sp.putString("difficulty", difficulty.name) // v2.97
+            sp.putInteger("oceanDensity", io.github.panda17tk.arpg.save.OceanDensity.tier) // v2.165
             sp.flush()
         } catch (_: Throwable) { /* persist best-effort */ }
     }
@@ -624,6 +627,11 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
                     SettingsPanel.SOFT_FLASH -> { softFlash = !softFlash; persistSettings() } // v2.96
                     SettingsPanel.AIM_ASSIST -> { assistOn = !assistOn; persistSettings() } // v2.112
                     SettingsPanel.LANGUAGE -> { langEn = !langEn; io.github.panda17tk.arpg.i18n.Lang.en = langEn; persistSettings() } // v2.115
+                    SettingsPanel.OCEAN -> { // v2.165: a cycle like the volume — 高→中→低
+                        io.github.panda17tk.arpg.save.OceanDensity.tier = io.github.panda17tk.arpg.save.OceanDensity.next()
+                        persistSettings()
+                        Sfx.play("scan")
+                    }
                 }
                 return
             }

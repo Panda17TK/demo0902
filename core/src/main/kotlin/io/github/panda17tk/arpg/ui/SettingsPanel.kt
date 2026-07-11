@@ -18,10 +18,11 @@ object SettingsPanel {
     const val SOFT_FLASH = "閃光をやわらげる" // v2.96: photosensitivity — the white-outs dim
     const val AIM_ASSIST = "エイム補助"       // v2.112: bullets lean gently toward nearby foes
     const val LANGUAGE = "English表示"        // v2.115: main labels rendered in English
+    const val OCEAN = "海の密度"              // v2.165: how full the space ocean spawns
     const val CLOSE_LABEL = "閉じる"
 
     /** Toggle rows in display order — index-stable for the screen's state mapping. */
-    val TOGGLES = listOf(SOUND, VOLUME, HAPTICS, LEFTY, CONTROL_HINTS, LORE_HINTS, SHAKE, SOFT_FLASH, AIM_ASSIST, LANGUAGE)
+    val TOGGLES = listOf(SOUND, VOLUME, HAPTICS, LEFTY, CONTROL_HINTS, LORE_HINTS, SHAKE, SOFT_FLASH, AIM_ASSIST, LANGUAGE, OCEAN)
 
     /** One-line whispers under each toggle name (drawn smaller by the screen). */
     fun hintFor(label: String): String = when (label) {
@@ -35,6 +36,7 @@ object SettingsPanel {
         SOFT_FLASH -> "撃破の白フラッシュを弱める"
         AIM_ASSIST -> "射撃が近くの敵へわずかに寄る"
         LANGUAGE -> "主要ラベルを英語で表示"
+        OCEAN -> "宇宙の魚の数（次の空から反映）"
         else -> ""
     }
 

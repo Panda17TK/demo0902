@@ -12,7 +12,7 @@ class SettingsPanelTest {
             listOf(
                 SettingsPanel.SOUND, SettingsPanel.VOLUME, SettingsPanel.HAPTICS, SettingsPanel.LEFTY,
                 SettingsPanel.CONTROL_HINTS, SettingsPanel.LORE_HINTS,
-                SettingsPanel.SHAKE, SettingsPanel.SOFT_FLASH, SettingsPanel.AIM_ASSIST, SettingsPanel.LANGUAGE, SettingsPanel.CLOSE_LABEL, // v2.96/v2.112/v2.115
+                SettingsPanel.SHAKE, SettingsPanel.SOFT_FLASH, SettingsPanel.AIM_ASSIST, SettingsPanel.LANGUAGE, SettingsPanel.OCEAN, SettingsPanel.CLOSE_LABEL, // v2.96/v2.112/v2.115/v2.165
             ),
             bs.map { it.label },
         )
