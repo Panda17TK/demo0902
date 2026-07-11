@@ -62,15 +62,27 @@ object PlanetMemoryCodec {
     fun dtoOf(s: PlanetSocietyState): PlanetMemoryDto = s.toDto()
     fun stateOf(d: PlanetMemoryDto): PlanetSocietyState = d.toState()
 
+    // v2.151 土台の堅牢化: named args — a field inserted mid-list can no longer silently
+    // shift every field after it into the wrong slot.
     private fun PlanetSocietyState.toDto() = PlanetMemoryDto(
-        childHarmed, childKilled, wildPredatorThreatenedChild, predatorKilledNearChild,
-        hatchlingKilled, nestMotherKilled, apexKilled, surrenderKilled, surrenderedSpared,
-        leaderDefeated, relicClaimed, hostility, mercy, ecologicalDisruption,
+        childHarmed = childHarmed, childKilled = childKilled,
+        wildPredatorThreatenedChild = wildPredatorThreatenedChild,
+        predatorKilledNearChild = predatorKilledNearChild,
+        hatchlingKilled = hatchlingKilled, nestMotherKilled = nestMotherKilled,
+        apexKilled = apexKilled, surrenderKilled = surrenderKilled,
+        surrenderedSpared = surrenderedSpared, leaderDefeated = leaderDefeated,
+        relicClaimed = relicClaimed, hostility = hostility, mercy = mercy,
+        ecologicalDisruption = ecologicalDisruption,
     )
 
     private fun PlanetMemoryDto.toState() = PlanetSocietyState(
-        childHarmed, childKilled, wildPredatorThreatenedChild, predatorKilledNearChild,
-        hatchlingKilled, nestMotherKilled, apexKilled, surrenderKilled, surrenderedSpared,
-        leaderDefeated, relicClaimed, hostility, mercy, ecologicalDisruption,
+        childHarmed = childHarmed, childKilled = childKilled,
+        wildPredatorThreatenedChild = wildPredatorThreatenedChild,
+        predatorKilledNearChild = predatorKilledNearChild,
+        hatchlingKilled = hatchlingKilled, nestMotherKilled = nestMotherKilled,
+        apexKilled = apexKilled, surrenderKilled = surrenderKilled,
+        surrenderedSpared = surrenderedSpared, leaderDefeated = leaderDefeated,
+        relicClaimed = relicClaimed, hostility = hostility, mercy = mercy,
+        ecologicalDisruption = ecologicalDisruption,
     )
 }

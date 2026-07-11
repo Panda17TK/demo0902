@@ -190,7 +190,8 @@ class SchoolFishSystem : IteratingSystem(family { all(Mob, Transform, Velocity, 
 
     companion object {
         private const val NEIGHBOR_R2 = 52f * 52f // mates inside this ring pull the fish along
-        private const val SEP_R2 = 13f * 13f      // closer than this pushes apart (no stacking)
+        private const val SEP_R2 = 13f * 13f      // closer than this pushes apart (no stacking).
+        // v2.151: 18f was tried for the dense flocks but it visibly loosens cohesion — 13f stays
         private const val FLEE_R = 130f
         private const val FLEE_R2 = FLEE_R * FLEE_R   // the player / a predator scatters the school
         private const val W_FLEE_PRED = 2.4f // v2.143: the tunable weights moved to WildConfig
