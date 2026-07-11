@@ -29,18 +29,20 @@ object KeyboardInput {
         // false — a frame that runs zero sim steps must not swallow the shot).
         if (!kFire && prevK) state.fireRelease = true
         prevK = kFire
-        val j = k.isKeyPressed(Keys.J); state.melee = j && !prevJ; prevJ = j
-        val r = k.isKeyPressed(Keys.R); state.reload = r && !prevR; prevR = r
+        // v2.153: set-only edges — assigning false would zero the tap buffer (see InputState)
+        val j = k.isKeyPressed(Keys.J); if (j && !prevJ) state.melee = true; prevJ = j
+        val r = k.isKeyPressed(Keys.R); if (r && !prevR) state.reload = true; prevR = r
         val lKey = k.isKeyPressed(Keys.L); state.land = lKey && !prevL; prevL = lKey // land / take off
         val iKey = k.isKeyPressed(Keys.I); state.inventory = iKey && !prevI; prevI = iKey // inventory (v2.33)
         state.fullThrottle = k.isKeyPressed(Keys.O) // OC thruster full throttle, held (v2.33)
-        state.weaponSlot = when {
-            k.isKeyPressed(Keys.NUM_1) -> 0
-            k.isKeyPressed(Keys.NUM_2) -> 1
-            k.isKeyPressed(Keys.NUM_3) -> 2
-            k.isKeyPressed(Keys.NUM_4) -> 3
-            k.isKeyPressed(Keys.NUM_5) -> 4
-            else -> -1
+        // v2.153: the request persists until WeaponSwitchSystem consumes it (no -1 overwrite)
+        when {
+            k.isKeyPressed(Keys.NUM_1) -> state.weaponSlot = 0
+            k.isKeyPressed(Keys.NUM_2) -> state.weaponSlot = 1
+            k.isKeyPressed(Keys.NUM_3) -> state.weaponSlot = 2
+            k.isKeyPressed(Keys.NUM_4) -> state.weaponSlot = 3
+            k.isKeyPressed(Keys.NUM_5) -> state.weaponSlot = 4
+            else -> {}
         }
     }
 }

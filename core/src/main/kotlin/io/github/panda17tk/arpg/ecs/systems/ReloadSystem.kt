@@ -45,7 +45,7 @@ class ReloadSystem : IteratingSystem(family { all(PlayerTag, Arsenal, Ammo) }) {
         // No quiet-delay auto-reload — stopping fire with rounds left keeps them chambered.
         when {
             w.mag <= 0 -> { w.reloadT = time; w.autoReloadTimer = 0f }               // out of ammo → auto-reload
-            input.reload -> { w.reloadT = time * MANUAL_MUL; w.autoReloadTimer = 0f } // manual: faster
+            input.reload -> { input.reload = false; w.reloadT = time * MANUAL_MUL; w.autoReloadTimer = 0f } // manual: faster (v2.153: consume)
             else -> w.autoReloadTimer = 0f
         }
     }

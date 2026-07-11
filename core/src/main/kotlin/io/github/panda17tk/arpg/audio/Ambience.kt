@@ -68,7 +68,7 @@ object Ambience {
         weather = null
         if (!enabled) return
         val samples = AmbienceScore.renderWeather(kind) ?: return
-        weather = loop("bgm/weather-${kind.name.lowercase()}.wav", samples, WEATHER_VOL)
+        weather = loop("bgm/weather-${kind.name.lowercase()}.wav", { samples }, WEATHER_VOL)
     }
 
     /** The sound toggle: off stops the loop, on resumes whatever the scene last asked for. */
@@ -86,15 +86,22 @@ object Ambience {
     fun dispose() = stop()
 
     private fun start(track: AmbientTrack) {
-        music = loop("bgm/${track.name.lowercase()}.wav", AmbienceScore.render(track), VOLUME)
+        music = loop("bgm/${track.name.lowercase()}.wav", { AmbienceScore.render(track) }, VOLUME)
         // v2.67: the reactive layers loop alongside at volume 0; setLayers() breathes them in.
-        pulse = loop("bgm/pulse-${track.name.lowercase()}.wav", AmbienceScore.renderLayer(AmbientLayer.PULSE, track), 0f)
-        shimmer = loop("bgm/shimmer-${track.name.lowercase()}.wav", AmbienceScore.renderLayer(AmbientLayer.SHIMMER, track), 0f)
+        pulse = loop("bgm/pulse-${track.name.lowercase()}.wav", { AmbienceScore.renderLayer(AmbientLayer.PULSE, track) }, 0f)
+        shimmer = loop("bgm/shimmer-${track.name.lowercase()}.wav", { AmbienceScore.renderLayer(AmbientLayer.SHIMMER, track) }, 0f)
     }
 
-    private fun loop(path: String, samples: ShortArray, vol: Float): Music? = try {
+    // v2.153 音と手の修理: tracks are deterministic per name — render + write each ONCE per
+    // session. Re-synthesizing ~1MB of WAV on the main thread at every land/takeoff was the
+    // transition hitch.
+    private val rendered = HashSet<String>()
+    private fun loop(path: String, samples: () -> ShortArray, vol: Float): Music? = try {
         val fh = Gdx.files.local(path)
-        fh.writeBytes(Wav.mono16(samples, AmbienceScore.RATE), false)
+        if (path !in rendered || !fh.exists()) {
+            fh.writeBytes(Wav.mono16(samples(), AmbienceScore.RATE), false)
+            rendered.add(path)
+        }
         Gdx.audio.newMusic(fh).apply {
             isLooping = true
             volume = vol

@@ -55,6 +55,9 @@ class FireSystem(private val mobGrid: SpatialGrid<Entity>) :
         if (cd.shoot > 0f) cd.shoot -= deltaTime
         // v2.42: the buffered manual-fire request decays here (sim time) — see InputState.fireReleaseT.
         if (input.fireReleaseT > 0f) input.fireReleaseT -= deltaTime
+        if (input.meleeT > 0f) input.meleeT -= deltaTime // v2.153: the tap buffers decay in sim time too
+        if (input.reloadT > 0f) input.reloadT -= deltaTime
+        if (input.placeWallT > 0f) input.placeWallT -= deltaTime
 
         val arsenal = entity[Arsenal]
         val w = arsenal.current; val def = w.def

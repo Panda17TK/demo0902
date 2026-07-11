@@ -23,6 +23,7 @@ class BuildSystem : IteratingSystem(family { all(PlayerTag, Transform, Facing, B
 
     override fun onTickEntity(entity: Entity) {
         if (!input.placeWall) return
+        input.placeWall = false // v2.153: the buffered tap is consumed by this attempt
         val t = entity[Transform]
         val f = entity[Facing]
         val mats = entity[Materials]

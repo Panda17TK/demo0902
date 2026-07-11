@@ -18,6 +18,7 @@ object Sfx {
     private const val RATE = 22050
 
     fun init() {
+        if (sounds.isNotEmpty()) return // v2.153: idempotent — App and GameScreen may both call
         sounds.clear()
         gen("shot", freq = 660f, ms = 90, noise = 0f)
         gen("hit", freq = 200f, ms = 120, noise = 0.6f)

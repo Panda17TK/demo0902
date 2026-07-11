@@ -283,12 +283,7 @@ internal fun GameScreen.drawObjectiveHint(paused: Boolean, hudW: Float, hudH: Fl
                         val dx = it.cx - ppx; val dy = it.cy - ppy
                         val dist = (hypot(dx, dy) - it.radius).coerceAtLeast(0f).toInt()
                     // World is y-down: dy<0 = up on screen. Pick the dominant cardinal arrow.
-                        val arrow = if (kotlin.math.abs(dx) >= kotlin.math.abs(dy)) {
-                            if (dx >= 0f) "→" else "←"
-                        } else {
-                            if (dy >= 0f) "↓" else "↑"
-                        }
-                        "最寄りの惑星 $arrow $dist"
+                        "最寄りの惑星 ${arrowFor(dx, dy)} $dist"
                     }
                 // v2.44: the gate line — shard progress while collecting, a live compass once ready.
                     val shards = with(gw.world) { gw.player[Materials].shards }
@@ -298,12 +293,7 @@ internal fun GameScreen.drawObjectiveHint(paused: Boolean, hudW: Float, hudH: Fl
                         } else {
                             val dx = g.first - ppx; val dy = g.second - ppy
                             val dist = hypot(dx, dy).toInt()
-                            val arrow = if (kotlin.math.abs(dx) >= kotlin.math.abs(dy)) {
-                                if (dx >= 0f) "→" else "←"
-                            } else {
-                                if (dy >= 0f) "↓" else "↑"
-                            }
-                            "ジャンプゲート $arrow $dist"
+                            "ジャンプゲート ${arrowFor(dx, dy)} $dist"
                         }
                     }
                     Hud.hintPanel(
@@ -353,6 +343,10 @@ internal fun GameScreen.drawObjectiveHint(paused: Boolean, hudW: Float, hudH: Fl
             Hud.hintPanel(shapes, batch, font, hudViewport, lines, hudH - HINT_TOP)
         }
     }
+
+/** v2.153: the one compass — dominant cardinal arrow toward (dx, dy), world y-down. */
+private fun arrowFor(dx: Float, dy: Float): String =
+    if (kotlin.math.abs(dx) >= kotlin.math.abs(dy)) { if (dx >= 0f) "→" else "←" } else { if (dy >= 0f) "↓" else "↑" }
 
 /** v2.45/68 星の依頼: this visit's progress toward a request of [kind]. */
 internal fun GameScreen.questProgress(kind: QuestKind, ws: WorldState): Int = when (kind) {

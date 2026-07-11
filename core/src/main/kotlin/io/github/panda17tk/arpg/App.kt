@@ -9,6 +9,7 @@ import io.github.panda17tk.arpg.screens.TitleScreen
 /** Root libGDX application. Boots the title screen (v2.58); screens switch through here. */
 class App : Game() {
     override fun create() {
+        io.github.panda17tk.arpg.audio.Sfx.init() // v2.153: SFX are process-wide — menus click too
         setScreen(TitleScreen(this))
     }
 
@@ -43,5 +44,6 @@ class App : Game() {
     override fun dispose() {
         super.dispose()
         Ambience.dispose()
+        io.github.panda17tk.arpg.audio.Sfx.dispose() // v2.153: only the app teardown clears the bank
     }
 }
