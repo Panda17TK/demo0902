@@ -136,11 +136,17 @@ internal fun GameScreen.drawHud(paused: Boolean, sta: Float, staMax: Float, over
         val ammo = with(gw.world) { gw.player[Ammo] }
         val hp = with(gw.world) { gw.player[Health].hp }
         val hpMax = with(gw.world) { gw.player[Health].hpMax }
-        val foes = with(gw.world) { // v2.130: 残プロセス counts hostiles — the fish are not processes
-            var n = 0
-            gw.world.family { all(Mob) }.forEach { if (it[Mob].def.lifeKind == io.github.panda17tk.arpg.config.LifeKind.HOSTILE) n++ }
-            n
+        // v2.130: 残プロセス counts hostiles — the fish are not processes.
+        // v2.149: rescanned every 15 frames (~0.25s), not every frame — the family is ~5000 strong now.
+        if (foesCache < 0 || --foesRescan <= 0) {
+            foesCache = with(gw.world) {
+                var n = 0
+                gw.world.family { all(Mob) }.forEach { if (it[Mob].def.lifeKind == io.github.panda17tk.arpg.config.LifeKind.HOSTILE) n++ }
+                n
+            }
+            foesRescan = 15
         }
+        val foes = foesCache
         val wpn = with(gw.world) { gw.player[Arsenal] }.current
         val reloadFrac = if (wpn.reloadT > 0f && wpn.def.reloadTime > 0f) (wpn.reloadT / wpn.def.reloadTime).coerceIn(0f, 1f) else 0f
         val reserveStr = if (wpn.def.infiniteAmmo) "無限" else "${ammo.get(wpn.def.ammoType)}"

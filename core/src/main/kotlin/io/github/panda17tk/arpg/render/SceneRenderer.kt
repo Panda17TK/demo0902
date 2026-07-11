@@ -55,6 +55,7 @@ class PlayerPose(
  */
 class SceneRenderer {
     private val glyphLayout = GlyphLayout()
+    private val activeSpeakers = ArrayList<com.github.quillraven.fleks.Entity>(16) // v2.149: reused per frame
     private val tmpC = Color()
     // v2.139 描画の倹約: per-def caches so the mob pass allocates nothing per frame
     private val mobColorCache = HashMap<String, Color>()
@@ -108,7 +109,7 @@ class SceneRenderer {
         this.memoryTones = memoryTones
         shapes.projectionMatrix = camera.combined
         drawFilledPass(shapes, camera, gw, animTime, pose)
-        drawLinePass(shapes, gw, animTime)
+        drawLinePass(shapes, camera, gw, animTime)
         drawSpeechBubbles(shapes, batch, font, camera, gw)
     }
 
@@ -833,7 +834,7 @@ class SceneRenderer {
     }
 
     /** Pass 2 (Line): gravity-well rings, attack telegraphs and melee slash arcs. */
-    private fun drawLinePass(shapes: ShapeRenderer, gw: GameWorld, animTime: Float) {
+    private fun drawLinePass(shapes: ShapeRenderer, camera: OrthographicCamera, gw: GameWorld, animTime: Float) {
         shapes.begin(ShapeRenderer.ShapeType.Line)
         // v2.87 記憶核の共鳴: a slow pulse ring sweeps out from the core every few breaths
         gw.worldState.memoryCore?.let { core ->
@@ -864,12 +865,19 @@ class SceneRenderer {
             shapes.circle(p.cx, p.cy, p.gravityRange, 48)
             shapes.circle(p.cx, p.cy, p.radius + Tuning.TILE * 1.2f, 40)
         }
-        // charge-melee telegraph rings
-        with(gw.world) {
-            gw.world.family { all(Mob, Transform, MobAction) }.forEach { e ->
-                val mt = e[Transform]; val ma = e[MobAction]
-                if (ma.charging) { shapes.color = cTelegraph; shapes.circle(mt.x, mt.y, 14f + ma.chargeT * 30f, 16) }
-                if (ma.blinkChargeT > 0f) { shapes.color = cBlink; shapes.circle(mt.x, mt.y, 10f + ma.blinkChargeT * 50f, 14) }
+        // charge-melee telegraph rings (v2.149: camera-culled — no probing 5000 off-screen fish)
+        run {
+            val tcx = camera.position.x; val tcy = camera.position.y
+            val thw = camera.viewportWidth / 2f + CULL_MARGIN
+            val thh = camera.viewportHeight / 2f + CULL_MARGIN
+            with(gw.world) {
+                gw.world.family { all(Mob, Transform, MobAction) }.forEach { e ->
+                    val mt = e[Transform]
+                    if (mt.x < tcx - thw || mt.x > tcx + thw || mt.y < tcy - thh || mt.y > tcy + thh) return@forEach
+                    val ma = e[MobAction]
+                    if (ma.charging) { shapes.color = cTelegraph; shapes.circle(mt.x, mt.y, 14f + ma.chargeT * 30f, 16) }
+                    if (ma.blinkChargeT > 0f) { shapes.color = cBlink; shapes.circle(mt.x, mt.y, 10f + ma.blinkChargeT * 50f, 14) }
+                }
             }
         }
         // Melee swing: a thick cyan-white crescent that swooshes outward as it fades, with a bright core arc and a
@@ -906,19 +914,34 @@ class SceneRenderer {
         val bubScaleX = font.data.scaleX; val bubScaleY = font.data.scaleY
         font.data.setScale(0.2f, -0.2f) // small world-unit text; tune on device
         val speakers = gw.world.family { all(Mob, Transform, Speech) }
+        // v2.149: collect the few live, on-screen speakers ONCE — the two draw passes used to
+        // walk all ~5000 silent fish twice per frame.
+        activeSpeakers.clear()
+        run {
+            val scx = camera.position.x; val scy = camera.position.y
+            val shw = camera.viewportWidth / 2f + CULL_MARGIN
+            val shh = camera.viewportHeight / 2f + CULL_MARGIN
+            with(gw.world) {
+                speakers.forEach { e ->
+                    val sp = e[Speech]
+                    if (sp.remaining <= 0f || sp.text.isEmpty()) return@forEach
+                    val mt = e[Transform]
+                    if (mt.x < scx - shw || mt.x > scx + shw || mt.y < scy - shh || mt.y > scy + shh) return@forEach
+                    activeSpeakers.add(e)
+                }
+            }
+        }
         // backing plates first (shapes) so short lines stay legible against the starfield / terrain
         shapes.projectionMatrix = camera.combined
         shapes.begin(ShapeRenderer.ShapeType.Filled)
         with(gw.world) {
-            speakers.forEach { e ->
+            activeSpeakers.forEach { e ->
                 val sp = e[Speech]
-                if (sp.remaining > 0f && sp.text.isNotEmpty()) {
-                    val mt = e[Transform]
-                    glyphLayout.setText(font, io.github.panda17tk.arpg.i18n.Lang.tr(sp.text)) // v2.142 英語化第3弾
-                    val lw = glyphLayout.width; val lh = abs(glyphLayout.height)
-                    tmpC.set(0f, 0f, 0f, 0.5f); shapes.color = tmpC
-                    shapes.rect(mt.x - lw / 2f - 4f, mt.y - 20f - lh - 2f, lw + 8f, lh * 2f + 6f)
-                }
+                val mt = e[Transform]
+                glyphLayout.setText(font, io.github.panda17tk.arpg.i18n.Lang.tr(sp.text)) // v2.142 英語化第3弾
+                val lw = glyphLayout.width; val lh = abs(glyphLayout.height)
+                tmpC.set(0f, 0f, 0f, 0.5f); shapes.color = tmpC
+                shapes.rect(mt.x - lw / 2f - 4f, mt.y - 20f - lh - 2f, lw + 8f, lh * 2f + 6f)
             }
         }
         shapes.end()
@@ -926,13 +949,11 @@ class SceneRenderer {
         batch.projectionMatrix = camera.combined
         batch.begin()
         with(gw.world) {
-            speakers.forEach { e ->
+            activeSpeakers.forEach { e ->
                 val sp = e[Speech]
-                if (sp.remaining > 0f && sp.text.isNotEmpty()) {
-                    val mt = e[Transform]
-                    glyphLayout.setText(font, io.github.panda17tk.arpg.i18n.Lang.tr(sp.text)) // v2.142 英語化第3弾
-                    font.draw(batch, glyphLayout, mt.x - glyphLayout.width / 2f, mt.y - 20f)
-                }
+                val mt = e[Transform]
+                glyphLayout.setText(font, io.github.panda17tk.arpg.i18n.Lang.tr(sp.text)) // v2.142 英語化第3弾
+                font.draw(batch, glyphLayout, mt.x - glyphLayout.width / 2f, mt.y - 20f)
             }
         }
         // v2.85 damage pops: small numbers floating off the wound, fading over their last third.

@@ -41,14 +41,31 @@ class SchoolFishSystem : IteratingSystem(family { all(Mob, Transform, Velocity, 
         fun add(v: Float) { if (n == a.size) a = a.copyOf(a.size * 2); a[n++] = v }
         fun clear() { n = 0 }
     }
+    private class IntBuf {
+        var a = IntArray(16); var n = 0
+        fun add(v: Int) { if (n == a.size) a = a.copyOf(a.size * 2); a[n++] = v }
+        fun clear() { n = 0 }
+    }
     private class SchoolPool {
         val x = FloatBuf(); val y = FloatBuf()
         val hx = FloatBuf(); val hy = FloatBuf()
-        fun clear() { x.clear(); y.clear(); hx.clear(); hy.clear() }
+        // v2.149 倹約第3弾: flock bounds + the few predators near THIS flock — most flocks
+        // swim with no teeth in reach, so their fish skip the flee scan entirely.
+        var minX = Float.MAX_VALUE; var maxX = -Float.MAX_VALUE
+        var minY = Float.MAX_VALUE; var maxY = -Float.MAX_VALUE
+        val preds = IntBuf()
+        fun grow(px0: Float, py0: Float) {
+            if (px0 < minX) minX = px0; if (px0 > maxX) maxX = px0
+            if (py0 < minY) minY = py0; if (py0 > maxY) maxY = py0
+        }
+        fun clear() {
+            x.clear(); y.clear(); hx.clear(); hy.clear(); preds.clear()
+            minX = Float.MAX_VALUE; maxX = -Float.MAX_VALUE; minY = Float.MAX_VALUE; maxY = -Float.MAX_VALUE
+        }
     }
     private val pools = HashMap<Int, SchoolPool>()
-    private val px = ArrayList<Float>(8)
-    private val py = ArrayList<Float>(8)
+    private val px = FloatBuf()
+    private val py = FloatBuf()
     // v2.135 島鯨: whale positions — the pilot fish's home current
     private val wx = ArrayList<Float>(4)
     private val wy = ArrayList<Float>(4)
@@ -66,11 +83,21 @@ class SchoolFishSystem : IteratingSystem(family { all(Mob, Transform, Velocity, 
                     val t = e[Transform]; val f = e[Facing]
                     val pool = pools.getOrPut(poolKey(m)) { SchoolPool() }
                     pool.x.add(t.x); pool.y.add(t.y); pool.hx.add(f.x); pool.hy.add(f.y)
+                    pool.grow(t.x, t.y)
                 }
                 WildRole.PREDATOR, WildRole.APEX -> {
                     val t = e[Transform]; px.add(t.x); py.add(t.y)
                 }
                 else -> {}
+            }
+        }
+        // v2.149: hand each flock only the predators inside its padded bounds
+        pools.values.forEach { pool ->
+            if (pool.x.n == 0) return@forEach
+            for (i in 0 until px.n) {
+                if (px.a[i] < pool.minX - FLEE_R || px.a[i] > pool.maxX + FLEE_R) continue
+                if (py.a[i] < pool.minY - FLEE_R || py.a[i] > pool.maxY + FLEE_R) continue
+                pool.preds.add(i)
             }
         }
         super.onTick()
@@ -116,8 +143,9 @@ class SchoolFishSystem : IteratingSystem(family { all(Mob, Transform, Velocity, 
                 steerX += dx / d * config.wild.schoolFlee; steerY += dy / d * config.wild.schoolFlee
             }
         }
-        for (i in px.indices) {
-            val dx = t.x - px[i]; val dy = t.y - py[i]
+        if (pool != null) for (k in 0 until pool.preds.n) {
+            val i = pool.preds.a[k]
+            val dx = t.x - px.a[i]; val dy = t.y - py.a[i]
             val d2 = dx * dx + dy * dy
             if (d2 < FLEE_R2 && d2 > 0.0001f) {
                 val d = hypot(dx, dy)
@@ -163,7 +191,8 @@ class SchoolFishSystem : IteratingSystem(family { all(Mob, Transform, Velocity, 
     companion object {
         private const val NEIGHBOR_R2 = 52f * 52f // mates inside this ring pull the fish along
         private const val SEP_R2 = 13f * 13f      // closer than this pushes apart (no stacking)
-        private const val FLEE_R2 = 130f * 130f   // the player / a predator scatters the school
+        private const val FLEE_R = 130f
+        private const val FLEE_R2 = FLEE_R * FLEE_R   // the player / a predator scatters the school
         private const val W_FLEE_PRED = 2.4f // v2.143: the tunable weights moved to WildConfig
         private const val TURN = 4.5f // heading inertia: how fast the urge bends the swim line
         // v2.135 島鯨: the retinue and its island

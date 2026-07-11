@@ -209,6 +209,13 @@ internal fun GameScreen.drawWeather(delta: Float) {
 
 /** v2.88: scan for the nearest-priority heavy (boss > bounty > midboss) within earshot. */
 internal fun GameScreen.updateBossBar(delta: Float, ppx: Float, ppy: Float) {
+        // v2.149: the heavy scan walks the whole mob family — every 0.1s is plenty for a HP bar
+        bossScanT += delta
+        if (bossScanT < 0.1f) {
+            bossBar.update(bossScanName != null, bossScanName, bossScanFrac, delta)
+            return
+        }
+        bossScanT = 0f
         var bestName: String? = null; var bestFrac = 1f; var bestRank = -1
         with(gw.world) {
             gw.world.family { all(Mob, Health, Transform) }.forEach { e ->
@@ -229,6 +236,7 @@ internal fun GameScreen.updateBossBar(delta: Float, ppx: Float, ppy: Float) {
                 bestFrac = if (mh.hpMax > 0f) mh.hp / mh.hpMax else 1f
             }
         }
+        bossScanName = bestName; bossScanFrac = bestFrac
         bossBar.update(bestName != null, bestName, bestFrac, delta)
     }
 

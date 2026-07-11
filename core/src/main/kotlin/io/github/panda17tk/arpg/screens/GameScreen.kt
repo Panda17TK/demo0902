@@ -292,6 +292,13 @@ class GameScreen(
     internal val cQuestPale = Color.valueOf("fff2c8")
     internal var eventFxT = 0f // v2.86: clock for the event-flavored screen fx
     internal val bossBar = io.github.panda17tk.arpg.ui.BossBar() // v2.88
+    // v2.149 倹約第3弾: the HUD foe count and boss-bar scan walked all ~5000 mobs EVERY frame.
+    // The numbers barely change frame to frame — rescan on a short cadence instead.
+    internal var foesCache = -1
+    internal var foesRescan = 0
+    internal var bossScanT = 99f
+    internal var bossScanName: String? = null
+    internal var bossScanFrac = 1f
     internal var duckLevel = 1f // v2.89: the running ambient duck
     internal var metaBoons = io.github.panda17tk.arpg.config.WorkshopBoons.NONE // v2.90 工房
     internal var shakeOn = true    // v2.96: motion comfort — gates shake + recoil kick
