@@ -104,14 +104,42 @@ object WorldFactory {
         difficulty: io.github.panda17tk.arpg.sim.Difficulty = io.github.panda17tk.arpg.sim.Difficulty.NORMAL, // v2.97
         ngClears: Int = 0, // v2.160 周回の印II: completed syncs deepen the surge (0 = untouched)
         oceanKeep: Int = 1, // v2.165 海の密度: every n-th school member spawns (1 = the full 30× ocean)
+        area: Pair<Int, Int>? = null, // v2.166 宙域の九分割: which 3×3 slice to build (SPACE only; null = the whole legacy sky)
     ): GameWorld {
+        // v2.166 宙域の九分割: an AREA world is one 3×3 slice of the space stage — 1/9 the
+        // tiles, 1/9 the flow field, 1/9 the ocean. The full stage never materialises in area mode.
+        val spaceStageId = if (mode == WorldMode.SURFACE) null else Stages.randomSpaceId(Rng(seed))
         val loaded = MapLoader.load(
-            if (mode == WorldMode.SURFACE) SurfaceStages.forBiome(biome, seed) else Stages.random(Rng(seed)),
+            when {
+                mode == WorldMode.SURFACE -> SurfaceStages.forBiome(biome, seed)
+                area != null -> Stages.slice(spaceStageId!!, area.first, area.second)
+                else -> Stages.byId(spaceStageId)
+            },
         )
         val map = loaded.tileMap
+        // v2.166: global plans (planets, fish, far POIs) draw over the FULL stage extents and
+        // filter into this slice — every area agrees on the one shared sky. The global anchor is
+        // the cell the undivided world spawned at, so both modes place the same plan.
+        val fullDims = if (area != null) Stages.spaceFullDims(spaceStageId!!) else (map.width to map.height)
+        val fullW = fullDims.first * Tuning.TILE
+        val fullH = fullDims.second * Tuning.TILE
+        val origin = if (area != null) Stages.sliceOrigin(spaceStageId!!, area.first, area.second) else (0 to 0)
+        val originX = origin.first * Tuning.TILE
+        val originY = origin.second * Tuning.TILE
+        val gAnchorX = (fullDims.first / 2 + 0.5f) * Tuning.TILE
+        val gAnchorY = (fullDims.second / 2 + 0.5f) * Tuning.TILE
+        fun inArea(x: Float, y: Float) = area == null ||
+            (x >= originX && x < originX + map.width * Tuning.TILE && y >= originY && y < originY + map.height * Tuning.TILE)
         // The player normally starts at the stage's spawn; a return-to-space override re-emerges them beside a planet.
-        val spawnX = playerSpawn?.first ?: loaded.playerSpawnX
-        val spawnY = playerSpawn?.second ?: loaded.playerSpawnY
+        var spawnX = playerSpawn?.first ?: loaded.playerSpawnX
+        var spawnY = playerSpawn?.second ?: loaded.playerSpawnY
+        if (area != null && playerSpawn != null) {
+            // an area entry point comes from a neighbouring slice's edge — keep it inside and out of rock
+            val cx = spawnX.coerceIn(Tuning.TILE * 2f, map.width * Tuning.TILE - Tuning.TILE * 2f)
+            val cy = spawnY.coerceIn(Tuning.TILE * 2f, map.height * Tuning.TILE - Tuning.TILE * 2f)
+            val sp = snapToFloor(map, cx, cy)
+            spawnX = sp.first; spawnY = sp.second
+        }
         // v2.95 地下遺構: stamped BEFORE the flow field reads the map, so pathing knows the plating.
         val vaultPos = if (mode == WorldMode.SURFACE && biome != null) {
             io.github.panda17tk.arpg.map.SurfaceVault.place(map, spawnX, spawnY, seed)
@@ -140,14 +168,32 @@ object WorldFactory {
         val planetField = PlanetField(
             if (mode == WorldMode.SURFACE) emptyList()
             else Planets.place(
-                map.width * Tuning.TILE, map.height * Tuning.TILE,
-                loaded.playerSpawnX, loaded.playerSpawnY, planetCount, Rng(seed xor 0x91A2B3C4L),
+                fullW, fullH,
+                if (area != null) gAnchorX else loaded.playerSpawnX,
+                if (area != null) gAnchorY else loaded.playerSpawnY,
+                planetCount, Rng(seed xor 0x91A2B3C4L),
                 minRadius = 56f, maxRadius = 200f, // dwarf moons up to near-giants (v2.39)
                 margin = 520f, // slightly denser than the old 768 so a planet is never far to find
                 seed = seed, // stable planet ids per star system → society memory persists across landings
-            ),
+            ).let { all -> // v2.166: an area keeps only its own planets, in local coordinates
+                if (area == null) all
+                else all.filter { inArea(it.cx, it.cy) }.map { it.copy(cx = it.cx - originX, cy = it.cy - originY) }
+            },
         )
         val worldState = WorldState(mode = mode, biome = biome, context = context, society = society ?: PlanetSocietyState(), worldSeed = seed, ngClears = ngClears)
+        worldState.areaX = area?.first ?: -1 // v2.166 宙域の九分割
+        worldState.areaY = area?.second ?: -1
+        worldState.areaOriginX = originX; worldState.areaOriginY = originY
+        // v2.166: the global ring placer — area mode draws the near-anchor POIs in GLOBAL space
+        // and each lands in whichever slice contains it (in practice the centre, where runs begin)
+        fun gPlace(rng: Rng, base: Float, range: Float, marginTiles: Float = 4f): Pair<Float, Float> {
+            val a = rng.nextFloat() * TAU
+            val d = base + rng.nextFloat() * range
+            val m = Tuning.TILE * marginTiles
+            return (gAnchorX + kotlin.math.cos(a) * d).coerceIn(m, fullW - m) to
+                (gAnchorY + kotlin.math.sin(a) * d).coerceIn(m, fullH - m)
+        }
+        fun localize(p: Pair<Float, Float>): Pair<Float, Float> = snapToFloor(map, p.first - originX, p.second - originY)
         // The escape pad sits at the surface landing point; standing on it lets the player take off again.
         if (mode == WorldMode.SURFACE) worldState.escapePad = loaded.playerSpawnX to loaded.playerSpawnY
         worldState.vault = vaultPos // v2.95
@@ -157,27 +203,43 @@ object WorldFactory {
             worldState.memoryCore = placeNear(map, Rng(seed xor 0x3E3C0DEL), loaded.playerSpawnX, loaded.playerSpawnY, 700f, 900f)
         }
         // In space, scatter a flowing field of debris + asteroids around the player (cosmetic; fills the void).
-        if (mode != WorldMode.SURFACE) worldState.drift = Drift.field(Rng(seed xor 0x0DEB712L), 120, loaded.playerSpawnX, loaded.playerSpawnY, 1400f)
+        if (mode != WorldMode.SURFACE) worldState.drift = Drift.field(Rng(seed xor 0x0DEB712L), 120, spawnX, spawnY, 1400f)
         // v2.44: the system's jump gate — one per system, deterministic, out past the near planets.
         if (mode != WorldMode.SURFACE) {
-            worldState.gate = placeNear(map, Rng(seed xor 0x6A7E9A7EL), loaded.playerSpawnX, loaded.playerSpawnY, 1800f, 1200f)
+            worldState.gate = if (area == null) {
+                placeNear(map, Rng(seed xor 0x6A7E9A7EL), loaded.playerSpawnX, loaded.playerSpawnY, 1800f, 1200f)
+            } else { // v2.166: drawn globally — present only in the slice that contains it
+                gPlace(Rng(seed xor 0x6A7E9A7EL), 1800f, 1200f).takeIf { inArea(it.first, it.second) }?.let { localize(it) }
+            }
         }
         // v2.46 難破船: 2..3 wrecked hulls drift in each system, nearer than the gate. Their loot
         // and guards are placed after the ECS world exists (below); the sites live here for drawing.
         if (mode != WorldMode.SURFACE) {
             val wRng = Rng(seed xor 0x37EC57A1L)
-            worldState.wrecks = List(2 + wRng.nextInt(2)) {
-                placeNear(map, wRng, loaded.playerSpawnX, loaded.playerSpawnY, 900f, 1500f)
+            if (area == null) {
+                worldState.wrecks = List(2 + wRng.nextInt(2)) {
+                    placeNear(map, wRng, loaded.playerSpawnX, loaded.playerSpawnY, 900f, 1500f)
+                }
+            } else { // v2.166: the survivor is chosen against the GLOBAL list, then mapped local
+                val globalWrecks = List(2 + wRng.nextInt(2)) { gPlace(wRng, 900f, 1500f) }
+                val svRng = Rng(seed xor 0x5A110B0AL)
+                val svIdx = if (svRng.nextFloat() < SURVIVOR_CHANCE) svRng.nextInt(globalWrecks.size) else -1
+                val kept = globalWrecks.withIndex().filter { inArea(it.value.first, it.value.second) }
+                worldState.wrecks = kept.map { localize(it.value) }
+                worldState.survivorWreck = kept.indexOfFirst { it.index == svIdx }
             }
         }
         // v2.110 彗星: some skies carry a comet — a bright head trailing dust beads worth sweeping.
         if (mode != WorldMode.SURFACE) {
             val cRng = Rng(seed xor 0x0C0EE70AL)
             if (cRng.nextFloat() < COMET_CHANCE) {
-                val head = placeNear(map, cRng, loaded.playerSpawnX, loaded.playerSpawnY, 600f, 900f, marginTiles = 6f)
+                val head = if (area == null) placeNear(map, cRng, loaded.playerSpawnX, loaded.playerSpawnY, 600f, 900f, marginTiles = 6f)
+                else gPlace(cRng, 600f, 900f, marginTiles = 6f)
                 val ta = cRng.nextFloat() * TAU
-                worldState.comet = head
-                worldState.cometDir = kotlin.math.cos(ta) to kotlin.math.sin(ta)
+                if (inArea(head.first, head.second)) { // v2.166
+                    worldState.comet = if (area == null) head else localize(head)
+                    worldState.cometDir = kotlin.math.cos(ta) to kotlin.math.sin(ta)
+                }
             }
         }
         // v2.100 行商船: some systems host a friendly trading vessel — nearer than the gate,
@@ -185,11 +247,12 @@ object WorldFactory {
         if (mode != WorldMode.SURFACE) {
             val tRng = Rng(seed xor 0x7124DE72L)
             if (tRng.nextFloat() < TRADER_CHANCE) {
-                worldState.trader = placeNear(map, tRng, loaded.playerSpawnX, loaded.playerSpawnY, 700f, 1200f)
+                worldState.trader = if (area == null) placeNear(map, tRng, loaded.playerSpawnX, loaded.playerSpawnY, 700f, 1200f)
+                else gPlace(tRng, 700f, 1200f).takeIf { inArea(it.first, it.second) }?.let { localize(it) } // v2.166
             }
         }
         // v2.110 生存者: one wreck sometimes shelters a survivor — approaching it is the rescue.
-        if (mode != WorldMode.SURFACE && worldState.wrecks.isNotEmpty()) {
+        if (area == null && mode != WorldMode.SURFACE && worldState.wrecks.isNotEmpty()) {
             val sRng = Rng(seed xor 0x5A110B0AL)
             if (sRng.nextFloat() < SURVIVOR_CHANCE) worldState.survivorWreck = sRng.nextInt(worldState.wrecks.size)
         }
@@ -325,7 +388,10 @@ object WorldFactory {
         // and the surge counts hostiles only, so a far-off fish never stalls a wave.
         if (mode != WorldMode.SURFACE) {
             val fRng = Rng(seed xor 0x0F15E5L)
-            val fww = map.width * Tuning.TILE; val fwh = map.height * Tuning.TILE
+            val fww = fullW; val fwh = fullH // v2.166 宙域の九分割: ONE global fish plan for the sky
+            val gSpawnX = originX + spawnX; val gSpawnY = originY + spawnY
+            // global plan points snap to floor only where they actually spawn (this slice's map)
+            fun oceanSnap(x: Float, y: Float): Pair<Float, Float> = if (area == null) snapToFloor(map, x, y) else x to y
             var schoolSeq = 0 // v2.144 大群衆: every shoal call is its own flock — boids school per flock
             fun shoalAt(cx0: Float, cy0: Float, id: String, count: Int, spread: Float) {
                 config.enemies[id]?.let { def ->
@@ -338,12 +404,15 @@ object WorldFactory {
                         // stride only decides which members become entities; count-1 spawns
                         // (whales, tyrants, hunters, giants) ride index 0 and survive every tier.
                         if (i % oceanKeep != 0) return@repeat
-                        MobFactory.spawn(world, def, cx0 + kotlin.math.cos(a) * r, cy0 + kotlin.math.sin(a) * r, schoolGroup = schoolSeq)
+                        val gx = cx0 + kotlin.math.cos(a) * r
+                        val gy = cy0 + kotlin.math.sin(a) * r
+                        if (!inArea(gx, gy)) return@repeat // v2.166: another slice's fish — drawn, never spawned
+                        val (lx, ly) = if (area == null) gx to gy else snapToFloor(map, gx - originX, gy - originY)
+                        MobFactory.spawn(world, def, lx, ly, schoolGroup = schoolSeq)
                     }
                 }
             }
-            fun site(): Pair<Float, Float> = snapToFloor(
-                map,
+            fun site(): Pair<Float, Float> = oceanSnap(
                 Tuning.TILE * 6f + fRng.nextFloat() * (fww - Tuning.TILE * 12f),
                 Tuning.TILE * 6f + fRng.nextFloat() * (fwh - Tuning.TILE * 12f),
             )
@@ -351,9 +420,9 @@ object WorldFactory {
             // so the first minutes of every sortie have life in view.
             val fa = fRng.nextFloat() * TAU
             val fd = 500f + fRng.nextFloat() * 800f
-            val rawX = (spawnX + kotlin.math.cos(fa) * fd).coerceIn(Tuning.TILE * 4f, fww - Tuning.TILE * 4f)
-            val rawY = (spawnY + kotlin.math.sin(fa) * fd).coerceIn(Tuning.TILE * 4f, fwh - Tuning.TILE * 4f)
-            val (sx, sy) = snapToFloor(map, rawX, rawY)
+            val rawX = (gSpawnX + kotlin.math.cos(fa) * fd).coerceIn(Tuning.TILE * 4f, fww - Tuning.TILE * 4f)
+            val rawY = (gSpawnY + kotlin.math.sin(fa) * fd).coerceIn(Tuning.TILE * 4f, fwh - Tuning.TILE * 4f)
+            val (sx, sy) = oceanSnap(rawX, rawY)
             shoalAt(sx, sy, io.github.panda17tk.arpg.config.SpaceFishRoster.TINY[if (fRng.nextFloat() < 0.5f) 0 else 1], 90 + fRng.nextInt(21), 130f)
             val hunters = io.github.panda17tk.arpg.config.SpaceFishRoster.HUNTERS // v2.141: the roster object is the spawn truth
             if (fRng.nextFloat() < 0.55f) shoalAt(sx, sy, hunters[fRng.nextInt(hunters.size)], 1, 320f)
@@ -370,15 +439,14 @@ object WorldFactory {
                 addAll(worldState.wrecks)
                 worldState.comet?.let { add(it) }
                 worldState.trader?.let { add(it) }
-            }
+            }.map { (it.first + originX) to (it.second + originY) } // v2.166: back to global for the plan
             // own rng stream: the landmark draw must not shift fRng — every fish position of
             // every existing seed would move, and the seed-tuned tests with them.
             val poiRng = Rng(seed xor 0x0F15D0C5L)
             fun poiPoint(): Pair<Float, Float>? {
                 if (fishPoi.isEmpty()) return null
                 val (bx, by) = fishPoi[poiRng.nextInt(fishPoi.size)]
-                return snapToFloor(
-                    map,
+                return oceanSnap(
                     (bx + (poiRng.nextFloat() - 0.5f) * 500f).coerceIn(Tuning.TILE * 4f, fww - Tuning.TILE * 4f),
                     (by + (poiRng.nextFloat() - 0.5f) * 500f).coerceIn(Tuning.TILE * 4f, fwh - Tuning.TILE * 4f),
                 )
