@@ -103,6 +103,7 @@ object WorldFactory {
         trait: io.github.panda17tk.arpg.sim.SystemTrait = io.github.panda17tk.arpg.sim.SystemTrait.NONE, // v2.91 星系の個性
         difficulty: io.github.panda17tk.arpg.sim.Difficulty = io.github.panda17tk.arpg.sim.Difficulty.NORMAL, // v2.97
         ngClears: Int = 0, // v2.160 周回の印II: completed syncs deepen the surge (0 = untouched)
+        oceanKeep: Int = 1, // v2.165 海の密度: every n-th school member spawns (1 = the full 30× ocean)
     ): GameWorld {
         val loaded = MapLoader.load(
             if (mode == WorldMode.SURFACE) SurfaceStages.forBiome(biome, seed) else Stages.random(Rng(seed)),
@@ -329,9 +330,14 @@ object WorldFactory {
             fun shoalAt(cx0: Float, cy0: Float, id: String, count: Int, spread: Float) {
                 config.enemies[id]?.let { def ->
                     schoolSeq++
-                    repeat(count) {
+                    repeat(count) { i ->
                         val a = fRng.nextFloat() * TAU
                         val r = fRng.nextFloat() * spread
+                        // v2.165 海の密度: the rng is ALWAYS drawn — every tier sees the same
+                        // stream, so a thinner ocean is a strict subset of the full one. The
+                        // stride only decides which members become entities; count-1 spawns
+                        // (whales, tyrants, hunters, giants) ride index 0 and survive every tier.
+                        if (i % oceanKeep != 0) return@repeat
                         MobFactory.spawn(world, def, cx0 + kotlin.math.cos(a) * r, cy0 + kotlin.math.sin(a) * r, schoolGroup = schoolSeq)
                     }
                 }
