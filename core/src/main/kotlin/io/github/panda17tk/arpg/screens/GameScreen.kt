@@ -380,6 +380,7 @@ class GameScreen(
             val sp = Gdx.app.getPreferences(SETTINGS_PREFS)
             controlHints = sp.getBoolean(SETTINGS_HINTS, true)
             loreHints = sp.getBoolean(SETTINGS_LORE, true)
+            scene.speechEnabled = loreHints // v2.170 文字の消灯: the bubbles follow 世界観ヒント
             input.aimAssist = sp.getBoolean("aimAssist", true) // v2.112 エイム補助
             io.github.panda17tk.arpg.i18n.Lang.en = sp.getBoolean("langEn", false) // v2.115 English表示
         } catch (_: Throwable) { /* defaults stay on */ }
@@ -587,7 +588,7 @@ class GameScreen(
         val ex = when { dx > 0 -> inset; dx < 0 -> dims.first * Tuning.TILE - inset; else -> px }
         val ey = when { dy > 0 -> inset; dy < 0 -> dims.second * Tuning.TILE - inset; else -> py }
         transitionWorld(WorldMode.SPACE, null, session.spaceSeed, ex to ey)
-        rewardToast = "隣の宙域へ — エリア ${session.areaX + 1}-${session.areaY + 1}"
+        rewardToast = "エリア ${session.areaX + 1}-${session.areaY + 1}" // v2.170: the toast, pared down
         rewardToastT = TOAST_TIME
         Sfx.play("scan")
     }

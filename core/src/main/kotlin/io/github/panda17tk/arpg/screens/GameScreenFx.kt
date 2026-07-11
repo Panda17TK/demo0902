@@ -259,13 +259,8 @@ internal fun GameScreen.drawBossBar() {
         cEventTmp.set(0.95f, 0.30f, 0.28f, 0.95f * a); shapes.color = cEventTmp
         shapes.rect(x, y, bw * bossBar.frac.coerceIn(0f, 1f), bh)
         shapes.end()
-        batch.projectionMatrix = hudViewport.camera.combined
-        batch.begin()
-        cEventTmp.set(1f, 0.92f, 0.9f, a); font.color = cEventTmp
-        bannerGlyph.setText(font, bossBar.name)
-        font.draw(batch, bannerGlyph, (w - bannerGlyph.width) / 2f, y + bh + 6f + bannerGlyph.height)
-        font.color = Color.WHITE
-        batch.end()
+        // v2.170 文字の消灯: the name retired — the slim red bar alone marks the apex threat
+        // (the bestiary still records who it was).
     }
 
 /** v2.92 連撃チップ: 「連撃 ×N」 riding mid-low screen while the chain window lives. */
@@ -286,7 +281,7 @@ internal fun GameScreen.drawComboChip() {
             else -> cEventTmp.set(0.81f, 0.89f, 1f, a)
         }
         font.color = cEventTmp
-        bannerGlyph.setText(font, "連撃 ×${fxc.comboStep}")
+        bannerGlyph.setText(font, "×${fxc.comboStep}") // v2.170 文字の消灯: the count carries the chain
         font.draw(batch, bannerGlyph, (w - bannerGlyph.width) / 2f, h * 0.40f)
         font.color = Color.WHITE
         font.data.setScale(bx, by)

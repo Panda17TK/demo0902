@@ -212,6 +212,15 @@ object Lang {
         add("　工房へ送金 +" to "　wired to the workshop +") // v2.154 星屑の送金
         add("ジャンプゲート " to "Jump gate ")
         add("ゲート鍵 " to "Gate keys ")
+        // v2.170 文字の消灯: the pared-down compasses. Arrow-anchored so the tokens never bite
+        // into star names mid-translation (「氷惑星を制圧した」→「氷惑星 is subdued」would offer
+        // a bare「惑星 」to a greedy token; the arrow keeps these to the compass lines alone).
+        for (a in listOf("→", "←", "↑", "↓")) {
+            add("惑星 $a " to "planet $a ")
+            add("門 $a " to "gate $a ")
+        }
+        add("鍵 " to "keys ")
+        add("エリア " to "area ")
         add("ウェーブ(旧式) " to "Wave (legacy) ")
         add("残プロセス " to "processes ")
         add("宙域安定 " to "stability ")

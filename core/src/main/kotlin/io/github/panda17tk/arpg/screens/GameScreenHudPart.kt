@@ -149,7 +149,7 @@ internal fun GameScreen.drawHud(paused: Boolean, sta: Float, staMax: Float, over
         val foes = foesCache
         val wpn = with(gw.world) { gw.player[Arsenal] }.current
         val reloadFrac = if (wpn.reloadT > 0f && wpn.def.reloadTime > 0f) (wpn.reloadT / wpn.def.reloadTime).coerceIn(0f, 1f) else 0f
-        val reserveStr = if (wpn.def.infiniteAmmo) "無限" else "${ammo.get(wpn.def.ammoType)}"
+        val reserveStr = if (wpn.def.infiniteAmmo) "∞" else "${ammo.get(wpn.def.ammoType)}" // v2.170
         Hud.liveHud(
             shapes, batch, font, Fonts.title, hudViewport,
             gw.waveState.num, foes,
@@ -279,21 +279,21 @@ internal fun GameScreen.drawObjectiveHint(paused: Boolean, hudW: Float, hudH: Fl
                     else if (touchEnabled) "惑星をタップで着陸" else "惑星に近づいて [L] で着陸"
                     val (ppx, ppy) = with(gw.world) { val t = gw.player[Transform]; t.x to t.y }
                     val nearest = gw.planets.minByOrNull { hypot(it.cx - ppx, it.cy - ppy) }
-                    val nav = nearest?.let {
+                    val nav = if (!controlHints) null else nearest?.let { // v2.170: obeys 操作ヒント
                         val dx = it.cx - ppx; val dy = it.cy - ppy
                         val dist = (hypot(dx, dy) - it.radius).coerceAtLeast(0f).toInt()
                     // World is y-down: dy<0 = up on screen. Pick the dominant cardinal arrow.
-                        "最寄りの惑星 ${arrowFor(dx, dy)} $dist"
+                        "惑星 ${arrowFor(dx, dy)} $dist"
                     }
                 // v2.44: the gate line — shard progress while collecting, a live compass once ready.
                     val shards = with(gw.world) { gw.player[Materials].shards }
                     val gateLine = gateLocalPos()?.let { g -> // v2.169: a bearing home from any slice
                         if (shards < gateNeed()) {
-                            "ゲート鍵 $shards/${gateNeed()}"
+                            "鍵 $shards/${gateNeed()}" // v2.170 文字の消灯: one kanji does the naming
                         } else {
                             val dx = g.first - ppx; val dy = g.second - ppy
                             val dist = hypot(dx, dy).toInt()
-                            "ジャンプゲート ${arrowFor(dx, dy)} $dist"
+                            "門 ${arrowFor(dx, dy)} $dist"
                         }
                     }
                     Hud.hintPanel(
@@ -329,17 +329,17 @@ internal fun GameScreen.drawObjectiveHint(paused: Boolean, hudW: Float, hudH: Fl
         }
         val biome = ws.biome
         val onPad = playerOnEscapePad()
-        val hint = when {
-            onPad -> "[L] 離陸"
+        val hint = when { // v2.170: the how-to lines obey 操作ヒント like their space twins
+            onPad -> if (controlHints) "[L] 離陸" else null
             biome != null -> SurfaceObjective.hudLine(biome, elites, ws.society, ws.context ?: PlanetContext.NEUTRAL, ws.rememberedPlanet)
-            else -> "[L] 離陸して宇宙へ"
+            else -> if (controlHints) "[L] 離陸して宇宙へ" else null
         }
     // Goal chips (LP v2.26) right under the main objective line, rebuilt only when inputs change.
     // v2.45: the planet's standing request (星の依頼) rides the same chip row with live progress.
         val chips = (if (biome != null) surfaceChips(biome, ws, elites) else emptyList()) +
             listOfNotNull(questChip(ws))
         if (!paused && !choosing) {
-            val lines = listOf(hint) + (if (chips.isEmpty()) emptyList() else listOf(chips.joinToString("　　")))
+            val lines = listOfNotNull(hint) + (if (chips.isEmpty()) emptyList() else listOf(chips.joinToString("　　")))
             Hud.hintPanel(shapes, batch, font, hudViewport, lines, hudH - HINT_TOP)
         }
     }
@@ -504,24 +504,15 @@ internal fun GameScreen.drawNavMarkers() {
     shapes.projectionMatrix = hudViewport.camera.combined
     shapes.begin(ShapeRenderer.ShapeType.Filled)
     for ((m, c, _) in marks) {
+        // v2.170 文字の消灯: the one-glyph labels retire — colour identifies the landmark, and
+        // the gate (the one marker a run cannot do without) wears a halo of its own colour.
+        if (c === cNavGate) { shapes.color = c; shapes.rect(m.first - 13f, m.second - 13f, 13f, 13f, 26f, 26f, 1f, 1f, 45f) }
         cEventTmp.set(0.05f, 0.07f, 0.11f, 0.72f); shapes.color = cEventTmp
         shapes.rect(m.first - 11f, m.second - 11f, 11f, 11f, 22f, 22f, 1f, 1f, 45f) // the plate
         shapes.color = c
         shapes.rect(m.first - 8f, m.second - 8f, 8f, 8f, 16f, 16f, 1f, 1f, 45f) // the diamond
     }
     shapes.end()
-    batch.projectionMatrix = hudViewport.camera.combined
-    batch.begin()
-    val bx = font.data.scaleX; val by = font.data.scaleY
-    font.data.setScale(bx * 0.8f, by * 0.8f)
-    font.color = com.badlogic.gdx.graphics.Color.BLACK
-    for ((m, _, label) in marks) {
-        bannerGlyph.setText(font, label)
-        font.draw(batch, bannerGlyph, m.first - bannerGlyph.width / 2f, m.second + bannerGlyph.height / 2f)
-    }
-    font.color = com.badlogic.gdx.graphics.Color.WHITE
-    font.data.setScale(bx, by)
-    batch.end()
 }
 
 private const val NAV_MARGIN = 30f // the markers' inset from the screen edge

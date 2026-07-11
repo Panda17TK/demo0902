@@ -286,33 +286,52 @@ object Hud {
             shapes.color = cReload
             shapes.rect(l.ammo.x + 4f, l.ammo.y + 3f, (l.ammo.w - 8f) * reloadFrac.coerceIn(0f, 1f), 3f)
         }
+        // v2.170 文字の消灯: the sector strip loses its words — a warning wedge carries the
+        // desync tier, an enemy diamond the live processes, and a slim bar the stability.
+        if (!simMode) {
+            val scy = l.wave.y + l.wave.h / 2f
+            shapes.color = cHudInk
+            shapes.triangle(l.wave.x + 8f, scy - 5f, l.wave.x + 20f, scy - 5f, l.wave.x + 14f, scy + 6f)
+            shapes.rect(l.wave.x + 62f, scy - 4f, 4f, 4f, 8f, 8f, 1f, 1f, 45f)
+            val sbX = l.wave.x + 116f; val sbW = l.wave.w - 128f
+            if (sbW > 30f) {
+                shapes.color = cHudPanel; shapes.rect(sbX, scy - 2f, sbW, 4f)
+                shapes.color = cStaFill
+                shapes.rect(sbX, scy - 2f, sbW * (DesyncGauge.stability(waveNum) / 100f).coerceIn(0f, 1f), 4f)
+            }
+        }
+        // …and the stats row keeps only the currencies: a block square and a dust diamond.
+        val stY = l.stats.y + l.stats.h - 7f
+        shapes.color = cHudInk
+        shapes.rect(l.stats.x + 2f, stY - 4f, 8f, 8f)
+        shapes.rect(l.stats.x + 60f, stY - 4f, 4f, 4f, 8f, 8f, 1f, 1f, 45f)
         shapes.end()
 
         batch.projectionMatrix = vp.camera.combined
         batch.begin()
-        // v2.55: the whole sector status lives INSIDE the slim top strip — one auto-fitted line,
-        // nothing dangling below it to collide with the bars (the old badge did exactly that).
-        val strip = if (simMode) "ウェーブ(旧式) $waveNum　残り $foes"
-            else "同期汚染 $waveNum　残プロセス $foes　宙域安定 ${DesyncGauge.stability(waveNum)}%"
-        fitText(batch, font, strip, l.wave.x + 8f, l.wave.y + l.wave.h - 6f, l.wave.w - 16f)
-        // HP / stamina numbers overlaid right-aligned WITHIN their bars (kept inside the left zone)
-        glyph.setText(font, "${hp.toInt()}/${hpMax.toInt()}")
-        font.draw(batch, glyph, l.hp.x + l.hp.w - glyph.width - 3f, l.hp.y + l.hp.h - 1f)
-        if (overheat) {
-            glyph.setText(font, "過熱!")
-            font.draw(batch, glyph, l.stamina.x + l.stamina.w - glyph.width - 3f, l.stamina.y + l.stamina.h - 1f)
+        // v2.170 文字の消灯: numbers ride beside their icons; the words are gone. Only the
+        // training sim keeps its badge — the mode must never be mistakable for the real sky.
+        // (HP/過熱/武器名/時間/撃破 retired: the bars, icons and colours already say it.)
+        if (simMode) {
+            fitText(batch, font, "ウェーブ(旧式) $waveNum　残り $foes", l.wave.x + 8f, l.wave.y + l.wave.h - 6f, l.wave.w - 16f)
+        } else {
+            glyph.setText(font, "$waveNum")
+            font.draw(batch, glyph, l.wave.x + 26f, l.wave.y + l.wave.h - 6f)
+            glyph.setText(font, "$foes")
+            font.draw(batch, glyph, l.wave.x + 78f, l.wave.y + l.wave.h - 6f)
         }
-        // weapon panel (right column): mag right-aligned, the name auto-fits the space that's left.
-        val magStr = magSize?.let { "$mag/$it" } ?: "INF"
+        // weapon panel (right column): the magazine count is the one number that must stay.
+        val magStr = magSize?.let { "$mag/$it" } ?: "∞"
         glyph.setText(font, magStr)
-        val magW = glyph.width
-        font.draw(batch, glyph, l.ammo.x + l.ammo.w - magW - 6f, l.ammo.y + l.ammo.h - 4f)
-        fitText(batch, font, weaponName, l.ammo.x + 28f, l.ammo.y + l.ammo.h - 4f, l.ammo.w - 28f - magW - 12f)
-        glyph.setText(font, if (reloadFrac > 0f) "装填中" else "予備 $reserveStr")
-        font.draw(batch, glyph, l.ammo.x + l.ammo.w - glyph.width - 6f, l.ammo.y + 14f)
-        // secondary stats — full width, auto-fitted (v2.55: no more spill on narrow phones)
-        val mins = (timeSec / 60f).toInt(); val secs = (timeSec % 60f).toInt()
-        fitText(batch, font, "時間 %d:%02d  撃破 %d  資材 %d  星屑 %d".format(mins, secs, kills, blocks, dust), l.stats.x, l.stats.y + l.stats.h, l.stats.w)
+        font.draw(batch, glyph, l.ammo.x + l.ammo.w - glyph.width - 6f, l.ammo.y + l.ammo.h - 4f)
+        if (reloadFrac <= 0f) { // reserve count, wordless — the slim bar narrates a reload
+            glyph.setText(font, reserveStr)
+            font.draw(batch, glyph, l.ammo.x + l.ammo.w - glyph.width - 6f, l.ammo.y + 14f)
+        }
+        glyph.setText(font, "$blocks")
+        font.draw(batch, glyph, l.stats.x + 14f, l.stats.y + l.stats.h)
+        glyph.setText(font, "$dust")
+        font.draw(batch, glyph, l.stats.x + 74f, l.stats.y + l.stats.h)
         batch.end()
     }
 
