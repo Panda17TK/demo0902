@@ -31,7 +31,7 @@ data class RunSaveDto(
     val shards: Int = 0, // ゲート鍵の断片 (v2.44)
     val mags: List<Int> = emptyList(),
     val gunMul: Float = 1f, val fireMul: Float = 1f, val meleeMul: Float = 1f, val moveMul: Float = 1f,
-    val ammoMul: Float = 1f, val healOnKill: Float = 0f, val wallHp: Float = 0f,
+    val ammoMul: Float = 1f, val healOnKill: Float = 0f, val wallHp: Float = 70f, // v2.151: matches Mods.wallHp — a save missing the key restores the real default
     // v2.107 強化カード拡充 (append-only; old saves read the neutral defaults)
     val reloadMul: Float = 1f, val blastMul2: Float = 1f, val regenAdd: Float = 0f,
     val dashCostMul: Float = 1f, val bulletSpeedMul: Float = 1f,

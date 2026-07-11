@@ -38,14 +38,14 @@ object SettingsPanel {
         else -> ""
     }
 
-    /** The five toggle rows stacked under the panel head, then 閉じる at the foot.
+    /** The ten toggle rows stacked under the panel head, then 閉じる at the foot.
      *  v2.84: rows grew to hold their two text lines (56dp + real gaps) and start below
      *  the 設定 header zone — the header used to print straight over the first row. */
     fun buttons(w: Float, h: Float): List<UiButton> {
         val bw = min(340f, w * 0.80f)
         val x = (w - bw) / 2f
         val top = h * 0.88f - 58f // the panel head above this belongs to the 設定 header
-        // v2.96: eight rows must fit a small phone — spacing adapts, rows keep real gaps.
+        // v2.96: all ten rows must fit a small phone — spacing adapts, rows keep real gaps.
         val closeTop = h * 0.13f + 48f
         val step = min(68f, (top - closeTop - 10f) / TOGGLES.size)
         val rowH = min(56f, step - 6f)

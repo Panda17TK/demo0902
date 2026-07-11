@@ -21,6 +21,8 @@ class SettingsPanelTest {
     @Test fun `every toggle explains itself in one quiet line`() {
         for (label in SettingsPanel.TOGGLES) {
             assertTrue(SettingsPanel.hintFor(label).isNotBlank(), "no hint for $label")
+            // v2.151: a whisper equal to its label collides the Lang key (the v2.148 振動 bug)
+            assertTrue(SettingsPanel.hintFor(label) != label, "whisper shadows the label: $label")
         }
     }
 

@@ -60,30 +60,21 @@ class TutorialControllerTest {
     }
 
     @Test fun `every step before COMPLETE has a prompt, in both input modes`() {
-        val t = TutorialController()
-        for (step in TutorialStep.entries) {
-            if (step == TutorialStep.COMPLETE) continue
-            // walk the controller to the step via brute force
+        // v2.151: the old loop never advanced past MOVE — this walk asserts EVERY live step.
+        for (touch in listOf(true, false)) {
             val c = TutorialController()
-            c.begin()
-            if (step == TutorialStep.BOOT_PROMPT) {
-                assertTrue(TutorialController().prompt(true).isNotEmpty())
-                continue
-            }
-            c.onMoved(999f)
-            if (step == TutorialStep.MOVE) { /* already past — check fresh below */ }
-            c.onKill(); c.onDustPicked(); c.onDash(); c.onScan()
-            for (touch in listOf(true, false)) {
-                val fresh = TutorialController()
-                fresh.begin()
-                assertTrue(fresh.prompt(touch).isNotEmpty(), "no prompt for MOVE ($touch)")
-            }
+            fun check() = assertTrue(c.prompt(touch).isNotEmpty(), "no prompt for ${c.step} ($touch)")
+            check()                                             // BOOT_PROMPT
+            c.begin(); check()                                  // MOVE
+            c.onMoved(999f); check()                            // SHOOT
+            c.onKill(); check()                                 // PICKUP_DUST
+            c.onDustPicked(); check()                           // DASH
+            c.onDash(); check()                                 // FIND_PLANET
+            c.onScan(); check()                                 // LAND
+            c.onLanded(); check()                               // OBSERVE
+            c.onSurfaceTick(TutorialController.OBSERVE_TIME); check() // RETURN_PAD
+            assertEquals(TutorialStep.RETURN_PAD, c.step)
         }
-        // spot-check the walked-to LAND prompt too
-        val c = TutorialController()
-        c.begin(); c.onMoved(999f); c.onKill(); c.onDustPicked(); c.onDash(); c.onScan()
-        assertEquals(TutorialStep.LAND, c.step)
-        assertTrue(c.prompt(true).isNotEmpty() && c.prompt(false).isNotEmpty())
         assertTrue(TutorialController.REWARD_DUST > 0)
     }
 }

@@ -82,10 +82,15 @@ class PlanetSocietyState(
     }
 
     /** A deep copy — used to seed a fresh surface visit from a planet's remembered state without aliasing it. */
-    fun copyState(): PlanetSocietyState = PlanetSocietyState(
-        childHarmed, childKilled, wildPredatorThreatenedChild, predatorKilledNearChild,
-        hatchlingKilled, nestMotherKilled, apexKilled, surrenderKilled, surrenderedSpared,
-        leaderDefeated, relicClaimed, hostility, mercy, ecologicalDisruption,
+    fun copyState(): PlanetSocietyState = PlanetSocietyState( // v2.151: named — see PlanetMemoryCodec
+        childHarmed = childHarmed, childKilled = childKilled,
+        wildPredatorThreatenedChild = wildPredatorThreatenedChild,
+        predatorKilledNearChild = predatorKilledNearChild,
+        hatchlingKilled = hatchlingKilled, nestMotherKilled = nestMotherKilled,
+        apexKilled = apexKilled, surrenderKilled = surrenderKilled,
+        surrenderedSpared = surrenderedSpared, leaderDefeated = leaderDefeated,
+        relicClaimed = relicClaimed, hostility = hostility, mercy = mercy,
+        ecologicalDisruption = ecologicalDisruption,
     )
 
     /**
