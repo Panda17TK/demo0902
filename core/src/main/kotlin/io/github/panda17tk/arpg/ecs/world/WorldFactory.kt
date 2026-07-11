@@ -102,6 +102,7 @@ object WorldFactory {
         boons: io.github.panda17tk.arpg.config.WorkshopBoons = io.github.panda17tk.arpg.config.WorkshopBoons.NONE, // v2.90 工房
         trait: io.github.panda17tk.arpg.sim.SystemTrait = io.github.panda17tk.arpg.sim.SystemTrait.NONE, // v2.91 星系の個性
         difficulty: io.github.panda17tk.arpg.sim.Difficulty = io.github.panda17tk.arpg.sim.Difficulty.NORMAL, // v2.97
+        ngClears: Int = 0, // v2.160 周回の印II: completed syncs deepen the surge (0 = untouched)
     ): GameWorld {
         val loaded = MapLoader.load(
             if (mode == WorldMode.SURFACE) SurfaceStages.forBiome(biome, seed) else Stages.random(Rng(seed)),
@@ -145,7 +146,7 @@ object WorldFactory {
                 seed = seed, // stable planet ids per star system → society memory persists across landings
             ),
         )
-        val worldState = WorldState(mode = mode, biome = biome, context = context, society = society ?: PlanetSocietyState(), worldSeed = seed)
+        val worldState = WorldState(mode = mode, biome = biome, context = context, society = society ?: PlanetSocietyState(), worldSeed = seed, ngClears = ngClears)
         // The escape pad sits at the surface landing point; standing on it lets the player take off again.
         if (mode == WorldMode.SURFACE) worldState.escapePad = loaded.playerSpawnX to loaded.playerSpawnY
         worldState.vault = vaultPos // v2.95
@@ -194,7 +195,8 @@ object WorldFactory {
         val waveState = WaveState(
             num = 1,
             phase = "active",
-            toSpawn = minOf(config.waves.maxQuota, config.waves.baseQuota),
+            toSpawn = minOf(config.waves.maxQuota, config.waves.baseQuota +
+                io.github.panda17tk.arpg.sim.NewGamePlus.depth(ngClears) * config.waves.quotaPerWave), // v2.160 周回の印II
             spawnCd = 0.4f,
         )
 

@@ -38,6 +38,10 @@ class DesyncSurgeSystem : IteratingSystem(family { all(PlayerTag, Transform) }) 
     private val difficulty: io.github.panda17tk.arpg.sim.Difficulty = world.inject() // v2.97
     private val tribes: Tribes = world.inject()
     private val worldState: WorldState = world.inject()
+    // v2.160 周回の印II: a cleared account's sky surges deeper — pool/quota/pace/hp read
+    // (wave + depth) while the DISPLAYED wave number and the boss/event cadence stay honest.
+    private val depth: Int get() = io.github.panda17tk.arpg.sim.NewGamePlus.depth(worldState.ngClears)
+    private val lvlBonus: Int get() = io.github.panda17tk.arpg.sim.NewGamePlus.levelBonus(worldState.ngClears)
 
     private val mobs by lazy { world.family { all(Mob) } }
     // Space waves draw only from generic enemies; biome creatures (biome != null) live on their planet's surface.
@@ -104,7 +108,7 @@ class DesyncSurgeSystem : IteratingSystem(family { all(PlayerTag, Transform) }) 
         val c = config.waves
         wave.num = n
         wave.phase = "active"
-        wave.toSpawn = minOf(c.maxQuota, c.baseQuota + (n - 1) * c.quotaPerWave)
+        wave.toSpawn = minOf(c.maxQuota, c.baseQuota + (n + depth - 1) * c.quotaPerWave) // v2.160 周回の印II
         wave.spawnCd = 0.4f
         // v2.45 イベントウェーブ: the wave's flavor is fixed by its number (learnable rhythm).
         wave.event = io.github.panda17tk.arpg.sim.SystemTraits.fillEvent(worldState.trait, WaveEvents.eventFor(n), n) // v2.91
@@ -135,10 +139,10 @@ class DesyncSurgeSystem : IteratingSystem(family { all(PlayerTag, Transform) }) 
         val tile = pickTile(pt) ?: return null
         val def = config.enemies[midBossKeys[rng.nextInt(midBossKeys.size)]] ?: return null
         val name = WaveEvents.bountyName(rng)
-        val e = MobFactory.spawn(world, def, tile.first, tile.second, n, config.waves.hpScalePerWave, config.waves.speedScalePerWave, tribe = tribes.tribeOf(tile.first, tile.second))
+        val e = MobFactory.spawn(world, def, tile.first, tile.second, n + depth, config.waves.hpScalePerWave, config.waves.speedScalePerWave, tribe = tribes.tribeOf(tile.first, tile.second))
         with(world) {
             val m = e[Mob]
-            m.level = 7 // a bounty head outclasses an ordinary midboss (5) but not a boss (10)
+            m.level = 7 + lvlBonus // a bounty head outclasses an ordinary midboss (5) but not a boss (10)
             m.bountyDust = WaveEvents.bountyReward(n)
             m.bountyName = name // v2.88: the boss bar wears it
             fx.spawnWarnRing(e[Transform].x, e[Transform].y) // v2.86: the head's arrival is marked
@@ -150,13 +154,16 @@ class DesyncSurgeSystem : IteratingSystem(family { all(PlayerTag, Transform) }) 
         if (keys.isEmpty()) return
         val tile = pickTile(pt) ?: return
         val def = config.enemies[keys[rng.nextInt(keys.size)]] ?: return
-        val e = MobFactory.spawn(world, def, tile.first, tile.second, n, config.waves.hpScalePerWave, config.waves.speedScalePerWave, tribe = tribes.tribeOf(tile.first, tile.second))
-        with(world) { fx.spawnWarnRing(e[Transform].x, e[Transform].y) } // v2.86: the arrival is marked
+        val e = MobFactory.spawn(world, def, tile.first, tile.second, n + depth, config.waves.hpScalePerWave, config.waves.speedScalePerWave, tribe = tribes.tribeOf(tile.first, tile.second))
+        with(world) {
+            if (lvlBonus > 0) e[Mob].level += lvlBonus // v2.160 周回の印II
+            fx.spawnWarnRing(e[Transform].x, e[Transform].y) // v2.86: the arrival is marked
+        }
     }
 
-    private fun liveCap(n: Int, c: WaveConfig): Int = minOf(c.maxLiveCap, c.liveCapBase + n * c.liveCapPerWave)
+    private fun liveCap(n: Int, c: WaveConfig): Int = minOf(c.maxLiveCap, c.liveCapBase + (n + depth) * c.liveCapPerWave)
     private fun spawnInterval(n: Int, c: WaveConfig): Float {
-        val base = maxOf(c.minSpawnInterval, c.spawnIntervalBase - n * c.spawnIntervalPerWave)
+        val base = maxOf(c.minSpawnInterval, c.spawnIntervalBase - (n + depth) * c.spawnIntervalPerWave)
         return if (wave.event == WaveEvent.HORDE) base * WaveEvents.HORDE_INTERVAL_MUL else base
     }
 
@@ -170,7 +177,7 @@ class DesyncSurgeSystem : IteratingSystem(family { all(PlayerTag, Transform) }) 
      */
     private fun surgePool(waveNum: Int): List<String> =
         if (wave.event == WaveEvent.PURGE && purgeKeys.isNotEmpty()) purgeKeys
-        else normalKeys.take((3 + waveNum).coerceAtMost(normalKeys.size))
+        else normalKeys.take((3 + waveNum + depth).coerceAtMost(normalKeys.size)) // v2.160: deeper strata sooner
 
     /** Spawn a same-tribe herd (3..6) clustered around one tile so tribes pop in groups. Returns the count. */
     private fun spawnNormal(pt: Transform, waveNum: Int): Int {
@@ -184,7 +191,8 @@ class DesyncSurgeSystem : IteratingSystem(family { all(PlayerTag, Transform) }) 
             val a = rng.nextFloat() * 6.2831855f; val r = rng.nextFloat() * Tuning.TILE * 2.5f
             // v2.45: a magnetic storm agitates everyone — nearly the whole herd dashes.
             val dashChance = if (wave.event == WaveEvent.STORM) WaveEvents.STORM_DASH_CHANCE else 0.5f
-            MobFactory.spawn(world, def, tile.first + cos(a) * r, tile.second + sin(a) * r, waveNum, config.waves.hpScalePerWave, config.waves.speedScalePerWave, tribe = tribe, dashes = rng.nextFloat() < dashChance)
+            val e = MobFactory.spawn(world, def, tile.first + cos(a) * r, tile.second + sin(a) * r, waveNum + depth, config.waves.hpScalePerWave, config.waves.speedScalePerWave, tribe = tribe, dashes = rng.nextFloat() < dashChance)
+            if (lvlBonus > 0) with(world) { e[Mob].level += lvlBonus } // v2.160: one more unlocked move per clear
             spawned++
         }
         return spawned

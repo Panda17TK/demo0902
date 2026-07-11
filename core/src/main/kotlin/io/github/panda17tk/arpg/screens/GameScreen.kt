@@ -412,7 +412,7 @@ class GameScreen(
             simMode = false
             challengeMode = false // v2.102: leaving the walled-off world ends the proving run too
             worldSeed = session.spaceSeed
-            gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed, carry = preSimCarry, boons = metaBoons, trait = SystemTraits.traitFor(session.spaceSeed), difficulty = runDifficulty)
+            gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed, carry = preSimCarry, boons = metaBoons, trait = SystemTraits.traitFor(session.spaceSeed), difficulty = runDifficulty, ngClears = io.github.panda17tk.arpg.save.Endings.clears) // v2.160 周回の印II
             gw.waveState.num = preSimCarry?.wave ?: 1
             preSimCarry = null
         }
@@ -467,7 +467,7 @@ class GameScreen(
         session.reset() // a fresh run forgets every planet
         runStore.clear() // v2.33: restarting abandons the saved run
         worldSeed = session.spaceSeed
-        gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed, boons = metaBoons, trait = SystemTraits.traitFor(session.spaceSeed), difficulty = runDifficulty)
+        gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed, boons = metaBoons, trait = SystemTraits.traitFor(session.spaceSeed), difficulty = runDifficulty, ngClears = io.github.panda17tk.arpg.save.Endings.clears) // v2.160 周回の印II
         accumulator = 0f
         camInit = false
         choosing = false
@@ -574,7 +574,7 @@ class GameScreen(
         val carry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
         worldSeed = seed
         gw.world.dispose() // v2.153: release the outgoing world's systems at the seam
-        gw = WorldFactory.create(input, configStore.config, seed, mode, biome, carry, spawn, context, society, weather, boons = metaBoons, trait = if (mode == WorldMode.SPACE) SystemTraits.traitFor(session.spaceSeed) else SystemTrait.NONE, difficulty = runDifficulty)
+        gw = WorldFactory.create(input, configStore.config, seed, mode, biome, carry, spawn, context, society, weather, boons = metaBoons, trait = if (mode == WorldMode.SPACE) SystemTraits.traitFor(session.spaceSeed) else SystemTrait.NONE, difficulty = runDifficulty, ngClears = io.github.panda17tk.arpg.save.Endings.clears) // v2.160 周回の印II
         gw.waveState.num = carry.wave
         accumulator = 0f; camInit = false; overlay = Overlay.NONE
         choosing = false; offered = false; choices = emptyList(); lastHp = Float.NaN
@@ -1267,6 +1267,7 @@ class GameScreen(
             boons = metaBoons, // v2.90
             trait = if (mode == WorldMode.SPACE) SystemTraits.traitFor(dto.worldSeed) else SystemTrait.NONE, // v2.91
             difficulty = runDifficulty, // v2.97
+            ngClears = io.github.panda17tk.arpg.save.Endings.clears, // v2.160 周回の印II
         )
         gw.waveState.num = dto.wave
         with(gw.world) {
