@@ -445,7 +445,11 @@ internal fun GameScreen.drawInventory() {
             shapes, batch, font, Fonts.title, hudViewport, invTab,
             slotTexts, itemLines, gw.visited, ptx, pty,
             if (invNoteT > 0f) invNote else null,
-            loreTitle = readingLore?.name, loreLines = readingLore?.lore?.split("\n") ?: emptyList(),
+            loreTitle = readingLore?.name,
+            // v2.163 英語化第4弾: whole-text swap — the readables are letters, not token soup
+            loreLines = readingLore?.let { d ->
+                (if (io.github.panda17tk.arpg.i18n.Lang.en) io.github.panda17tk.arpg.i18n.LoreEn.textOf(d.id) else null) ?: d.lore
+            }?.split("\n") ?: emptyList(),
             controlLabel = "操作: " + (if (controlSwap) "銃=ボタン / 近接=右スティック" else "近接=ボタン / 銃=右スティック") + "　(タップで入替)",
             marketLines = marketLines, marketFooter = marketFooter,
             logLines = if (invTab == InvTab.LOG) logbookLines() else emptyList(),

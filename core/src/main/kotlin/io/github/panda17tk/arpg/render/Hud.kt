@@ -246,10 +246,11 @@ object Hud {
 
     /** v2.55: draw [text] with its left edge at (x, baselineY), auto-shrunk to fit [maxW]. */
     private fun fitText(batch: SpriteBatch, font: BitmapFont, text: String, x: Float, baselineY: Float, maxW: Float) {
+        val t = io.github.panda17tk.arpg.i18n.Lang.tr(text) // v2.163 英語化第4弾: the last un-tr'd funnel
         val bx = font.data.scaleX; val by = font.data.scaleY
-        glyph.setText(font, text)
+        glyph.setText(font, t)
         val fit = min(1f, maxW / glyph.width.coerceAtLeast(1f))
-        if (fit < 1f) { font.data.setScale(bx * fit, by * fit); glyph.setText(font, text) }
+        if (fit < 1f) { font.data.setScale(bx * fit, by * fit); glyph.setText(font, t) }
         font.draw(batch, glyph, x, baselineY)
         if (fit < 1f) font.data.setScale(bx, by)
     }

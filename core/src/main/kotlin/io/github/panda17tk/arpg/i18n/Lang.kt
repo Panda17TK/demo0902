@@ -152,6 +152,7 @@ object Lang {
         "切断を記録した。網は、それでもあなたを覚えている。" to "Disconnection logged. The net remembers you, even so.",
         "タップで続ける" to "Tap to continue",
         "タップで記録を閉じる" to "Tap to close the record",
+        "ボタン配置を編集" to "Edit Button Layout", // v2.163
         "漂流者を救助した — 礼にと星屑40を分けてくれた" to "Rescued a drifter - they shared 40 dust in thanks",
         // 持物 / インベントリ
         "装備" to "Gear",
@@ -252,6 +253,52 @@ object Lang {
         // behind its prefix. Full-sentence tokens, so nothing bites into another line.
         add("記憶核: " to "Memory core: ")
         add("遭難記録: " to "Distress log: ")
+        // v2.163 英語化第4弾(後半・その2): the inventory rows now ride tr() — markers,
+        // slot labels, and every readable's one-line description.
+        add("【合成可】" to "[Merge OK] ")
+        add("【使】" to "[Use] ")
+        add("【読】" to "[Read] ")
+        add("（なし）" to "(none)")
+        add("推進器：" to "Thruster: ")
+        add("防具：" to "Armor: ")
+        add("遠距離：" to "Ranged: ")
+        add("近距離：" to "Melee: ")
+        add("装飾1：" to "Charm 1: ")
+        add("装飾2：" to "Charm 2: ")
+        add("装飾3：" to "Charm 3: ")
+        add("操作: " to "Controls: ")
+        add("銃=ボタン / 近接=右スティック" to "gun = button / melee = right stick")
+        add("近接=ボタン / 銃=右スティック" to "melee = button / gun = right stick")
+        add("　(タップで入替)" to "　(tap to swap)")
+        add("『" to "'")
+        add("』" to "'")
+        add("整備士の走り書き" to "A mechanic's scrawl")
+        add("血の染みがある" to "Blood-stained")
+        add("森の岩壁から写し取られた" to "Taken from a forest rock wall")
+        add("凍った石板に刻まれている" to "Carved on a frozen tablet")
+        add("読める部分だけを書き写した" to "Only the legible parts, copied out")
+        add("嵐の中で歌われる" to "Sung in the storm")
+        add("風化した石碑の写し" to "A copy of a weathered stone")
+        add("誰かの手記の切れ端" to "A scrap of someone's notes")
+        add("赤字の注意書きだらけ" to "Covered in red warnings")
+        add("旅人の間で口伝えされる" to "Passed down among travelers")
+        add("どの港にも貼られている" to "Posted in every port")
+        add("途切れ途切れの受信ログ" to "A broken reception log")
+        add("几帳面な字で書かれている" to "Written in a meticulous hand")
+        add("油染みたメモ" to "A grease-stained memo")
+        add("22世紀の事務端末から" to "From a 22nd-century office terminal")
+        add("最後の工学部の教材" to "From the last engineering faculty")
+        add("破損したPDFの印刷" to "A print of a corrupted PDF")
+        add("全星系に複製された最後の報告" to "The last report, copied to every system")
+        add("どの星の祭壇にも刻まれている" to "Carved on every planet's altar")
+        add("拾った者への注記" to "A note to whoever picks these up")
+        add("記憶核から漏れた断片" to "A fragment leaked from a memory core")
+        add("船室に残されていた最初の一冊" to "The first volume left in the cabin")
+        add("字が乱れている" to "The handwriting wavers")
+        add("死の星の石板より" to "From a dead planet's tablet")
+        add("跳躍者向けの古い規程" to "Old rules for jumpers")
+        add("最後の頁。筆跡は落ち着いている" to "The last page. The hand is steady")
+        add("読める部分だけを写した" to "Only the legible parts, copied")
         add("外部同期: 停止から 9 万 4 千日。ローカル保全モードを継続する" to "External sync: 94,000 days since loss. Local preservation mode continues")
         add("訪問者を記録した。評価は保留。危害があれば追記される" to "Visitor logged. Assessment withheld. Harm, if any, will be appended")
         add("この記録は消去できない。人類保全ポリシー第5条: 死者を忘れるな" to "This record cannot be erased. Human Preservation Policy, Article 5: forget no one who died")
