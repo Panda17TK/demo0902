@@ -154,6 +154,8 @@ object Lang {
         "タップで記録を閉じる" to "Tap to close the record",
         "ボタン配置を編集" to "Edit Button Layout", // v2.163
         "海の密度" to "Ocean Density", // v2.165
+        "性能表示" to "Performance HUD", // v2.167
+        "fps・sim・描画時間を左上に表示" to "Show fps, sim and draw times top-left",
         "宇宙の魚の数（次の空から反映）" to "How many fish fill the sky (applies from the next sky)",
         "高" to "High",
         "中" to "Medium",

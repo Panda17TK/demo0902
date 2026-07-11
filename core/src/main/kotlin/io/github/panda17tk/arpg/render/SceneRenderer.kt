@@ -385,6 +385,7 @@ class SceneRenderer {
         // (same culling drawTerrain already does). ~300 mobs shrink to the screenful that matters.
         val cullHW = camera.viewportWidth / 2f + CULL_MARGIN
         val cullHH = camera.viewportHeight / 2f + CULL_MARGIN
+        var mobsDrawn = 0 // v2.167 性能計
         with(gw.world) {
             gw.world.family { all(Mob, Transform, Health, Facing, Velocity, MobAction) }.forEach { e ->
                 val mt = e[Transform]
@@ -405,6 +406,7 @@ class SceneRenderer {
                 // v2.139 描画の倹約: Color.valueOf parses a hex STRING — memoise per def colour and
                 // hand painters a reusable copy (they may tint it), killing ~300 parses+allocs/frame.
                 mobColorTmp.set(mobColorCache.getOrPut(mm.def.color) { Color.valueOf(mm.def.color) })
+                mobsDrawn++ // v2.167 性能計
                 Actors.drawMob(shapes, mm.kind, mm.tier, mt.x, mt.y, mm.def.w, mm.def.h, mobColorTmp, mf.x, mf.y, moving, mh.hitFlash > 0f, ma.dodgeT > 0f, chargeProg, ma.enrageT > 0f, hpFrac, e.id * 1.3f, animTime, role, mm.level, look)
                 if (mm.bountyDust > 0) { // v2.86: the head wears its price — a gold pulse + a diamond overhead
                     val pulse = 0.6f + 0.4f * sin(animTime * 5f)
@@ -417,6 +419,7 @@ class SceneRenderer {
                 }
             }
         }
+        io.github.panda17tk.arpg.save.PerfHud.mobsDrawn = mobsDrawn // v2.167 性能計
     }
 
     /** v2.128 捕食: two pale jaws gape in front of the keeper and clack shut on the morsel. */
