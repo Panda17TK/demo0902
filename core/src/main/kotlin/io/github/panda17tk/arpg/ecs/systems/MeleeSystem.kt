@@ -101,7 +101,7 @@ class MeleeSystem(private val mobGrid: SpatialGrid<Entity>) :
         // v2.81: the combo lunges FORWARD — reach stretches dead ahead (cos²-weighted), sides stay honest.
         val fwd = MeleeCombo.forwardMul(comboStep)
         var landedAny = false // v2.89: one pitched hit-sound per swing, not per victim
-        mobGrid.forNearby(t.x, t.y, reach * (1f + fwd) + 24f) { mobEntity ->
+        mobGrid.forNearby(t.x, t.y, reach * (1f + fwd) + io.github.panda17tk.arpg.sim.Tuning.MAX_BODY_HALF) { mobEntity ->
             val mobT = with(world) { mobEntity[Transform] }
             val mobB = with(world) { mobEntity[Body] }
             val ddx = mobT.x - t.x; val ddy = mobT.y - t.y

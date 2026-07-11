@@ -1108,7 +1108,9 @@ class GameScreen(
         gw.gameOver.killsByKind.clear() // a seam folds once — a second pass finds nothing
         val known = io.github.panda17tk.arpg.save.Bestiary.knownCount()
         if (known >= 50) tryUnlock(Achievement.BESTIARY_50)
-        if (known >= configStore.config.enemies.size) tryUnlock(Achievement.BESTIARY_FULL)
+        // v2.147: the full-book unlock never demands a child's death (獣の子 stays out of the count)
+        val bookTarget = configStore.config.enemies.values.count { it.familyRole != io.github.panda17tk.arpg.config.FamilyRole.CHILD }
+        if (known >= bookTarget) tryUnlock(Achievement.BESTIARY_FULL)
     }
 
     internal fun tryUnlock(a: Achievement) {

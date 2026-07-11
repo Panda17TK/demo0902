@@ -88,7 +88,7 @@ class ProjectileSystem(private val mobGrid: SpatialGrid<Entity>) :
 
             // --- Bullet vs mob hit check (before wall despawn) ---
             var mobHit = false
-            mobGrid.forNearby(t.x, t.y, 24f) { mobEntity ->
+            mobGrid.forNearby(t.x, t.y, Tuning.MAX_BODY_HALF) { mobEntity ->
                 if (mobHit) return@forNearby
                 val mobT = with(world) { mobEntity[Transform] }
                 val mobB = with(world) { mobEntity[Body] }
@@ -128,12 +128,14 @@ class ProjectileSystem(private val mobGrid: SpatialGrid<Entity>) :
             val tx = floor(t.x / Tuning.TILE).toInt(); val ty = floor(t.y / Tuning.TILE).toInt()
             // proximity: an enemy within ~1 tile triggers a bigger (2-tile) blast immediately
             var prox = false
-            mobGrid.forNearby(t.x, t.y, Tuning.TILE) { mobEntity ->
+            mobGrid.forNearby(t.x, t.y, Tuning.TILE + Tuning.MAX_BODY_HALF) { mobEntity ->
                 if (!prox) {
                     // v2.137 狙いの節度: a passing minnow must not trip the fuse
                     if (!io.github.panda17tk.arpg.sim.Predation.autoTargetable(with(world) { mobEntity[Mob].def })) return@forNearby
                     val mt = with(world) { mobEntity[Transform] }
-                    if (hypot(mt.x - t.x, mt.y - t.y) <= Tuning.TILE) prox = true
+                    val mb = with(world) { mobEntity[Body] }
+                    // v2.147: measure to the hull, not the centre — a whale's flank trips the fuse too
+                    if (hypot(mt.x - t.x, mt.y - t.y) <= Tuning.TILE + (mb.halfW + mb.halfH) * 0.5f) prox = true
                 }
             }
             if (map.solidAt(tx, ty) || g.fuse <= 0f || prox) {

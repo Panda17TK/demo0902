@@ -8,6 +8,9 @@ object Tuning {
     const val START_MATERIALS = 2     // legacy player.inv.blocks initial
 
     const val TILE = 32f
+    // v2.147 巨体の手応え: broadphase query margin — must cover the widest creature half-extent
+    // (isle_whale w=120 → 60). Queries sized for ~24px bodies left dead zones on whale-class hulls.
+    const val MAX_BODY_HALF = 64f
     const val VIEW_W = 800f
     const val VIEW_H = 480f
     const val CAM_LOOK_AHEAD = 36f
