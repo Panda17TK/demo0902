@@ -83,6 +83,8 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
     private val cPlanetRim = Color(0.35f, 0.55f, 0.85f, 0.25f)
     private val cGate = Color(0.35f, 0.8f, 1f, 0.35f)
     private val cSub = Color(0.62f, 0.68f, 0.80f, 1f)
+    private val cCrash = Color(1f, 0.5f, 0.45f, 0.85f) // v2.168 安全な帰還
+    private var lastCrash = "" // v2.168: the black box — what the previous session died of
 
     override fun show() {
         shapes = ShapeRenderer()
@@ -122,6 +124,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             difficulty = io.github.panda17tk.arpg.sim.Difficulty.byName(sp.getString("difficulty", "NORMAL")) // v2.97
             io.github.panda17tk.arpg.save.OceanDensity.tier = sp.getInteger("oceanDensity", io.github.panda17tk.arpg.save.OceanDensity.MEDIUM).coerceIn(0, 2) // v2.165
             io.github.panda17tk.arpg.save.PerfHud.enabled = sp.getBoolean("perfHud", false) // v2.167
+            lastCrash = sp.getString("lastCrash", "") // v2.168 安全な帰還
         } catch (_: Throwable) { /* defaults stay on */ }
         io.github.panda17tk.arpg.i18n.Lang.en = langEn // v2.115: the dictionary follows the pref
         Sfx.volume = volume
@@ -262,6 +265,14 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         if (showWorkshop) drawWorkshop(w, h) // v2.90: and the workshop
         if (showTunePad) drawTunePad(w, h)   // v2.98: the passcode pad over everything
         if (showSlots) drawSlots(w, h)       // v2.103: the journey picker over everything
+        if (lastCrash.isNotEmpty()) { // v2.168: the previous session's crash, for the report
+            batch.begin()
+            val cf = Fonts.ui
+            cf.color = cCrash
+            drawFitted(cf, "前回のエラー: $lastCrash", w / 2f, 14f, w - 20f, scale = 0.7f)
+            cf.color = Color.WHITE
+            batch.end()
+        }
         handleInput(buttons, rec, set, wsh, dif, tun)
     }
 

@@ -172,6 +172,10 @@ class GameScreen(
     internal lateinit var hudViewport: ScreenViewport
     internal val scene = SceneRenderer()
     private val cPerf = Color(0.62f, 1f, 0.72f, 0.92f) // v2.167 性能計
+    // v2.168 安全な帰還: showTitle() swaps the screen MID-TAP — App.swapTo disposes this
+    // instance's batch/shapes on the spot. The latch stops the frame before it draws with
+    // dead GL resources (that was the on-device 「内部エラー」 on タイトルへ).
+    internal var closing = false
 
     internal var accumulator = 0f
     internal var camX = Tuning.VIEW_W / 2f
@@ -619,6 +623,7 @@ class GameScreen(
         if (layoutEditing) handleLayoutEdit() // v2.56: the editor swallows all input while open
         if (endingStage > 0) handleEndingTaps() // v2.93: the final dialogue owns every tap
         else if (!layoutEditing && !handleTutorialTaps()) handlePauseTaps() // v2.60: diagnostic taps first
+        if (closing) return // v2.168 安全な帰還: the screen was swapped — this instance is disposed
 
         pollGameplayTouch(
             overlay != Overlay.NONE || fade.blocksInput || layoutEditing || endingStage > 0 ||
@@ -1401,10 +1406,10 @@ class GameScreen(
     }
 
     override fun dispose() {
-        shapes.dispose()
-        batch.dispose()
-        font.dispose()
+        if (::shapes.isInitialized) shapes.dispose()
+        if (::batch.isInitialized) batch.dispose()
         // v2.153: Sfx is process-wide (App owns init/dispose) — disposing here silenced every
         // menu click after the first play session.
+        // v2.168: the fonts belong to Fonts — load() retires the previous pair itself.
     }
 }

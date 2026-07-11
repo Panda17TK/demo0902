@@ -321,6 +321,7 @@ internal fun GameScreen.handleEndingTaps() {
             else -> { // the epilogue closes to the title; the finished run is consumed
                 foldBestiary() // v2.117: the final world's tallies close the book too
                 runStore.clear()
+                closing = true // v2.168 安全な帰還: stop this frame before it draws disposed
                 (Gdx.app.applicationListener as? App)?.showTitle()
             }
         }
@@ -342,6 +343,7 @@ internal fun GameScreen.handlePauseTaps() {
                     PauseAction.TITLE -> { // v2.58: auto-save the real run, then the front door
                         foldBestiary() // v2.113
                         if (!simMode && !gw.gameOver.isOver) saveRun()
+                        closing = true // v2.168 安全な帰還
                         (Gdx.app.applicationListener as? App)?.showTitle()
                         return
                     }
