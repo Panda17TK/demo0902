@@ -798,9 +798,7 @@ class GameScreen(
                     val pay = io.github.panda17tk.arpg.planet.WeatherQuest.rewardFor(q, ws.weather) // v2.109 天候×依頼
                     with(gw.world) { gw.player[Materials].dust += pay }
                     ws.questStage++
-                    ws.questBaseKills = ws.questKills; ws.questBaseElites = ws.questElites
-                    ws.questBaseDust = ws.questDust; ws.questBasePredators = ws.questPredators
-                    ws.questBaseTime = ws.questTime
+                    ws.snapshotQuestBases() // v2.150: one seam — bases + the CORE visit flag
                     questChipKey = -1 // the chip rebuilds for the next request
                     ws.recentEvents.add(
                         PlanetEvent(
@@ -1111,7 +1109,10 @@ class GameScreen(
     internal fun foldBestiary() {
         if (simMode) return
         io.github.panda17tk.arpg.save.Bestiary.record(gw.gameOver.killsByKind)
-        io.github.panda17tk.arpg.save.Stats.fold(gw.gameOver.killsByKind) // v2.123 勤続記録: same seam
+        io.github.panda17tk.arpg.save.Stats.fold(
+            gw.gameOver.killsByKind, // v2.123 勤続記録: same seam (v2.150: wildlife stays out of the tally)
+            configStore.config.enemies.filterValues { it.lifeKind == io.github.panda17tk.arpg.config.LifeKind.WILDLIFE }.keys,
+        )
         gw.gameOver.killsByKind.clear() // a seam folds once — a second pass finds nothing
         val known = io.github.panda17tk.arpg.save.Bestiary.knownCount()
         if (known >= 50) tryUnlock(Achievement.BESTIARY_50)
