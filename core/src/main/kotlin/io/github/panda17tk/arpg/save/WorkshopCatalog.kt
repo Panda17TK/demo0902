@@ -42,4 +42,9 @@ object WorkshopCatalog {
 
     /** The tithe the workshop recovers from a fallen run's carried fragments. */
     fun salvage(carriedDust: Int): Int = (carriedDust * 0.15f).toInt()
+
+    /** v2.154 星屑の送金: a gate jump wires 30% of carried dust to the workshop. Before this,
+     *  the ONLY meta income was the 15% death salvage — dying rich beat surviving, upside down
+     *  for a roguelite. Surviving and pressing on now banks twice what a death does. */
+    fun remit(carriedDust: Int): Int = (carriedDust * 0.30f).toInt()
 }
