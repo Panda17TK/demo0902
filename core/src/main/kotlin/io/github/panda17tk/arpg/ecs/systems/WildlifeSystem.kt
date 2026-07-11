@@ -41,7 +41,16 @@ class WildlifeSystem(private val mobGrid: io.github.panda17tk.arpg.pathfinding.S
     private val planetField: PlanetField = world.inject()
     private val worldState: WorldState = world.inject()
     private val players by lazy { world.family { all(PlayerTag, Transform) } }
-    private val wanderRng = Rng(0x21D7A11FEL) // private stream: keeps idle wander out of the combat RNG
+    // v2.164 軽い海: distance LOD (WildLod) — cached per tick, gated per entity
+    private var tick = 0
+    private var plX = 0f; private var plY = 0f; private var hasPl = false
+
+    override fun onTick() {
+        tick++
+        hasPl = false
+        players.forEach { e -> if (!hasPl) { val pt = e[Transform]; plX = pt.x; plY = pt.y; hasPl = true } }
+        super.onTick()
+    }
 
     override fun onTickEntity(entity: Entity) {
         val m = entity[Mob]
@@ -49,11 +58,14 @@ class WildlifeSystem(private val mobGrid: io.github.panda17tk.arpg.pathfinding.S
         if (m.def.wildRole == WildRole.SCHOOL) return // v2.131: boid fish belong to SchoolFishSystem
 
         val t = entity[Transform]
+        // v2.164 軽い海: far wildlife senses and moves on a stagger with a scaled dt (WildLod)
+        val lod = if (hasPl) io.github.panda17tk.arpg.sim.WildLod.strideAt(t.x, t.y, plX, plY) else 1
+        if (!io.github.panda17tk.arpg.sim.WildLod.due(lod, tick, entity.id)) return
         val v = entity[Velocity]
         val b = entity[Body]
         val f = entity[Facing]
         val h = entity[Health]
-        val dt = deltaTime
+        val dt = deltaTime * lod
 
         // Knockback + flung-momentum bleed off (same feel as AISystem) so a struck animal coasts then recovers.
         v.vx *= KNOCK_DECAY.pow(dt); v.vy *= KNOCK_DECAY.pow(dt)
@@ -118,8 +130,8 @@ class WildlifeSystem(private val mobGrid: io.github.panda17tk.arpg.pathfinding.S
                 if (homeDist > GUARD_LEASH) { val l = hypot(m.homeX - t.x, m.homeY - t.y); if (l > 1e-3f) { dx = (m.homeX - t.x) / l; dy = (m.homeY - t.y) / l }; mul = HERD_MUL }
                 else if (pdist > 1e-3f) { f.x = (px - t.x) / pdist; f.y = (py - t.y) / pdist; mul = 0f }
             }
-            WildState.Wander -> { rollWander(m, f, dt); dx = f.x; dy = f.y; mul = WANDER_MUL }
-            WildState.Hunt -> { rollWander(m, f, dt); dx = f.x; dy = f.y; mul = HUNT_MUL }
+            WildState.Wander -> { rollWander(entity.id, m, f, dt); dx = f.x; dy = f.y; mul = WANDER_MUL }
+            WildState.Hunt -> { rollWander(entity.id, m, f, dt); dx = f.x; dy = f.y; mul = HUNT_MUL }
             WildState.Flee -> {
                 val tx = if (predatorNear) predX else px; val ty = if (predatorNear) predY else py
                 val l = hypot(t.x - tx, t.y - ty); if (l > 1e-3f) { dx = (t.x - tx) / l; dy = (t.y - ty) / l }; mul = FLEE_MUL
@@ -162,7 +174,7 @@ class WildlifeSystem(private val mobGrid: io.github.panda17tk.arpg.pathfinding.S
         }
         // v2.136 泳ぐ魚: a space fish never hangs dead in the void — where a land animal would
         // stand (graze, threaten, feed, sleep), the fish keeps swimming a slow wander instead.
-        if (mul == 0f && m.def.swims) { rollWander(m, f, dt); dx = f.x; dy = f.y; mul = WANDER_MUL }
+        if (mul == 0f && m.def.swims) { rollWander(entity.id, m, f, dt); dx = f.x; dy = f.y; mul = WANDER_MUL }
         if (dx != 0f || dy != 0f) { val l = hypot(dx, dy); if (l > 1e-3f) { dx /= l; dy /= l; f.x = dx; f.y = dy } }
 
         // Apply movement riding on any leftover drift, stopping at walls (no crash/fall damage), same as AISystem.
@@ -181,12 +193,16 @@ class WildlifeSystem(private val mobGrid: io.github.panda17tk.arpg.pathfinding.S
     }
 
     /** Re-roll a slow idle heading every couple of seconds so wanderers (and prowling hunters) amble naturally. */
-    private fun rollWander(m: Mob, f: Facing, dt: Float) {
+    private fun rollWander(id: Int, m: Mob, f: Facing, dt: Float) {
         m.wanderCd -= dt
         if (m.wanderCd <= 0f) {
-            val a = wanderRng.nextFloat() * TAU
+            // v2.164 軽い海: hash from (entity, own re-roll count) — a shared stream would
+            // re-order every animal's draws whenever the LOD gates one of them.
+            m.wanderSeq++
+            val h = Rng(id * -0x61c88647L xor m.wanderSeq * 0x51E5_7A2DL xor 0x21D7A11FEL)
+            val a = h.nextFloat() * TAU
             f.x = cos(a); f.y = sin(a)
-            m.wanderCd = WANDER_REROLL_MIN + wanderRng.nextFloat() * WANDER_REROLL_VAR
+            m.wanderCd = WANDER_REROLL_MIN + h.nextFloat() * WANDER_REROLL_VAR
         }
     }
 

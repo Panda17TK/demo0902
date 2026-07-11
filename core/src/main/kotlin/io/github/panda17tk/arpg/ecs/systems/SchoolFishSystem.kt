@@ -33,6 +33,9 @@ class SchoolFishSystem : IteratingSystem(family { all(Mob, Transform, Velocity, 
     private val players by lazy { world.family { all(PlayerTag, Transform) } }
 
     private var time = 0f
+    // v2.164 軽い海: distance LOD — far fish tick on a stagger with a matching bigger dt.
+    private var tick = 0
+    private var plX = 0f; private var plY = 0f; private var hasPlayer = false
     // per-tick caches. v2.140 bucketed per kind; v2.144 大群衆 buckets per FLOCK — thirty sardine
     // schools must not melt into one n² pool. Unboxed FloatBuf: at ~5000 fish the old
     // ArrayList<Float> would box ~20k floats per tick, pure GC churn on a phone.
@@ -72,6 +75,9 @@ class SchoolFishSystem : IteratingSystem(family { all(Mob, Transform, Velocity, 
 
     override fun onTick() {
         time += deltaTime
+        tick++
+        hasPlayer = false
+        players.forEach { e -> if (!hasPlayer) { val pt = e[Transform]; plX = pt.x; plY = pt.y; hasPlayer = true } }
         pools.values.forEach { it.clear() }
         px.clear(); py.clear(); wx.clear(); wy.clear()
         family.forEach { e ->
@@ -107,7 +113,11 @@ class SchoolFishSystem : IteratingSystem(family { all(Mob, Transform, Velocity, 
         val m = entity[Mob]
         if (m.def.lifeKind != LifeKind.WILDLIFE || m.def.wildRole != WildRole.SCHOOL) return
         val t = entity[Transform]; val v = entity[Velocity]; val b = entity[Body]; val f = entity[Facing]
-        val dt = deltaTime
+        // v2.164 軽い海: a fish far from the keeper swims the same path on 1/4 or 1/8 of the
+        // frames — the skipped frames' dt lands in one step (see WildLod).
+        val lod = if (hasPlayer) io.github.panda17tk.arpg.sim.WildLod.strideAt(t.x, t.y, plX, plY) else 1
+        if (!io.github.panda17tk.arpg.sim.WildLod.due(lod, tick, entity.id)) return
+        val dt = deltaTime * lod
         val myKey = poolKey(m)
 
         // knockback / flung momentum bleeds off like every other creature

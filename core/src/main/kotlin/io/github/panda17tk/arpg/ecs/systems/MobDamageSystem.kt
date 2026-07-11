@@ -34,8 +34,16 @@ class MobDamageSystem(private val grid: SpatialGrid<Entity>) :
     private val waveState: WaveState = world.inject()
     private val players by lazy { world.family { all(PlayerTag, Health, Mods) } }
 
+    // v2.164 軽い海: the rebuild is ~5000 boxed hash inserts per frame — far SCHOOL fish
+    // (nothing the keeper does reaches them within a frame) enter on the WildLod stagger.
+    private var lodTick = 0
+    private var lodPlX = 0f; private var lodPlY = 0f; private var lodHasPl = false
+
     override fun onTick() {
         grid.clear()
+        lodTick++
+        lodHasPl = false
+        players.forEach { e -> if (!lodHasPl) { val pt = e[Transform]; lodPlX = pt.x; lodPlY = pt.y; lodHasPl = true } }
         super.onTick()
     }
 
@@ -127,6 +135,10 @@ class MobDamageSystem(private val grid: SpatialGrid<Entity>) :
                 fx.addShake(0.2f, 5f)
                 fx.requestSfx("phase") // v2.89: the rage has a voice
             }
+        }
+        if (lodHasPl && entity[Mob].def.wildRole == io.github.panda17tk.arpg.config.WildRole.SCHOOL) {
+            val lod = io.github.panda17tk.arpg.sim.WildLod.strideAt(t.x, t.y, lodPlX, lodPlY)
+            if (!io.github.panda17tk.arpg.sim.WildLod.due(lod, lodTick, entity.id)) return // v2.164 軽い海
         }
         grid.insert(entity, t.x, t.y)
     }
