@@ -444,7 +444,7 @@ class GameScreen(
             dailyChallenge = false // v2.180
             gw.world.dispose() // v2.174 命綱
             worldSeed = session.spaceSeed
-            gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed, carry = preSimCarry, boons = metaBoons, trait = SystemTraits.traitFor(session.spaceSeed), difficulty = runDifficulty, ngClears = io.github.panda17tk.arpg.save.Endings.clears, oceanKeep = io.github.panda17tk.arpg.save.OceanDensity.keep(), area = session.areaX to session.areaY, lootedWrecks = session.lootedWrecks, survivorRescued = session.survivorRescued, cometSwept = session.cometSwept) // v2.160 / v2.165 / v2.166 / v2.169
+            gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed, carry = preSimCarry, boons = metaBoons, trait = SystemTraits.traitFor(session.spaceSeed), difficulty = runDifficulty, ngClears = io.github.panda17tk.arpg.save.Endings.clears, oceanKeep = io.github.panda17tk.arpg.save.OceanDensity.keep(), area = session.areaX to session.areaY, lootedWrecks = session.lootedWrecks, survivorRescued = session.survivorRescued, cometSwept = session.cometSwept, throneClaimed = session.throneClaimed) // v2.160 / v2.165 / v2.166 / v2.169 / v2.184
             gw.waveState.num = preSimCarry?.wave ?: 1
             preSimCarry = null
         }
@@ -664,7 +664,7 @@ class GameScreen(
         val carry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
         worldSeed = seed
         gw.world.dispose() // v2.153: release the outgoing world's systems at the seam
-        gw = WorldFactory.create(input, configStore.config, seed, mode, biome, carry, spawn, context, society, weather, boons = metaBoons, trait = if (mode == WorldMode.SPACE) SystemTraits.traitFor(session.spaceSeed) else SystemTrait.NONE, difficulty = runDifficulty, ngClears = io.github.panda17tk.arpg.save.Endings.clears, oceanKeep = io.github.panda17tk.arpg.save.OceanDensity.keep(), area = if (mode == WorldMode.SPACE) session.areaX to session.areaY else null, lootedWrecks = session.lootedWrecks, survivorRescued = session.survivorRescued, cometSwept = session.cometSwept) // v2.160 / v2.165 / v2.166 / v2.169
+        gw = WorldFactory.create(input, configStore.config, seed, mode, biome, carry, spawn, context, society, weather, boons = metaBoons, trait = if (mode == WorldMode.SPACE) SystemTraits.traitFor(session.spaceSeed) else SystemTrait.NONE, difficulty = runDifficulty, ngClears = io.github.panda17tk.arpg.save.Endings.clears, oceanKeep = io.github.panda17tk.arpg.save.OceanDensity.keep(), area = if (mode == WorldMode.SPACE) session.areaX to session.areaY else null, lootedWrecks = session.lootedWrecks, survivorRescued = session.survivorRescued, cometSwept = session.cometSwept, throneClaimed = session.throneClaimed) // v2.160 / v2.165 / v2.166 / v2.169 / v2.184
         gw.waveState.num = carry.wave
         accumulator = 0f; camInit = false; overlay = Overlay.NONE
         choosing = false; offered = false; choices = emptyList(); lastHp = Float.NaN
@@ -891,6 +891,21 @@ class GameScreen(
                     eventBanner.start("漂流者を救助した — 礼にと星屑40を分けてくれた")
                     Sfx.play("levelup")
                     tryUnlock(Achievement.LIFELINE)
+                }
+            }
+        }
+        // v2.184 濃い外縁III 沈黙の玉座: the far corner's hoard — reaching it IS the claim (once per run).
+        if (!paused && !simMode && gw.worldState.mode == WorldMode.SPACE &&
+            gw.worldState.throne != null && !gw.worldState.throneClaimed
+        ) {
+            gw.worldState.throne?.let { th ->
+                val (tpx, tpy) = with(gw.world) { val t = gw.player[Transform]; t.x to t.y }
+                if (hypot(tpx - th.first, tpy - th.second) < Tuning.TILE * 2f) {
+                    gw.worldState.throneClaimed = true
+                    session.throneClaimed = true // the claim holds across rebuilds and saves
+                    with(gw.world) { gw.player[Materials].dust += 200 }
+                    eventBanner.start("沈黙の玉座に到達した — 星屑200が積まれていた")
+                    Sfx.play("levelup")
                 }
             }
         }
@@ -1266,6 +1281,7 @@ class GameScreen(
         session.returnSpawn = null
         session.areaX = 1; session.areaY = 1 // v2.166: a new system opens at its centre
         session.lootedWrecks.clear(); session.survivorRescued = false; session.cometSwept = false // v2.169
+        session.throneClaimed = false // v2.184: a new system's throne stands fresh
         session.visitedAreas.clear(); session.visitedAreas.add(4) // v2.180: a new sky, a fresh chart
         endingSeenThisWorld = false // v2.93: a new sky may ask the question again
         transitionWorld(WorldMode.SPACE, null, session.spaceSeed, null)
@@ -1375,6 +1391,7 @@ class GameScreen(
                 lootedWrecks = session.lootedWrecks.toList(), // v2.169 診断修正
                 visitedAreas = session.visitedAreas.toList(), // v2.180 九マスの足あと
                 survivorRescued = session.survivorRescued, cometSwept = session.cometSwept,
+                throneClaimed = session.throneClaimed, // v2.184 濃い外縁III
                 upgradeSeed = upgradeSeed, // v2.174 命綱
                 px = t.x, py = t.y,
                 hp = hlt.hp, hpMax = hlt.hpMax, stamina = sta.value,
@@ -1427,6 +1444,7 @@ class GameScreen(
         upgradeRng = Rng(upgradeSeed)
         session.survivorRescued = dto.survivorRescued
         session.cometSwept = dto.cometSwept
+        session.throneClaimed = dto.throneClaimed // v2.184 濃い外縁III
         session.landedPlanetId = dto.landedPlanetId
         val rx = dto.returnX; val ry = dto.returnY
         session.returnSpawn = if (rx != null && ry != null) rx to ry else null

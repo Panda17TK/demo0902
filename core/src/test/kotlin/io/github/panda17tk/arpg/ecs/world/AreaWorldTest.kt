@@ -175,6 +175,15 @@ class AreaWorldTest {
         }
     }
 
+    @Test fun `the far corner hides the silent throne, once`() { // v2.184 濃い外縁III
+        fun throne(ax: Int, ay: Int, claimed: Boolean = false) =
+            WorldFactory.create(InputState(), seed = 5L, area = ax to ay, throneClaimed = claimed).worldState.throne
+        assertTrue(throne(2, 2) != null, "the deepest corner sets its throne")
+        assertTrue(throne(0, 0) == null, "the near corners hold no throne")
+        assertTrue(throne(1, 1) == null, "the centre holds no throne")
+        assertTrue(throne(2, 2, claimed = true) == null, "a claimed throne does not return")
+    }
+
     @Test fun `a swarming sky is denser on the same stream`() {
         fun wildlife(gw: GameWorld): Int {
             var n = 0
