@@ -25,6 +25,8 @@ class RunSession(
     // training door) regenerates deterministically — without these latches every rebuild
     // restocked the wreck caches, the comet's beads and the survivor's thanks (a free farm).
     val lootedWrecks: MutableSet<Int> = mutableSetOf() // sky-wide wreck indices already emptied
+    /** v2.180 九マスの足あと: which slices of this sky the run has stood in (ax*3+ay). */
+    val visitedAreas: MutableSet<Int> = mutableSetOf(4)
     var survivorRescued: Boolean = false
     var cometSwept: Boolean = false
 
@@ -91,6 +93,7 @@ class RunSession(
         surfSeed = 100L
         areaX = 1; areaY = 1 // v2.166
         lootedWrecks.clear(); survivorRescued = false; cometSwept = false // v2.169
+        visitedAreas.clear(); visitedAreas.add(4) // v2.180: every run begins at the centre
         landedPlanetId = null
         returnSpawn = null
         if (store == null) memory.memories.clear()

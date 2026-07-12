@@ -24,4 +24,24 @@ object Challenge {
 
     /** The short code the HUD and the records both wear (calm — a designation, not a fanfare). */
     fun codeFor(week: Long): String = "W$week"
+
+    // v2.180 今日の宙域: the daily sibling — a fresh fixed sky every UTC midnight, for the
+    // keeper who wants a new proving ground before the week turns.
+    fun dayOf(epochMillis: Long): Long = epochMillis / 86_400_000L
+
+    /** The day's sky — a different salt from the weekly mix, so D-skies never mirror W-skies. */
+    fun seedForDay(day: Long): Long {
+        var z = day * -0x7ee3_623a_03d3_92e9L + 0x1234_5678L
+        z = (z xor (z ushr 29)) and Long.MAX_VALUE
+        return if (z <= 1L) z + 0x7EC1L else z
+    }
+
+    fun codeForDay(day: Long): String = "D$day"
+
+    /** v2.180 記録コード: one shareable line — code, wave, kills, and a short checksum so a
+     *  typo'd or doctored code is at least awkward. Lands on the clipboard at game over. */
+    fun resultCode(code: String, wave: Int, kills: Int): String {
+        val sum = (code.hashCode() * 31 + wave * 131 + kills * 7) and 0xFFF
+        return "$code-w$wave-k$kills-%03x".format(sum)
+    }
 }

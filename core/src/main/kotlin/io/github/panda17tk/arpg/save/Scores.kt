@@ -16,6 +16,9 @@ object Scores {
     private const val KEY_CH_WEEK = "chWeek"         // v2.102 検証ラン
     private const val KEY_CH_WAVE = "chBestWave"
     private const val KEY_CH_KILLS = "chBestKills"
+    private const val KEY_DAY = "dayKey"             // v2.180 今日の宙域
+    private const val KEY_DAY_WAVE = "dayBestWave"
+    private const val KEY_DAY_KILLS = "dayBestKills"
 
     var bestWave = 0
         private set
@@ -36,6 +39,15 @@ object Scores {
     var chBestKills = 0
         private set
 
+    // v2.180 今日の宙域: the daily ledger — its own shelf, wiped at UTC midnight, so it never
+    // tramples the weekly board (they share a screen, not a key).
+    var dayKey = 0L
+        private set
+    var dayBestWave = 0
+        private set
+    var dayBestKills = 0
+        private set
+
     fun load() {
         try {
             val p = Gdx.app.getPreferences(PREFS)
@@ -46,6 +58,9 @@ object Scores {
             chWeek = p.getLong(KEY_CH_WEEK, 0L)
             chBestWave = p.getInteger(KEY_CH_WAVE, 0)
             chBestKills = p.getInteger(KEY_CH_KILLS, 0)
+            dayKey = p.getLong(KEY_DAY, 0L)
+            dayBestWave = p.getInteger(KEY_DAY_WAVE, 0)
+            dayBestKills = p.getInteger(KEY_DAY_KILLS, 0)
         } catch (_: Throwable) { /* no prefs backend → keep defaults */ }
     }
 
@@ -60,6 +75,22 @@ object Scores {
             p.putLong(KEY_CH_WEEK, chWeek)
             p.putInteger(KEY_CH_WAVE, chBestWave)
             p.putInteger(KEY_CH_KILLS, chBestKills)
+            p.flush()
+        } catch (_: Throwable) { /* persist best-effort */ }
+        return newBest
+    }
+
+    /** v2.180: record a finished daily run; a new day starts its ledger blank first. */
+    fun recordDaily(day: Long, wave: Int, kills: Int): Boolean {
+        if (day != dayKey) { dayKey = day; dayBestWave = 0; dayBestKills = 0 }
+        val newBest = wave > dayBestWave
+        if (newBest) dayBestWave = wave
+        if (kills > dayBestKills) dayBestKills = kills
+        try {
+            val p = Gdx.app.getPreferences(PREFS)
+            p.putLong(KEY_DAY, dayKey)
+            p.putInteger(KEY_DAY_WAVE, dayBestWave)
+            p.putInteger(KEY_DAY_KILLS, dayBestKills)
             p.flush()
         } catch (_: Throwable) { /* persist best-effort */ }
         return newBest

@@ -25,6 +25,10 @@ object TitleLayout {
     /** v2.64 記録: a quiet corner chip, top-right — the service record lives behind it. */
     fun recordsButton(w: Float, h: Float): UiButton = UiButton(w - 104f, h - 52f, 92f, 40f, "記録")
 
+    /** v2.180 今日の宙域: the daily proving run, docked under 記録 (a chip, not a fifth card —
+     *  the centre column already brushes the bottom chips on short screens). */
+    fun dailyButton(w: Float, h: Float): UiButton = UiButton(w - 104f, h - 100f, 92f, 40f, "今日の空")
+
     /** v2.66 設定: its twin, top-left — every toggle moved into the settings panel behind it. */
     fun settingsButton(w: Float, h: Float): UiButton = UiButton(12f, h - 52f, 92f, 40f, "設定")
 
