@@ -13,13 +13,14 @@ enum class SystemTrait(val label: String, val line: String) {
     HEAVY("重い星系", "この星系は重い — 惑星の引力が強く働く"),
     CUSTODIAL("保守の星系", "この星系は保守機構が濃い — 清掃の巡回が絶えない"),
     RICH("豊かな星系", "この星系は豊かだ — 星屑は多いが、汚染も深い"),
+    SWARMING("多生の星系", "この星系は生に満ちている — 海は濃く、牙も多い"), // v2.177 濃い外縁
 }
 
 object SystemTraits {
     /** The first system is always calm (the teaching sky); later ones draw a temperament. */
     fun traitFor(systemSeed: Long): SystemTrait {
         if (systemSeed <= 1L) return SystemTrait.NONE
-        val pool = listOf(SystemTrait.STORMY, SystemTrait.HEAVY, SystemTrait.CUSTODIAL, SystemTrait.RICH)
+        val pool = listOf(SystemTrait.STORMY, SystemTrait.HEAVY, SystemTrait.CUSTODIAL, SystemTrait.RICH, SystemTrait.SWARMING) // v2.177
         return pool[Rng(systemSeed * -0x61c8864680b583ebL).nextInt(pool.size)]
     }
 

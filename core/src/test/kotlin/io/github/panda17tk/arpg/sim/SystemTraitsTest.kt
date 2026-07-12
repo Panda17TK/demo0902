@@ -19,7 +19,7 @@ class SystemTraitsTest {
         assertEquals(drawn, (2L..40L).map { SystemTraits.traitFor(it) }, "same seed, same sky")
         assertTrue(drawn.none { it == SystemTrait.NONE }, "past the first, every system has a temperament")
         assertEquals(
-            setOf(SystemTrait.STORMY, SystemTrait.HEAVY, SystemTrait.CUSTODIAL, SystemTrait.RICH),
+            setOf(SystemTrait.STORMY, SystemTrait.HEAVY, SystemTrait.CUSTODIAL, SystemTrait.RICH, SystemTrait.SWARMING), // v2.177
             drawn.toSet(),
             "all four temperaments appear across seeds",
         )

@@ -1294,4 +1294,36 @@ private fun expansionWildlife(): Map<String, EnemyDef> = mapOf(
         seeRange = 160f, contactKB = 20f, gravityResponse = 0f,
         lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.SCHOOL, diet = Diet.HERBIVORE, herdAffinity = 1f, fear = 0.9f, // the whale's retinue (SchoolFishSystem pulls it home)
     ),
+
+    // --- v2.177 濃い外縁: the boss rotation doubles — three midboss champions, crowned.
+    // (APPEND-ONLY, like every entry: insertion order is the determinism contract. The surge's
+    // boss pool is filterValues{tier=="boss"}, so these join the rotation with zero wiring.)
+    "rust_sovereign" to EnemyDef(
+        name = "錆の王(ボス)", tier = "boss", color = "#a86a3a", hp = 1400f, speed = 30f, w = 48f, h = 48f,
+        seeRange = 420f, contactKB = 480f, gravityResponse = 1.4f,
+        attacks = listOf(
+            AttackSpec("slam", cd = 3.2f, dmg = 30f, range = 90f, windup = 1.0f, kb = 560f),
+            AttackSpec("enrage", cd = 11f, duration = 5f, mul = 1.5f),
+            AttackSpec("ring_gap", cd = 6.5f, dmg = 15f, count = 22, spread = 70f, speed = 155f, life = 2.8f),
+        ),
+    ),
+    "grand_archivist" to EnemyDef(
+        name = "大書庫長(ボス)", tier = "boss", color = "#c8b888", hp = 1150f, speed = 42f, w = 40f, h = 44f,
+        seeRange = 500f, contactKB = 340f, gravityResponse = 0.8f,
+        intelligence = 0.95f, canSpeak = true, speechStyle = "mechanical", lifeKind = LifeKind.SAPIENT,
+        attacks = listOf(
+            AttackSpec("summon", cd = 6.5f, count = 4, minion = "archive_moth"),
+            AttackSpec("barrage", cd = 3.8f, dmg = 11f, count = 9, speed = 220f, spread = 1.0f),
+            AttackSpec("page_wall", cd = 6f, dmg = 14f, count = 9, spread = 34f, speed = 135f, life = 3.4f),
+        ),
+    ),
+    "tide_sovereign" to EnemyDef(
+        name = "大潮の番人(ボス)", tier = "boss", color = "#3a7ab0", hp = 1300f, speed = 38f, w = 44f, h = 44f,
+        seeRange = 460f, contactKB = 380f, gravityResponse = 0.9f,
+        attacks = listOf(
+            AttackSpec("shockwave", cd = 4.6f, dmg = 20f, range = 170f, windup = 1.0f, kb = 500f),
+            AttackSpec("heal", cd = 9f, amount = 80f),
+            AttackSpec("barrage", cd = 4.4f, dmg = 10f, count = 6, speed = 190f, spread = 0.7f),
+        ),
+    ),
 )
