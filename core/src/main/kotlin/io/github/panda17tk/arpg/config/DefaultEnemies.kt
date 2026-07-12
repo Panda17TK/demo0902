@@ -212,7 +212,7 @@ private fun spaceBosses(): Map<String, EnemyDef> = mapOf(
         ),
     ),
     "overlord" to EnemyDef(
-        name = "オーバーロード(ボス)", tier = "boss", color = "#d04a6a", hp = 1200f, speed = 52f,
+        name = "オーバーロード(ボス)", lore = "同期の綻びが結んだ王。命じる相手は、もういない", tier = "boss", color = "#d04a6a", hp = 1200f, speed = 52f,
         w = 46f, h = 46f, seeRange = 480f, contactKB = 360f, gravityResponse = 0.25f, // boss resists being flung
         intelligence = 0.9f, bravery = 1f, // v2.42: the throne earns its smarts
         dodge = DodgeSpec(0.12f, 0.12f, 2.5f),
@@ -294,7 +294,7 @@ private fun natureSociety(): Map<String, EnemyDef> = mapOf(
         ),
     ),
     "beast_king" to EnemyDef(
-        name = "獣王", tier = "midboss", color = "#2f6f2a", hp = 480f, speed = 54f, w = 36f, h = 36f,
+        name = "獣王", lore = "森は主と眠り、主と目覚める。子を害す者を忘れない", tier = "midboss", color = "#2f6f2a", hp = 480f, speed = 54f, w = 36f, h = 36f,
         seeRange = 360f, contactKB = 360f, gravityResponse = 0.6f,
         protectiveness = 0.7f, canSpeak = true, lifeKind = LifeKind.SAPIENT, familyRole = FamilyRole.KING, biome = PlanetBiome.NATURE,
         attacks = listOf(
@@ -336,7 +336,7 @@ private fun magmaSociety(): Map<String, EnemyDef> = mapOf(
         ),
     ),
     "volcano_king" to EnemyDef(
-        name = "火山王", tier = "midboss", color = "#a83218", hp = 540f, speed = 50f, w = 38f, h = 38f,
+        name = "火山王", lore = "熔けた玉座に座す王。怒りは山肌そのもの", tier = "midboss", color = "#a83218", hp = 540f, speed = 50f, w = 38f, h = 38f,
         seeRange = 380f, contactKB = 360f, gravityResponse = 0.6f,
         protectiveness = 0.7f, canSpeak = true, lifeKind = LifeKind.SAPIENT, familyRole = FamilyRole.KING, biome = PlanetBiome.MAGMA,
         attacks = listOf(
@@ -378,7 +378,7 @@ private fun iceSociety(): Map<String, EnemyDef> = mapOf(
         ),
     ),
     "ice_queen" to EnemyDef(
-        name = "氷の女王", tier = "midboss", color = "#5fa6d8", hp = 500f, speed = 48f, w = 36f, h = 36f,
+        name = "氷の女王", lore = "凍てつく静寂を統べる。触れた者から時が止まる", tier = "midboss", color = "#5fa6d8", hp = 500f, speed = 48f, w = 36f, h = 36f,
         seeRange = 380f, contactKB = 340f, gravityResponse = 0.6f,
         protectiveness = 0.7f, canSpeak = true, lifeKind = LifeKind.SAPIENT, familyRole = FamilyRole.KING, biome = PlanetBiome.ICE,
         attacks = listOf(
@@ -421,7 +421,7 @@ private fun gasSociety(): Map<String, EnemyDef> = mapOf(
         ),
     ),
     "storm_core" to EnemyDef(
-        name = "嵐の核(ボス)", tier = "boss", color = "#7a78d8", hp = 1080f, speed = 40f, w = 44f, h = 44f,
+        name = "嵐の核(ボス)", lore = "形なき嵐の芯。風は言葉を持たぬまま荒ぶ", tier = "boss", color = "#7a78d8", hp = 1080f, speed = 40f, w = 44f, h = 44f,
         seeRange = 460f, contactKB = 320f, gravityResponse = 0f, // the eye of the storm — unmoved by gravity
         canSpeak = true, lifeKind = LifeKind.SAPIENT, biome = PlanetBiome.GAS,
         attacks = listOf(
@@ -479,7 +479,7 @@ private fun lonelyEncounters(): Map<String, EnemyDef> = mapOf(
         ),
     ),
     "exiled_king" to EnemyDef(
-        name = "追放王(ボス)", tier = "boss", color = "#c8a23a", hp = 760f, speed = 54f, w = 42f, h = 42f,
+        name = "追放王(ボス)", lore = "王座を追われ、なお冠を捨てられぬ亡霊", tier = "boss", color = "#c8a23a", hp = 760f, speed = 54f, w = 42f, h = 42f,
         seeRange = 440f, contactKB = 380f, gravityResponse = 0.4f,
         bravery = 1f, protectiveness = 0.4f, canSpeak = true, lifeKind = LifeKind.SAPIENT, familyRole = FamilyRole.KING, biome = PlanetBiome.LONELY,
         attacks = listOf(
@@ -490,7 +490,7 @@ private fun lonelyEncounters(): Map<String, EnemyDef> = mapOf(
         ),
     ),
     "star_monk" to EnemyDef(
-        name = "星の修道士", tier = "normal", color = "#d8d0a0", hp = 90f, speed = 72f,
+        name = "星の修道士", lore = "生涯に三度だけ言葉を紡ぐ。三度目は、よそ者への警告", tier = "normal", color = "#d8d0a0", hp = 90f, speed = 72f,
         seeRange = 320f, contactKB = 160f, gravityResponse = 0.6f,
         intelligence = 0.6f, bravery = 0.1f, canSpeak = true, lifeKind = LifeKind.SAPIENT, biome = PlanetBiome.LONELY, // peaceful — flees if attacked
     ),
@@ -542,7 +542,7 @@ private fun natureWildlife(): Map<String, EnemyDef> = mapOf(
         lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.HATCHLING, diet = Diet.OMNIVORE, herdAffinity = 0.7f, fear = 1.0f, biome = PlanetBiome.NATURE,
     ),
     "forest_apex" to EnemyDef(
-        name = "森の主", tier = "normal", color = "#3f6f3a", hp = 300f, speed = 74f, w = 34f, h = 30f,
+        name = "森の主", lore = "岩のように大きく、眼は静か。撃てば星ごと敵に回る", tier = "normal", color = "#3f6f3a", hp = 300f, speed = 74f, w = 34f, h = 30f,
         seeRange = 400f, contactKB = 340f, gravityResponse = 0.7f,
         lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.APEX, diet = Diet.CARNIVORE, herdAffinity = 0.1f, fear = 0.05f, territoryRadius = 240f, biome = PlanetBiome.NATURE,
         attacks = listOf(
@@ -622,7 +622,7 @@ private fun iceWildlife(): Map<String, EnemyDef> = mapOf(
         bravery = 0.8f, // v2.138 公正な野生: the pale hunter crosses the line
     ),
     "frost_worm" to EnemyDef(
-        name = "霜の大蟲", tier = "normal", color = "#9fc4d8", hp = 320f, speed = 64f, w = 34f, h = 30f,
+        name = "霜の大蟲", lore = "氷の下をゆく白い蟲。氷の民は畏れ、子守唄に編んだ", tier = "normal", color = "#9fc4d8", hp = 320f, speed = 64f, w = 34f, h = 30f,
         seeRange = 400f, contactKB = 340f, gravityResponse = 0.7f,
         lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.APEX, diet = Diet.CARNIVORE, herdAffinity = 0.1f, fear = 0.05f, territoryRadius = 240f, biome = PlanetBiome.ICE,
         attacks = listOf(
@@ -712,7 +712,7 @@ private fun lonelyWildlife(): Map<String, EnemyDef> = mapOf(
         lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.PREY, diet = Diet.NONE, herdAffinity = 0f, fear = 0.4f, biome = PlanetBiome.LONELY,
     ),
     "last_beast" to EnemyDef(
-        name = "最後の獣", tier = "normal", color = "#544f5c", hp = 300f, speed = 66f, w = 34f, h = 30f,
+        name = "最後の獣", lore = "歌の絶えた星に、ただ一匹だけ残った獣", tier = "normal", color = "#544f5c", hp = 300f, speed = 66f, w = 34f, h = 30f,
         seeRange = 380f, contactKB = 320f, gravityResponse = 0.7f,
         lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.APEX, diet = Diet.CARNIVORE, herdAffinity = 0f, fear = 0.1f, territoryRadius = 220f, biome = PlanetBiome.LONELY,
         attacks = listOf(
@@ -887,7 +887,7 @@ private fun rogueDrifter(): Map<String, EnemyDef> = mapOf(
     "rogue_drifter" to EnemyDef(
         // tier "rogue": kept OUT of the surge pool / drifter rolls / wreck pickets — it only
         // ever enters the world through its own two-per-system spawn, under the ROGUE banner.
-        name = "ならず者の漂流者", tier = "rogue", color = "#d8e2ec", hp = 280f, speed = 98f, w = 24f, h = 24f,
+        name = "ならず者の漂流者", lore = "ただ漂う者ほど不気味なものはない。撃つ前に灯を一度またたけ", tier = "rogue", color = "#d8e2ec", hp = 280f, speed = 98f, w = 24f, h = 24f,
         seeRange = 460f, contactKB = 240f, gravityResponse = 0.5f,
         intelligence = 0.9f, bravery = 0.9f, canSpeak = true, speechStyle = "savage", lifeKind = LifeKind.SAPIENT,
         dodge = DodgeSpec(0.22f, 0.13f, 1.8f),
@@ -1259,13 +1259,13 @@ private fun expansionWildlife(): Map<String, EnemyDef> = mapOf(
         bravery = 0.55f, // v2.138 公正な野生: an ambusher of fish, not keepers
     ),
     "gravity_whale" to EnemyDef(
-        name = "重力鯨", tier = "normal", color = "#5a6a88", hp = 400f, speed = 45f, w = 70f, h = 30f,
+        name = "重力鯨", lore = "計り知れぬほど大きく、この上なく穏やか", tier = "normal", color = "#5a6a88", hp = 400f, speed = 45f, w = 70f, h = 30f,
         seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
         lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.APEX, diet = Diet.CARNIVORE, herdAffinity = 0.1f, fear = 0.05f, territoryRadius = 200f, 
         bravery = 0.2f, // v2.138 公正な野生: vast and utterly gentle
     ),
     "song_whale" to EnemyDef(
-        name = "歌鯨", tier = "normal", color = "#7a88a8", hp = 380f, speed = 40f, w = 66f, h = 28f,
+        name = "歌鯨", lore = "ただ歌うだけの巨体。争いを知らない", tier = "normal", color = "#7a88a8", hp = 380f, speed = 40f, w = 66f, h = 28f,
         seeRange = 220f, contactKB = 60f, gravityResponse = 0f,
         lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.APEX, diet = Diet.CARNIVORE, herdAffinity = 0.1f, fear = 0.05f, territoryRadius = 180f, 
         bravery = 0.15f, // v2.138 公正な野生: it only sings
@@ -1279,13 +1279,13 @@ private fun expansionWildlife(): Map<String, EnemyDef> = mapOf(
 
     // --- v2.135 満ちる海: the tyrant, the island, and the island's retinue ---
     "tyrant_shark" to EnemyDef(
-        name = "暴君鮫", tier = "normal", color = "#8a5a68", hp = 480f, speed = 130f, w = 54f, h = 22f,
+        name = "暴君鮫", lore = "海の暴君。縄張りに入る者を大小問わず狩る", tier = "normal", color = "#8a5a68", hp = 480f, speed = 130f, w = 54f, h = 22f,
         seeRange = 340f, contactKB = 380f, gravityResponse = 0f,
         lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.APEX, diet = Diet.CARNIVORE, herdAffinity = 0f,
         fear = 0.02f, territoryRadius = 320f, // bravery 1 (default) — v2.132 敵対 makes it hunt sapients and the keeper
     ),
     "isle_whale" to EnemyDef(
-        name = "島鯨", tier = "normal", color = "#48607e", hp = 1200f, speed = 26f, w = 120f, h = 50f,
+        name = "島鯨", lore = "漂う島。背に生態系を乗せ、何ものにも動じない", tier = "normal", color = "#48607e", hp = 1200f, speed = 26f, w = 120f, h = 50f,
         seeRange = 220f, contactKB = 120f, gravityResponse = 0f,
         lifeKind = LifeKind.WILDLIFE, wildRole = WildRole.HERD, diet = Diet.HERBIVORE, herdAffinity = 0.2f, fear = 0.02f, // a drifting island — nothing spooks it
     ),
@@ -1299,7 +1299,7 @@ private fun expansionWildlife(): Map<String, EnemyDef> = mapOf(
     // (APPEND-ONLY, like every entry: insertion order is the determinism contract. The surge's
     // boss pool is filterValues{tier=="boss"}, so these join the rotation with zero wiring.)
     "rust_sovereign" to EnemyDef(
-        name = "錆の王(ボス)", tier = "boss", color = "#a86a3a", hp = 1400f, speed = 30f, w = 48f, h = 48f,
+        name = "錆の王(ボス)", lore = "錆の巨人に冠を戴かせたもの。止まった機構の王", tier = "boss", color = "#a86a3a", hp = 1400f, speed = 30f, w = 48f, h = 48f,
         seeRange = 420f, contactKB = 480f, gravityResponse = 1.4f,
         attacks = listOf(
             AttackSpec("slam", cd = 3.2f, dmg = 30f, range = 90f, windup = 1.0f, kb = 560f),
@@ -1308,7 +1308,7 @@ private fun expansionWildlife(): Map<String, EnemyDef> = mapOf(
         ),
     ),
     "grand_archivist" to EnemyDef(
-        name = "大書庫長(ボス)", tier = "boss", color = "#c8b888", hp = 1150f, speed = 42f, w = 40f, h = 44f,
+        name = "大書庫長(ボス)", lore = "消去APIのない台帳を守る者。あなたの所業も綴じられる", tier = "boss", color = "#c8b888", hp = 1150f, speed = 42f, w = 40f, h = 44f,
         seeRange = 500f, contactKB = 340f, gravityResponse = 0.8f,
         intelligence = 0.95f, canSpeak = true, speechStyle = "mechanical", lifeKind = LifeKind.SAPIENT,
         attacks = listOf(
@@ -1318,7 +1318,7 @@ private fun expansionWildlife(): Map<String, EnemyDef> = mapOf(
         ),
     ),
     "tide_sovereign" to EnemyDef(
-        name = "大潮の番人(ボス)", tier = "boss", color = "#3a7ab0", hp = 1300f, speed = 38f, w = 44f, h = 44f,
+        name = "大潮の番人(ボス)", lore = "潮を統べる冠。寄せては返す波のように、癒えては襲う", tier = "boss", color = "#3a7ab0", hp = 1300f, speed = 38f, w = 44f, h = 44f,
         seeRange = 460f, contactKB = 380f, gravityResponse = 0.9f,
         attacks = listOf(
             AttackSpec("shockwave", cd = 4.6f, dmg = 20f, range = 170f, windup = 1.0f, kb = 500f),

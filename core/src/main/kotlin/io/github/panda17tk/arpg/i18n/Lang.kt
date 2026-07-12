@@ -181,6 +181,8 @@ object Lang {
         // 記録
         "起動診断をもう一度" to "Replay Boot Diagnostic",
         "討伐図鑑を見る" to "View Bestiary",
+        "図録を読む" to "Read the Codex", // v2.182 図録
+        "まだ誰も知らない — まず出会うことから" to "No one is known yet - meet them first",
         "実績を見る" to "View Achievements",
         "記録へ戻る" to "Back to Records",
         "引き継ぎ" to "Transfer",
@@ -274,6 +276,7 @@ object Lang {
         add("【" to " [")
         add("討伐図鑑 " to "Bestiary ")
         add("戦闘枠 " to "combat ") // v2.161 細かい残り: the bestiary header's second tally
+        add("図録 " to "Codex ") // v2.182 図録: the codex header's tally
         add("隣の宙域へ — エリア " to "Into the next sky - area ") // v2.166 宙域の九分割
         // v2.162 英語化第4弾(後半): the memory cores' whole vocabulary — every pool line,
         // behind its prefix. Full-sentence tokens, so nothing bites into another line.

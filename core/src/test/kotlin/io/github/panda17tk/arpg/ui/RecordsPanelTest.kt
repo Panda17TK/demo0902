@@ -82,6 +82,38 @@ class RecordsPanelTest {
         assertTrue(pages >= 2, "124 kinds cannot pretend to be one page")
     }
 
+    @Test fun `the codex reads only what has fallen, and the bestiary foot opens it`() {
+        // v2.182 図録: the 図録 button rides the bestiary grid's foot; no new row (戻る halved)
+        for ((w, h) in listOf(320f to 640f, 360f to 780f, 420f to 900f)) {
+            val bf = RecordsPanel.bestiaryButtons(w, h)
+            assertEquals(
+                listOf("前へ", "次へ", RecordsPanel.LORE_LABEL, RecordsPanel.BACK_LABEL, RecordsPanel.CLOSE_LABEL),
+                bf.map { it.label },
+            )
+            for (b in bf) assertTrue(b.x >= 0f && b.y >= 0f && b.x + b.w <= w && b.y + b.h <= h, "off screen: $b")
+            for (i in bf.indices) for (j in i + 1 until bf.size) {
+                val a = bf[i]; val b = bf[j]
+                val disjoint = a.y + a.h <= b.y || b.y + b.h <= a.y || a.x + a.w <= b.x || b.x + b.w <= a.x
+                assertTrue(disjoint, "overlap $a / $b")
+            }
+        }
+        val blank = RecordsPanel.loreLines({ 0 }, 0, en = false)
+        assertTrue(blank.first().startsWith("図録 0/"), "got ${blank.first()}")
+        assertTrue(RecordsPanel.isHeader(blank.first()))
+        assertTrue(blank.any { it.contains("まだ誰も知らない") }, "an empty codex says so")
+        // a met, lore-bearing kind heads its own entry with its JA line beneath
+        val lored = io.github.panda17tk.arpg.config.GameConfig().enemies.entries.first { it.value.lore.isNotBlank() }
+        val one = RecordsPanel.loreLines({ if (it == lored.key) 3 else 0 }, 0, en = false)
+        assertTrue(one.first().startsWith("図録 1/"), "got ${one.first()}")
+        assertTrue(one.any { it == "《${lored.value.name}》" }, "the felled kind heads its entry")
+        assertTrue(one.any { it == lored.value.lore }, "its JA lore reads beneath")
+        assertTrue(one.any { RecordsPanel.isHeader(it) && it.startsWith("《") }, "the entry name is a header")
+        // a kind with no lore never enters the codex, even when felled
+        val plain = io.github.panda17tk.arpg.config.GameConfig().enemies.entries.first { it.value.lore.isBlank() }
+        val none = RecordsPanel.loreLines({ if (it == plain.key) 9 else 0 }, 0, en = false)
+        assertTrue(none.first().startsWith("図録 0/"), "lore-less kinds stay out (got ${none.first()})")
+    }
+
     @Test fun `the records chip sits clear of the menu and the settings chip`() {
         for ((w, h) in listOf(320f to 640f, 360f to 780f, 420f to 900f)) {
             val chip = TitleLayout.recordsButton(w, h)
