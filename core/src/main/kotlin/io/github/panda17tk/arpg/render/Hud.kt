@@ -292,7 +292,12 @@ object Hud {
             val scy = l.wave.y + l.wave.h / 2f
             shapes.color = cHudInk
             shapes.triangle(l.wave.x + 8f, scy - 5f, l.wave.x + 20f, scy - 5f, l.wave.x + 14f, scy + 6f)
-            shapes.rect(l.wave.x + 62f, scy - 4f, 4f, 4f, 8f, 8f, 1f, 1f, 45f)
+            // v2.178 読みかたの頁: the foes icon is a RING now — the diamond used to mean three
+            // different things (foes, dust, landmarks); one shape, one meaning.
+            shapes.circle(l.wave.x + 66f, scy, 4.5f, 12)
+            shapes.color = cHudPanel
+            shapes.circle(l.wave.x + 66f, scy, 2.2f, 10)
+            shapes.color = cHudInk
             val sbX = l.wave.x + 116f; val sbW = l.wave.w - 128f
             if (sbW > 30f) {
                 shapes.color = cHudPanel; shapes.rect(sbX, scy - 2f, sbW, 4f)
@@ -304,7 +309,8 @@ object Hud {
         val stY = l.stats.y + l.stats.h - 7f
         shapes.color = cHudInk
         shapes.rect(l.stats.x + 2f, stY - 4f, 8f, 8f)
-        shapes.rect(l.stats.x + 60f, stY - 4f, 4f, 4f, 8f, 8f, 1f, 1f, 45f)
+        // v2.178: dust is a four-point SPARKLE (the pickups' own shape family), not another diamond
+        sparkle(shapes, l.stats.x + 64f, stY, 6f, cHudInk)
         shapes.end()
 
         batch.projectionMatrix = vp.camera.combined
@@ -661,6 +667,15 @@ object Hud {
         shapes.color = color
         shapes.triangle(cx - s * 0.35f, cy + s * 0.7f, cx + s * 0.25f, cy + s * 0.1f, cx - s * 0.05f, cy + s * 0.1f)
         shapes.triangle(cx + s * 0.35f, cy - s * 0.7f, cx - s * 0.25f, cy - s * 0.1f, cx + s * 0.05f, cy - s * 0.1f)
+    }
+
+    /** v2.178 読みかたの頁: a four-point star — thin vertical + horizontal wedges. */
+    private fun sparkle(shapes: ShapeRenderer, cx: Float, cy: Float, s: Float, color: Color) {
+        shapes.color = color
+        shapes.triangle(cx - s * 0.22f, cy, cx + s * 0.22f, cy, cx, cy + s)
+        shapes.triangle(cx - s * 0.22f, cy, cx + s * 0.22f, cy, cx, cy - s)
+        shapes.triangle(cx, cy - s * 0.22f, cx, cy + s * 0.22f, cx + s, cy)
+        shapes.triangle(cx, cy - s * 0.22f, cx, cy + s * 0.22f, cx - s, cy)
     }
 
     private fun gun(shapes: ShapeRenderer, cx: Float, cy: Float, s: Float, color: Color) {
