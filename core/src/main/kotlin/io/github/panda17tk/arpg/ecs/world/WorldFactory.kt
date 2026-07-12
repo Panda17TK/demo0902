@@ -528,16 +528,29 @@ object WorldFactory {
                 fun rimPoint(): Pair<Float, Float> = // a GLOBAL point inside this slice — shoalAt localises
                     (originX + Tuning.TILE * 6f + rimRng.nextFloat() * (map.width * Tuning.TILE - Tuning.TILE * 12f)) to
                         (originY + Tuning.TILE * 6f + rimRng.nextFloat() * (map.height * Tuning.TILE - Tuning.TILE * 12f))
-                repeat(2) { // the teeth thicken away from the centre
+                // v2.183 濃い外縁II: the gradient deepens with the seams crossed — one more fang per
+                // step out, and the deepest slices grow a second giant. rimRng is corner-local and
+                // consumed only here, so the heavier rim shifts nothing in the shared ocean.
+                val depth = kotlin.math.abs(area.first - io.github.panda17tk.arpg.sim.AreaGrid.CENTER) +
+                    kotlin.math.abs(area.second - io.github.panda17tk.arpg.sim.AreaGrid.CENTER) // 1 edge, 2 corner
+                repeat(1 + depth) { // edge 2 hunters, corner 3
                     val (hx2, hy2) = rimPoint()
                     shoalAt(hx2, hy2, hunters[rimRng.nextInt(hunters.size)], 1, 320f)
                 }
                 run { val (gx2, gy2) = rimPoint(); shoalAt(gx2, gy2, giants[rimRng.nextInt(giants.size)], 1, 200f) }
+                if (depth >= 2) { val (gx3, gy3) = rimPoint(); shoalAt(gx3, gy3, giants[rimRng.nextInt(giants.size)], 1, 200f) }
                 if (area.first != io.github.panda17tk.arpg.sim.AreaGrid.CENTER && area.second != io.github.panda17tk.arpg.sim.AreaGrid.CENTER) {
-                    // 四隅の主: every corner of the sky keeps its own tyrant, retinue and all —
-                    // a destination for anyone who crosses two seams to look.
+                    // v2.183 四隅の主の個性化: every corner still keeps its tyrant, but each end of the
+                    // sky now wears a signature lord beside it — the four corners are told apart at sight.
                     val (tx3, ty3) = rimPoint()
                     shoalAt(tx3, ty3, io.github.panda17tk.arpg.config.SpaceFishRoster.TYRANT, 1, 0f)
+                    val (mate, mateN, mateSpread) = when (area.first to area.second) {
+                        0 to 0 -> Triple("old_coelacanth", 1, 260f) // 古の腔棘魚 — the ancient of the near corner
+                        0 to 2 -> Triple("void_shark", 2, 240f)       // 宙鮫 — a circling pack
+                        2 to 0 -> Triple("thunder_marlin", 2, 240f)   // 雷梶木 — a lance of fast hunters
+                        else -> Triple(io.github.panda17tk.arpg.config.SpaceFishRoster.TYRANT, 1, 220f) // (2,2): the far corner doubles its tyrant
+                    }
+                    shoalAt(tx3, ty3, mate, mateN, mateSpread)
                     shoalAt(tx3, ty3, hunters[rimRng.nextInt(hunters.size)], 1, 240f)
                     shoalAt(tx3, ty3, hunters[rimRng.nextInt(hunters.size)], 1, 240f)
                 }
