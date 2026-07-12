@@ -218,18 +218,20 @@ internal fun GameScreen.updateBossBar(delta: Float, ppx: Float, ppy: Float) {
         bossScanT = 0f
         var bestName: String? = null; var bestFrac = 1f; var bestRank = -1
         with(gw.world) {
-            gw.world.family { all(Mob, Health, Transform) }.forEach { e ->
-                val m = e[Mob]
-                if (m.def.lifeKind == io.github.panda17tk.arpg.config.LifeKind.WILDLIFE) return@forEach
+            // v2.175 描画の倹約IV: earshot is a radius — ask the grid, not the whole family.
+            // (Heavies are never SCHOOL fish, so the LOD stagger can't hide one from this scan.)
+            gw.mobGrid.forNearby(ppx, ppy, BOSSBAR_RANGE) { e ->
+                val m = e.getOrNull(Mob) ?: return@forNearby
+                if (m.def.lifeKind == io.github.panda17tk.arpg.config.LifeKind.WILDLIFE) return@forNearby
                 val rank = when {
                     m.tier == "boss" -> 3
                     m.bountyDust > 0 -> 2
                     m.tier == "midboss" -> 1
                     else -> -1
                 }
-                if (rank <= bestRank) return@forEach
+                if (rank <= bestRank) return@forNearby
                 val mt = e[Transform]
-                if (hypot(mt.x - ppx, mt.y - ppy) > BOSSBAR_RANGE) return@forEach
+                if (hypot(mt.x - ppx, mt.y - ppy) > BOSSBAR_RANGE) return@forNearby
                 val mh = e[Health]
                 bestRank = rank
                 bestName = m.bountyName.ifEmpty { m.def.name }

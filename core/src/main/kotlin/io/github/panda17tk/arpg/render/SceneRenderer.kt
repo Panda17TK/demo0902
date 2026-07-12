@@ -390,11 +390,15 @@ class SceneRenderer {
         val cullHW = camera.viewportWidth / 2f + CULL_MARGIN
         val cullHH = camera.viewportHeight / 2f + CULL_MARGIN
         var mobsDrawn = 0 // v2.167 性能計
+        // v2.175 描画の倹約IV: query the sim's grid for the screenful instead of walking all
+        // ~5000 mobs — the culling below is unchanged, only the candidate set shrank. A mob
+        // that died this tick may linger in the grid one frame: getOrNull skips it.
         with(gw.world) {
-            gw.world.family { all(Mob, Transform, Health, Facing, Velocity, MobAction) }.forEach { e ->
+            gw.mobGrid.forNearby(camera.position.x, camera.position.y, maxOf(cullHW, cullHH)) { e ->
+                val mm = e.getOrNull(Mob) ?: return@forNearby
                 val mt = e[Transform]
-                if (kotlin.math.abs(mt.x - camera.position.x) > cullHW || kotlin.math.abs(mt.y - camera.position.y) > cullHH) return@forEach
-                val mm = e[Mob]; val mh = e[Health]; val mf = e[Facing]; val mv = e[Velocity]; val ma = e[MobAction]
+                if (kotlin.math.abs(mt.x - camera.position.x) > cullHW || kotlin.math.abs(mt.y - camera.position.y) > cullHH) return@forNearby
+                val mh = e[Health]; val mf = e[Facing]; val mv = e[Velocity]; val ma = e[MobAction]
                 val moving = (mt.x - mt.prevX) * (mt.x - mt.prevX) + (mt.y - mt.prevY) * (mt.y - mt.prevY) > 0.0025f || (mv.vx * mv.vx + mv.vy * mv.vy) > 4f
                 val chargeProg = if (ma.chargeT > 0f) {
                     val windup = mm.def.attacks.firstOrNull { it.type == "charge_melee" }?.windup ?: 0.7f
@@ -879,10 +883,12 @@ class SceneRenderer {
             val thw = camera.viewportWidth / 2f + CULL_MARGIN
             val thh = camera.viewportHeight / 2f + CULL_MARGIN
             with(gw.world) {
-                gw.world.family { all(Mob, Transform, MobAction) }.forEach { e ->
+                // v2.175 描画の倹約IV: the grid hands over the screenful — no probing 5000 fish
+                gw.mobGrid.forNearby(tcx, tcy, maxOf(thw, thh)) { e ->
+                    val ma = e.getOrNull(MobAction) ?: return@forNearby
+                    if (!ma.charging && ma.blinkChargeT <= 0f) return@forNearby
                     val mt = e[Transform]
-                    if (mt.x < tcx - thw || mt.x > tcx + thw || mt.y < tcy - thh || mt.y > tcy + thh) return@forEach
-                    val ma = e[MobAction]
+                    if (mt.x < tcx - thw || mt.x > tcx + thw || mt.y < tcy - thh || mt.y > tcy + thh) return@forNearby
                     if (ma.charging) { shapes.color = cTelegraph; shapes.circle(mt.x, mt.y, 14f + ma.chargeT * 30f, 16) }
                     if (ma.blinkChargeT > 0f) { shapes.color = cBlink; shapes.circle(mt.x, mt.y, 10f + ma.blinkChargeT * 50f, 14) }
                 }

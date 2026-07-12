@@ -670,6 +670,7 @@ object WorldFactory {
             it.planets = planetField.planets
             it.worldState = worldState
             it.visited = VisitedMap(map.width, map.height)
+            it.mobGrid = mobGrid // v2.175 描画の倹約IV: the draw side reads the same broad-phase
         }
     }
 
