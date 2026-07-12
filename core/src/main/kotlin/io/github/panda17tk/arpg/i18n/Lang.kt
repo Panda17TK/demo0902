@@ -96,6 +96,7 @@ object Lang {
         // v2.148 ヒント帯 (hintPanel) — 起動診断
         "保守員人格 起動中……　記憶同期: 失敗　星間ネットワーク: 応答なし" to "Keeper persona booting...　memory sync: failed　network: silent",
         "ローカル保全モードで再開します — 起動診断を実行しますか？" to "Resuming in local maintenance mode - run the boot diagnostic?",
+        "起動診断を実行しますか？" to "Run the boot diagnostic?", // v2.171 手直し: the pared-down boot prompt
         "起動診断 1/6　推進制御を確認します" to "Diagnostic 1/6　checking thrusters",
         "左スティックで船体を移動" to "Move with the left stick",
         "WASD / 方向キーで船体を移動" to "Move with WASD / arrow keys",

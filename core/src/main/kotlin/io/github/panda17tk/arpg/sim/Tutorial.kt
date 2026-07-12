@@ -87,8 +87,9 @@ class TutorialController {
     /** The current diagnostic prompt — UI line(s), fiction first, control second. */
     fun prompt(touch: Boolean): List<String> = when (step) {
         TutorialStep.BOOT_PROMPT -> listOf(
-            "保守員人格 起動中……　記憶同期: 失敗　星間ネットワーク: 応答なし",
-            "ローカル保全モードで再開します — 起動診断を実行しますか？",
+            // v2.171 手直し: the boot poetry retired — every fresh run opened on a two-line wall
+            // of system fiction. One question is enough; the buttons say the rest.
+            "起動診断を実行しますか？",
         )
         TutorialStep.MOVE -> listOf(
             "起動診断 1/6　推進制御を確認します",

@@ -320,10 +320,13 @@ object Hud {
             glyph.setText(font, "$foes")
             font.draw(batch, glyph, l.wave.x + 78f, l.wave.y + l.wave.h - 6f)
         }
-        // weapon panel (right column): the magazine count is the one number that must stay.
+        // weapon panel (right column): mag right-aligned, and (v2.171 手直し) the weapon's NAME
+        // stays — the pilot asked for it back: what you carry is identity, not chrome.
         val magStr = magSize?.let { "$mag/$it" } ?: "∞"
         glyph.setText(font, magStr)
-        font.draw(batch, glyph, l.ammo.x + l.ammo.w - glyph.width - 6f, l.ammo.y + l.ammo.h - 4f)
+        val magW = glyph.width
+        font.draw(batch, glyph, l.ammo.x + l.ammo.w - magW - 6f, l.ammo.y + l.ammo.h - 4f)
+        fitText(batch, font, weaponName, l.ammo.x + 28f, l.ammo.y + l.ammo.h - 4f, l.ammo.w - 28f - magW - 12f)
         if (reloadFrac <= 0f) { // reserve count, wordless — the slim bar narrates a reload
             glyph.setText(font, reserveStr)
             font.draw(batch, glyph, l.ammo.x + l.ammo.w - glyph.width - 6f, l.ammo.y + 14f)
