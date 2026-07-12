@@ -120,6 +120,11 @@ class DesyncSurgeSystem : IteratingSystem(family { all(PlayerTag, Transform) }) 
         if (wave.event == WaveEvent.PURGE) {
             wave.toSpawn = (wave.toSpawn * WaveEvents.PURGE_QUOTA_MUL).toInt()
         }
+        if (wave.event == WaveEvent.SILENCE) {
+            // v2.181 静寂波: no bodies this wave — a learnable breather in the surge's rhythm
+            // (leftover hostiles still have to fall before the next wave opens).
+            wave.toSpawn = 0
+        }
         var bountyName: String? = null
         if (wave.event == WaveEvent.BOUNTY) bountyName = spawnBounty(pt, n)
         // Boss waves: a boss every bossEvery, else a midboss every midBossEvery (legacy spawner).

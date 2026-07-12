@@ -28,6 +28,9 @@ class WorldNewWeaponsTest {
         // both are reachable as gear, so they drop and sell like every other gun
         assertTrue(ItemCatalog.ALL.any { it.weaponType == "railgun" })
         assertTrue(ItemCatalog.ALL.any { it.weaponType == "blade" })
+        // v2.181 静かな拾い手: the magnetic gun rides the existing trait plumbing
+        val gatherer = ItemCatalog.ALL.first { it.id == "gun_smg_gatherer" }
+        assertTrue(io.github.panda17tk.arpg.item.ItemTrait.MAGNET in gatherer.traits)
     }
 
     @Test fun `the railgun slug pierces everything on the line, undiminished`() {
