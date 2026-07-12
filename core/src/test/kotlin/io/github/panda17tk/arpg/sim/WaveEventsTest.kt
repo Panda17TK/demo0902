@@ -12,6 +12,9 @@ class WaveEventsTest {
         assertEquals(WaveEvent.BOUNTY, WaveEvents.eventFor(4))
         assertEquals(WaveEvent.BOUNTY, WaveEvents.eventFor(11))
         assertEquals(WaveEvent.BOUNTY, WaveEvents.eventFor(18))
+        assertEquals(WaveEvent.SILENCE, WaveEvents.eventFor(9)) // v2.181: 9/20/31…
+        assertEquals(WaveEvent.SILENCE, WaveEvents.eventFor(20))
+        org.junit.jupiter.api.Assertions.assertNotNull(WaveEvents.announceFor(WaveEvent.SILENCE, null))
         assertEquals(WaveEvent.HORDE, WaveEvents.eventFor(3))
         assertEquals(WaveEvent.HORDE, WaveEvents.eventFor(8))
         assertEquals(WaveEvent.HORDE, WaveEvents.eventFor(13))
@@ -27,7 +30,7 @@ class WaveEventsTest {
         assertEquals(WaveEvent.METEOR, WaveEvents.eventFor(22))
         assertEquals(WaveEvent.NONE, WaveEvents.eventFor(1))
         assertEquals(WaveEvent.NONE, WaveEvents.eventFor(2))
-        assertEquals(WaveEvent.NONE, WaveEvents.eventFor(9))
+        assertEquals(WaveEvent.NONE, WaveEvents.eventFor(10)) // v2.181: wave 9 now belongs to SILENCE
     }
 
     @Test fun `bounty outranks the purge on shared waves`() {

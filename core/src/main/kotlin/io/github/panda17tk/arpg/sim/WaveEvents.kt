@@ -4,7 +4,7 @@ import io.github.panda17tk.arpg.math.Rng
 
 /** What flavor a space wave carries (v2.45; v2.48 adds the purge): nothing, a horde, a magnetic
  *  storm, a bounty head, or a custodial purge sweep (惑星サーバーの清掃プロトコル). */
-enum class WaveEvent { NONE, HORDE, STORM, BOUNTY, PURGE, METEOR }
+enum class WaveEvent { NONE, HORDE, STORM, BOUNTY, PURGE, METEOR, SILENCE } // v2.181 静寂波 (append-only)
 
 /**
  * v2.45 イベントウェーブ + 賞金首 — pure wave-flavor rules the spawner consults.
@@ -18,6 +18,7 @@ object WaveEvents {
         wave % 6 == 5 -> WaveEvent.STORM
         wave % 9 == 7 -> WaveEvent.PURGE // v2.48: 7/16/34… the server sweeps its own halls
         wave % 8 == 6 -> WaveEvent.METEOR // v2.87: 6/14/22… debris rain from the dead relays
+        wave % 11 == 9 -> WaveEvent.SILENCE // v2.181: 9/20/31… the net draws breath (last in precedence)
         else -> WaveEvent.NONE
     }
 
@@ -29,6 +30,7 @@ object WaveEvents {
         WaveEvent.BOUNTY -> "賞金首『${bountyName ?: "名も無き者"}』が現れた"
         WaveEvent.PURGE -> "清掃プロトコル起動 — 保守機構が展開する"
         WaveEvent.METEOR -> "流星群 — 岩塊が降りしきる。落下点から離れよ"
+        WaveEvent.SILENCE -> "静寂 — 網が息をつく" // v2.181: a wave with no bodies in it
     }
 
     // Calm two-part names (落ち着いたトーン): a quiet epithet + a short call sign.

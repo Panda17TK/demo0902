@@ -400,6 +400,16 @@ object ItemCatalog {
             "con_repair_patch", "修復パッチβ", ItemKind.CONSUMABLE, desc = "12秒間 自己修復(使)",
             consume = ConsumeKind.REGEN, power = 12f,
         ),
+
+        // --- v2.181 静かな拾い手: the first TRAIT-bearing gun. The trait plumbing (Gear.loadout
+        // .has(MAGNET), PickupSystem's tripled reach) has carried accessories since v2.35 and
+        // scans EVERY slot — a magnetic weapon costs zero new code, only this entry (appended;
+        // ids are contract).
+        ItemDef(
+            "gun_smg_gatherer", "拾い手のSMG", ItemKind.RANGED_WEAPON,
+            desc = "種類:サブマシンガン　構えているだけでドロップ品が寄ってくる",
+            weaponType = "smg", traits = setOf(ItemTrait.MAGNET),
+        ),
     )
 
     private val byId = ALL.associateBy { it.id }
