@@ -248,7 +248,7 @@ class GameScreen(
     // v2.47: the very first run walks the basics once; completion persists across launches.
     internal var onboardDone = true
     internal var controlHints = true // v2.66 操作ヒント: how-to guidance on/off
-    internal var loreHints = true    // v2.66 世界観ヒント: the world's asides on/off
+    internal var loreHints = false   // v2.66 世界観ヒント: the world's asides — v2.173: OFF by default, opt-in from settings
     // v2.60 チュートリアル: the keeper-boot diagnostic (layer 1). Null once done or skipped.
     internal var tutorial: TutorialController? = null
     internal var tutPrevPx = Float.NaN
@@ -379,7 +379,7 @@ class GameScreen(
         try { // v2.66: the two hint channels from the settings panel
             val sp = Gdx.app.getPreferences(SETTINGS_PREFS)
             controlHints = sp.getBoolean(SETTINGS_HINTS, true)
-            loreHints = sp.getBoolean(SETTINGS_LORE, true)
+            loreHints = sp.getBoolean(SETTINGS_LORE, false) // v2.173: silent unless the pilot opts in
             scene.speechEnabled = loreHints // v2.170 文字の消灯: the bubbles follow 世界観ヒント
             input.aimAssist = sp.getBoolean("aimAssist", true) // v2.112 エイム補助
             io.github.panda17tk.arpg.i18n.Lang.en = sp.getBoolean("langEn", false) // v2.115 English表示
