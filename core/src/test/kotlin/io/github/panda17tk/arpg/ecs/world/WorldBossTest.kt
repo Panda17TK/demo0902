@@ -10,7 +10,7 @@ class WorldBossTest {
         // Biome creatures (biome != null) live on their planet's surface and are gated out of space waves;
         // the generic space roster stays overlord (boss) + brute, warlock (midbosses). beast_king is now NATURE.
         val space = GameConfig().enemies.values.filter { it.biome == null }
-        assertEquals(1, space.count { it.tier == "boss" }, "expected exactly one generic space boss (overlord)")
+        assertEquals(4, space.count { it.tier == "boss" }, "overlord + the three crowned champions (v2.177)")
         // v2.41: artillery joins brute + warlock; v2.48: the auditor; v2.82: six more at the tail.
         assertEquals(10, space.count { it.tier == "midboss" }, "expected ten generic space midbosses (4 historic + 6 v2.82)")
     }

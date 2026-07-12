@@ -24,7 +24,7 @@ class WaveVarietyTest {
 
     @Test fun `all three bosses stalk the void`() {
         val bosses = GameConfig().enemies.filterValues { it.tier == "boss" && it.lifeKind != LifeKind.WILDLIFE }
-        assertEquals(setOf("overlord", "storm_core", "exiled_king"), bosses.keys,
+        assertEquals(setOf("overlord", "storm_core", "exiled_king", "rust_sovereign", "grand_archivist", "tide_sovereign"), bosses.keys, // v2.177 濃い外縁: the rotation doubled
             "the boss pool holds all three faces — Overlord alone was every tenth wave")
     }
 }

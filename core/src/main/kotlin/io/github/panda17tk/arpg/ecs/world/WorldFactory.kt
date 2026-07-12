@@ -416,6 +416,10 @@ object WorldFactory {
             // global plan points snap to floor only where they actually spawn (this slice's map)
             fun oceanSnap(x: Float, y: Float): Pair<Float, Float> = if (area == null) snapToFloor(map, x, y) else x to y
             var schoolSeq = 0 // v2.144 大群衆: every shoal call is its own flock — boids school per flock
+            // v2.177 多生の星系: SWARMING thickens the ocean one tier past the player's setting.
+            // The rng stream is untouched — only the keep-stride changes, so the same subset
+            // rule holds (a SWARMING sky is a superset of the same sky without it).
+            val fishKeep = if (trait == io.github.panda17tk.arpg.sim.SystemTrait.SWARMING) ((oceanKeep + 1) / 2).coerceAtLeast(1) else oceanKeep
             fun shoalAt(cx0: Float, cy0: Float, id: String, count: Int, spread: Float) {
                 config.enemies[id]?.let { def ->
                     schoolSeq++
@@ -426,7 +430,7 @@ object WorldFactory {
                         // stream, so a thinner ocean is a strict subset of the full one. The
                         // stride only decides which members become entities; count-1 spawns
                         // (whales, tyrants, hunters, giants) ride index 0 and survive every tier.
-                        if (i % oceanKeep != 0) return@repeat
+                        if (i % fishKeep != 0) return@repeat // v2.177: SWARMING rides the same stream
                         val gx = cx0 + kotlin.math.cos(a) * r
                         val gy = cy0 + kotlin.math.sin(a) * r
                         if (!inArea(gx, gy)) return@repeat // v2.166: another slice's fish — drawn, never spawned
@@ -514,6 +518,29 @@ object WorldFactory {
                 val (wx2, wy2) = site()
                 shoalAt(wx2, wy2, io.github.panda17tk.arpg.config.SpaceFishRoster.WHALE, 1, 0f)
                 shoalAt(wx2, wy2, io.github.panda17tk.arpg.config.SpaceFishRoster.PILOT, 24 + fRng.nextInt(13), 110f)
+            }
+            // v2.177 濃い外縁: the nine-fold sky gains a gradient — the centre teaches, the rim
+            // bites. Sited from its OWN stream and placed AFTER every shared-plan draw, so each
+            // existing seed's ocean stays byte-identical (the rim only appends). shoalAt's member
+            // scatter still reads fRng — past its final shared draw, which nothing else consumes.
+            if (area != null && (area.first != io.github.panda17tk.arpg.sim.AreaGrid.CENTER || area.second != io.github.panda17tk.arpg.sim.AreaGrid.CENTER)) {
+                val rimRng = Rng(seed xor 0x51CED6E5L xor (area.first * 31L + area.second * 131L))
+                fun rimPoint(): Pair<Float, Float> = // a GLOBAL point inside this slice — shoalAt localises
+                    (originX + Tuning.TILE * 6f + rimRng.nextFloat() * (map.width * Tuning.TILE - Tuning.TILE * 12f)) to
+                        (originY + Tuning.TILE * 6f + rimRng.nextFloat() * (map.height * Tuning.TILE - Tuning.TILE * 12f))
+                repeat(2) { // the teeth thicken away from the centre
+                    val (hx2, hy2) = rimPoint()
+                    shoalAt(hx2, hy2, hunters[rimRng.nextInt(hunters.size)], 1, 320f)
+                }
+                run { val (gx2, gy2) = rimPoint(); shoalAt(gx2, gy2, giants[rimRng.nextInt(giants.size)], 1, 200f) }
+                if (area.first != io.github.panda17tk.arpg.sim.AreaGrid.CENTER && area.second != io.github.panda17tk.arpg.sim.AreaGrid.CENTER) {
+                    // 四隅の主: every corner of the sky keeps its own tyrant, retinue and all —
+                    // a destination for anyone who crosses two seams to look.
+                    val (tx3, ty3) = rimPoint()
+                    shoalAt(tx3, ty3, io.github.panda17tk.arpg.config.SpaceFishRoster.TYRANT, 1, 0f)
+                    shoalAt(tx3, ty3, hunters[rimRng.nextInt(hunters.size)], 1, 240f)
+                    shoalAt(tx3, ty3, hunters[rimRng.nextInt(hunters.size)], 1, 240f)
+                }
             }
         }
 

@@ -161,6 +161,38 @@ class AreaWorldTest {
         assertEquals(head, swept.worldState.comet, "the comet itself still rides")
     }
 
+    @Test fun `every corner keeps its lord and the rim outgrows the centre`() {
+        fun countOf(gw: GameWorld, id: String): Int {
+            var n = 0
+            with(gw.world) {
+                gw.world.family { all(Mob, Transform) }.forEach { e -> if (e[Mob].def.id == id) n++ }
+            }
+            return n
+        }
+        for ((ax, ay) in listOf(0 to 0, 2 to 0, 0 to 2, 2 to 2)) {
+            val corner = WorldFactory.create(InputState(), seed = 5L, area = ax to ay)
+            assertTrue(countOf(corner, "tyrant_shark") >= 1, "corner ($ax,$ay) keeps its tyrant lord")
+        }
+    }
+
+    @Test fun `a swarming sky is denser on the same stream`() {
+        fun wildlife(gw: GameWorld): Int {
+            var n = 0
+            with(gw.world) {
+                gw.world.family { all(Mob, Transform) }.forEach { e ->
+                    if (e[Mob].def.lifeKind == LifeKind.WILDLIFE) n++
+                }
+            }
+            return n
+        }
+        val calm = WorldFactory.create(InputState(), seed = 7L, area = 1 to 1, oceanKeep = 3)
+        val dense = WorldFactory.create(
+            InputState(), seed = 7L, area = 1 to 1, oceanKeep = 3,
+            trait = io.github.panda17tk.arpg.sim.SystemTrait.SWARMING,
+        )
+        assertTrue(wildlife(dense) > wildlife(calm), "SWARMING thickens the ocean (${'$'}{wildlife(dense)} vs ${'$'}{wildlife(calm)})")
+    }
+
     @Test fun `an area's ocean is a fraction, deterministic, and stays inside its slice`() {
         fun fish(gw: GameWorld): List<Triple<String, Float, Float>> = buildList {
             with(gw.world) {
