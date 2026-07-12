@@ -103,6 +103,8 @@ object Lang {
         "起動診断 2/6　防衛工具を確認します" to "Diagnostic 2/6　checking defense tools",
         "右スティックで照準・離して発射　対象を1体破壊" to "Aim with the right stick, release to fire　destroy one target",
         "マウスで照準・クリックで発射　対象を1体破壊" to "Aim with the mouse, click to fire　destroy one target",
+        "矢印キーで照準・K で発射　対象を1体破壊" to "Aim with the arrow keys, K to fire　destroy one target", // v2.179
+        "矢印キーで照準・K で発射" to "Aim with the arrow keys, K to fire",
         "起動診断 3/6　記憶片を検出: 星屑" to "Diagnostic 3/6　memory shards detected: dust",
         "回収してください" to "Collect them",
         "起動診断 4/6　緊急推進を確認します" to "Diagnostic 4/6　checking emergency thrust",

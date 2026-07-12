@@ -49,7 +49,7 @@ class AwakenedFangsTest {
     @Test fun `the underdog guns carry their new weight`() {
         val guns = io.github.panda17tk.arpg.combat.Weapons.ALL.associateBy { it.id }
         assertEquals(90f, guns.getValue("rifle").dmg, "finite ammo buys real damage now")
-        assertEquals(10f, guns.getValue("smg").dmg)
+        assertEquals(12f, guns.getValue("smg").dmg) // v2.179: the light knife's new edge
         assertEquals(170f, guns.getValue("railgun").dmg)
     }
 }

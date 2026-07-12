@@ -610,10 +610,8 @@ class GameScreen(
         // row/column absorbs the division remainder, so the departing map is the wrong ruler.
         val sid = io.github.panda17tk.arpg.map.Stages.randomSpaceId(Rng(session.spaceSeed))
         val dims = io.github.panda17tk.arpg.map.Stages.sliceDims(sid, session.areaX, session.areaY)
-        val inset = io.github.panda17tk.arpg.sim.AreaGrid.ENTRY_INSET
-        val ex = when { dx > 0 -> inset; dx < 0 -> dims.first * Tuning.TILE - inset; else -> px }
-        val ey = when { dy > 0 -> inset; dy < 0 -> dims.second * Tuning.TILE - inset; else -> py }
-        transitionWorld(WorldMode.SPACE, null, session.spaceSeed, ex to ey)
+        val entry = io.github.panda17tk.arpg.sim.AreaGrid.entryPoint(dims.first, dims.second, Tuning.TILE, dx, dy, px, py) // v2.179: one shared arithmetic
+        transitionWorld(WorldMode.SPACE, null, session.spaceSeed, entry)
         rewardToast = "エリア ${session.areaX + 1}-${session.areaY + 1}" // v2.170: the toast, pared down
         rewardToastT = TOAST_TIME
         Sfx.play("scan")
