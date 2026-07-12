@@ -250,6 +250,10 @@ object Lang {
         for (d in 1..7) add("残り${d}日" to "${d}d left")
         add("全員同じ宙域・同じ装備。" to "Same sky, same loadout for everyone. ")
         add("検証ラン " to "Proving Run ")
+        add("— 今日の宙域。あすには変わる" to "- today's sky; it turns tomorrow") // v2.180
+        add("検証ラン（今日の宙域）" to "Proving Run (today's sky)")
+        add("未実施 — 空は毎日あたらしい" to "Not yet - the sky renews daily")
+        add("今日の空" to "Today's sky")
         add("（補助設定は有効）" to " (assist settings apply)")
         // 行商船
         add("行商船 — 買い取り " to "Trader - buyback ")

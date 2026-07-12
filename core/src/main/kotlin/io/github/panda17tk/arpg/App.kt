@@ -28,6 +28,11 @@ class App : Game() {
         swapTo(GameScreen(startInChallenge = true))
     }
 
+    /** v2.180 今日の宙域: the daily proving run — a fresh fixed sky every UTC midnight. */
+    fun startDailyChallenge() {
+        swapTo(GameScreen(startInDaily = true))
+    }
+
     /** Back to the front door (the pause menu's タイトルへ). */
     fun showTitle() {
         swapTo(TitleScreen(this))

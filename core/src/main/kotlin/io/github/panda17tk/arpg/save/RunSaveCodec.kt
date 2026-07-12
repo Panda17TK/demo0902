@@ -26,6 +26,7 @@ data class RunSaveDto(
     val survivorRescued: Boolean = false,
     val cometSwept: Boolean = false,
     val upgradeSeed: Long = 0L, // v2.174 命綱 (append-only; 0 = reseed on restore)
+    val visitedAreas: List<Int> = emptyList(), // v2.180 九マスの足あと (empty = centre only)
     // Player vitals + position
     val px: Float = 0f, val py: Float = 0f,
     val hp: Float = 100f, val hpMax: Float = 100f,

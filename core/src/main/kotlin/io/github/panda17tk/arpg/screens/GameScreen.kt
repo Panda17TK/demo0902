@@ -156,6 +156,7 @@ class GameScreen(
     internal val startFresh: Boolean = false, // v2.58 タイトル「はじめから」: abandon the saved run
     internal val startInTraining: Boolean = false, // v2.58 タイトル「旧式戦闘訓練」
     internal val startInChallenge: Boolean = false, // v2.102 タイトル「検証ラン」: 今週の宙域
+    internal val startInDaily: Boolean = false, // v2.180 今日の宙域: the daily proving run
     internal val slot: Int = 0, // v2.103 セーブスロット: which journey this screen plays
 ) : ScreenAdapter() {
     internal val input = InputState()
@@ -276,6 +277,7 @@ class GameScreen(
     // v2.53 旧式戦闘訓練: the walled-off wave simulation. Entering snapshots the real run's
     // player (gear/materials/wave); exiting restores it — training gains stay in the training.
     internal var simMode = false
+    internal var dailyChallenge = false // v2.180 今日の宙域: the proving run's daily flavour
     internal var preSimCarry: PlayerCarry? = null
     // v2.102 検証ラン: this week's proving run — simMode's walls (no landings, no real records,
     // no achievements) plus a fixed weekly seed and the standard-issue loadout.
@@ -405,9 +407,9 @@ class GameScreen(
             io.github.panda17tk.arpg.i18n.Lang.en = sp.getBoolean("langEn", false) // v2.115 English表示
         } catch (_: Throwable) { /* defaults stay on */ }
         if (startFresh) runStore.clear() // v2.58: タイトルの「はじめから」は前のランを置いていく
-        if (startFresh || !tryRestoreRun()) newRun(countSortie = !startInTraining && !startInChallenge) // v2.33/v2.125
+        if (startFresh || !tryRestoreRun()) newRun(countSortie = !startInTraining && !startInChallenge && !startInDaily) // v2.33/v2.125
         if (startInTraining && !simMode) toggleTraining() // v2.58: straight into the simulation
-        if (startInChallenge && !challengeMode) enterChallenge() // v2.102: 今週の宙域へ直行
+        if ((startInChallenge || startInDaily) && !challengeMode) { dailyChallenge = startInDaily; enterChallenge() } // v2.102 / v2.180
         // v2.60: the boot diagnostic runs once per install (never inside the training sim).
         val tutDone = try { Gdx.app.getPreferences(SETTINGS_PREFS).getBoolean(SETTINGS_TUTORIAL, false) } catch (_: Throwable) { true }
         if (!tutDone && !simMode) tutorial = TutorialController()
@@ -439,6 +441,7 @@ class GameScreen(
         } else {
             simMode = false
             challengeMode = false // v2.102: leaving the walled-off world ends the proving run too
+            dailyChallenge = false // v2.180
             gw.world.dispose() // v2.174 命綱
             worldSeed = session.spaceSeed
             gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed, carry = preSimCarry, boons = metaBoons, trait = SystemTraits.traitFor(session.spaceSeed), difficulty = runDifficulty, ngClears = io.github.panda17tk.arpg.save.Endings.clears, oceanKeep = io.github.panda17tk.arpg.save.OceanDensity.keep(), area = session.areaX to session.areaY, lootedWrecks = session.lootedWrecks, survivorRescued = session.survivorRescued, cometSwept = session.cometSwept) // v2.160 / v2.165 / v2.166 / v2.169
@@ -468,8 +471,8 @@ class GameScreen(
         // and the tuning popup (if open) closes; the tune door itself stays shut while inside.
         io.github.panda17tk.arpg.config.TuningCatalog.paramsFor(configStore.config).forEach { it.reset() }
         if (overlay == Overlay.TUNING) overlay = Overlay.NONE
-        challengeWeek = Challenge.weekOf(System.currentTimeMillis())
-        worldSeed = Challenge.seedFor(challengeWeek)
+        challengeWeek = if (dailyChallenge) Challenge.dayOf(System.currentTimeMillis()) else Challenge.weekOf(System.currentTimeMillis()) // v2.180
+        worldSeed = if (dailyChallenge) Challenge.seedForDay(challengeWeek) else Challenge.seedFor(challengeWeek)
         upgradeSeed = worldSeed; upgradeRng = Rng(upgradeSeed) // v2.174: same card offers for every contender
         gw = WorldFactory.create(
             input, configStore.config, seed = worldSeed,
@@ -485,7 +488,11 @@ class GameScreen(
         lastCardId = null; cachedCard = null
         chipsKey = -1; cachedChips = emptyList(); questChipKey = -1; questChip = null
         marketSold.clear(); traderSold.clear(); traderGreeted = false; pendingJump = false
-        rewardToast = "検証ラン ${Challenge.codeFor(challengeWeek)} — 全員同じ宙域・同じ装備。残り${Challenge.daysLeft(System.currentTimeMillis())}日（補助設定は有効）"
+        rewardToast = if (dailyChallenge) { // v2.180
+            "検証ラン ${Challenge.codeForDay(challengeWeek)} — 今日の宙域。あすには変わる（補助設定は有効）"
+        } else {
+            "検証ラン ${Challenge.codeFor(challengeWeek)} — 全員同じ宙域・同じ装備。残り${Challenge.daysLeft(System.currentTimeMillis())}日（補助設定は有効）"
+        }
         rewardToastT = TOAST_TIME
         rebuildMemoryTones()
         syncAmbience()
@@ -500,6 +507,7 @@ class GameScreen(
         if (::gw.isInitialized) gw.world.dispose() // v2.174 命綱
         simMode = false; preSimCarry = null // v2.53: a real restart always leaves the simulation
         challengeMode = false // v2.102
+        dailyChallenge = false // v2.180
         if (countSortie) io.github.panda17tk.arpg.save.Stats.addSortie() // v2.123: a fresh real run leaves the hangar
         session.reset() // a fresh run forgets every planet
         upgradeSeed = System.nanoTime(); upgradeRng = Rng(upgradeSeed) // v2.174: one draw per run
@@ -606,6 +614,7 @@ class GameScreen(
     /** v2.166 宙域の九分割: swap to the neighbouring slice, re-entering from the matching edge. */
     internal fun crossArea(dx: Int, dy: Int, px: Float, py: Float) {
         session.areaX += dx; session.areaY += dy
+        session.visitedAreas.add(session.areaX * 3 + session.areaY) // v2.180 九マスの足あと
         // v2.169 診断修正: the entry edge is measured on the DESTINATION slice — the last
         // row/column absorbs the division remainder, so the departing map is the wrong ruler.
         val sid = io.github.panda17tk.arpg.map.Stages.randomSpaceId(Rng(session.spaceSeed))
@@ -1080,7 +1089,14 @@ class GameScreen(
                 // v2.62: but the training hall keeps its own scoreboard.
                 // v2.102: and the proving run keeps a third, wiped when the week's sky turns.
                 newBest = when {
-                    challengeMode -> Scores.recordChallenge(challengeWeek, gw.waveState.num, gw.gameOver.kills)
+                    challengeMode -> {
+                        // v2.180 記録コード: the result rides the clipboard — paste it anywhere
+                        // (a chat, a note) to compare skies with anyone on the same code.
+                        val code = if (dailyChallenge) Challenge.codeForDay(challengeWeek) else Challenge.codeFor(challengeWeek)
+                        try { Gdx.app.clipboard.contents = Challenge.resultCode(code, gw.waveState.num, gw.gameOver.kills) } catch (_: Throwable) { /* headless */ }
+                        if (dailyChallenge) Scores.recordDaily(challengeWeek, gw.waveState.num, gw.gameOver.kills)
+                        else Scores.recordChallenge(challengeWeek, gw.waveState.num, gw.gameOver.kills)
+                    }
                     simMode -> Scores.recordSim(gw.waveState.num, gw.gameOver.kills)
                     else -> Scores.record(gw.waveState.num, gw.gameOver.kills)
                 }
@@ -1250,6 +1266,7 @@ class GameScreen(
         session.returnSpawn = null
         session.areaX = 1; session.areaY = 1 // v2.166: a new system opens at its centre
         session.lootedWrecks.clear(); session.survivorRescued = false; session.cometSwept = false // v2.169
+        session.visitedAreas.clear(); session.visitedAreas.add(4) // v2.180: a new sky, a fresh chart
         endingSeenThisWorld = false // v2.93: a new sky may ask the question again
         transitionWorld(WorldMode.SPACE, null, session.spaceSeed, null)
         with(gw.world) { val h = gw.player[Health]; h.hp = h.hpMax } // the jump mends the hull
@@ -1356,6 +1373,7 @@ class GameScreen(
                 wave = gw.waveState.num,
                 areaX = session.areaX, areaY = session.areaY, // v2.166 宙域の九分割
                 lootedWrecks = session.lootedWrecks.toList(), // v2.169 診断修正
+                visitedAreas = session.visitedAreas.toList(), // v2.180 九マスの足あと
                 survivorRescued = session.survivorRescued, cometSwept = session.cometSwept,
                 upgradeSeed = upgradeSeed, // v2.174 命綱
                 px = t.x, py = t.y,
@@ -1404,6 +1422,7 @@ class GameScreen(
         session.surfSeed = dto.surfSeed
         session.areaX = dto.areaX; session.areaY = dto.areaY // v2.166 宙域の九分割
         session.lootedWrecks.clear(); session.lootedWrecks.addAll(dto.lootedWrecks) // v2.169
+        session.visitedAreas.clear(); session.visitedAreas.addAll(dto.visitedAreas.ifEmpty { listOf(4) }) // v2.180
         upgradeSeed = if (dto.upgradeSeed != 0L) dto.upgradeSeed else System.nanoTime() // v2.174
         upgradeRng = Rng(upgradeSeed)
         session.survivorRescued = dto.survivorRescued

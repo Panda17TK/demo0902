@@ -8,6 +8,24 @@ import org.junit.jupiter.api.Test
 
 /** v2.102 検証ラン: the weekly clock, the weekly sky, and the weekly ledger. */
 class ChallengeTest {
+    @Test fun `the daily sky is deterministic, positive, and never mirrors the weekly one`() {
+        val day = Challenge.dayOf(1_760_000_000_000L)
+        org.junit.jupiter.api.Assertions.assertEquals(Challenge.seedForDay(day), Challenge.seedForDay(day))
+        for (d in day until day + 14) {
+            val s = Challenge.seedForDay(d)
+            org.junit.jupiter.api.Assertions.assertTrue(s > 1L, "seed stays past the home system")
+            org.junit.jupiter.api.Assertions.assertTrue(s != Challenge.seedFor(d), "D-skies never mirror W-skies")
+        }
+        org.junit.jupiter.api.Assertions.assertEquals("D" + day, Challenge.codeForDay(day))
+    }
+
+    @Test fun `the result code is stable and carries its checksum`() {
+        val a = Challenge.resultCode("W2947", 9, 77)
+        org.junit.jupiter.api.Assertions.assertEquals(a, Challenge.resultCode("W2947", 9, 77))
+        org.junit.jupiter.api.Assertions.assertTrue(a.startsWith("W2947-w9-k77-"))
+        org.junit.jupiter.api.Assertions.assertTrue(a != Challenge.resultCode("W2947", 9, 78), "kills move the checksum")
+    }
+
     @org.junit.jupiter.api.Test fun `the week's remaining days count down to the Monday turn`() {
         // v2.119: 1970-01-05 was a Monday — a fresh week opens with 7 days on the clock.
         val monday = 4L * 86_400_000L

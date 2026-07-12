@@ -470,7 +470,37 @@ internal fun GameScreen.drawInventory() {
                 Triple(floor(pos.first / Tuning.TILE).toInt(), floor(pos.second / Tuning.TILE).toInt(), c)
             },
         )
+        drawAreaChart() // v2.180 九マスの足あと
     }
+
+/** v2.180 九マスの足あと: the MAP tab wears a small 3×3 chart of the sky — which slices this
+ *  run has stood in, and where it stands now. Shapes only; the chart needs no words. */
+internal fun GameScreen.drawAreaChart() {
+    if (invTab != io.github.panda17tk.arpg.ui.InvTab.MAP || gw.worldState.mode != WorldMode.SPACE) return
+    hudViewport.apply()
+    val w = hudViewport.worldWidth; val h = hudViewport.worldHeight
+    val cell = 16f; val gap = 3f
+    val bx = w - (cell * 3 + gap * 2) - 26f
+    val by = h - 96f
+    Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND)
+    shapes.projectionMatrix = hudViewport.camera.combined
+    shapes.begin(ShapeRenderer.ShapeType.Filled)
+    for (ay in 0 until 3) for (ax in 0 until 3) {
+        val x = bx + ax * (cell + gap)
+        val y = by - ay * (cell + gap)
+        cEventTmp.set(0.05f, 0.07f, 0.11f, 0.85f); shapes.color = cEventTmp
+        shapes.rect(x, y, cell, cell)
+        if ((ax * 3 + ay) in session.visitedAreas) {
+            cEventTmp.set(0.35f, 0.55f, 0.75f, 0.9f); shapes.color = cEventTmp
+            shapes.rect(x + 2f, y + 2f, cell - 4f, cell - 4f)
+        }
+        if (ax == session.areaX && ay == session.areaY) {
+            cEventTmp.set(0.95f, 0.97f, 1f, 0.95f); shapes.color = cEventTmp
+            shapes.rect(x + cell / 2f - 2f, y + cell / 2f - 2f, 4f, 4f)
+        }
+    }
+    shapes.end()
+}
 
 /** v2.169 診断修正: the gate's position in THIS slice's local frame — even when it lies in a
  *  neighbouring slice (where ws.gate is null), the sky-wide plan still gives the compass and

@@ -204,7 +204,8 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         val wsh = TitleLayout.workshopButton(w, h) // v2.90
         val dif = TitleLayout.difficultyButton(w, h, difficulty.label) // v2.97
         val tun = TitleLayout.tuneButton(w, h, if (io.github.panda17tk.arpg.save.TuneMode.active) "調整◉" else "調整") // v2.98
-        (buttons + rec + set + wsh + dif + tun).forEach { b ->
+        val dly = TitleLayout.dailyButton(w, h) // v2.180 今日の宙域
+        (buttons + rec + set + wsh + dif + tun + dly).forEach { b ->
             shapes.color = Color(0.55f, 0.75f, 1f, 0.22f)
             shapes.rect(b.x - 1.5f, b.y - 1.5f, b.w + 3f, b.h + 3f)
             shapes.color = Color(0.05f, 0.07f, 0.11f, 0.85f)
@@ -243,7 +244,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         // v2.84: one quiet line, auto-fitted — the tagline used to run off both screen edges.
         drawFitted(font, "慣性で漂う宇宙と、あなたを覚えている星々。", w / 2f, h * 0.62f, w - 48f)
         font.color = Color.WHITE
-        (buttons + rec + set + wsh + dif + tun).forEach { b ->
+        (buttons + rec + set + wsh + dif + tun + dly).forEach { b ->
             glyph.setText(font, io.github.panda17tk.arpg.i18n.Lang.tr(b.label))
             font.draw(batch, glyph, b.centerX - glyph.width / 2f, b.centerY + glyph.height / 2f)
         }
@@ -464,6 +465,8 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             clears = io.github.panda17tk.arpg.save.Endings.clears, // v2.93
             chWeek = Scores.chWeek, chWave = Scores.chBestWave, chKills = Scores.chBestKills, // v2.102
             chDaysLeft = io.github.panda17tk.arpg.save.Challenge.daysLeft(System.currentTimeMillis()), // v2.119
+            dayKey = Scores.dayKey, dayWave = Scores.dayBestWave, dayKills = Scores.dayBestKills, // v2.180
+            dayIsToday = Scores.dayKey == io.github.panda17tk.arpg.save.Challenge.dayOf(System.currentTimeMillis()),
             stClock = io.github.panda17tk.arpg.save.Stats.clock(), stKills = io.github.panda17tk.arpg.save.Stats.kills, stSorties = io.github.panda17tk.arpg.save.Stats.sorties, // v2.123
             bestiaryKnown = io.github.panda17tk.arpg.save.Bestiary.knownCount(), // v2.124
         ) { Achievements.has(it) }
@@ -648,6 +651,11 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
                     }
                     SettingsPanel.PERF -> { io.github.panda17tk.arpg.save.PerfHud.enabled = !io.github.panda17tk.arpg.save.PerfHud.enabled; persistSettings() } // v2.167
                 }
+                return
+            }
+            val dlyBtn = TitleLayout.dailyButton(viewport.worldWidth, viewport.worldHeight) // v2.180 今日の宙域
+            if (dlyBtn.contains(tmp.x, tmp.y)) {
+                app.startDailyChallenge()
                 return
             }
             if (rec.contains(tmp.x, tmp.y)) { // v2.64 記録

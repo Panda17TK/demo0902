@@ -28,6 +28,8 @@ object RecordsPanel {
         chWeek: Long = 0L, // v2.102 検証ラン: this week's proving-run ledger
         chWave: Int = 0, chKills: Int = 0,
         chDaysLeft: Int = 0, // v2.119: how long this week's sky still stands
+        dayKey: Long = 0L, dayWave: Int = 0, dayKills: Int = 0, // v2.180 今日の宙域
+        dayIsToday: Boolean = false, // stale daily bests read as 未実施 — the sky has turned
         stClock: String = "", stKills: Long = 0, stSorties: Long = 0, // v2.123 勤続記録
         bestiaryKnown: Int = -1, // v2.124: the summary count (negative hides the line)
         has: (Achievement) -> Boolean,
@@ -43,6 +45,8 @@ object RecordsPanel {
         add("検証ラン（今週の宙域）")
         val turn = if (chDaysLeft in 1..7) "　残り${chDaysLeft}日" else "" // v2.119
         add(if (chWave > 0) "W$chWeek　ウェーブ $chWave　撃破 $chKills$turn" else "未実施$turn")
+        add("検証ラン（今日の宙域）") // v2.180
+        add(if (dayWave > 0 && dayIsToday) "D$dayKey　ウェーブ $dayWave　撃破 $dayKills" else "未実施 — 空は毎日あたらしい")
         if (clears > 0) add("同期完了 ${clears}回 — 網は眠り、また編み直された") // v2.93
         add("勤続記録") // v2.123
         add(if (stSorties > 0) "累計 $stClock　総撃破 $stKills　出撃 $stSorties" else "これから — 最初の出撃を待っている")
@@ -92,6 +96,7 @@ object RecordsPanel {
     /** v2.84: which lines are section headers (drawn muted by the title screen). */
     fun isHeader(line: String): Boolean =
         line == "到達記録" || line == "訓練記録（旧式）" || line == "検証ラン（今週の宙域）" ||
+            line == "検証ラン（今日の宙域）" || // v2.180
             line.startsWith("実績 ") || line.startsWith("討伐図鑑 ") || line == "引き継ぎ" || line == "勤続記録"
 
     /** The actions at the panel's foot. Page 1 (記録): 図鑑/診断/閉じる. Page 2 (図鑑): 戻る/閉じる. */
