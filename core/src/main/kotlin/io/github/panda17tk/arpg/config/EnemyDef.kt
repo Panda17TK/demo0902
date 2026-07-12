@@ -36,6 +36,7 @@ data class AttackSpec(
 data class EnemyDef(
     val name: String,
     var id: String = "", // v2.113 図鑑: the roster key, stamped by defaultEnemies() — a stable save id
+    val lore: String = "", // v2.182 図録: a calm codex line (JA source of truth; SpeciesLoreEn mirrors EN by id)
 
     val tier: String = "normal",
     val color: String = "#b24a4a",

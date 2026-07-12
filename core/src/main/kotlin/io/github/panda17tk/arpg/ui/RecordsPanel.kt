@@ -13,6 +13,8 @@ object RecordsPanel {
     const val CLOSE_LABEL = "閉じる"
     const val BESTIARY_LABEL = "討伐図鑑を見る" // v2.113
     const val BESTIARY_ROWS = 11 // v2.120: rows per bestiary page (six kinds to a row)
+    const val LORE_LABEL = "図録を読む" // v2.182 図録: opens the curated codex from the bestiary grid
+    const val LORE_ROWS = 3 // v2.182: codex entries per spread (each = a 《name》 line + one lore line)
     const val ACHIEVEMENTS_LABEL = "実績を見る" // v2.124: the titles moved to their own spread
     const val ACH_ROWS = 11 // v2.124: achievement rows per spread (two titles to a row)
     const val BACK_LABEL = "記録へ戻る"
@@ -93,11 +95,47 @@ object RecordsPanel {
         return if (rows <= 0) 1 else (rows + BESTIARY_ROWS - 1) / BESTIARY_ROWS
     }
 
+    /** v2.182 図録: the curated codex — a calm line for the kinds that carry one, readable once
+     *  you have met (felled) them. Source of truth: EnemyDef.lore (JA); SpeciesLoreEn mirrors EN
+     *  by id. Paged like the bestiary; unmet or lore-less kinds are simply absent. */
+    private val lored: List<Triple<String, String, String>> by lazy { // id, name, JA lore
+        io.github.panda17tk.arpg.config.GameConfig().enemies.entries
+            .sortedBy { it.key }
+            .filter { it.value.lore.isNotBlank() }
+            .map { Triple(it.key, it.value.name, it.value.lore) }
+    }
+
+    fun loreCount(): Int = lored.size
+
+    fun loreLines(count: (String) -> Int, page: Int = 0, en: Boolean = io.github.panda17tk.arpg.i18n.Lang.en): List<String> {
+        val met = lored.filter { count(it.first) > 0 }
+        val pages = lorePages(met.size)
+        val p = page.coerceIn(0, pages - 1)
+        return buildList {
+            add("図録 ${met.size}/${lored.size}（${p + 1}/$pages）")
+            if (met.isEmpty()) { add("まだ誰も知らない — まず出会うことから"); return@buildList }
+            for ((id, name, ja) in met.drop(p * LORE_ROWS).take(LORE_ROWS)) {
+                add("《$name》")
+                add(if (en) io.github.panda17tk.arpg.i18n.SpeciesLoreEn.textOf(id) ?: ja else ja)
+            }
+        }
+    }
+
+    /** Pages the met codex spans. */
+    fun lorePages(metCount: Int): Int {
+        if (metCount <= 0) return 1
+        return (metCount + LORE_ROWS - 1) / LORE_ROWS
+    }
+
+    /** Pages from a live kill counter — the title screen leafs by this. */
+    fun lorePages(count: (String) -> Int): Int = lorePages(lored.count { count(it.first) > 0 })
+
     /** v2.84: which lines are section headers (drawn muted by the title screen). */
     fun isHeader(line: String): Boolean =
         line == "到達記録" || line == "訓練記録（旧式）" || line == "検証ラン（今週の宙域）" ||
             line == "検証ラン（今日の宙域）" || // v2.180
-            line.startsWith("実績 ") || line.startsWith("討伐図鑑 ") || line == "引き継ぎ" || line == "勤続記録"
+            line.startsWith("実績 ") || line.startsWith("討伐図鑑 ") || line == "引き継ぎ" || line == "勤続記録" ||
+            line.startsWith("図録 ") || (line.length >= 2 && line.first() == '《' && line.last() == '》') // v2.182 図録
 
     /** The actions at the panel's foot. Page 1 (記録): 図鑑/診断/閉じる. Page 2 (図鑑): 戻る/閉じる. */
     fun buttons(w: Float, h: Float, bestiary: Boolean = false): List<UiButton> {
@@ -121,6 +159,21 @@ object RecordsPanel {
                 UiButton(x, h * 0.13f, bw, 44f, CLOSE_LABEL),
             )
         }
+    }
+
+    /** v2.182 図録: the bestiary grid's foot gains a 図録 entry (halves the 戻る row; no new row,
+     *  so the body's reserved space is unchanged). 戻る here returns to the grid; from the grid, to 記録. */
+    fun bestiaryButtons(w: Float, h: Float): List<UiButton> {
+        val bw = min(300f, w * 0.66f)
+        val x = (w - bw) / 2f
+        val half = (bw - 8f) / 2f
+        return listOf(
+            UiButton(x, h * 0.13f + 108f, half, 44f, "前へ"),
+            UiButton(x + half + 8f, h * 0.13f + 108f, half, 44f, "次へ"),
+            UiButton(x, h * 0.13f + 54f, half, 44f, LORE_LABEL),
+            UiButton(x + half + 8f, h * 0.13f + 54f, half, 44f, BACK_LABEL),
+            UiButton(x, h * 0.13f, bw, 44f, CLOSE_LABEL),
+        )
     }
 
     /** v2.122 引き継ぎ: the page's calm explanation (first line is its header). */

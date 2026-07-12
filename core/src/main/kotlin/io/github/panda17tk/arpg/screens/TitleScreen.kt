@@ -47,6 +47,8 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
     private var showRecords = false // v2.64 記録: the service-record overlay
     private var recordsBestiary = false // v2.113 図鑑: the record's second page
     private var recordsBestiaryPage = 0 // v2.120: which spread of the book is open
+    private var recordsLore = false // v2.182 図録: the curated codex reader, opened from the bestiary grid
+    private var recordsLorePage = 0
     private var recordsHandover = false // v2.122 引き継ぎ: the record's transfer page
     private var recordsAch = false      // v2.124 実績: the record's title spread
     private var recordsAchPage = 0
@@ -458,6 +460,8 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             RecordsPanel.handoverLines() + listOfNotNull(handoverNote)
         } else if (recordsBestiary) { // v2.113 図鑑: the record's second page
             RecordsPanel.bestiaryLines({ io.github.panda17tk.arpg.save.Bestiary.count(it) }, recordsBestiaryPage)
+        } else if (recordsLore) { // v2.182 図録: the curated codex reader
+            RecordsPanel.loreLines({ io.github.panda17tk.arpg.save.Bestiary.count(it) }, recordsLorePage)
         } else if (recordsAch) { // v2.124 実績: the title spread
             RecordsPanel.achievementLines(recordsAchPage) { Achievements.has(it) }
         } else RecordsPanel.lines(
@@ -470,7 +474,11 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             stClock = io.github.panda17tk.arpg.save.Stats.clock(), stKills = io.github.panda17tk.arpg.save.Stats.kills, stSorties = io.github.panda17tk.arpg.save.Stats.sorties, // v2.123
             bestiaryKnown = io.github.panda17tk.arpg.save.Bestiary.knownCount(), // v2.124
         ) { Achievements.has(it) }
-        val btns = if (recordsHandover) RecordsPanel.handoverButtons(w, h) else RecordsPanel.buttons(w, h, recordsBestiary || recordsAch)
+        val btns = when {
+            recordsHandover -> RecordsPanel.handoverButtons(w, h)
+            recordsBestiary -> RecordsPanel.bestiaryButtons(w, h) // v2.182: the grid foot gains 図録
+            else -> RecordsPanel.buttons(w, h, recordsLore || recordsAch) // lore/ach share the pager form
+        }
         val px = 14f; val pw = w - 28f; val pTop = h * 0.90f; val pBot = h * 0.11f
         shapes.begin(ShapeRenderer.ShapeType.Filled)
         shapes.color = Color(0f, 0f, 0f, 0.72f); shapes.rect(0f, 0f, w, h)
@@ -537,13 +545,20 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
                 return
             }
             if (showRecords) { // v2.64: the overlay swallows every tap while open
-                val hit = (if (recordsHandover) RecordsPanel.handoverButtons(viewport.worldWidth, viewport.worldHeight)
-                    else RecordsPanel.buttons(viewport.worldWidth, viewport.worldHeight, recordsBestiary || recordsAch))
-                    .firstOrNull { it.contains(tmp.x, tmp.y) } ?: return
+                val hit = (when {
+                    recordsHandover -> RecordsPanel.handoverButtons(viewport.worldWidth, viewport.worldHeight)
+                    recordsBestiary -> RecordsPanel.bestiaryButtons(viewport.worldWidth, viewport.worldHeight) // v2.182
+                    else -> RecordsPanel.buttons(viewport.worldWidth, viewport.worldHeight, recordsLore || recordsAch)
+                }).firstOrNull { it.contains(tmp.x, tmp.y) } ?: return
                 when (hit.label) {
                     RecordsPanel.BESTIARY_LABEL -> { recordsBestiary = true; recordsBestiaryPage = 0; Sfx.play("scan") } // v2.113
                     RecordsPanel.ACHIEVEMENTS_LABEL -> { recordsAch = true; recordsAchPage = 0; Sfx.play("scan") } // v2.124
-                    RecordsPanel.BACK_LABEL -> { recordsBestiary = false; recordsBestiaryPage = 0; recordsHandover = false; recordsAch = false; recordsAchPage = 0; Sfx.play("scan") }
+                    RecordsPanel.LORE_LABEL -> { recordsLore = true; recordsBestiary = false; recordsLorePage = 0; Sfx.play("scan") } // v2.182: grid → codex
+                    RecordsPanel.BACK_LABEL -> { // v2.182: from the codex, back to the grid; else back to 記録
+                        if (recordsLore) { recordsLore = false; recordsBestiary = true; recordsLorePage = 0 }
+                        else { recordsBestiary = false; recordsBestiaryPage = 0; recordsHandover = false; recordsAch = false; recordsAchPage = 0 }
+                        Sfx.play("scan")
+                    }
                     RecordsPanel.HANDOVER_LABEL -> { recordsHandover = true; handoverNote = null; Sfx.play("scan") } // v2.122
                     RecordsPanel.EXPORT_LABEL -> { // v2.122: the account → one block of text
                         val text = io.github.panda17tk.arpg.save.Handover.export()
@@ -562,12 +577,18 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
                         } else "取り込めなかった — クリップボードに引き継ぎ文がない"
                         Sfx.play(if (handoverNote!!.startsWith("取り込んだ")) "levelup" else "hit")
                     }
-                    "前へ", "次へ" -> { // v2.120/v2.124: leaf through whichever spread is open
-                        val pages = if (recordsAch) RecordsPanel.achievementPages()
-                            else RecordsPanel.bestiaryPages(RecordsPanel.kindCount())
+                    "前へ", "次へ" -> { // v2.120/v2.124/v2.182: leaf through whichever spread is open
+                        val pages = when {
+                            recordsAch -> RecordsPanel.achievementPages()
+                            recordsLore -> RecordsPanel.lorePages { io.github.panda17tk.arpg.save.Bestiary.count(it) }
+                            else -> RecordsPanel.bestiaryPages(RecordsPanel.kindCount())
+                        }
                         val step = if (hit.label == "次へ") 1 else pages - 1
-                        if (recordsAch) recordsAchPage = (recordsAchPage + step) % pages
-                        else if (recordsBestiary) recordsBestiaryPage = (recordsBestiaryPage + step) % pages
+                        when {
+                            recordsAch -> recordsAchPage = (recordsAchPage + step) % pages
+                            recordsLore -> recordsLorePage = (recordsLorePage + step) % pages
+                            recordsBestiary -> recordsBestiaryPage = (recordsBestiaryPage + step) % pages
+                        }
                         Sfx.play("scan")
                     }
                     RecordsPanel.REPLAY_LABEL -> {
@@ -580,7 +601,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
                         } catch (_: Throwable) { /* best-effort */ }
                         Sfx.play("scan")
                     }
-                    RecordsPanel.CLOSE_LABEL -> { showRecords = false; recordsBestiary = false; recordsBestiaryPage = 0; recordsHandover = false; recordsAch = false; recordsAchPage = 0 }
+                    RecordsPanel.CLOSE_LABEL -> { showRecords = false; recordsBestiary = false; recordsBestiaryPage = 0; recordsHandover = false; recordsAch = false; recordsAchPage = 0; recordsLore = false; recordsLorePage = 0 }
                 }
                 return
             }
