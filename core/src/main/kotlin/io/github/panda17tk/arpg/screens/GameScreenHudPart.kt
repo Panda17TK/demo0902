@@ -282,7 +282,9 @@ internal fun GameScreen.drawObjectiveHint(paused: Boolean, hudW: Float, hudH: Fl
                     // steps — invisible on screen, silent for the GC).
                     val pt = with(gw.world) { gw.player[Transform] }
                     val nearest = gw.planets.minByOrNull { hypot(it.cx - pt.x, it.cy - pt.y) }
-                    val nav = if (!controlHints) null else nearest?.let { // v2.170: obeys 操作ヒント
+                    // v2.178 読みかたの頁: the compass is a TOOL, not a tutorial — 操作ヒント OFF
+                    // silences the how-to line but never the bearings (惑星/門), like the gate line.
+                    val nav = nearest?.let {
                         val dx = it.cx - pt.x; val dy = it.cy - pt.y
                         val dist = ((hypot(dx, dy) - it.radius).coerceAtLeast(0f).toInt() / 8) * 8
                     // World is y-down: dy<0 = up on screen. Pick the dominant cardinal arrow.
@@ -521,14 +523,23 @@ internal fun GameScreen.drawNavMarkers() {
     Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND)
     shapes.projectionMatrix = hudViewport.camera.combined
     shapes.begin(ShapeRenderer.ShapeType.Filled)
-    for ((m, c, _) in marks) {
-        // v2.170 文字の消灯: the one-glyph labels retire — colour identifies the landmark, and
-        // the gate (the one marker a run cannot do without) wears a halo of its own colour.
+    for ((m, c, kind) in marks) {
+        // v2.170 文字の消灯 → v2.178 読みかたの頁: colour AND an inner shape identify each
+        // landmark, so no reading (and no particular colour vision) is ever required. The gate
+        // keeps its halo — the one marker a run cannot do without.
         if (c === cNavGate) { shapes.color = c; shapes.rect(m.first - 13f, m.second - 13f, 13f, 13f, 26f, 26f, 1f, 1f, 45f) }
         cEventTmp.set(0.05f, 0.07f, 0.11f, 0.72f); shapes.color = cEventTmp
         shapes.rect(m.first - 11f, m.second - 11f, 11f, 11f, 22f, 22f, 1f, 1f, 45f) // the plate
         shapes.color = c
         shapes.rect(m.first - 8f, m.second - 8f, 8f, 8f, 16f, 16f, 1f, 1f, 45f) // the diamond
+        cEventTmp.set(0.05f, 0.07f, 0.11f, 0.9f); shapes.color = cEventTmp
+        when (kind) { // the one-kanji labels of v2.108, reborn as shapes
+            "核" -> shapes.rect(m.first - 2.8f, m.second - 2.8f, 5.6f, 5.6f) // core: a square heart
+            "商" -> shapes.circle(m.first, m.second, 3f, 10) // trader: an open stall
+            "船" -> shapes.rect(m.first - 4.5f, m.second - 1.2f, 9f, 2.4f) // wreck: a drifting hull
+            "発" -> shapes.triangle(m.first - 3.5f, m.second - 2.8f, m.first + 3.5f, m.second - 2.8f, m.first, m.second + 3.8f) // pad: lift-off
+            "遺" -> shapes.triangle(m.first - 3.5f, m.second + 2.8f, m.first + 3.5f, m.second + 2.8f, m.first, m.second - 3.8f) // vault: down into the ground
+        }
     }
     shapes.end()
 }

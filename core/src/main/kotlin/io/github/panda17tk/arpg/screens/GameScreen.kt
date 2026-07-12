@@ -224,6 +224,14 @@ class GameScreen(
         "インベントリ：持物ボタン / I",
         "フルスロットル：全開ボタン / O（OCスラスター装備時）",
         "ポーズ：右上ボタン / Esc・P",
+        // v2.178 読みかたの頁: the wordless HUD gets its legend HERE — in the menu, on demand,
+        // never on the play screen (文字の消灯 stays intact).
+        "",
+        "― HUDの見かた ―",
+        "上の帯：▲汚染の深さ　◆残る敵　横線＝宙域の安定",
+        "左：ハート＝船体　いなずま＝推進",
+        "下の段：■資材　★星屑",
+        "縁の印：色つきひし形＝ランドマーク（輪つき＝門）",
     )
 
     // Visual port: animation clock + run timer.
