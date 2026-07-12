@@ -384,6 +384,7 @@ class SceneRenderer {
     }
 
     private fun drawMobs(shapes: ShapeRenderer, camera: OrthographicCamera, gw: GameWorld, animTime: Float) {
+        val perfT0 = System.nanoTime() // v2.174 性能計: this pass is the draw side's prime suspect
         // v2.139 描画の倹約: the fish fill the WHOLE 2100-tile sky — draw only what the camera sees
         // (same culling drawTerrain already does). ~300 mobs shrink to the screenful that matters.
         val cullHW = camera.viewportWidth / 2f + CULL_MARGIN
@@ -423,6 +424,7 @@ class SceneRenderer {
             }
         }
         io.github.panda17tk.arpg.save.PerfHud.mobsDrawn = mobsDrawn // v2.167 性能計
+        io.github.panda17tk.arpg.save.PerfHud.tickMobs(System.nanoTime() - perfT0) // v2.174
     }
 
     /** v2.128 捕食: two pale jaws gape in front of the keeper and clack shut on the morsel. */

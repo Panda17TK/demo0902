@@ -25,6 +25,7 @@ data class RunSaveDto(
     val lootedWrecks: List<Int> = emptyList(),
     val survivorRescued: Boolean = false,
     val cometSwept: Boolean = false,
+    val upgradeSeed: Long = 0L, // v2.174 命綱 (append-only; 0 = reseed on restore)
     // Player vitals + position
     val px: Float = 0f, val py: Float = 0f,
     val hp: Float = 100f, val hpMax: Float = 100f,

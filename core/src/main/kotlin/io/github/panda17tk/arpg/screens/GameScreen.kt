@@ -183,7 +183,11 @@ class GameScreen(
     internal var camInit = false
 
     // Phase 6b: between-wave upgrade selection (modal — sim freezes until a card is picked).
-    internal val upgradeRng = Rng(System.nanoTime())
+    // v2.174 命綱: the card draw is seeded ONCE per run (screen-side entropy, recorded in the
+    // save) — the proving run pins it to the week's seed so every contender sees the same
+    // offers, and a recorded seed is one less obstacle on the road to replays.
+    internal var upgradeSeed = 0L
+    internal var upgradeRng = Rng(0L)
     internal var choosing = false
     internal var offered = false
     internal var choices: List<Upgrade> = emptyList()
@@ -413,11 +417,13 @@ class GameScreen(
             snapshotSkyTreasures() // v2.169: the training door is a rebuild seam too
             simMode = true
             preSimCarry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
+            gw.world.dispose() // v2.174 命綱: the outgoing world frees its arrays at the seam
             worldSeed = TRAINING_SEED
             gw = WorldFactory.create(input, configStore.config, seed = TRAINING_SEED, carry = preSimCarry, boons = metaBoons, difficulty = runDifficulty, oceanKeep = io.github.panda17tk.arpg.save.OceanDensity.keep(), area = 1 to 1) // v2.165 海の密度 / v2.166 宙域の九分割
         } else {
             simMode = false
             challengeMode = false // v2.102: leaving the walled-off world ends the proving run too
+            gw.world.dispose() // v2.174 命綱
             worldSeed = session.spaceSeed
             gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed, carry = preSimCarry, boons = metaBoons, trait = SystemTraits.traitFor(session.spaceSeed), difficulty = runDifficulty, ngClears = io.github.panda17tk.arpg.save.Endings.clears, oceanKeep = io.github.panda17tk.arpg.save.OceanDensity.keep(), area = session.areaX to session.areaY, lootedWrecks = session.lootedWrecks, survivorRescued = session.survivorRescued, cometSwept = session.cometSwept) // v2.160 / v2.165 / v2.166 / v2.169
             gw.waveState.num = preSimCarry?.wave ?: 1
@@ -440,6 +446,7 @@ class GameScreen(
         if (::gw.isInitialized) foldBestiary() // v2.117: entering the proving run is a seam like the training door
         if (!challengeMode) preSimCarry = PlayerCarry.of(gw.world, gw.player, gw.waveState.num)
         snapshotSkyTreasures() // v2.169: leaving the real sky for the proving run is a rebuild seam
+        if (::gw.isInitialized) gw.world.dispose() // v2.174 命綱
         simMode = true; challengeMode = true
         // v2.106 公正化: the proving run starts from the shipped numbers — session knobs all reset,
         // and the tuning popup (if open) closes; the tune door itself stays shut while inside.
@@ -447,6 +454,7 @@ class GameScreen(
         if (overlay == Overlay.TUNING) overlay = Overlay.NONE
         challengeWeek = Challenge.weekOf(System.currentTimeMillis())
         worldSeed = Challenge.seedFor(challengeWeek)
+        upgradeSeed = worldSeed; upgradeRng = Rng(upgradeSeed) // v2.174: same card offers for every contender
         gw = WorldFactory.create(
             input, configStore.config, seed = worldSeed,
             trait = SystemTraits.traitFor(worldSeed),
@@ -473,10 +481,12 @@ class GameScreen(
     internal fun newRun(countSortie: Boolean = true) {
         // v2.117 図鑑: an abandoned run still counts (a death already folded at game over).
         if (::gw.isInitialized && !gw.gameOver.isOver) foldBestiary()
+        if (::gw.isInitialized) gw.world.dispose() // v2.174 命綱
         simMode = false; preSimCarry = null // v2.53: a real restart always leaves the simulation
         challengeMode = false // v2.102
         if (countSortie) io.github.panda17tk.arpg.save.Stats.addSortie() // v2.123: a fresh real run leaves the hangar
         session.reset() // a fresh run forgets every planet
+        upgradeSeed = System.nanoTime(); upgradeRng = Rng(upgradeSeed) // v2.174: one draw per run
         runStore.clear() // v2.33: restarting abandons the saved run
         worldSeed = session.spaceSeed
         gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed, boons = metaBoons, trait = SystemTraits.traitFor(session.spaceSeed), difficulty = runDifficulty, ngClears = io.github.panda17tk.arpg.save.Endings.clears, oceanKeep = io.github.panda17tk.arpg.save.OceanDensity.keep(), area = session.areaX to session.areaY) // v2.160 / v2.165 / v2.166
@@ -983,6 +993,7 @@ class GameScreen(
         // world (procedural sprites — ported from legacy renderer.js + enemy-sprites.js)
         worldViewport.apply()
         scene.draw(shapes, batch, font, camera, gw, animTime, pose, memoryTones)
+        io.github.panda17tk.arpg.save.PerfHud.tickScene(System.nanoTime() - perfDrawT0) // v2.174: the world half
 
         drawWeather(delta) // v2.74: the planet's climate, between the world and the HUD
         drawEventFx(delta) // v2.86: the wave event colors the whole sky, not just a line
@@ -1001,6 +1012,7 @@ class GameScreen(
 
     // v2.167 性能計: the corner line — rebuilt twice a second so it costs nothing to keep on
     private var perfLine = ""
+    private var perfLine2 = ""
     private var perfLineT = 0f
     private fun drawPerfHud() {
         val p = io.github.panda17tk.arpg.save.PerfHud
@@ -1011,6 +1023,9 @@ class GameScreen(
             val heap = Gdx.app.javaHeap / (1024L * 1024L)
             perfLine = "${Gdx.graphics.framesPerSecond}fps  sim %.1fms  draw %.1fms  mob ${p.mobsDrawn}/$mobs  ${heap}MB"
                 .format(p.simMs, p.drawMs)
+            // v2.174: the draw half, split — world scene vs its mob pass vs everything after (HUD/FX)
+            perfLine2 = "scene %.1f  mob %.1f  hud %.1f"
+                .format(p.sceneMs, p.mobsMs, (p.drawMs - p.sceneMs).coerceAtLeast(0f))
         }
         hudViewport.apply()
         batch.projectionMatrix = hudViewport.camera.combined
@@ -1020,6 +1035,7 @@ class GameScreen(
         f.data.setScale(sx * 0.8f, sy * 0.8f)
         f.color = cPerf
         f.draw(batch, perfLine, 10f, hudViewport.worldHeight - 46f)
+        f.draw(batch, perfLine2, 10f, hudViewport.worldHeight - 62f)
         f.color = Color.WHITE
         f.data.setScale(sx, sy)
         batch.end()
@@ -1306,6 +1322,12 @@ class GameScreen(
 
     /** v2.33 SAVE tab: snapshot the run (world identity + player state + gear) and persist it. */
     internal fun saveRun() {
+        saveRunQuiet()
+        invNote = "セーブした"; invNoteT = SAVED_NOTE_TIME
+    }
+
+    /** v2.174 命綱: the same checkpoint without the toast — the lifecycle save stays silent. */
+    private fun saveRunQuiet() {
         val ws = gw.worldState
         val dto = with(gw.world) {
             val t = gw.player[Transform]; val hlt = gw.player[Health]; val sta = gw.player[Stamina]
@@ -1320,6 +1342,7 @@ class GameScreen(
                 areaX = session.areaX, areaY = session.areaY, // v2.166 宙域の九分割
                 lootedWrecks = session.lootedWrecks.toList(), // v2.169 診断修正
                 survivorRescued = session.survivorRescued, cometSwept = session.cometSwept,
+                upgradeSeed = upgradeSeed, // v2.174 命綱
                 px = t.x, py = t.y,
                 hp = hlt.hp, hpMax = hlt.hpMax, stamina = sta.value,
                 ammo9 = ammo.ammo9, ammo12 = ammo.ammo12, ammoBeam = ammo.ammoBeam, ammoNade = ammo.ammoNade,
@@ -1340,7 +1363,16 @@ class GameScreen(
         }
         runStore.save(dto)
         session.persist() // the universe's memory checkpoints alongside the run
-        invNote = "セーブした"; invNoteT = SAVED_NOTE_TIME
+    }
+
+    /** v2.174 命綱: Android may kill a backgrounded app at any moment — without this, the run
+     *  rolled back to the last MANUAL save (or vanished). The training sim leaves no trace by
+     *  design and the proving run rebuilds from its weekly seed, so only a live real run
+     *  checkpoints here. */
+    override fun pause() {
+        if (::gw.isInitialized && !simMode && !challengeMode && !closing &&
+            !gw.gameOver.isOver && endingStage == 0
+        ) saveRunQuiet()
     }
 
     /**
@@ -1357,6 +1389,8 @@ class GameScreen(
         session.surfSeed = dto.surfSeed
         session.areaX = dto.areaX; session.areaY = dto.areaY // v2.166 宙域の九分割
         session.lootedWrecks.clear(); session.lootedWrecks.addAll(dto.lootedWrecks) // v2.169
+        upgradeSeed = if (dto.upgradeSeed != 0L) dto.upgradeSeed else System.nanoTime() // v2.174
+        upgradeRng = Rng(upgradeSeed)
         session.survivorRescued = dto.survivorRescued
         session.cometSwept = dto.cometSwept
         session.landedPlanetId = dto.landedPlanetId

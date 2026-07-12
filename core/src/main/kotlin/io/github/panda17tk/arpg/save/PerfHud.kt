@@ -19,6 +19,15 @@ object PerfHud {
     /** Mobs the scene actually painted last frame (set by SceneRenderer's culling pass). */
     var mobsDrawn = 0
 
+    /** v2.174: section timers — the world scene, and its mob pass alone (the draw side's
+     *  suspected heavyweight; these decide where the next cut lands). */
+    var sceneMs = 0f
+        private set
+    var mobsMs = 0f
+        private set
+
     fun tickSim(nanos: Long) { simMs = simMs * 0.9f + (nanos / 1_000_000f) * 0.1f }
     fun tickDraw(nanos: Long) { drawMs = drawMs * 0.9f + (nanos / 1_000_000f) * 0.1f }
+    fun tickScene(nanos: Long) { sceneMs = sceneMs * 0.9f + (nanos / 1_000_000f) * 0.1f }
+    fun tickMobs(nanos: Long) { mobsMs = mobsMs * 0.9f + (nanos / 1_000_000f) * 0.1f }
 }
