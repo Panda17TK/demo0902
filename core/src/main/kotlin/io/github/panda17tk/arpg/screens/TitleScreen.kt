@@ -115,7 +115,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
             Haptics.enabled = sp.getBoolean("hapticsOn", true)
             leftyOn = sp.getBoolean("leftHanded", false) // v2.65
             hintsOn = sp.getBoolean("controlHintsOn", true) // v2.66
-            loreOn = sp.getBoolean("loreHintsOn", true)     // v2.66
+            loreOn = sp.getBoolean("loreHintsOn", false)    // v2.66 / v2.173: the asides start silent
             shakeOn = sp.getBoolean("shakeOn", true)        // v2.96
             softFlash = sp.getBoolean("softFlash", false)   // v2.96
             assistOn = sp.getBoolean("aimAssist", true)     // v2.112
