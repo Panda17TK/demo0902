@@ -64,7 +64,8 @@ class TutorialControllerTest {
         for (touch in listOf(true, false)) {
             val c = TutorialController()
             fun check() = assertTrue(c.prompt(touch).isNotEmpty(), "no prompt for ${c.step} ($touch)")
-            check()                                             // BOOT_PROMPT
+            // v2.172 文字の消灯III: BOOT_PROMPT is wordless by design — its two buttons ARE the question.
+            assertTrue(c.prompt(touch).isEmpty(), "the boot prompt stays wordless ($touch)")
             c.begin(); check()                                  // MOVE
             c.onMoved(999f); check()                            // SHOOT
             c.onKill(); check()                                 // PICKUP_DUST
