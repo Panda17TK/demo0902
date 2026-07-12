@@ -340,6 +340,14 @@ class GameScreen(
     internal var cachedChips: List<String> = emptyList()
     // v2.45 星の依頼: the quest chip cache (progress-keyed, same no-per-frame-strings policy).
     internal var questChipKey = -1
+    // v2.176 GCの静音化: the SPACE idle hints and the nav-POI list were rebuilt every frame —
+    // strings and Triples for a line that changes a few times a second at most. Keyed caches.
+    internal var navPoisKey = -1
+    internal var navPoisCache: List<Triple<Pair<Float, Float>, com.badlogic.gdx.graphics.Color, String>> = emptyList()
+    internal var navHintKey = Long.MIN_VALUE
+    internal var navHint: String? = null
+    internal var gateHintKey = Long.MIN_VALUE
+    internal var gateHint: String? = null
     internal var questChip: String? = null
 
     override fun show() {
@@ -648,6 +656,7 @@ class GameScreen(
         lastCardId = null; cachedCard = null // memory may have changed across the transition → rebuild the scan card
         chipsKey = -1; cachedChips = emptyList()
         questChipKey = -1; questChip = null
+        navPoisKey = -1; navHintKey = Long.MIN_VALUE; gateHintKey = Long.MIN_VALUE // v2.176
         marketSold.clear(); traderSold.clear(); traderGreeted = false
         rebuildMemoryTones()
         syncAmbience() // v2.63: space ↔ surface swap the ambient loop

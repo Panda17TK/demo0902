@@ -277,24 +277,34 @@ internal fun GameScreen.drawObjectiveHint(paused: Boolean, hudW: Float, hudH: Fl
                 // v2.66 操作ヒント OFF drops the how-to line; the nav/gate compasses stay.
                     val idle = if (!controlHints) null
                     else if (touchEnabled) "惑星をタップで着陸" else "惑星に近づいて [L] で着陸"
-                    val (ppx, ppy) = with(gw.world) { val t = gw.player[Transform]; t.x to t.y }
-                    val nearest = gw.planets.minByOrNull { hypot(it.cx - ppx, it.cy - ppy) }
+                    // v2.176 GCの静音化: these lines used to be rebuilt every frame; now the
+                    // strings re-compose only when their quantised inputs move (8px distance
+                    // steps — invisible on screen, silent for the GC).
+                    val pt = with(gw.world) { gw.player[Transform] }
+                    val nearest = gw.planets.minByOrNull { hypot(it.cx - pt.x, it.cy - pt.y) }
                     val nav = if (!controlHints) null else nearest?.let { // v2.170: obeys 操作ヒント
-                        val dx = it.cx - ppx; val dy = it.cy - ppy
-                        val dist = (hypot(dx, dy) - it.radius).coerceAtLeast(0f).toInt()
+                        val dx = it.cx - pt.x; val dy = it.cy - pt.y
+                        val dist = ((hypot(dx, dy) - it.radius).coerceAtLeast(0f).toInt() / 8) * 8
                     // World is y-down: dy<0 = up on screen. Pick the dominant cardinal arrow.
-                        "惑星 ${arrowFor(dx, dy)} $dist"
+                        val arrow = arrowFor(dx, dy)
+                        val k = it.id * 1000L + arrow[0].code * 7L + dist
+                        if (k != navHintKey) { navHintKey = k; navHint = "惑星 $arrow $dist" }
+                        navHint
                     }
                 // v2.44: the gate line — shard progress while collecting, a live compass once ready.
                     val shards = with(gw.world) { gw.player[Materials].shards }
                     val gateLine = gateLocalPos()?.let { g -> // v2.169: a bearing home from any slice
                         if (shards < gateNeed()) {
-                            "鍵 $shards/${gateNeed()}" // v2.170 文字の消灯: one kanji does the naming
+                            val k = -1000L - shards
+                            if (k != gateHintKey) { gateHintKey = k; gateHint = "鍵 $shards/${gateNeed()}" } // v2.170
                         } else {
-                            val dx = g.first - ppx; val dy = g.second - ppy
-                            val dist = hypot(dx, dy).toInt()
-                            "門 ${arrowFor(dx, dy)} $dist"
+                            val dx = g.first - pt.x; val dy = g.second - pt.y
+                            val dist = (hypot(dx, dy).toInt() / 8) * 8
+                            val arrow = arrowFor(dx, dy)
+                            val k = arrow[0].code * 7L + dist
+                            if (k != gateHintKey) { gateHintKey = k; gateHint = "門 $arrow $dist" }
                         }
+                        gateHint
                     }
                     Hud.hintPanel(
                         shapes, batch, font, hudViewport,
@@ -471,7 +481,14 @@ internal fun GameScreen.gateLocalPos(): Pair<Float, Float>? {
 /** v2.108 ナビ: this sky's landmarks — position, colour, and a one-glyph label. */
 internal fun GameScreen.navPois(): List<Triple<Pair<Float, Float>, com.badlogic.gdx.graphics.Color, String>> {
     val ws = gw.worldState
-    return buildList {
+    // v2.176 GCの静音化: the landmark set changes only at world seams plus two in-world latches
+    // (vault entry, the control core's arrival) — key on those, reuse the list otherwise.
+    val key = (if (ws.mode == WorldMode.SPACE) 1 else 0) or
+        (if (ws.vaultEntered) 2 else 0) or
+        (if (ws.controlCore != null) 4 else 0)
+    if (key == navPoisKey) return navPoisCache
+    navPoisKey = key
+    navPoisCache = buildList {
         if (ws.mode == WorldMode.SPACE) {
             gateLocalPos()?.let { add(Triple(it, cNavGate, "門")) } // v2.169: points home from any slice
             ws.controlCore?.let { add(Triple(it, cNavCore, "核")) }
@@ -483,6 +500,7 @@ internal fun GameScreen.navPois(): List<Triple<Pair<Float, Float>, com.badlogic.
             if (!ws.vaultEntered) ws.vault?.let { add(Triple(it, cNavVault, "遺")) }
         }
     }
+    return navPoisCache
 }
 
 /** v2.108 ナビ: off-screen landmarks sit as small labeled dots on the screen edge. */
