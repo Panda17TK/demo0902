@@ -108,6 +108,7 @@ object WorldFactory {
         lootedWrecks: Set<Int> = emptySet(), // v2.169 診断修正: sky-wide wreck indices already emptied this run
         survivorRescued: Boolean = false,    // v2.169: the sky's survivor was already rescued this run
         cometSwept: Boolean = false,         // v2.169: the comet's dust beads were already collected
+        throneClaimed: Boolean = false,      // v2.184 濃い外縁III: the far corner's throne was already claimed this run
     ): GameWorld {
         // v2.166 宙域の九分割: an AREA world is one 3×3 slice of the space stage — 1/9 the
         // tiles, 1/9 the flow field, 1/9 the ocean. The full stage never materialises in area mode.
@@ -553,6 +554,12 @@ object WorldFactory {
                     shoalAt(tx3, ty3, mate, mateN, mateSpread)
                     shoalAt(tx3, ty3, hunters[rimRng.nextInt(hunters.size)], 1, 240f)
                     shoalAt(tx3, ty3, hunters[rimRng.nextInt(hunters.size)], 1, 240f)
+                    if (area.first == 2 && area.second == 2 && !throneClaimed) {
+                        // v2.184 濃い外縁III 沈黙の玉座: the deepest corner hides a one-time hoard,
+                        // set behind its double tyrant. LOCAL px (global rimPoint minus the slice
+                        // origin, the same shift shoalAt applies) so the proximity grant lines up.
+                        worldState.throne = (tx3 - originX) to (ty3 - originY)
+                    }
                 }
             }
         }

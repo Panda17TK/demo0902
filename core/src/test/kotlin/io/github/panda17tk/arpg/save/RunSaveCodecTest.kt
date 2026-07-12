@@ -10,7 +10,7 @@ class RunSaveCodecTest {
         spaceSeed = 1L, surfSeed = 103L, worldSeed = 103L,
         landedPlanetId = 42L, returnX = 12f, returnY = 34f,
         wave = 7, px = 640f, py = 320f,
-        lootedWrecks = listOf(0, 2), survivorRescued = true, cometSwept = true, // v2.169
+        lootedWrecks = listOf(0, 2), survivorRescued = true, cometSwept = true, throneClaimed = true, // v2.169 / v2.184
         upgradeSeed = 7L, // v2.174
         visitedAreas = listOf(4, 5, 8), // v2.180
         hp = 55f, hpMax = 120f, stamina = 80f,

@@ -25,6 +25,7 @@ data class RunSaveDto(
     val lootedWrecks: List<Int> = emptyList(),
     val survivorRescued: Boolean = false,
     val cometSwept: Boolean = false,
+    val throneClaimed: Boolean = false, // v2.184 濃い外縁III (append-only; old saves read false)
     val upgradeSeed: Long = 0L, // v2.174 命綱 (append-only; 0 = reseed on restore)
     val visitedAreas: List<Int> = emptyList(), // v2.180 九マスの足あと (empty = centre only)
     // Player vitals + position

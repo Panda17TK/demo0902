@@ -88,6 +88,9 @@ class WorldState(
     /** v2.110 生存者: the wreck index sheltering a survivor (-1 = none) + the rescue latch. */
     var survivorWreck: Int = -1,
     var survivorRescued: Boolean = false,
+    /** v2.184 濃い外縁III 沈黙の玉座: the far corner's one-time hoard, LOCAL px (null = not this slice) + its claim latch. */
+    var throne: Pair<Float, Float>? = null,
+    var throneClaimed: Boolean = false,
     /** v2.110 彗星: the head + tail direction (SPACE, some skies) — dust beads ride the tail. */
     var comet: Pair<Float, Float>? = null,
     var cometDir: Pair<Float, Float>? = null,

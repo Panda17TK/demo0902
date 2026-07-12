@@ -29,6 +29,7 @@ class RunSession(
     val visitedAreas: MutableSet<Int> = mutableSetOf(4)
     var survivorRescued: Boolean = false
     var cometSwept: Boolean = false
+    var throneClaimed: Boolean = false // v2.184 濃い外縁III 沈黙の玉座 (per-run, held across rebuilds & saves)
 
     /** 着陸1回ぶんの決定事項 — everything GameScreen needs to build the surface and greet the player. */
     data class LandingPlan(
@@ -93,6 +94,7 @@ class RunSession(
         surfSeed = 100L
         areaX = 1; areaY = 1 // v2.166
         lootedWrecks.clear(); survivorRescued = false; cometSwept = false // v2.169
+        throneClaimed = false // v2.184 濃い外縁III
         visitedAreas.clear(); visitedAreas.add(4) // v2.180: every run begins at the centre
         landedPlanetId = null
         returnSpawn = null
