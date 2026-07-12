@@ -9,7 +9,10 @@ object Weapons {
         WeaponDef("beam", "ビーム", 80f, 0.60f, null, 0f, 1, "ammoBeam", reloadTime = 0f, infiniteAmmo = true, manualFire = true), // v2.37: 弾薬無限
         WeaponDef("grenade", "グレネード", 0f, 0.90f, 1, 0f, 1, "ammoNade", reloadTime = 1.5f, infiniteAmmo = true, manualFire = true), // v2.80: 弾薬無限
         // v2.38: new weapon TYPES — reached through equipment (装備で武器種が増える), not the number keys.
-        WeaponDef("smg", "サブマシンガン", 10f, 0.055f, 30, 0.18f, 1, "ammo9", reloadTime = 2.0f, infiniteAmmo = true),
+        // v2.179 細かい直し: the SMG was strictly worse than the MG (same ammo, lower burst,
+        // slower cycle). Its identity now: the light knife — a blink of a reload and a wider
+        // magazine trade raw power for uptime.
+        WeaponDef("smg", "サブマシンガン", 12f, 0.055f, 36, 0.18f, 1, "ammo9", reloadTime = 0.7f, infiniteAmmo = true),
         WeaponDef("rifle", "ライフル", 90f, 0.75f, 5, 0.01f, 1, "ammo12", reloadTime = 2.0f),
         // v2.101 新武器: railgun is a PLACED shot (置き撃ち) — aim to charge, release to fire a
         // slug that ignores walls and pierces the whole line; the heavy reload keeps it a sniper.

@@ -22,4 +22,12 @@ object AreaGrid {
 
     fun hasNeighbor(ax: Int, ay: Int, dx: Int, dy: Int): Boolean =
         (ax + dx) in 0 until N && (ay + dy) in 0 until N
+
+    /** v2.179: the re-entry point on the DESTINATION slice — one pure function, so the screen
+     *  and the tests stop re-implementing the same mirror-edge arithmetic independently. */
+    fun entryPoint(sw: Int, sh: Int, tile: Float, dx: Int, dy: Int, px: Float, py: Float): Pair<Float, Float> {
+        val ex = when { dx > 0 -> ENTRY_INSET; dx < 0 -> sw * tile - ENTRY_INSET; else -> px }
+        val ey = when { dy > 0 -> ENTRY_INSET; dy < 0 -> sh * tile - ENTRY_INSET; else -> py }
+        return ex to ey
+    }
 }

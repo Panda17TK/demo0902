@@ -9,7 +9,7 @@ object Onboarding {
 
     fun lineFor(t: Float, touch: Boolean): String? = when {
         t < 8f -> if (touch) "左スティックで移動" else "WASD で移動"
-        t < 16f -> if (touch) "右スティックで照準・離して発射" else "マウスで照準・クリックで発射"
+        t < 16f -> if (touch) "右スティックで照準・離して発射" else "矢印キーで照準・K で発射" // v2.179: honest keys
         t < 24f -> if (touch) "DASH でダッシュ" else "Shift でダッシュ"
         t < END -> "惑星に近づいて着陸"
         else -> null

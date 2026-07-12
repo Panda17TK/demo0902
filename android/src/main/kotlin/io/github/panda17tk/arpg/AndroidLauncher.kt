@@ -15,7 +15,8 @@ class AndroidLauncher : AndroidApplication() {
                 val top = e.stackTrace.firstOrNull { it.className.contains("panda17tk") } ?: e.stackTrace.firstOrNull()
                 val where = top?.let { "${it.className.substringAfterLast('.')}.${it.methodName}:${it.lineNumber}" } ?: "?"
                 getSharedPreferences("drift-settings", MODE_PRIVATE).edit()
-                    .putString("lastCrash", "${e.javaClass.simpleName}: ${e.message ?: ""} @ $where".take(220))
+                    // v2.179: stamp the build — a crash report is only actionable if you know WHICH drift crashed
+                    .putString("lastCrash", "${e.javaClass.simpleName}: ${e.message ?: ""} @ $where".take(200) + " (v${BuildConfig.VERSION_NAME})")
                     .commit()
             } catch (_: Throwable) { /* the box must never make things worse */ }
             prev?.uncaughtException(t, e)

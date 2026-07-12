@@ -95,7 +95,8 @@ class TutorialController {
         )
         TutorialStep.SHOOT -> listOf(
             "起動診断 2/6　防衛工具を確認します",
-            if (touch) "右スティックで照準・離して発射　対象を1体破壊" else "マウスで照準・クリックで発射　対象を1体破壊",
+            // v2.179: the desktop line taught a mouse aim that never existed — the keys are the truth
+            if (touch) "右スティックで照準・離して発射　対象を1体破壊" else "矢印キーで照準・K で発射　対象を1体破壊",
         )
         TutorialStep.PICKUP_DUST -> listOf(
             "起動診断 3/6　記憶片を検出: 星屑",
