@@ -86,11 +86,9 @@ class TutorialController {
 
     /** The current diagnostic prompt — UI line(s), fiction first, control second. */
     fun prompt(touch: Boolean): List<String> = when (step) {
-        TutorialStep.BOOT_PROMPT -> listOf(
-            // v2.171 手直し: the boot poetry retired — every fresh run opened on a two-line wall
-            // of system fiction. One question is enough; the buttons say the rest.
-            "起動診断を実行しますか？",
-        )
+        // v2.172: even the one-line question retired — the two buttons ARE the question
+        // (hintPanel draws nothing for an empty list; only 診断する/スキップ remain).
+        TutorialStep.BOOT_PROMPT -> emptyList()
         TutorialStep.MOVE -> listOf(
             "起動診断 1/6　推進制御を確認します",
             if (touch) "左スティックで船体を移動" else "WASD / 方向キーで船体を移動",
