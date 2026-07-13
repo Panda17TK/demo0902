@@ -261,6 +261,7 @@ object Lang {
         add("検証ラン " to "Proving Run ")
         add("静寂 — 網が息をつく" to "Silence - the net draws breath") // v2.181
         add("拾い手のSMG" to "Gatherer SMG")
+        add("還りのレール" to "Returner's Rail") // v2.186 NG+質的アンロック
         add("— 今日の宙域。あすには変わる" to "- today's sky; it turns tomorrow") // v2.180
         add("検証ラン（今日の宙域）" to "Proving Run (today's sky)")
         add("未実施 — 空は毎日あたらしい" to "Not yet - the sky renews daily")

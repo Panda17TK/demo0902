@@ -356,7 +356,7 @@ object WorldFactory {
             it += Cooldowns()
             it += Health((config.player.hpMax + boons.hull) * boons.allMul, (config.player.hpMax + boons.hull) * boons.allMul) // v2.90; v2.104 周回の印
             it += Velocity()
-            it += Gear(ItemCatalog.starterLoadout(), ItemCatalog.starterBackpack()) // v2.33 装備+持物
+            it += Gear(ItemCatalog.starterLoadout(), ItemCatalog.starterBackpack(ngPlus = ngClears >= 1)) // v2.33 装備+持物 / v2.186 NG+質的アンロック
         }
         carry?.applyTo(world, player) // carry HP/ammo/upgrades across a SPACE⇄SURFACE landing
         worldState.trait = if (mode == WorldMode.SPACE) trait else io.github.panda17tk.arpg.sim.SystemTrait.NONE // v2.91

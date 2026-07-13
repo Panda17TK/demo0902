@@ -15,7 +15,7 @@ object Market {
     /** The planet's stock: [SLOTS] deterministic picks (no lore — stories are found, not sold). */
     fun stockFor(planetId: Long): List<ItemDef> {
         val rng = Rng(planetId xor SALT)
-        val pool = ItemCatalog.ALL.filter { it.kind != ItemKind.LORE }
+        val pool = ItemCatalog.ALL.filter { it.kind != ItemKind.LORE && !it.ngPlusOnly } // v2.186: the NG+ rail is never sold
         return List(SLOTS) { pool[rng.nextInt(pool.size)] }
     }
 

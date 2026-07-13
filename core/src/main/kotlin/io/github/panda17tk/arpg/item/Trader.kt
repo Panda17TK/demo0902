@@ -17,7 +17,7 @@ object Trader {
     /** The system's shelves: 回復キット + 弾薬箱 + one gear pick (+ sometimes a shard). */
     fun stockFor(seed: Long): List<TraderGood> {
         val rng = Rng(seed xor SALT)
-        val pool = ItemCatalog.ALL.filter { it.kind != ItemKind.LORE }
+        val pool = ItemCatalog.ALL.filter { it.kind != ItemKind.LORE && !it.ngPlusOnly } // v2.186: the NG+ rail is never traded
         val gear = pool[rng.nextInt(pool.size)]
         val goods = mutableListOf(
             TraderGood(TraderGoodKind.MED, null, MED_PRICE, "回復キット"),

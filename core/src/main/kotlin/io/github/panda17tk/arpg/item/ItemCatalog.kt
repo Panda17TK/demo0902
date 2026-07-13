@@ -410,6 +410,15 @@ object ItemCatalog {
             desc = "種類:サブマシンガン　構えているだけでドロップ品が寄ってくる",
             weaponType = "smg", traits = setOf(ItemTrait.MAGNET),
         ),
+
+        // --- v2.186 NG+質的アンロック: the returner's rail. A cleared account (Endings.clears≥1)
+        // flies with it in its pack; ngPlusOnly keeps it OUT of every drop/shop pool, so a fresh
+        // sky stays byte-identical. railgun ballistics + MAGNET = zero new WeaponDef (id is contract).
+        ItemDef(
+            "gun_railgun_veteran", "還りのレール", ItemKind.RANGED_WEAPON,
+            desc = "種類:レールガン　周回の証——貫き、ドロップ品を引き寄せる",
+            weaponType = "railgun", traits = setOf(ItemTrait.MAGNET), ngPlusOnly = true,
+        ),
     )
 
     private val byId = ALL.associateBy { it.id }
@@ -430,7 +439,7 @@ object ItemCatalog {
     // Drop pools (v2.34): consumables are the common spoils, equipment the good ones, lore the rare voices.
     private val consumables = ALL.filter { it.kind == ItemKind.CONSUMABLE }
     private val loreItems = ALL.filter { it.kind == ItemKind.LORE }
-    private val equipment = ALL.filter { it.kind != ItemKind.CONSUMABLE && it.kind != ItemKind.LORE }
+    private val equipment = ALL.filter { it.kind != ItemKind.CONSUMABLE && it.kind != ItemKind.LORE && !it.ngPlusOnly } // v2.186
 
     /** What a fresh run wears: pistol + knife on a standard thruster in a pilot suit. */
     fun starterLoadout(): Loadout = Loadout(
@@ -442,12 +451,12 @@ object ItemCatalog {
 
     /** What a fresh run carries: the rest of the classic guns, an OC thruster to try full throttle,
      *  a couple of consumables — and the mechanic's letter that teaches how to land (v2.34). */
-    fun starterBackpack(): MutableList<ItemDef> = mutableListOf(
+    fun starterBackpack(ngPlus: Boolean = false): MutableList<ItemDef> = mutableListOf(
         byId("gun_shotgun")!!, byId("gun_mg")!!, byId("gun_beam")!!, byId("gun_grenade")!!,
         byId("thruster_oc")!!,
         byId("med_spray")!!, byId("smoke_bomb")!!,
         byId("lore_letter")!!,
-    )
+    ).apply { if (ngPlus) add(byId("gun_railgun_veteran")!!) } // v2.186 NG+質的アンロック
 
     /** A deterministic drop pick: ~55% consumable / ~30% equipment / ~15% lore (kill loot rolls an index). */
     fun dropFor(roll: Int): ItemDef {
@@ -460,7 +469,7 @@ object ItemCatalog {
         return pool[r % pool.size]
     }
 
-    private val guns = ALL.filter { it.kind == ItemKind.RANGED_WEAPON }
+    private val guns = ALL.filter { it.kind == ItemKind.RANGED_WEAPON && !it.ngPlusOnly } // v2.186 NG+質的アンロック
 
     /** v2.40: a deterministic GUN pick — the deep-wall caches yield weapons, nothing else. */
     fun gunFor(roll: Int): ItemDef = guns[((roll % guns.size) + guns.size) % guns.size]

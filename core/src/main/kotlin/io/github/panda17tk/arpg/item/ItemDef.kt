@@ -71,6 +71,9 @@ data class ItemDef(
     val hpRegen: Float = 0f,
     // LORE (v2.34): the readable text — newline-separated lines shown in the inventory's reading view
     val lore: String = "",
+    // v2.186 NG+質的アンロック: hidden from every drop/shop pool — reaches play only via the
+    // cleared account's starting pack (Endings.clears≥1). Still resolvable by id for save/carry.
+    val ngPlusOnly: Boolean = false,
 )
 
 /**
