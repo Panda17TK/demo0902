@@ -86,12 +86,14 @@ object Modals {
     }
 
     /** v2.93 エンディング: the final choice — sleep with the network, or keep drifting. */
-    fun endingButtons(hudW: Float, hudH: Float, gentle: Boolean = false): List<UiButton> = stack(
+    fun endingButtons(hudW: Float, hudH: Float, gentle: Boolean = false, blood: Boolean = false): List<UiButton> = stack(
         hudW, hudH,
         buildList {
             add(io.github.panda17tk.arpg.sim.Endgame.CHOICE_SLEEP)
             add(io.github.panda17tk.arpg.sim.Endgame.CHOICE_DRIFT)
-            if (gentle) add(io.github.panda17tk.arpg.sim.Endgame.CHOICE_UNBIND) // v2.185: the earned third door
+            // v2.185/v2.189: the earned third door — gentle OR its dark mirror (never both; exclusive)
+            if (gentle) add(io.github.panda17tk.arpg.sim.Endgame.CHOICE_UNBIND)
+            else if (blood) add(io.github.panda17tk.arpg.sim.Endgame.CHOICE_RECKON)
         },
     )
 

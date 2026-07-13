@@ -30,6 +30,9 @@ class EndgameTest {
         // v2.185 第3の結末: the earned close carries its own words too
         assertTrue(Endgame.CHOICE_UNBIND.isNotBlank())
         assertTrue(Endgame.EPILOGUE_UNBIND.size >= 3 && Endgame.EPILOGUE_UNBIND.last().contains("閉じる"))
+        // v2.189 もう一つの結末: the dark mirror has words too
+        assertTrue(Endgame.CHOICE_RECKON.isNotBlank())
+        assertTrue(Endgame.EPILOGUE_RECKON.size >= 3 && Endgame.EPILOGUE_RECKON.last().contains("閉じる"))
     }
 
     @Test fun `the gentle path opens only to a clean, trusted record`() { // v2.185 第3の結末
@@ -40,6 +43,17 @@ class EndgameTest {
         assertFalse(Endgame.gentlePathOpen(bloodied), "one harmed child closes it")
         val untrusted = List(4) { PlanetSocietyState() } // no trust earned
         assertFalse(Endgame.gentlePathOpen(untrusted), "no trust, no door")
+    }
+
+    @Test fun `the dark path opens on blood, and never together with the gentle one`() { // v2.189
+        assertFalse(Endgame.bloodPathOpen(emptyList()), "no journey, no fourth door")
+        val cruel = List(4) { PlanetSocietyState().apply { childKilled = true; hostility = 0.7f } }
+        assertTrue(Endgame.bloodPathOpen(cruel), "slain young + turned worlds opens it")
+        assertFalse(Endgame.gentlePathOpen(cruel), "the two doors are exclusive — blood shuts the gentle one")
+        val calm = List(4) { PlanetSocietyState().apply { childKilled = true } } // slain, but worlds not turned
+        assertFalse(Endgame.bloodPathOpen(calm), "no turned worlds, no reckoning")
+        val clean = List(4) { PlanetSocietyState().apply { mercy = 0.6f } }
+        assertFalse(Endgame.bloodPathOpen(clean), "clean hands never face the reckoning")
     }
 
     @Test fun `the sync arithmetic can actually reach the threshold`() {

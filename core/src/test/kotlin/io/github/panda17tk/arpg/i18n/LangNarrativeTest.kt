@@ -39,10 +39,12 @@ class LangNarrativeTest {
             Endgame.PAGES.flatten().forEach(::assertEnglish)
             Endgame.EPILOGUE.forEach(::assertEnglish)
             Endgame.EPILOGUE_UNBIND.forEach(::assertEnglish) // v2.185 第3の結末
+            Endgame.EPILOGUE_RECKON.forEach(::assertEnglish) // v2.189 もう一つの結末
             assertEnglish(Endgame.DRIFT_LINE)
             assertEnglish(Endgame.CHOICE_SLEEP)
             assertEnglish(Endgame.CHOICE_DRIFT)
             assertEnglish(Endgame.CHOICE_UNBIND)
+            assertEnglish(Endgame.CHOICE_RECKON)
             assertEnglish("タップで続ける")
             assertEnglish("タップで記録を閉じる")
         } finally { Lang.en = false }

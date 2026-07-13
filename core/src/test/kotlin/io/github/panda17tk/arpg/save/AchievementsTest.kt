@@ -46,17 +46,19 @@ class AchievementsTest {
 
     @Test fun `the v117 records keep their stable ids at the tail`() {
         // v2.117: append-only — the ids are the save format, so they live at the end, verbatim.
-        assertEquals(40, Achievement.entries.size) // v2.185 第3の結末: +還る朝
+        assertEquals(41, Achievement.entries.size) // v2.189 もう一つの結末: +星喰い
         assertEquals("星の帳簿", Achievement.TRADE_LEDGER.title)
         assertEquals("図鑑の厚み", Achievement.BESTIARY_50.title)
         assertEquals("全記録", Achievement.BESTIARY_FULL.title)
-        // v2.158/v2.185: append-only — new milestones take the tail; earlier ordinals never move
-        assertTrue(Achievement.BESTIARY_FULL.ordinal == Achievement.entries.size - 3)
-        assertTrue(Achievement.BESTIARY_COMBAT.ordinal == Achievement.entries.size - 2)
+        // v2.158/v2.185/v2.189: append-only — new milestones take the tail; earlier ordinals never move
+        assertTrue(Achievement.BESTIARY_FULL.ordinal == Achievement.entries.size - 4)
+        assertTrue(Achievement.BESTIARY_COMBAT.ordinal == Achievement.entries.size - 3)
         assertEquals("保守記録の完成", Achievement.BESTIARY_COMBAT.title)
-        // v2.185: the gentle ending's achievement takes the new tail
-        assertTrue(Achievement.AWAKENED_DAWN.ordinal == Achievement.entries.size - 1)
+        assertTrue(Achievement.AWAKENED_DAWN.ordinal == Achievement.entries.size - 2)
         assertEquals("還る朝", Achievement.AWAKENED_DAWN.title)
+        // v2.189: the dark ending's achievement takes the new tail
+        assertTrue(Achievement.STAR_EATER.ordinal == Achievement.entries.size - 1)
+        assertEquals("星喰い", Achievement.STAR_EATER.title)
     }
 
     @Test fun `every achievement has a calm title and description`() {

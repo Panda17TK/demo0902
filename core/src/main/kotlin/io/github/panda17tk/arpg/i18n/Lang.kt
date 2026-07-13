@@ -161,6 +161,13 @@ object Lang {
         "疑似人格たちは、初めて挨拶を返された朝を迎える。" to "The pseudo-personas meet the first morning their greeting is answered.",
         "星々は、あなたを覚えている——赦した者として。" to "The stars remember you - as the one who forgave.",
         "——最終保守員の記録、朝へ閉じる。" to "- The final keeper's record closes into morning.",
+        // v2.189 もう一つの結末: the dark mirror — choice + epilogue
+        "刻まれた名を受け入れる" to "Accept the name that is written",
+        "同期は完了した。だが網が最後に綴じたのは、あなたの名だった。" to "The sync is complete. But the last thing the net bound was your name.",
+        "星喰い——守られるはずだった子らを、手にかけた者。" to "Star-Eater - the one who slew the children who were to be kept safe.",
+        "赦しはない。それでも星々は、あなたを覚えている。" to "There is no forgiveness. Even so, the stars remember you.",
+        "忘却APIは、この網には無い。" to "There is no forget API in this net.",
+        "——最終保守員の記録、名とともに閉じる。" to "- The final keeper's record closes with the name.",
         "タップで記録を閉じる" to "Tap to close the record",
         "ボタン配置を編集" to "Edit Button Layout", // v2.163
         "海の密度" to "Ocean Density", // v2.165
@@ -481,6 +488,7 @@ object Lang {
             "BESTIARY_50" to "A Thicker Book", "BESTIARY_FULL" to "Complete Record",
             "BESTIARY_COMBAT" to "The Maintenance Record", // v2.158 図鑑の二段
             "AWAKENED_DAWN" to "Returning Dawn", // v2.185 第3の結末
+            "STAR_EATER" to "Star-Eater", // v2.189 もう一つの結末
         )
         io.github.panda17tk.arpg.save.Achievement.entries.forEach { a -> achEn[a.name]?.let { add(a.title to it) } }
         // v2.159 英語化第4弾(前半): achievement descriptions — the record page reads whole.
@@ -525,6 +533,7 @@ object Lang {
             "BESTIARY_FULL" to "Recorded every kind in the bestiary",
             "BESTIARY_COMBAT" to "Recorded every combat entry (all but the wild)",
             "AWAKENED_DAWN" to "Wronged no child, unbound the net, and gave back the morning", // v2.185
+            "STAR_EATER" to "Slew the children and was written by the stars as the Star-Eater", // v2.189
         )
         io.github.panda17tk.arpg.save.Achievement.entries.forEach { a -> descEn[a.name]?.let { add(a.desc to it) } }
     }.sortedByDescending { it.first.length }
