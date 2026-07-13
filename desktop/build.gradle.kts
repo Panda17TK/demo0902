@@ -6,6 +6,7 @@ plugins {
 dependencies {
     implementation(project(":core"))
     implementation("com.badlogicgames.gdx:gdx-backend-lwjgl3:1.13.1")
+    implementation("com.badlogicgames.gdx-controllers:gdx-controllers-desktop:2.2.3") // v2.188 ゲームパッド
     implementation("com.badlogicgames.gdx:gdx-platform:1.13.1:natives-desktop")
     implementation("com.badlogicgames.gdx:gdx-freetype-platform:1.13.1:natives-desktop")
 }

@@ -11,8 +11,8 @@ android {
         applicationId = "io.github.panda17tk.arpg"
         minSdk = 24
         targetSdk = 35
-        versionCode = 197
-        versionName = "2.187.0"
+        versionCode = 198
+        versionName = "2.188.0"
     }
 
     compileOptions {
@@ -35,6 +35,7 @@ val natives: Configuration by configurations.creating
 dependencies {
     implementation(project(":core"))
     implementation("com.badlogicgames.gdx:gdx-backend-android:1.13.1")
+    implementation("com.badlogicgames.gdx-controllers:gdx-controllers-android:2.2.3") // v2.188 ゲームパッド
     natives("com.badlogicgames.gdx:gdx-platform:1.13.1:natives-armeabi-v7a")
     natives("com.badlogicgames.gdx:gdx-platform:1.13.1:natives-arm64-v8a")
     natives("com.badlogicgames.gdx:gdx-platform:1.13.1:natives-x86")

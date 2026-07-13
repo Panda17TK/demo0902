@@ -709,6 +709,11 @@ class GameScreen(
             overlay != Overlay.NONE || fade.blocksInput || layoutEditing || endingStage > 0 ||
                 tutorial?.step == TutorialStep.BOOT_PROMPT,
         )
+        io.github.panda17tk.arpg.input.GamepadInput.poll( // v2.188 ゲームパッド: additive, after touch/keyboard
+            input,
+            overlay != Overlay.NONE || fade.blocksInput || layoutEditing || endingStage > 0 ||
+                tutorial?.step == TutorialStep.BOOT_PROMPT,
+        )
         // v2.33: the I key / INV button toggles the inventory. Unlike pause it does not freeze the
         // sim — the world crawls at INV_TIME_SCALE behind the panel (装備・持物・マップ・セーブ).
         if (input.inventory && !choosing && !gw.gameOver.isOver && !layoutEditing &&
