@@ -107,4 +107,20 @@ class ItemCatalogTest {
         assertTrue(ItemCatalog.starterBackpack().any { it.kind == ItemKind.LORE })
         assertTrue(ItemCatalog.starterBackpack().any { it.kind == ItemKind.CONSUMABLE })
     }
+
+    @Test fun `the NG plus rail hides from every ordinary pool and rides only the cleared pack`() { // v2.186
+        val rail = ItemCatalog.byId("gun_railgun_veteran")!!
+        assertTrue(rail.ngPlusOnly)
+        assertTrue(ItemTrait.MAGNET in rail.traits && rail.weaponType == "railgun")
+        // never in the wall-cache / kill-loot / shop pools — a fresh sky stays byte-identical
+        for (roll in 0..999) {
+            assertTrue(ItemCatalog.gunFor(roll).id != rail.id)
+            assertTrue(ItemCatalog.dropFor(roll).id != rail.id)
+        }
+        assertTrue(Market.stockFor(7L).none { it.id == rail.id })
+        assertTrue(Trader.stockFor(7L).none { it.item?.id == rail.id })
+        // only the cleared account's pack carries it
+        assertTrue(ItemCatalog.starterBackpack(ngPlus = false).none { it.id == rail.id }, "a fresh account starts without it")
+        assertTrue(ItemCatalog.starterBackpack(ngPlus = true).any { it.id == rail.id }, "a cleared account carries it")
+    }
 }

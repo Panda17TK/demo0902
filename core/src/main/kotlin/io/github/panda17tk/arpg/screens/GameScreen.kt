@@ -515,6 +515,10 @@ class GameScreen(
         runStore.clear() // v2.33: restarting abandons the saved run
         worldSeed = session.spaceSeed
         gw = WorldFactory.create(input, configStore.config, seed = session.spaceSeed, boons = metaBoons, trait = SystemTraits.traitFor(session.spaceSeed), difficulty = runDifficulty, ngClears = io.github.panda17tk.arpg.save.Endings.clears, oceanKeep = io.github.panda17tk.arpg.save.OceanDensity.keep(), area = session.areaX to session.areaY) // v2.160 / v2.165 / v2.166
+        if (io.github.panda17tk.arpg.save.Endings.clears >= 1) { // v2.186 NG+質的アンロック: the cleared account carries the returner's rail
+            rewardToast = "《周回の恵み》還りのレールを携えて出撃"
+            rewardToastT = TOAST_TIME
+        }
         accumulator = 0f
         camInit = false
         choosing = false
