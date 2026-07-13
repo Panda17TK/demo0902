@@ -56,10 +56,11 @@ class ModalsTest {
 
     @Test fun `pause overlay has four buttons that fit and do not overlap`() {
         val b = Modals.pauseButtons(w, h)
-        assertEquals(6, b.size) // v2.53 +旧式戦闘訓練, v2.58 +タイトルへ
+        assertEquals(7, b.size) // v2.53 +旧式戦闘訓練, v2.58 +タイトルへ, v2.187 +写真モード(space)
         assertEquals("旧式戦闘訓練", b[3].label)
         assertEquals("タイトルへ", b[4].label)
-        assertEquals("宇宙の記憶を消す", b[5].label)
+        assertEquals("写真モード", b[5].label)
+        assertEquals("宇宙の記憶を消す", b[6].label)
         assertTrue(b.all(::onScreen), "buttons off screen: $b")
         assertTrue(nonOverlapping(b), "buttons overlap: $b")
     }
