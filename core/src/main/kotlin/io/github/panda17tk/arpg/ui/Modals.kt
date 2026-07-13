@@ -53,6 +53,7 @@ object Modals {
                 // v2.53: the old wave sim, walled off. v2.112: a proving run names itself honestly.
                 add(if (challengeActive) "検証ランを終了" else if (simActive) "訓練を終了" else "旧式戦闘訓練")
                 add("タイトルへ") // v2.58: auto-saves the run on the way out
+                if (!includeMemory) add("写真モード") // v2.187: space pauses only (surface stays compact)
                 add("宇宙の記憶を消す")
             },
         )

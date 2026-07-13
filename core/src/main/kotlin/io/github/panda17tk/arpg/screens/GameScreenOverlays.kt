@@ -357,6 +357,7 @@ internal fun GameScreen.handlePauseTaps() {
                         return
                     }
                     PauseAction.FORGET -> overlay = Overlay.FORGET
+                    PauseAction.PHOTO -> { overlay = Overlay.PHOTO; photoZoom = 1f } // v2.187 写真モード
                     null -> {}
                 }
             }
@@ -375,6 +376,7 @@ internal fun GameScreen.handlePauseTaps() {
             Overlay.INVENTORY -> handleInventoryTap(w, h)
             Overlay.TRADER -> handleTraderTap(w, h) // v2.100 行商船
             Overlay.TUNING -> handleTuningTaps() // v2.111: routed like every other overlay
+            Overlay.PHOTO -> handlePhotoTaps() // v2.187 写真モード
             Overlay.NONE -> if (!choosing && !gw.gameOver.isOver) {
                 if (Modals.hitModal(listOf(Modals.pauseButton(w, h)), tapX, tapY) != null) {
                     overlay = Overlay.PAUSE

@@ -182,6 +182,10 @@ class GameScreen(
     internal var camX = Tuning.VIEW_W / 2f
     internal var camY = Tuning.VIEW_H / 2f
     internal var camInit = false
+    internal var photoZoom = 1f // v2.187 写真モード: the free-frame zoom (1 = as played)
+    internal var photoDragX = 0f
+    internal var photoDragY = 0f
+    internal var photoDragActive = false
 
     // Phase 6b: between-wave upgrade selection (modal — sim freezes until a card is picked).
     // v2.174 命綱: the card draw is seeded ONCE per run (screen-side entropy, recorded in the
@@ -698,6 +702,7 @@ class GameScreen(
         if (layoutEditing) handleLayoutEdit() // v2.56: the editor swallows all input while open
         if (endingStage > 0) handleEndingTaps() // v2.93: the final dialogue owns every tap
         else if (!layoutEditing && !handleTutorialTaps()) handlePauseTaps() // v2.60: diagnostic taps first
+        if (overlay == Overlay.PHOTO) pollPhotoInput() // v2.187 写真モード: drag to pan
         if (closing) return // v2.168 安全な帰還: the screen was swapped — this instance is disposed
 
         pollGameplayTouch(
@@ -1023,9 +1028,9 @@ class GameScreen(
         )
 
         updateCamera(delta, px, py, fx, fy)
-        if (shakeOn && gw.fx.shakeMag > 0f) { camera.position.add(gw.fx.shakeX(), gw.fx.shakeY(), 0f); camera.update() }
+        if (overlay != Overlay.PHOTO && shakeOn && gw.fx.shakeMag > 0f) { camera.position.add(gw.fx.shakeX(), gw.fx.shakeY(), 0f); camera.update() }
         // v2.85: the recoil kick — a directional punch that snaps back in a tenth of a second.
-        if (shakeOn && (gw.fx.kickX != 0f || gw.fx.kickY != 0f)) { camera.position.add(gw.fx.kickX, gw.fx.kickY, 0f); camera.update() }
+        if (overlay != Overlay.PHOTO && shakeOn && (gw.fx.kickX != 0f || gw.fx.kickY != 0f)) { camera.position.add(gw.fx.kickX, gw.fx.kickY, 0f); camera.update() }
 
         ScreenUtils.clear(0.06f, 0.07f, 0.10f, 1f)
 
@@ -1039,19 +1044,24 @@ class GameScreen(
         scene.draw(shapes, batch, font, camera, gw, animTime, pose, memoryTones)
         io.github.panda17tk.arpg.save.PerfHud.tickScene(System.nanoTime() - perfDrawT0) // v2.174: the world half
 
-        drawWeather(delta) // v2.74: the planet's climate, between the world and the HUD
-        drawEventFx(delta) // v2.86: the wave event colors the whole sky, not just a line
-        drawKillFlash()    // v2.88: the white-out that crowns a boss kill
-        drawLowHpPulse(delta) // v2.112: the hull's red breathing under 30%
-        drawHud(paused, sta, staMax, overheat)
-        drawNavMarkers() // v2.108: the sky's landmarks, pinned to the screen edge
-        updateBossBar(delta, px, py)
-        drawBossBar()      // v2.88: the heavy's name and health, top-center
-        drawComboChip()    // v2.92: the melee rhythm while its window is alive
-        drawEventBanner() // v2.86: the opening band rides over the HUD
-        drawEnding()       // v2.93: the final dialogue, over everything
-        io.github.panda17tk.arpg.save.PerfHud.tickDraw(System.nanoTime() - perfDrawT0)
-        if (io.github.panda17tk.arpg.save.PerfHud.enabled) drawPerfHud() // v2.167 性能計
+        if (overlay == Overlay.PHOTO) { // v2.187 写真モード: the world stays; the HUD and fx step aside
+            drawPhotoOverlay()
+            io.github.panda17tk.arpg.save.PerfHud.tickDraw(System.nanoTime() - perfDrawT0)
+        } else {
+            drawWeather(delta) // v2.74: the planet's climate, between the world and the HUD
+            drawEventFx(delta) // v2.86: the wave event colors the whole sky, not just a line
+            drawKillFlash()    // v2.88: the white-out that crowns a boss kill
+            drawLowHpPulse(delta) // v2.112: the hull's red breathing under 30%
+            drawHud(paused, sta, staMax, overheat)
+            drawNavMarkers() // v2.108: the sky's landmarks, pinned to the screen edge
+            updateBossBar(delta, px, py)
+            drawBossBar()      // v2.88: the heavy's name and health, top-center
+            drawComboChip()    // v2.92: the melee rhythm while its window is alive
+            drawEventBanner() // v2.86: the opening band rides over the HUD
+            drawEnding()       // v2.93: the final dialogue, over everything
+            io.github.panda17tk.arpg.save.PerfHud.tickDraw(System.nanoTime() - perfDrawT0)
+            if (io.github.panda17tk.arpg.save.PerfHud.enabled) drawPerfHud() // v2.167 性能計
+        }
     }
 
     // v2.167 性能計: the corner line — rebuilt twice a second so it costs nothing to keep on
@@ -1524,6 +1534,12 @@ class GameScreen(
     }
 
     internal fun updateCamera(delta: Float, px: Float, py: Float, fx: Float, fy: Float) {
+        if (overlay == Overlay.PHOTO) { // v2.187 写真モード: the free frame — no follow, no fade zoom
+            camera.position.set(camX, camY, 0f)
+            camera.zoom = photoZoom
+            camera.update()
+            return
+        }
         val tgX = px + fx * Tuning.CAM_LOOK_AHEAD
         val tgY = py + fy * Tuning.CAM_LOOK_AHEAD
         if (!camInit) { camX = tgX; camY = tgY; camInit = true }
