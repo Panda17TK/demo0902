@@ -419,6 +419,16 @@ object ItemCatalog {
             desc = "種類:レールガン　周回の証——貫き、ドロップ品を引き寄せる",
             weaponType = "railgun", traits = setOf(ItemTrait.MAGNET), ngPlusOnly = true,
         ),
+
+        // --- v2.190 NG+第2の解禁: the returner's badge. A twice-cleared account (Endings.clears≥2)
+        // carries it in the starting pack; like the rail, ngPlusOnly keeps it OUT of every drop/shop
+        // pool, so an uncleared or single-clear sky stays byte-identical. A quiet all-round boon that
+        // suits a veteran — passive regen, faster stamina, a shade of resilience (id is contract).
+        ItemDef(
+            "acc_returner_badge", "周回者の徽章", ItemKind.ACCESSORY,
+            desc = "二度目の帰還の証　HP毎秒1.0回復・回復+10%・被ダメ-5%",
+            hpRegen = 1.0f, staRegenMul = 1.1f, damageMul = 0.95f, ngPlusOnly = true,
+        ),
     )
 
     private val byId = ALL.associateBy { it.id }
@@ -451,12 +461,15 @@ object ItemCatalog {
 
     /** What a fresh run carries: the rest of the classic guns, an OC thruster to try full throttle,
      *  a couple of consumables — and the mechanic's letter that teaches how to land (v2.34). */
-    fun starterBackpack(ngPlus: Boolean = false): MutableList<ItemDef> = mutableListOf(
+    fun starterBackpack(ngPlus: Boolean = false, ngPlus2: Boolean = false): MutableList<ItemDef> = mutableListOf(
         byId("gun_shotgun")!!, byId("gun_mg")!!, byId("gun_beam")!!, byId("gun_grenade")!!,
         byId("thruster_oc")!!,
         byId("med_spray")!!, byId("smoke_bomb")!!,
         byId("lore_letter")!!,
-    ).apply { if (ngPlus) add(byId("gun_railgun_veteran")!!) } // v2.186 NG+質的アンロック
+    ).apply {
+        if (ngPlus) add(byId("gun_railgun_veteran")!!) // v2.186 NG+質的アンロック
+        if (ngPlus2) add(byId("acc_returner_badge")!!) // v2.190 NG+第2の解禁
+    }
 
     /** A deterministic drop pick: ~55% consumable / ~30% equipment / ~15% lore (kill loot rolls an index). */
     fun dropFor(roll: Int): ItemDef {

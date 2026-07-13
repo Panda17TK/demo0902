@@ -123,4 +123,22 @@ class ItemCatalogTest {
         assertTrue(ItemCatalog.starterBackpack(ngPlus = false).none { it.id == rail.id }, "a fresh account starts without it")
         assertTrue(ItemCatalog.starterBackpack(ngPlus = true).any { it.id == rail.id }, "a cleared account carries it")
     }
+
+    @Test fun `the NG plus badge hides from every pool and rides only the twice-cleared pack`() { // v2.190
+        val badge = ItemCatalog.byId("acc_returner_badge")!!
+        assertTrue(badge.ngPlusOnly && badge.kind == ItemKind.ACCESSORY)
+        assertTrue(badge.hpRegen > 0f, "a veteran's badge mends over time")
+        // never in the wall-cache / kill-loot / shop pools — an uncleared sky stays byte-identical
+        for (roll in 0..999) {
+            assertTrue(ItemCatalog.gunFor(roll).id != badge.id)
+            assertTrue(ItemCatalog.dropFor(roll).id != badge.id)
+        }
+        assertTrue(Market.stockFor(7L).none { it.id == badge.id })
+        assertTrue(Trader.stockFor(7L).none { it.item?.id == badge.id })
+        // the second tier gates on ngPlus2: one clear brings only the rail, two clears bring the badge too
+        assertTrue(ItemCatalog.starterBackpack(ngPlus = true, ngPlus2 = false).none { it.id == badge.id }, "a single clear starts without the badge")
+        assertTrue(ItemCatalog.starterBackpack(ngPlus = true, ngPlus2 = true).any { it.id == badge.id }, "a twice-cleared account carries it")
+        // and the rail still rides alongside it — the tiers are additive, not exclusive
+        assertTrue(ItemCatalog.starterBackpack(ngPlus = true, ngPlus2 = true).any { it.id == "gun_railgun_veteran" }, "the badge does not replace the rail")
+    }
 }
