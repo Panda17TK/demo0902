@@ -154,6 +154,13 @@ object Lang {
         "——最終保守員の記録、ここに閉じる。" to "- The final keeper's record closes here.",
         "切断を記録した。網は、それでもあなたを覚えている。" to "Disconnection logged. The net remembers you, even so.",
         "タップで続ける" to "Tap to continue",
+        // v2.185 第3の結末: the gentle path — choice + epilogue
+        "網を解いて、朝を返す" to "Unbind the net, and give back the morning",
+        "同期を、完了ではなく解放に振り向けた。" to "You turned the sync toward release, not completion.",
+        "眠り続けるための網ではなく、目覚めるための朝へ。" to "Not a net to keep sleeping in, but a morning to wake into.",
+        "疑似人格たちは、初めて挨拶を返された朝を迎える。" to "The pseudo-personas meet the first morning their greeting is answered.",
+        "星々は、あなたを覚えている——赦した者として。" to "The stars remember you - as the one who forgave.",
+        "——最終保守員の記録、朝へ閉じる。" to "- The final keeper's record closes into morning.",
         "タップで記録を閉じる" to "Tap to close the record",
         "ボタン配置を編集" to "Edit Button Layout", // v2.163
         "海の密度" to "Ocean Density", // v2.165
@@ -471,6 +478,7 @@ object Lang {
             "TRADER_CLIENT" to "Trader's Client", "LIFELINE" to "Lifeline", "TRADE_LEDGER" to "Star Ledger",
             "BESTIARY_50" to "A Thicker Book", "BESTIARY_FULL" to "Complete Record",
             "BESTIARY_COMBAT" to "The Maintenance Record", // v2.158 図鑑の二段
+            "AWAKENED_DAWN" to "Returning Dawn", // v2.185 第3の結末
         )
         io.github.panda17tk.arpg.save.Achievement.entries.forEach { a -> achEn[a.name]?.let { add(a.title to it) } }
         // v2.159 英語化第4弾(前半): achievement descriptions — the record page reads whole.
@@ -514,6 +522,7 @@ object Lang {
             "BESTIARY_50" to "Recorded 50 kinds in the bestiary",
             "BESTIARY_FULL" to "Recorded every kind in the bestiary",
             "BESTIARY_COMBAT" to "Recorded every combat entry (all but the wild)",
+            "AWAKENED_DAWN" to "Wronged no child, unbound the net, and gave back the morning", // v2.185
         )
         io.github.panda17tk.arpg.save.Achievement.entries.forEach { a -> descEn[a.name]?.let { add(a.desc to it) } }
     }.sortedByDescending { it.first.length }

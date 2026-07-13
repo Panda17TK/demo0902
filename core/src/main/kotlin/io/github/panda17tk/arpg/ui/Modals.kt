@@ -85,12 +85,13 @@ object Modals {
     }
 
     /** v2.93 エンディング: the final choice — sleep with the network, or keep drifting. */
-    fun endingButtons(hudW: Float, hudH: Float): List<UiButton> = stack(
+    fun endingButtons(hudW: Float, hudH: Float, gentle: Boolean = false): List<UiButton> = stack(
         hudW, hudH,
-        listOf(
-            io.github.panda17tk.arpg.sim.Endgame.CHOICE_SLEEP,
-            io.github.panda17tk.arpg.sim.Endgame.CHOICE_DRIFT,
-        ),
+        buildList {
+            add(io.github.panda17tk.arpg.sim.Endgame.CHOICE_SLEEP)
+            add(io.github.panda17tk.arpg.sim.Endgame.CHOICE_DRIFT)
+            if (gentle) add(io.github.panda17tk.arpg.sim.Endgame.CHOICE_UNBIND) // v2.185: the earned third door
+        },
     )
 
     /** LP v2.28: the 2-step confirmation for 「宇宙の記憶を消す」 — [消す][戻る], stacked and centered. */
