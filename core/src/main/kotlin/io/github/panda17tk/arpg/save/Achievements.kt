@@ -55,6 +55,8 @@ enum class Achievement(val title: String, val desc: String) {
     BESTIARY_COMBAT("保守記録の完成", "図鑑の戦闘枠（野生をのぞく全種）を記した"),
     // v2.185 第3の結末: the earned close (append-only id — persisted by name, so END is safe).
     AWAKENED_DAWN("還る朝", "子らを一人も傷つけず、網を解いて朝を返した"),
+    // v2.189 もう一つの結末: the dark mirror (append-only id).
+    STAR_EATER("星喰い", "子らを手にかけ、星々に星喰いと刻まれた"),
 }
 
 object Achievements {

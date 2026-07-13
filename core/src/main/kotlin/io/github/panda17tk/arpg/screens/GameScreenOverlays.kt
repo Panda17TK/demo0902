@@ -248,13 +248,14 @@ internal fun GameScreen.drawEnding() {
         val w = hudViewport.worldWidth; val h = hudViewport.worldHeight
         val pages = io.github.panda17tk.arpg.sim.Endgame.PAGES
         val gentle = io.github.panda17tk.arpg.sim.Endgame.gentlePathOpen(session.memory.memories.values) // v2.185 第3の結末
+        val blood = io.github.panda17tk.arpg.sim.Endgame.bloodPathOpen(session.memory.memories.values) // v2.189 もう一つの結末
         Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND)
         shapes.projectionMatrix = hudViewport.camera.combined
         shapes.begin(ShapeRenderer.ShapeType.Filled)
         cEventTmp.set(0f, 0f, 0f, 0.78f); shapes.color = cEventTmp
         shapes.rect(0f, 0f, w, h)
         if (endingStage == pages.size + 1) { // the choice carries its two glass buttons
-            Modals.endingButtons(w, h, gentle).forEach { b ->
+            Modals.endingButtons(w, h, gentle, blood).forEach { b ->
                 cEventTmp.set(0.55f, 0.75f, 1f, 0.22f); shapes.color = cEventTmp
                 shapes.rect(b.x - 1.5f, b.y - 1.5f, b.w + 3f, b.h + 3f)
                 cEventTmp.set(0.09f, 0.12f, 0.18f, 0.95f); shapes.color = cEventTmp
@@ -288,7 +289,7 @@ internal fun GameScreen.drawEnding() {
         }
         if (endingStage == pages.size + 1) {
             font.color = Color.WHITE
-            Modals.endingButtons(w, h, gentle).forEach { b ->
+            Modals.endingButtons(w, h, gentle, blood).forEach { b ->
                 bannerGlyph.setText(font, io.github.panda17tk.arpg.i18n.Lang.tr(b.label)) // v2.115
                 font.draw(batch, bannerGlyph, b.centerX - bannerGlyph.width / 2f, b.centerY + bannerGlyph.height / 2f)
             }
@@ -305,7 +306,8 @@ internal fun GameScreen.handleEndingTaps() {
             endingStage in 1..pages.size -> { endingStage++; Sfx.play("scan") }
             endingStage == pages.size + 1 -> {
                 val gentle = io.github.panda17tk.arpg.sim.Endgame.gentlePathOpen(session.memory.memories.values) // v2.185
-                val hit = Modals.hitModal(Modals.endingButtons(hudViewport.worldWidth, hudViewport.worldHeight, gentle), tapX, tapY)
+                val blood = io.github.panda17tk.arpg.sim.Endgame.bloodPathOpen(session.memory.memories.values) // v2.189
+                val hit = Modals.hitModal(Modals.endingButtons(hudViewport.worldWidth, hudViewport.worldHeight, gentle, blood), tapX, tapY)
                 if (hit == 0) { // 眠りにつく — the record closes
                     tryUnlock(Achievement.FINAL_SYNC)
                     io.github.panda17tk.arpg.save.Endings.recordClear()
@@ -319,10 +321,15 @@ internal fun GameScreen.handleEndingTaps() {
                     gw.worldState.controlCore = null
                     eventBanner.start(io.github.panda17tk.arpg.sim.Endgame.DRIFT_LINE)
                     Sfx.play("scan")
-                } else if (hit == 2) { // v2.185 第3の結末: 網を解いて、朝を返す — only the clean-handed reach it
-                    tryUnlock(Achievement.AWAKENED_DAWN)
+                } else if (hit == 2) { // the earned third door — gentle (v2.185) or its dark mirror (v2.189)
+                    if (gentle) {
+                        tryUnlock(Achievement.AWAKENED_DAWN)
+                        endingEpilogue = io.github.panda17tk.arpg.sim.Endgame.EPILOGUE_UNBIND
+                    } else {
+                        tryUnlock(Achievement.STAR_EATER) // v2.189 もう一つの結末
+                        endingEpilogue = io.github.panda17tk.arpg.sim.Endgame.EPILOGUE_RECKON
+                    }
                     io.github.panda17tk.arpg.save.Endings.recordClear()
-                    endingEpilogue = io.github.panda17tk.arpg.sim.Endgame.EPILOGUE_UNBIND
                     endingStage = pages.size + 2
                     Sfx.play("levelup")
                 }

@@ -68,4 +68,26 @@ object Endgame {
         "星々は、あなたを覚えている——赦した者として。",
         "——最終保守員の記録、朝へ閉じる。",
     )
+
+    // v2.189 もう一つの結末: the dark mirror of the gentle path — for a keeper the stars remember
+    // as the Star-Eater (young slain, worlds turned against them). It opens IN PLACE OF the gentle
+    // door: the two conditions are exclusive (one demands no young harmed, the other demands blood).
+    const val CHOICE_RECKON = "刻まれた名を受け入れる"
+
+    /** True when the record is bloodied enough that the fourth door opens instead of the gentle one. */
+    fun bloodPathOpen(memories: Collection<PlanetSocietyState>): Boolean {
+        if (memories.isEmpty()) return false
+        val slewYoung = memories.any { it.childKilled }
+        val turned = memories.count { it.hostility >= 0.5f }
+        return slewYoung && turned >= 3
+    }
+
+    /** The epilogue after accepting the name — the net does not forgive, but it will not forget. */
+    val EPILOGUE_RECKON: List<String> = listOf(
+        "同期は完了した。だが網が最後に綴じたのは、あなたの名だった。",
+        "星喰い——守られるはずだった子らを、手にかけた者。",
+        "赦しはない。それでも星々は、あなたを覚えている。",
+        "忘却APIは、この網には無い。",
+        "——最終保守員の記録、名とともに閉じる。",
+    )
 }
