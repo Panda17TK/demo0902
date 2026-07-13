@@ -334,6 +334,7 @@ class GameScreen(
     // v2.93 エンディング: 0=off, 1..pages=dialogue, pages+1=choice, pages+2=epilogue.
     internal var endingStage = 0
     internal var endingSeenThisWorld = false // 「切断」した空では核はもう問わない
+    internal var endingEpilogue: List<String> = io.github.panda17tk.arpg.sim.Endgame.EPILOGUE // v2.185: which close plays
 
     // Memory tint per planet id (LP v2.30/10c) — rebuilt only when memory can change (transitions/forget).
     internal var memoryTones: Map<Long, Int> = emptyMap()

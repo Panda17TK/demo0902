@@ -27,6 +27,19 @@ class EndgameTest {
         assertTrue(Endgame.EPILOGUE.size >= 3, "the record closes with more than one breath")
         assertTrue(Endgame.EPILOGUE.last().contains("閉じる"))
         assertTrue(Endgame.DRIFT_LINE.isNotBlank())
+        // v2.185 第3の結末: the earned close carries its own words too
+        assertTrue(Endgame.CHOICE_UNBIND.isNotBlank())
+        assertTrue(Endgame.EPILOGUE_UNBIND.size >= 3 && Endgame.EPILOGUE_UNBIND.last().contains("閉じる"))
+    }
+
+    @Test fun `the gentle path opens only to a clean, trusted record`() { // v2.185 第3の結末
+        assertFalse(Endgame.gentlePathOpen(emptyList()), "no journey, no third door")
+        val clean = List(4) { PlanetSocietyState().apply { mercy = 0.6f } }
+        assertTrue(Endgame.gentlePathOpen(clean), "clean hands + trust opens it")
+        val bloodied = List(4) { i -> PlanetSocietyState().apply { mercy = 0.6f; if (i == 0) childKilled = true } }
+        assertFalse(Endgame.gentlePathOpen(bloodied), "one harmed child closes it")
+        val untrusted = List(4) { PlanetSocietyState() } // no trust earned
+        assertFalse(Endgame.gentlePathOpen(untrusted), "no trust, no door")
     }
 
     @Test fun `the sync arithmetic can actually reach the threshold`() {

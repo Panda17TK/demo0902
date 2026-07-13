@@ -46,4 +46,26 @@ object Endgame {
 
     /** The one line the network leaves when the keeper chooses to keep drifting. */
     const val DRIFT_LINE = "切断を記録した。網は、それでもあなたを覚えている。"
+
+    // v2.185 第3の結末: a gentle path that appears on the choice page ONLY to a keeper who
+    // wronged no young anywhere and earned the trust of several worlds — instead of sleeping or
+    // drifting, they unbind the net and let the pseudo-personas wake into a real morning.
+    const val CHOICE_UNBIND = "網を解いて、朝を返す"
+
+    /** True when this run's record is clean and trusted enough for the third door to open. */
+    fun gentlePathOpen(memories: Collection<PlanetSocietyState>): Boolean {
+        if (memories.isEmpty()) return false
+        val noYoungHarmed = memories.none { it.childHarmed || it.childKilled || it.hatchlingKilled }
+        val trusted = memories.count { it.mercy >= 0.5f }
+        return noYoungHarmed && trusted >= 3
+    }
+
+    /** The epilogue after unbinding the net — a waking, not a sleep (then the title). */
+    val EPILOGUE_UNBIND: List<String> = listOf(
+        "同期を、完了ではなく解放に振り向けた。",
+        "眠り続けるための網ではなく、目覚めるための朝へ。",
+        "疑似人格たちは、初めて挨拶を返された朝を迎える。",
+        "星々は、あなたを覚えている——赦した者として。",
+        "——最終保守員の記録、朝へ閉じる。",
+    )
 }

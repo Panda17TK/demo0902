@@ -53,6 +53,8 @@ enum class Achievement(val title: String, val desc: String) {
     BESTIARY_FULL("全記録", "討伐図鑑のすべての種を記した"),
     // v2.158 図鑑の二段: the combat book is the reachable milestone; FULL stays the long-tail crown.
     BESTIARY_COMBAT("保守記録の完成", "図鑑の戦闘枠（野生をのぞく全種）を記した"),
+    // v2.185 第3の結末: the earned close (append-only id — persisted by name, so END is safe).
+    AWAKENED_DAWN("還る朝", "子らを一人も傷つけず、網を解いて朝を返した"),
 }
 
 object Achievements {
