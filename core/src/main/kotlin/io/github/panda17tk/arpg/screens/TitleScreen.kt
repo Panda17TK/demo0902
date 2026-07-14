@@ -33,7 +33,7 @@ import io.github.panda17tk.arpg.ui.UiButton
 
 /**
  * v2.58 タイトル画面: the front door the game deserved — the drifting star field, the name,
- * the premise in one quiet line, and three ways in (continue / new run / the old combat sim).
+ * and three ways in (continue / new run / the old combat sim). v2.191: the tagline is gone.
  * Same glass aesthetic as the in-game overlays; no assets, all procedural.
  */
 class TitleScreen(private val app: App) : ScreenAdapter() {
@@ -242,9 +242,7 @@ class TitleScreen(private val app: App) : ScreenAdapter() {
         title.draw(batch, glyph, (w - glyph.width) / 2f, h * 0.74f)
         title.data.setScale(tx, ty)
         val font = Fonts.ui
-        font.color = cSub
-        // v2.84: one quiet line, auto-fitted — the tagline used to run off both screen edges.
-        drawFitted(font, "慣性で漂う宇宙と、あなたを覚えている星々。", w / 2f, h * 0.62f, w - 48f)
+        // v2.191: the tagline under the logo is gone — the title stands on its own now.
         font.color = Color.WHITE
         (buttons + rec + set + wsh + dif + tun + dly).forEach { b ->
             glyph.setText(font, io.github.panda17tk.arpg.i18n.Lang.tr(b.label))
