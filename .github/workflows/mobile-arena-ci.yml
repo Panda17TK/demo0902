@@ -1,0 +1,40 @@
+name: mobile-arena-ci
+
+# mobile-arena/ は demo0902 のサブディレクトリにある静的PWA。
+# GitHub Actions は repo root の .github/workflows/ のみ実行するため、
+# mobile-arena 内の ci.yml（standalone 取り出し先用）はここでは動かない。
+# このワークフローで mobile-arena のユニットテストと構文チェックを CI で回す。
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "mobile-arena/**"
+      - ".github/workflows/mobile-arena-ci.yml"
+  pull_request:
+    branches: ["**"]
+    paths:
+      - "mobile-arena/**"
+      - ".github/workflows/mobile-arena-ci.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile-arena
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run unit tests
+        # クォートなし＝シェル展開（Node の内蔵 glob は 21+ 依存になるため避ける）。
+        run: node --test test/*.test.mjs
+      - name: Syntax check all modules
+        run: |
+          fail=0
+          for f in $(find js -name '*.js'); do
+            node --check "$f" || fail=1
+          done
+          exit $fail
